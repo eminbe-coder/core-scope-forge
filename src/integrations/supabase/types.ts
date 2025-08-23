@@ -28,6 +28,7 @@ export type Database = {
           due_date: string | null
           id: string
           project_id: string | null
+          site_id: string | null
           tenant_id: string
           title: string
           type: Database["public"]["Enums"]["activity_type"]
@@ -46,6 +47,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           project_id?: string | null
+          site_id?: string | null
           tenant_id: string
           title: string
           type: Database["public"]["Enums"]["activity_type"]
@@ -64,6 +66,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           project_id?: string | null
+          site_id?: string | null
           tenant_id?: string
           title?: string
           type?: Database["public"]["Enums"]["activity_type"]
@@ -110,6 +113,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activities_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
             referencedColumns: ["id"]
           },
           {
@@ -295,6 +305,7 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string
+          currency_id: string | null
           email: string | null
           id: string
           name: string
@@ -313,6 +324,7 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          currency_id?: string | null
           email?: string | null
           id?: string
           name: string
@@ -331,6 +343,7 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          currency_id?: string | null
           email?: string | null
           id?: string
           name?: string
@@ -344,6 +357,13 @@ export type Database = {
           website?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "customers_currency_id_fkey"
+            columns: ["currency_id"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "customers_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -443,6 +463,66 @@ export type Database = {
           },
         ]
       }
+      devices: {
+        Row: {
+          active: boolean
+          brand: string | null
+          category: string
+          created_at: string
+          currency_id: string | null
+          id: string
+          model: string | null
+          name: string
+          specifications: Json | null
+          tenant_id: string
+          unit_price: number | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          brand?: string | null
+          category: string
+          created_at?: string
+          currency_id?: string | null
+          id?: string
+          model?: string | null
+          name: string
+          specifications?: Json | null
+          tenant_id: string
+          unit_price?: number | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          brand?: string | null
+          category?: string
+          created_at?: string
+          currency_id?: string | null
+          id?: string
+          model?: string | null
+          name?: string
+          specifications?: Json | null
+          tenant_id?: string
+          unit_price?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "devices_currency_id_fkey"
+            columns: ["currency_id"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "devices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       permissions: {
         Row: {
           created_at: string
@@ -496,6 +576,64 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      project_devices: {
+        Row: {
+          created_at: string
+          device_id: string
+          floor_id: string | null
+          id: string
+          notes: string | null
+          project_id: string
+          quantity: number
+          unit_price: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          device_id: string
+          floor_id?: string | null
+          id?: string
+          notes?: string | null
+          project_id: string
+          quantity?: number
+          unit_price?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          device_id?: string
+          floor_id?: string | null
+          id?: string
+          notes?: string | null
+          project_id?: string
+          quantity?: number
+          unit_price?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_devices_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_devices_floor_id_fkey"
+            columns: ["floor_id"]
+            isOneToOne: false
+            referencedRelation: "project_floors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_devices_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       project_floors: {
         Row: {
@@ -769,6 +907,7 @@ export type Database = {
         Row: {
           active: boolean
           created_at: string
+          default_currency_id: string | null
           domain: string | null
           id: string
           name: string
@@ -779,6 +918,7 @@ export type Database = {
         Insert: {
           active?: boolean
           created_at?: string
+          default_currency_id?: string | null
           domain?: string | null
           id?: string
           name: string
@@ -789,6 +929,7 @@ export type Database = {
         Update: {
           active?: boolean
           created_at?: string
+          default_currency_id?: string | null
           domain?: string | null
           id?: string
           name?: string
@@ -796,7 +937,15 @@ export type Database = {
           slug?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tenants_default_currency_id_fkey"
+            columns: ["default_currency_id"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_action_logs: {
         Row: {
@@ -923,7 +1072,16 @@ export type Database = {
       }
     }
     Enums: {
-      activity_type: "call" | "email" | "meeting" | "task" | "note"
+      activity_type:
+        | "call"
+        | "email"
+        | "meeting"
+        | "task"
+        | "note"
+        | "deal_updated"
+        | "customer_updated"
+        | "project_updated"
+        | "task_completed"
       app_role: "owner" | "admin" | "member"
       customer_type: "individual" | "company"
       deal_status:
@@ -939,7 +1097,13 @@ export type Database = {
         | "on_hold"
         | "completed"
         | "cancelled"
-      project_type: "BOQ" | "lighting_calculation" | "general"
+      project_type:
+        | "BOQ"
+        | "lighting_calculation"
+        | "general"
+        | "lighting_control"
+        | "elv"
+        | "home_automation"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1067,7 +1231,17 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      activity_type: ["call", "email", "meeting", "task", "note"],
+      activity_type: [
+        "call",
+        "email",
+        "meeting",
+        "task",
+        "note",
+        "deal_updated",
+        "customer_updated",
+        "project_updated",
+        "task_completed",
+      ],
       app_role: ["owner", "admin", "member"],
       customer_type: ["individual", "company"],
       deal_status: [
@@ -1085,7 +1259,14 @@ export const Constants = {
         "completed",
         "cancelled",
       ],
-      project_type: ["BOQ", "lighting_calculation", "general"],
+      project_type: [
+        "BOQ",
+        "lighting_calculation",
+        "general",
+        "lighting_control",
+        "elv",
+        "home_automation",
+      ],
     },
   },
 } as const
