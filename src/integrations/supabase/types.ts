@@ -1058,6 +1058,14 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_effective_currency: {
+        Args: {
+          entity_id: string
+          entity_type: string
+          input_tenant_id: string
+        }
+        Returns: string
+      }
       has_role_in_tenant: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
