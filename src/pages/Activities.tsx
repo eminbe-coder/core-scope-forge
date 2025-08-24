@@ -10,7 +10,7 @@ import { Plus, Search, Activity, Phone, Mail, Calendar, CheckSquare, FileText } 
 
 interface ActivityItem {
   id: string;
-  type: 'call' | 'email' | 'meeting' | 'task' | 'note';
+  type: 'note' | 'email' | 'call' | 'meeting' | 'task' | 'deal_updated' | 'customer_updated' | 'project_updated' | 'task_completed';
   title: string;
   description: string;
   completed: boolean;
@@ -33,6 +33,10 @@ const activityIcons = {
   meeting: Calendar,
   task: CheckSquare,
   note: FileText,
+  deal_updated: FileText,
+  customer_updated: FileText,
+  project_updated: FileText,
+  task_completed: CheckSquare,
 };
 
 const activityColors = {
@@ -41,6 +45,10 @@ const activityColors = {
   meeting: 'bg-purple-500',
   task: 'bg-orange-500',
   note: 'bg-gray-500',
+  deal_updated: 'bg-cyan-500',
+  customer_updated: 'bg-teal-500',
+  project_updated: 'bg-indigo-500',
+  task_completed: 'bg-emerald-500',
 };
 
 const Activities = () => {

@@ -1,4 +1,4 @@
-import { Building2, Home, Users, MapPin, Handshake, FolderKanban, Activity, Settings, LogOut } from 'lucide-react';
+import { Building2, Home, Users, MapPin, Handshake, FolderKanban, Activity, Settings, LogOut, Cpu, Shield, UserCheck } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Sidebar,
@@ -31,8 +31,7 @@ const navigation = [
     icon: Building2,
     items: [
       { title: 'Customers', href: '/customers', icon: Users },
-      { title: 'Sites', href: '/sites', icon: MapPin },
-      { title: 'Contacts', href: '/contacts', icon: Users },
+      { title: 'Contacts', href: '/contacts', icon: UserCheck },
       { title: 'Deals', href: '/deals', icon: Handshake },
       { title: 'Activities', href: '/activities', icon: Activity },
     ],
@@ -40,7 +39,18 @@ const navigation = [
   {
     title: 'Projects',
     icon: FolderKanban,
-    href: '/projects',
+    items: [
+      { title: 'Projects', href: '/projects', icon: FolderKanban },
+      { title: 'Sites', href: '/sites', icon: MapPin },
+      { title: 'Devices', href: '/devices', icon: Cpu },
+    ],
+  },
+  {
+    title: 'Administration',
+    icon: Shield,
+    items: [
+      { title: 'User Management', href: '/admin', icon: Shield },
+    ],
   },
 ];
 

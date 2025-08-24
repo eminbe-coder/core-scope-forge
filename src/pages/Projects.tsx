@@ -7,13 +7,14 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { Plus, Search, FolderKanban, Calendar, DollarSign } from 'lucide-react';
+import { CreateProjectForm } from '@/components/forms/CreateProjectForm';
 
 interface Project {
   id: string;
   name: string;
   description: string;
-  type: 'BOQ' | 'lighting_calculation' | 'general';
-  status: 'planning' | 'active' | 'on_hold' | 'completed' | 'cancelled';
+  type: 'BOQ' | 'lighting_calculation' | 'general' | 'lighting_control' | 'elv' | 'home_automation';
+  status: 'planning' | 'in_progress' | 'on_hold' | 'completed' | 'cancelled' | 'active';
   start_date: string;
   end_date: string;
   budget: number;
@@ -28,6 +29,7 @@ interface Project {
 
 const statusColors = {
   planning: 'bg-blue-500',
+  in_progress: 'bg-green-500',
   active: 'bg-green-500',
   on_hold: 'bg-yellow-500',
   completed: 'bg-gray-500',
@@ -38,6 +40,9 @@ const typeColors = {
   BOQ: 'bg-purple-500',
   lighting_calculation: 'bg-orange-500',
   general: 'bg-blue-500',
+  lighting_control: 'bg-indigo-500',
+  elv: 'bg-emerald-500',
+  home_automation: 'bg-pink-500',
 };
 
 const Projects = () => {
@@ -45,6 +50,7 @@ const Projects = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   const fetchProjects = async () => {
     if (!currentTenant) return;
@@ -97,7 +103,7 @@ const Projects = () => {
               Manage your projects and deliverables
             </p>
           </div>
-          <Button>
+          <Button onClick={() => setIsCreateDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Add Project
           </Button>
@@ -194,6 +200,12 @@ const Projects = () => {
             ))}
           </div>
         )}
+        
+        <CreateProjectForm
+          isOpen={isCreateDialogOpen}
+          onClose={() => setIsCreateDialogOpen(false)}
+          onSuccess={fetchProjects}
+        />
       </div>
     </DashboardLayout>
   );
