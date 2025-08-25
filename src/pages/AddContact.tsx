@@ -17,10 +17,11 @@ import { useToast } from '@/hooks/use-toast';
 import { validateContactEmail, normalizeEmail } from '@/lib/contact-validation';
 import { ArrowLeft, Upload, Download, User, Mail, FileText, Users, Phone, MapPin, Building2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const contactSchema = z.object({
   first_name: z.string().min(1, 'First name is required'),
-  last_name: z.string().min(1, 'Last name is required'),
+  last_name: z.string().optional(),
   email: z.string().optional().refine((email) => {
     if (!email || email.trim() === '') return true; // Empty email is allowed
     // Basic format validation - detailed validation happens in the form submit
@@ -31,6 +32,8 @@ const contactSchema = z.object({
   address: z.string().optional(),
   notes: z.string().optional(),
   customer_id: z.string().optional(),
+  site_ids: z.array(z.string()).optional(),
+  is_lead: z.boolean().optional(),
 });
 
 type ContactFormData = z.infer<typeof contactSchema>;
@@ -40,11 +43,17 @@ interface Customer {
   name: string;
 }
 
+interface Site {
+  id: string;
+  name: string;
+}
+
 const AddContact = () => {
   const navigate = useNavigate();
   const { currentTenant } = useTenant();
   const { toast } = useToast();
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(false);
 
   const form = useForm<ContactFormData>({
@@ -58,11 +67,14 @@ const AddContact = () => {
       address: '',
       notes: '',
       customer_id: '',
+      site_ids: [],
+      is_lead: false,
     },
   });
 
   useEffect(() => {
     fetchCustomers();
+    fetchSites();
   }, [currentTenant]);
 
   const fetchCustomers = async () => {
@@ -79,6 +91,23 @@ const AddContact = () => {
       setCustomers(data || []);
     } catch (error) {
       console.error('Error fetching customers:', error);
+    }
+  };
+
+  const fetchSites = async () => {
+    if (!currentTenant) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('sites')
+        .select('id, name')
+        .eq('active', true)
+        .order('name');
+
+      if (error) throw error;
+      setSites(data || []);
+    } catch (error) {
+      console.error('Error fetching sites:', error);
     }
   };
 
@@ -104,7 +133,7 @@ const AddContact = () => {
       // Prepare contact data for insertion
       const contactData = {
         first_name: data.first_name.trim(),
-        last_name: data.last_name.trim(),
+        last_name: data.last_name?.trim() || null,
         email: data.email ? normalizeEmail(data.email) : null,
         phone: data.phone?.trim() || null,
         position: data.position?.trim() || null,
@@ -112,11 +141,14 @@ const AddContact = () => {
         notes: data.notes?.trim() || null,
         tenant_id: currentTenant.id,
         customer_id: data.customer_id || null,
+        is_lead: data.is_lead || false,
       };
 
-      const { error } = await supabase
+      const { data: insertedContact, error } = await supabase
         .from('contacts')
-        .insert([contactData]);
+        .insert([contactData])
+        .select('id')
+        .single();
 
       if (error) {
         // Handle specific database errors
@@ -126,6 +158,23 @@ const AddContact = () => {
           return;
         }
         throw error;
+      }
+
+      // Link selected sites to the contact
+      if (data.site_ids && data.site_ids.length > 0) {
+        const contactSiteLinks = data.site_ids.map(siteId => ({
+          contact_id: insertedContact.id,
+          site_id: siteId,
+        }));
+
+        const { error: linkError } = await supabase
+          .from('contact_sites')
+          .insert(contactSiteLinks);
+
+        if (linkError) {
+          console.error('Error linking sites:', linkError);
+          // We don't throw here as the contact was created successfully
+        }
       }
 
       toast({
@@ -156,10 +205,10 @@ const AddContact = () => {
 
   const downloadSampleExcel = () => {
     // Create sample Excel data - email is now optional
-    const headers = ['First Name*', 'Last Name*', 'Email', 'Phone', 'Job Title', 'Company', 'Address', 'Notes'];
+    const headers = ['First Name*', 'Last Name', 'Email', 'Phone', 'Job Title', 'Company', 'Address', 'Notes', 'Is Lead'];
     const sampleData = [
-      ['John', 'Doe', 'john.doe@example.com', '+1234567890', 'Software Engineer', 'Tech Corp', '123 Main St, City, State', 'Sample notes'],
-      ['Jane', 'Smith', '', '+0987654321', 'Project Manager', 'Business Inc', '456 Oak Ave, City, State', 'Contact without email'],
+      ['John', 'Doe', 'john.doe@example.com', '+1234567890', 'Software Engineer', 'Tech Corp', '123 Main St, City, State', 'Sample notes', 'true'],
+      ['Jane', 'Smith', '', '+0987654321', 'Project Manager', 'Business Inc', '456 Oak Ave, City, State', 'Contact without email', 'false'],
     ];
 
     // Create CSV content
@@ -306,7 +355,7 @@ const AddContact = () => {
                       name="last_name"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Last Name *</FormLabel>
+                          <FormLabel>Last Name</FormLabel>
                           <FormControl>
                             <Input placeholder="Enter last name" {...field} />
                           </FormControl>
@@ -400,12 +449,105 @@ const AddContact = () => {
                       )}
                     />
                   </div>
+                 </div>
+
+                {/* Site Selection */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    Site Assignment
+                  </h3>
+                  <FormField
+                    control={form.control}
+                    name="site_ids"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Sites</FormLabel>
+                        <FormControl>
+                          <Select
+                            onValueChange={(value) => {
+                              const currentValues = field.value || [];
+                              if (!currentValues.includes(value)) {
+                                field.onChange([...currentValues, value]);
+                              }
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select sites to assign" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {sites.map((site) => (
+                                <SelectItem key={site.id} value={site.id}>
+                                  {site.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormControl>
+                        {field.value && field.value.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {field.value.map((siteId) => {
+                              const site = sites.find(s => s.id === siteId);
+                              return site ? (
+                                <div
+                                  key={siteId}
+                                  className="bg-secondary text-secondary-foreground px-2 py-1 rounded-md text-sm flex items-center gap-1"
+                                >
+                                  {site.name}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      field.onChange(field.value?.filter(id => id !== siteId) || []);
+                                    }}
+                                    className="ml-1 text-xs hover:text-destructive"
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              ) : null;
+                            })}
+                          </div>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Lead Status */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Contact Status
+                  </h3>
+                  <FormField
+                    control={form.control}
+                    name="is_lead"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>
+                            Mark as Lead
+                          </FormLabel>
+                          <p className="text-sm text-muted-foreground">
+                            Check this box if this contact is a potential lead
+                          </p>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
                 </div>
 
                 {/* Address and Notes */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
+                    <FileText className="h-4 w-4" />
                     Additional Information
                   </h3>
                   <FormField

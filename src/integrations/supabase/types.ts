@@ -405,6 +405,7 @@ export type Database = {
           email: string | null
           first_name: string
           id: string
+          is_lead: boolean
           last_name: string
           notes: string | null
           phone: string | null
@@ -419,6 +420,7 @@ export type Database = {
           email?: string | null
           first_name: string
           id?: string
+          is_lead?: boolean
           last_name: string
           notes?: string | null
           phone?: string | null
@@ -433,6 +435,7 @@ export type Database = {
           email?: string | null
           first_name?: string
           id?: string
+          is_lead?: boolean
           last_name?: string
           notes?: string | null
           phone?: string | null
