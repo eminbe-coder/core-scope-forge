@@ -69,6 +69,12 @@ const navigationModules: NavigationModule[] = [
         permission: 'deals.read',
       },
       {
+        title: 'Sites',
+        url: '/sites',
+        icon: MapPin,
+        permission: 'sites.read',
+      },
+      {
         title: 'Activities',
         url: '/activities',
         icon: Zap,
@@ -84,12 +90,6 @@ const navigationModules: NavigationModule[] = [
         url: '/projects',
         icon: FolderOpen,
         permission: 'projects.read',
-      },
-      {
-        title: 'Sites',
-        url: '/sites',
-        icon: MapPin,
-        permission: 'sites.read',
       },
       {
         title: 'Devices',
