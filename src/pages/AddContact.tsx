@@ -14,13 +14,18 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
+import { validateContactEmail, normalizeEmail } from '@/lib/contact-validation';
 import { ArrowLeft, Upload, Download, User, Mail, FileText, Users, Phone, MapPin, Building2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
 const contactSchema = z.object({
   first_name: z.string().min(1, 'First name is required'),
   last_name: z.string().min(1, 'Last name is required'),
-  email: z.string().email('Valid email is required'),
+  email: z.string().optional().refine((email) => {
+    if (!email || email.trim() === '') return true; // Empty email is allowed
+    // Basic format validation - detailed validation happens in the form submit
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }, 'Please enter a valid email address'),
   phone: z.string().optional(),
   position: z.string().optional(),
   address: z.string().optional(),
@@ -77,40 +82,34 @@ const AddContact = () => {
     }
   };
 
-  const validateEmailUnique = async (email: string): Promise<boolean> => {
-    if (!currentTenant || !email) return true;
-
-    try {
-      const { data, error } = await supabase
-        .from('contacts')
-        .select('id')
-        .eq('email', email)
-        .eq('tenant_id', currentTenant.id)
-        .eq('active', true);
-
-      if (error) throw error;
-      return !data || data.length === 0;
-    } catch (error) {
-      console.error('Error validating email:', error);
-      return false;
-    }
-  };
-
   const onSubmit = async (data: ContactFormData) => {
     if (!currentTenant) return;
 
     setLoading(true);
     try {
-      // Validate email uniqueness
-      const isEmailUnique = await validateEmailUnique(data.email);
-      if (!isEmailUnique) {
-        form.setError('email', { message: 'This email is already used by another contact' });
-        setLoading(false);
-        return;
+      // Validate email if provided
+      if (data.email && data.email.trim()) {
+        const emailValidation = await validateContactEmail({
+          email: data.email,
+          tenantId: currentTenant.id,
+        });
+
+        if (!emailValidation.isValid) {
+          form.setError('email', { message: emailValidation.error || 'Email validation failed' });
+          setLoading(false);
+          return;
+        }
       }
 
+      // Prepare contact data for insertion
       const contactData = {
-        ...data,
+        first_name: data.first_name.trim(),
+        last_name: data.last_name.trim(),
+        email: data.email ? normalizeEmail(data.email) : null,
+        phone: data.phone?.trim() || null,
+        position: data.position?.trim() || null,
+        address: data.address?.trim() || null,
+        notes: data.notes?.trim() || null,
         tenant_id: currentTenant.id,
         customer_id: data.customer_id || null,
       };
@@ -119,7 +118,15 @@ const AddContact = () => {
         .from('contacts')
         .insert([contactData]);
 
-      if (error) throw error;
+      if (error) {
+        // Handle specific database errors
+        if (error.code === '23505' && error.message.includes('contacts_email_tenant_unique')) {
+          form.setError('email', { message: 'This email already exists in your contacts' });
+          setLoading(false);
+          return;
+        }
+        throw error;
+      }
 
       toast({
         title: 'Contact added successfully',
@@ -148,11 +155,11 @@ const AddContact = () => {
   };
 
   const downloadSampleExcel = () => {
-    // Create sample Excel data
-    const headers = ['First Name*', 'Last Name*', 'Email*', 'Phone', 'Job Title', 'Company', 'Address', 'Notes'];
+    // Create sample Excel data - email is now optional
+    const headers = ['First Name*', 'Last Name*', 'Email', 'Phone', 'Job Title', 'Company', 'Address', 'Notes'];
     const sampleData = [
       ['John', 'Doe', 'john.doe@example.com', '+1234567890', 'Software Engineer', 'Tech Corp', '123 Main St, City, State', 'Sample notes'],
-      ['Jane', 'Smith', 'jane.smith@example.com', '+0987654321', 'Project Manager', 'Business Inc', '456 Oak Ave, City, State', ''],
+      ['Jane', 'Smith', '', '+0987654321', 'Project Manager', 'Business Inc', '456 Oak Ave, City, State', 'Contact without email'],
     ];
 
     // Create CSV content
@@ -322,9 +329,9 @@ const AddContact = () => {
                       name="email"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Email *</FormLabel>
+                          <FormLabel>Email</FormLabel>
                           <FormControl>
-                            <Input type="email" placeholder="Enter email address" {...field} />
+                            <Input type="email" placeholder="Enter email address (optional)" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
