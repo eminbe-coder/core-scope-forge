@@ -381,7 +381,6 @@ const AddContact = () => {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="">No company</SelectItem>
                               {customers.map((customer) => (
                                 <SelectItem key={customer.id} value={customer.id}>
                                   {customer.name}
