@@ -83,7 +83,7 @@ const Contacts = () => {
               Manage your business contacts
             </p>
           </div>
-          <Button>
+          <Button onClick={() => window.location.href = '/contacts/add'}>
             <Plus className="mr-2 h-4 w-4" />
             Add Contact
           </Button>
@@ -109,7 +109,7 @@ const Contacts = () => {
               <p className="text-muted-foreground text-center max-w-sm">
                 Add contacts to keep track of important business relationships.
               </p>
-              <Button className="mt-4">
+              <Button className="mt-4" onClick={() => window.location.href = '/contacts/add'}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Contact
               </Button>
