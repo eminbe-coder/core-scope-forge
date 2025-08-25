@@ -9,16 +9,23 @@ import { Plus, Search, MapPin } from 'lucide-react';
 
 interface Site {
   id: string;
+  tenant_id: string;
   name: string;
   address: string;
-  city: string;
-  state: string;
-  country: string;
-  customer_id: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  postal_code?: string;
+  customer_id?: string;
+  latitude?: number;
+  longitude?: number;
+  notes?: string;
+  active: boolean;
   customers: {
     name: string;
   } | null;
   created_at: string;
+  updated_at: string;
 }
 
 const Sites = () => {

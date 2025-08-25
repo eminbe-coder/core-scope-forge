@@ -9,15 +9,20 @@ import { Plus, Search, User, Mail, Phone } from 'lucide-react';
 
 interface Contact {
   id: string;
+  tenant_id: string;
+  customer_id?: string;
   first_name: string;
   last_name: string;
-  email: string;
-  phone: string;
-  position: string;
+  email?: string;
+  phone?: string;
+  position?: string;
+  notes?: string;
+  active: boolean;
   customers: {
     name: string;
   } | null;
   created_at: string;
+  updated_at: string;
 }
 
 const Contacts = () => {

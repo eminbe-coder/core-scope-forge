@@ -10,12 +10,18 @@ import { Plus, Search, Handshake, DollarSign } from 'lucide-react';
 
 interface Deal {
   id: string;
+  tenant_id: string;
+  customer_id?: string;
+  site_id?: string;
   name: string;
-  description: string;
-  value: number;
+  description?: string;
+  value?: number;
+  currency_id?: string;
   status: 'lead' | 'qualified' | 'proposal' | 'negotiation' | 'won' | 'lost';
-  probability: number;
-  expected_close_date: string;
+  probability?: number;
+  expected_close_date?: string;
+  assigned_to?: string;
+  notes?: string;
   customers: {
     name: string;
   } | null;
@@ -26,6 +32,7 @@ interface Deal {
     symbol: string;
   } | null;
   created_at: string;
+  updated_at: string;
 }
 
 const statusColors = {

@@ -10,13 +10,22 @@ import { Plus, Search, Building2, User } from 'lucide-react';
 
 interface Customer {
   id: string;
+  tenant_id: string;
   type: 'individual' | 'company';
   name: string;
-  email: string;
-  phone: string;
-  city: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  postal_code?: string;
+  website?: string;
+  notes?: string;
+  currency_id?: string;
   active: boolean;
   created_at: string;
+  updated_at: string;
 }
 
 const Customers = () => {

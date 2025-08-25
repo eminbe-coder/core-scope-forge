@@ -10,11 +10,20 @@ import { Plus, Search, Activity, Phone, Mail, Calendar, CheckSquare, FileText } 
 
 interface ActivityItem {
   id: string;
+  tenant_id: string;
   type: 'note' | 'email' | 'call' | 'meeting' | 'task' | 'deal_updated' | 'customer_updated' | 'project_updated' | 'task_completed';
   title: string;
-  description: string;
+  description?: string;
+  customer_id?: string;
+  deal_id?: string;
+  project_id?: string;
+  contact_id?: string;
+  site_id?: string;
+  assigned_to?: string;
+  due_date?: string;
   completed: boolean;
-  due_date: string;
+  completed_at?: string;
+  created_by: string;
   customers: {
     name: string;
   } | null;
@@ -25,6 +34,7 @@ interface ActivityItem {
     name: string;
   } | null;
   created_at: string;
+  updated_at: string;
 }
 
 const activityIcons = {
