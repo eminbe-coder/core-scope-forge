@@ -9,6 +9,7 @@ import { PermissionsProvider } from "@/hooks/use-permissions";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import Companies from "./pages/Companies";
 import Customers from "./pages/Customers";
 import Sites from "./pages/Sites";
 import Contacts from "./pages/Contacts";
@@ -34,6 +35,11 @@ const App = () => (
               <Routes>
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/" element={<Index />} />
+                <Route path="/companies" element={
+                  <ProtectedRoute>
+                    <Companies />
+                  </ProtectedRoute>
+                } />
                 <Route path="/customers" element={
                   <ProtectedRoute>
                     <Customers />

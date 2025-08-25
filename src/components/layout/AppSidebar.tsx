@@ -51,6 +51,12 @@ const navigationModules: NavigationModule[] = [
     title: 'CRM Module',
     items: [
       {
+        title: 'Companies',
+        url: '/companies',
+        icon: Building2,
+        permission: 'companies.read',
+      },
+      {
         title: 'Customers',
         url: '/customers',
         icon: Building2,

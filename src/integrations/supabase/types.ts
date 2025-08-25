@@ -175,6 +175,192 @@ export type Database = {
           },
         ]
       }
+      companies: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string | null
+          email: string | null
+          headquarters: string | null
+          id: string
+          industry: string | null
+          logo_url: string | null
+          name: string
+          notes: string | null
+          phone: string | null
+          size: string | null
+          tenant_id: string
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          email?: string | null
+          headquarters?: string | null
+          id?: string
+          industry?: string | null
+          logo_url?: string | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          size?: string | null
+          tenant_id: string
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          email?: string | null
+          headquarters?: string | null
+          id?: string
+          industry?: string | null
+          logo_url?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          size?: string | null
+          tenant_id?: string
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      company_contacts: {
+        Row: {
+          company_id: string
+          contact_id: string
+          created_at: string
+          department: string | null
+          id: string
+          is_primary: boolean | null
+          notes: string | null
+          position: string | null
+        }
+        Insert: {
+          company_id: string
+          contact_id: string
+          created_at?: string
+          department?: string | null
+          id?: string
+          is_primary?: boolean | null
+          notes?: string | null
+          position?: string | null
+        }
+        Update: {
+          company_id?: string
+          contact_id?: string
+          created_at?: string
+          department?: string | null
+          id?: string
+          is_primary?: boolean | null
+          notes?: string | null
+          position?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_contacts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_customers: {
+        Row: {
+          company_id: string
+          created_at: string
+          customer_id: string
+          id: string
+          notes: string | null
+          relationship_type: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          customer_id: string
+          id?: string
+          notes?: string | null
+          relationship_type?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          customer_id?: string
+          id?: string
+          notes?: string | null
+          relationship_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_customers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_customers_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_deals: {
+        Row: {
+          company_id: string
+          created_at: string
+          deal_id: string
+          id: string
+          notes: string | null
+          relationship_type: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          deal_id: string
+          id?: string
+          notes?: string | null
+          relationship_type?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          deal_id?: string
+          id?: string
+          notes?: string | null
+          relationship_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_deals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_deals_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_sites: {
         Row: {
           contact_id: string
