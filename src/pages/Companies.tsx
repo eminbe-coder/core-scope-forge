@@ -110,7 +110,7 @@ export default function Companies() {
             Manage your company relationships and partnerships
           </p>
         </div>
-        <Button>
+        <Button onClick={() => window.location.href = '/companies/add'}>
           <Plus className="h-4 w-4 mr-2" />
           Add Company
         </Button>
@@ -128,7 +128,7 @@ export default function Companies() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button>
+            <Button onClick={() => window.location.href = '/companies/add'}>
               <Plus className="h-4 w-4 mr-2" />
               Add Your First Company
             </Button>
