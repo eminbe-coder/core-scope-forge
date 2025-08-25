@@ -1054,6 +1054,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_all_tenants_for_super_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          active: boolean
+          created_at: string
+          default_currency_id: string
+          domain: string
+          id: string
+          name: string
+          settings: Json
+          slug: string
+          updated_at: string
+        }[]
+      }
       get_current_tenant_id: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -1072,6 +1086,10 @@ export type Database = {
           _tenant_id: string
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_super_admin: {
+        Args: { _user_id: string }
         Returns: boolean
       }
       user_has_tenant_access: {

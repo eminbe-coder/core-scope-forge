@@ -25,6 +25,8 @@ interface TenantContextType {
   userTenants: UserTenantMembership[];
   userRole: string | null;
   loading: boolean;
+  isAdmin: boolean;
+  isSuperAdmin: boolean;
   setCurrentTenant: (tenant: Tenant) => void;
   refreshTenants: () => void;
 }
@@ -34,6 +36,8 @@ const TenantContext = createContext<TenantContextType>({
   userTenants: [],
   userRole: null,
   loading: true,
+  isAdmin: false,
+  isSuperAdmin: false,
   setCurrentTenant: () => {},
   refreshTenants: () => {},
 });
@@ -53,6 +57,10 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Check if user is admin or super admin
+  const isAdmin = userRole === 'admin' || userRole === 'super_admin';
+  const isSuperAdmin = userRole === 'super_admin';
+
   const setCurrentTenant = async (tenant: Tenant) => {
     setCurrentTenantState(tenant);
     localStorage.setItem('currentTenantId', tenant.id);
@@ -66,6 +74,38 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
     if (!user) return;
 
     try {
+      // Super admins can see all tenants
+      if (user?.email === 'moaath@essensia.bh') {
+        const { data: allTenants, error: allTenantsError } = await supabase
+          .rpc('get_all_tenants_for_super_admin');
+        
+        if (allTenantsError) throw allTenantsError;
+        
+        const mappedTenants = allTenants?.map(tenant => ({
+          id: tenant.id,
+          user_id: user.id,
+          tenant_id: tenant.id,
+          role: 'super_admin' as const,
+          active: true,
+          tenant: {
+            id: tenant.id,
+            name: tenant.name,
+            slug: tenant.slug,
+            domain: tenant.domain,
+            active: tenant.active,
+            settings: tenant.settings
+          }
+        })) || [];
+        
+        setUserTenants(mappedTenants);
+        setUserRole('super_admin');
+        if (mappedTenants.length > 0 && !currentTenant) {
+          await setCurrentTenant(mappedTenants[0].tenant);
+        }
+        return;
+      }
+      
+      // Regular users - fetch their tenant memberships
       const { data, error } = await supabase
         .from('user_tenant_memberships')
         .select(`
@@ -114,6 +154,8 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
       userTenants,
       userRole,
       loading,
+      isAdmin,
+      isSuperAdmin,
       setCurrentTenant,
       refreshTenants
     }}>
