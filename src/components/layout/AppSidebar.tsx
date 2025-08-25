@@ -59,7 +59,7 @@ const navigationModules: NavigationModule[] = [
       {
         title: 'Customers',
         url: '/customers',
-        icon: Building2,
+        icon: Users,
         permission: 'customers.read',
       },
       {
