@@ -1090,7 +1090,7 @@ export type Database = {
         | "customer_updated"
         | "project_updated"
         | "task_completed"
-      app_role: "owner" | "admin" | "member"
+      app_role: "owner" | "admin" | "member" | "super_admin"
       customer_type: "individual" | "company"
       deal_status:
         | "lead"
@@ -1250,7 +1250,7 @@ export const Constants = {
         "project_updated",
         "task_completed",
       ],
-      app_role: ["owner", "admin", "member"],
+      app_role: ["owner", "admin", "member", "super_admin"],
       customer_type: ["individual", "company"],
       deal_status: [
         "lead",

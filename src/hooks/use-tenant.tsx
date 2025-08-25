@@ -15,7 +15,7 @@ interface UserTenantMembership {
   id: string;
   user_id: string;
   tenant_id: string;
-  role: 'owner' | 'admin' | 'member';
+  role: 'owner' | 'admin' | 'member' | 'super_admin';
   active: boolean;
   tenant: Tenant;
 }
