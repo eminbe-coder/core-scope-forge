@@ -133,8 +133,8 @@ export function AppSidebar() {
 
   const filterModuleItems = (items: NavigationItem[]) => {
     return items.filter(item => {
-      if (!item.permission) return true;
-      return isAdmin || hasPermission(item.permission);
+      // Show all items for now, can add permission checks later
+      return true;
     });
   };
 
