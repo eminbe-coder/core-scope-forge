@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,16 +20,31 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useAuth } from '@/hooks/use-auth';
 import { useTheme } from '@/hooks/use-theme';
 import { useTenant } from '@/hooks/use-tenant';
-import { LogOut, User, Palette } from 'lucide-react';
+import { LogOut, User, Palette, Home } from 'lucide-react';
 
-export function AppHeader() {
+interface AppHeaderProps {
+  title?: string;
+  showHome?: boolean;
+  customActions?: React.ReactNode;
+}
+
+export function AppHeader({ 
+  title, 
+  showHome = true, 
+  customActions 
+}: AppHeaderProps = {}) {
   const { user, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
   const { currentTenant } = useTenant();
+  const navigate = useNavigate();
 
   const getUserInitials = () => {
     if (!user?.email) return 'U';
     return user.email.charAt(0).toUpperCase();
+  };
+
+  const handleHomeClick = () => {
+    navigate('/');
   };
 
   return (
@@ -36,14 +52,39 @@ export function AppHeader() {
       <div className="flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-4">
           <SidebarTrigger />
-          {currentTenant && (
-            <h1 className="text-lg font-semibold text-foreground">
-              {currentTenant.name}
-            </h1>
+          
+          {/* Home Button */}
+          {showHome && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleHomeClick}
+              className="flex items-center gap-2 text-foreground hover:bg-accent/50"
+            >
+              <Home className="h-4 w-4" />
+              <span className="hidden sm:inline">Home</span>
+            </Button>
           )}
         </div>
 
+        {/* Center Title/Breadcrumb */}
+        <div className="flex-1 flex justify-center">
+          {title ? (
+            <h1 className="text-lg font-semibold text-foreground">{title}</h1>
+          ) : currentTenant ? (
+            <h1 className="text-lg font-semibold text-foreground">
+              {currentTenant.name}
+            </h1>
+          ) : null}
+        </div>
+
         <div className="flex items-center gap-4">
+          {/* Custom Actions */}
+          {customActions && (
+            <div className="flex items-center gap-2">
+              {customActions}
+            </div>
+          )}
           {/* Theme Switcher */}
           <Select value={theme} onValueChange={setTheme}>
             <SelectTrigger className="w-32 bg-glass-bg border-glass-border">
