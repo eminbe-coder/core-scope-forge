@@ -86,7 +86,7 @@ const Sites = () => {
               Manage physical locations and sites
             </p>
           </div>
-          <Button>
+          <Button onClick={() => window.location.href = '/add-site'}>
             <Plus className="mr-2 h-4 w-4" />
             Add Site
           </Button>
@@ -112,7 +112,7 @@ const Sites = () => {
               <p className="text-muted-foreground text-center max-w-sm">
                 Add physical locations and sites to track your projects and deals.
               </p>
-              <Button className="mt-4">
+              <Button className="mt-4" onClick={() => window.location.href = '/add-site'}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Site
               </Button>

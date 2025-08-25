@@ -13,6 +13,7 @@ import Companies from "./pages/Companies";
 import AddCompany from "./pages/AddCompany";
 import Customers from "./pages/Customers";
 import Sites from "./pages/Sites";
+import AddSite from "./pages/AddSite";
 import Contacts from "./pages/Contacts";
 import AddContact from "./pages/AddContact";
 import Deals from "./pages/Deals";
@@ -55,6 +56,11 @@ const App = () => (
                 <Route path="/sites" element={
                   <ProtectedRoute>
                     <Sites />
+                  </ProtectedRoute>
+                } />
+                <Route path="/add-site" element={
+                  <ProtectedRoute>
+                    <AddSite />
                   </ProtectedRoute>
                 } />
                 <Route path="/contacts" element={
