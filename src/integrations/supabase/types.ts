@@ -400,13 +400,14 @@ export type Database = {
       contacts: {
         Row: {
           active: boolean
+          address: string | null
           created_at: string
           customer_id: string | null
           email: string | null
           first_name: string
           id: string
           is_lead: boolean
-          last_name: string
+          last_name: string | null
           notes: string | null
           phone: string | null
           position: string | null
@@ -415,13 +416,14 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          address?: string | null
           created_at?: string
           customer_id?: string | null
           email?: string | null
           first_name: string
           id?: string
           is_lead?: boolean
-          last_name: string
+          last_name?: string | null
           notes?: string | null
           phone?: string | null
           position?: string | null
@@ -430,13 +432,14 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          address?: string | null
           created_at?: string
           customer_id?: string | null
           email?: string | null
           first_name?: string
           id?: string
           is_lead?: boolean
-          last_name?: string
+          last_name?: string | null
           notes?: string | null
           phone?: string | null
           position?: string | null
