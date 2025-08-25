@@ -31,59 +31,84 @@ interface NavigationItem {
   permission?: string;
 }
 
-const navigationItems: NavigationItem[] = [
+interface NavigationModule {
+  title: string;
+  items: NavigationItem[];
+}
+
+const navigationModules: NavigationModule[] = [
   {
     title: 'Dashboard',
-    url: '/',
-    icon: LayoutDashboard,
+    items: [
+      {
+        title: 'Dashboard',
+        url: '/',
+        icon: LayoutDashboard,
+      },
+    ]
   },
   {
-    title: 'Customers',
-    url: '/customers',
-    icon: Building2,
-    permission: 'customers.read',
+    title: 'CRM Module',
+    items: [
+      {
+        title: 'Customers',
+        url: '/customers',
+        icon: Building2,
+        permission: 'customers.read',
+      },
+      {
+        title: 'Contacts',
+        url: '/contacts',
+        icon: Contact,
+        permission: 'contacts.read',
+      },
+      {
+        title: 'Deals',
+        url: '/deals',
+        icon: Handshake,
+        permission: 'deals.read',
+      },
+      {
+        title: 'Activities',
+        url: '/activities',
+        icon: Zap,
+        permission: 'activities.read',
+      },
+    ]
   },
   {
-    title: 'Contacts',
-    url: '/contacts',
-    icon: Contact,
-    permission: 'contacts.read',
+    title: 'Project Creation Module',
+    items: [
+      {
+        title: 'Projects',
+        url: '/projects',
+        icon: FolderOpen,
+        permission: 'projects.read',
+      },
+      {
+        title: 'Sites',
+        url: '/sites',
+        icon: MapPin,
+        permission: 'sites.read',
+      },
+      {
+        title: 'Devices',
+        url: '/devices',
+        icon: Smartphone,
+        permission: 'devices.read',
+      },
+    ]
   },
   {
-    title: 'Deals',
-    url: '/deals',
-    icon: Handshake,
-    permission: 'deals.read',
-  },
-  {
-    title: 'Sites',
-    url: '/sites',
-    icon: MapPin,
-    permission: 'sites.read',
-  },
-  {
-    title: 'Projects',
-    url: '/projects',
-    icon: FolderOpen,
-    permission: 'projects.read',
-  },
-  {
-    title: 'Activities',
-    url: '/activities',
-    icon: Zap,
-    permission: 'activities.read',
-  },
-  {
-    title: 'Devices',
-    url: '/devices',
-    icon: Smartphone,
-    permission: 'devices.read',
-  },
-  {
-    title: 'Admin',
-    url: '/admin',
-    icon: Shield,
-    permission: 'admin.access',
+    title: 'Admin Panel',
+    items: [
+      {
+        title: 'Admin',
+        url: '/admin',
+        icon: Shield,
+        permission: 'admin.access',
+      },
+    ]
   },
 ];
 
@@ -106,34 +131,43 @@ export function AppSidebar() {
       : 'hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground';
   };
 
-  const filteredItems = navigationItems.filter(item => {
-    if (!item.permission) return true;
-    return isAdmin || hasPermission(item.permission);
-  });
+  const filterModuleItems = (items: NavigationItem[]) => {
+    return items.filter(item => {
+      if (!item.permission) return true;
+      return isAdmin || hasPermission(item.permission);
+    });
+  };
 
   return (
     <Sidebar className="border-r border-sidebar-border bg-sidebar">
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {filteredItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink 
-                      to={item.url} 
-                      className={getNavClass(item.url)}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {navigationModules.map((module) => {
+          const filteredItems = filterModuleItems(module.items);
+          if (filteredItems.length === 0) return null;
+          
+          return (
+            <SidebarGroup key={module.title}>
+              <SidebarGroupLabel>{module.title}</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {filteredItems.map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton asChild>
+                        <NavLink 
+                          to={item.url} 
+                          className={getNavClass(item.url)}
+                        >
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.title}</span>
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          );
+        })}
       </SidebarContent>
     </Sidebar>
   );
