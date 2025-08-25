@@ -1,138 +1,140 @@
-import { Building2, Home, Users, MapPin, Handshake, FolderKanban, Activity, Settings, LogOut, Cpu, Shield, UserCheck } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
-  SidebarGroup,
-  SidebarGroupLabel,
-  SidebarGroupContent,
+  useSidebar,
 } from '@/components/ui/sidebar';
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/use-auth';
-import { useTenant } from '@/hooks/use-tenant';
-import { TenantSwitcher } from './TenantSwitcher';
+import { usePermissions } from '@/hooks/use-permissions';
+import { 
+  LayoutDashboard, 
+  Users, 
+  Building2, 
+  Contact, 
+  Handshake, 
+  MapPin, 
+  FolderOpen, 
+  Zap,
+  Smartphone,
+  Shield
+} from 'lucide-react';
 
-const navigation = [
+interface NavigationItem {
+  title: string;
+  url: string;
+  icon: any;
+  permission?: string;
+}
+
+const navigationItems: NavigationItem[] = [
   {
     title: 'Dashboard',
-    icon: Home,
-    href: '/',
+    url: '/',
+    icon: LayoutDashboard,
   },
   {
-    title: 'CRM',
+    title: 'Customers',
+    url: '/customers',
     icon: Building2,
-    items: [
-      { title: 'Customers', href: '/customers', icon: Users },
-      { title: 'Contacts', href: '/contacts', icon: UserCheck },
-      { title: 'Deals', href: '/deals', icon: Handshake },
-      { title: 'Activities', href: '/activities', icon: Activity },
-    ],
+    permission: 'customers.read',
+  },
+  {
+    title: 'Contacts',
+    url: '/contacts',
+    icon: Contact,
+    permission: 'contacts.read',
+  },
+  {
+    title: 'Deals',
+    url: '/deals',
+    icon: Handshake,
+    permission: 'deals.read',
+  },
+  {
+    title: 'Sites',
+    url: '/sites',
+    icon: MapPin,
+    permission: 'sites.read',
   },
   {
     title: 'Projects',
-    icon: FolderKanban,
-    items: [
-      { title: 'Projects', href: '/projects', icon: FolderKanban },
-      { title: 'Sites', href: '/sites', icon: MapPin },
-      { title: 'Devices', href: '/devices', icon: Cpu },
-    ],
+    url: '/projects',
+    icon: FolderOpen,
+    permission: 'projects.read',
   },
   {
-    title: 'Administration',
+    title: 'Activities',
+    url: '/activities',
+    icon: Zap,
+    permission: 'activities.read',
+  },
+  {
+    title: 'Devices',
+    url: '/devices',
+    icon: Smartphone,
+    permission: 'devices.read',
+  },
+  {
+    title: 'Admin',
+    url: '/admin',
     icon: Shield,
-    items: [
-      { title: 'User Management', href: '/admin', icon: Shield },
-    ],
+    permission: 'admin.access',
   },
 ];
 
 export function AppSidebar() {
   const location = useLocation();
-  const { signOut } = useAuth();
-  const { currentTenant } = useTenant();
+  const { hasPermission, isAdmin } = usePermissions();
+  const currentPath = location.pathname;
 
-  if (!currentTenant) {
-    return null;
-  }
+  const isActive = (path: string) => {
+    if (path === '/') {
+      return currentPath === '/';
+    }
+    return currentPath.startsWith(path);
+  };
+
+  const getNavClass = (path: string) => {
+    const active = isActive(path);
+    return active 
+      ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' 
+      : 'hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground';
+  };
+
+  const filteredItems = navigationItems.filter(item => {
+    if (!item.permission) return true;
+    return isAdmin || hasPermission(item.permission);
+  });
 
   return (
-    <Sidebar>
-      <SidebarHeader>
-        <TenantSwitcher />
-      </SidebarHeader>
-      
+    <Sidebar className="border-r border-sidebar-border bg-sidebar">
       <SidebarContent>
         <SidebarGroup>
+          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navigation.map((item) => (
+              {filteredItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  {item.items ? (
-                    <>
-                      <SidebarMenuButton className="font-medium">
-                        <item.icon className="h-4 w-4" />
-                        {item.title}
-                      </SidebarMenuButton>
-                      <SidebarMenuSub>
-                        {item.items.map((subItem) => (
-                          <SidebarMenuSubItem key={subItem.title}>
-                            <SidebarMenuSubButton 
-                              asChild
-                              isActive={location.pathname === subItem.href}
-                            >
-                              <Link to={subItem.href}>
-                                <subItem.icon className="h-4 w-4" />
-                                {subItem.title}
-                              </Link>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                        ))}
-                      </SidebarMenuSub>
-                    </>
-                  ) : (
-                    <SidebarMenuButton 
-                      asChild
-                      isActive={location.pathname === item.href}
+                  <SidebarMenuButton asChild>
+                    <NavLink 
+                      to={item.url} 
+                      className={getNavClass(item.url)}
                     >
-                      <Link to={item.href}>
-                        <item.icon className="h-4 w-4" />
-                        {item.title}
-                      </Link>
-                    </SidebarMenuButton>
-                  )}
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      
-      <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <Link to="/settings">
-                <Settings className="h-4 w-4" />
-                Settings
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton onClick={signOut}>
-              <LogOut className="h-4 w-4" />
-              Sign Out
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
     </Sidebar>
   );
 }
