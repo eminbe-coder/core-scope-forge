@@ -17,6 +17,8 @@ import { toast } from 'sonner';
 import { validateSiteData } from '@/lib/site-validation';
 import { MapPin, Building, User, Upload, Download, FileSpreadsheet, Plus, Camera, X } from 'lucide-react';
 import { parseSiteCSV, importSites, downloadSiteTemplate } from '@/lib/site-import';
+import { QuickAddContactModal } from '@/components/modals/QuickAddContactModal';
+import { QuickAddCompanyModal } from '@/components/modals/QuickAddCompanyModal';
 
 // GCC Countries list
 const GCC_COUNTRIES = [
@@ -73,6 +75,8 @@ const AddSite = () => {
   const [importing, setImporting] = useState(false);
   const [uploadedImages, setUploadedImages] = useState<File[]>([]);
   const [imageUploading, setImageUploading] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [showCompanyModal, setShowCompanyModal] = useState(false);
 
   const form = useForm<SiteFormData>({
     resolver: zodResolver(siteSchema),
@@ -286,6 +290,16 @@ const AddSite = () => {
     setUploadedImages(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleContactCreated = (contact: { id: string; first_name: string; last_name: string; email?: string }) => {
+    setContacts(prev => [...prev, contact]);
+    form.setValue('contact_id', contact.id);
+  };
+
+  const handleCompanyCreated = (company: { id: string; name: string }) => {
+    setCompanies(prev => [...prev, company]);
+    form.setValue('company_id', company.id);
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -383,7 +397,7 @@ const AddSite = () => {
                             type="button"
                             variant="outline"
                             size="sm"
-                            onClick={() => navigate('/contacts/add')}
+                            onClick={() => setShowContactModal(true)}
                             className="flex items-center gap-1 h-6 px-2"
                           >
                             <Plus className="h-3 w-3" />
@@ -422,7 +436,7 @@ const AddSite = () => {
                             type="button"
                             variant="outline"
                             size="sm"
-                            onClick={() => navigate('/companies/add')}
+                            onClick={() => setShowCompanyModal(true)}
                             className="flex items-center gap-1 h-6 px-2"
                           >
                             <Plus className="h-3 w-3" />
@@ -713,6 +727,19 @@ const AddSite = () => {
             </div>
           </form>
         </Form>
+
+        {/* Quick Add Modals */}
+        <QuickAddContactModal
+          open={showContactModal}
+          onClose={() => setShowContactModal(false)}
+          onContactCreated={handleContactCreated}
+        />
+        
+        <QuickAddCompanyModal
+          open={showCompanyModal}
+          onClose={() => setShowCompanyModal(false)}
+          onCompanyCreated={handleCompanyCreated}
+        />
       </div>
     </DashboardLayout>
   );

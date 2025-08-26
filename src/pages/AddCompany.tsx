@@ -30,6 +30,8 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { QuickAddContactModal } from '@/components/modals/QuickAddContactModal';
+import { QuickAddSiteModal } from '@/components/modals/QuickAddSiteModal';
 
 const companySchema = z.object({
   name: z.string().min(2, 'Company name must be at least 2 characters'),
@@ -69,6 +71,8 @@ const AddCompany = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [selectedContacts, setSelectedContacts] = useState<Contact[]>([]);
   const [contactSearchOpen, setContactSearchOpen] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [showSiteModal, setShowSiteModal] = useState(false);
 
   const form = useForm<CompanyFormSchema>({
     resolver: zodResolver(companySchema),
@@ -306,6 +310,22 @@ const AddCompany = () => {
     } else {
       form.setValue('companyType', currentTypes.filter(type => type !== value));
     }
+  };
+
+  const handleContactCreated = (contact: { id: string; first_name: string; last_name: string; email?: string }) => {
+    setContacts(prev => [...prev, contact]);
+    setSelectedContacts(prev => [...prev, contact]);
+    const currentContactIds = form.getValues('contactIds') || [];
+    form.setValue('contactIds', [...currentContactIds, contact.id]);
+  };
+
+  const handleSiteCreated = (site: { id: string; name: string }) => {
+    // For now, just show a toast since companies don't directly link to sites
+    // Sites can be linked through contacts
+    toast({
+      title: 'Site created successfully',
+      description: `${site.name} has been created. You can link it to contacts later.`,
+    });
   };
 
   return (
@@ -623,22 +643,34 @@ const AddCompany = () => {
 
                  {/* Contacts */}
                  <div className="space-y-4">
-                   <div className="flex items-center justify-between">
-                     <h3 className="text-lg font-medium flex items-center gap-2">
+                   <h3 className="text-lg font-medium flex items-center justify-between">
+                     <span className="flex items-center gap-2">
                        <Users className="h-4 w-4" />
-                       Linked Contacts
-                     </h3>
-                     <Button
-                       type="button"
-                       variant="outline"
-                       size="sm"
-                       onClick={() => navigate('/contacts/add')}
-                       className="flex items-center gap-2"
-                     >
-                       <Plus className="h-4 w-4" />
-                       Add Contact
-                     </Button>
-                   </div>
+                       Contact Assignment
+                     </span>
+                     <div className="flex gap-2">
+                       <Button
+                         type="button"
+                         variant="outline"
+                         size="sm"
+                         onClick={() => setShowContactModal(true)}
+                         className="flex items-center gap-1 h-6 px-2"
+                       >
+                         <Plus className="h-3 w-3" />
+                         Add Contact
+                       </Button>
+                       <Button
+                         type="button"
+                         variant="outline"
+                         size="sm"
+                         onClick={() => setShowSiteModal(true)}
+                         className="flex items-center gap-1 h-6 px-2"
+                       >
+                         <Plus className="h-3 w-3" />
+                         Add Site
+                       </Button>
+                     </div>
+                   </h3>
                    
                    <Popover open={contactSearchOpen} onOpenChange={setContactSearchOpen}>
                      <PopoverTrigger asChild>
@@ -773,6 +805,19 @@ const AddCompany = () => {
             </Form>
           </CardContent>
         </Card>
+
+        {/* Quick Add Modals */}
+        <QuickAddContactModal
+          open={showContactModal}
+          onClose={() => setShowContactModal(false)}
+          onContactCreated={handleContactCreated}
+        />
+        
+        <QuickAddSiteModal
+          open={showSiteModal}
+          onClose={() => setShowSiteModal(false)}
+          onSiteCreated={handleSiteCreated}
+        />
       </div>
     </DashboardLayout>
   );

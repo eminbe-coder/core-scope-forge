@@ -15,9 +15,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
 import { validateContactEmail, normalizeEmail } from '@/lib/contact-validation';
-import { ArrowLeft, Upload, Download, User, Mail, FileText, Users, Phone, MapPin, Building2 } from 'lucide-react';
+import { ArrowLeft, Upload, Download, User, Mail, FileText, Users, Phone, MapPin, Building2, Plus } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
+import { QuickAddCompanyModal } from '@/components/modals/QuickAddCompanyModal';
+import { QuickAddSiteModal } from '@/components/modals/QuickAddSiteModal';
 
 const contactSchema = z.object({
   first_name: z.string().min(1, 'First name is required'),
@@ -55,6 +57,8 @@ const AddContact = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showCompanyModal, setShowCompanyModal] = useState(false);
+  const [showSiteModal, setShowSiteModal] = useState(false);
 
   const form = useForm<ContactFormData>({
     resolver: zodResolver(contactSchema),
@@ -247,6 +251,17 @@ const AddContact = () => {
     });
   };
 
+  const handleCompanyCreated = (company: { id: string; name: string }) => {
+    setCustomers(prev => [...prev, company]);
+    form.setValue('customer_id', company.id);
+  };
+
+  const handleSiteCreated = (site: { id: string; name: string }) => {
+    setSites(prev => [...prev, site]);
+    const currentSiteIds = form.getValues('site_ids') || [];
+    form.setValue('site_ids', [...currentSiteIds, site.id]);
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6 max-w-4xl mx-auto">
@@ -429,7 +444,19 @@ const AddContact = () => {
                       name="customer_id"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Company</FormLabel>
+                          <FormLabel className="flex items-center justify-between">
+                            Company
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setShowCompanyModal(true)}
+                              className="flex items-center gap-1 h-6 px-2"
+                            >
+                              <Plus className="h-3 w-3" />
+                              Add Company
+                            </Button>
+                          </FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
                               <SelectTrigger>
@@ -462,7 +489,19 @@ const AddContact = () => {
                     name="site_ids"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Sites</FormLabel>
+                        <FormLabel className="flex items-center justify-between">
+                          Sites
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowSiteModal(true)}
+                            className="flex items-center gap-1 h-6 px-2"
+                          >
+                            <Plus className="h-3 w-3" />
+                            Add Site
+                          </Button>
+                        </FormLabel>
                         <FormControl>
                           <Select
                             onValueChange={(value) => {
@@ -596,6 +635,19 @@ const AddContact = () => {
             </Form>
           </CardContent>
         </Card>
+
+        {/* Quick Add Modals */}
+        <QuickAddCompanyModal
+          open={showCompanyModal}
+          onClose={() => setShowCompanyModal(false)}
+          onCompanyCreated={handleCompanyCreated}
+        />
+        
+        <QuickAddSiteModal
+          open={showSiteModal}
+          onClose={() => setShowSiteModal(false)}
+          onSiteCreated={handleSiteCreated}
+        />
       </div>
     </DashboardLayout>
   );
