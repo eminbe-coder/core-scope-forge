@@ -45,31 +45,34 @@ export function CreateUserModal({ open, onClose, tenantId, onSuccess }: CreateUs
   const onSubmit = async (data: UserFormData) => {
     setIsLoading(true);
     try {
-      // Create auth user
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: data.email,
-        password: data.password,
-        email_confirm: true,
-        user_metadata: {
+      // Get current session for authentication
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Not authenticated');
+      }
+
+      // Call the Edge Function to create user
+      const response = await fetch(`https://wyslzrnmnqzntmuwzkwn.supabase.co/functions/v1/create-tenant-user`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
           first_name: data.first_name,
           last_name: data.last_name,
-        },
+          role: data.role,
+          tenant_id: tenantId,
+        }),
       });
 
-      if (authError) throw authError;
-      if (!authData.user) throw new Error('Failed to create user');
+      const result = await response.json();
 
-      // Create tenant membership
-      const { error: membershipError } = await supabase
-        .from('user_tenant_memberships')
-        .insert([{
-          user_id: authData.user.id,
-          tenant_id: tenantId,
-          role: data.role,
-          active: true,
-        }]);
-
-      if (membershipError) throw membershipError;
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to create user');
+      }
 
       toast({
         title: 'Success',
@@ -80,6 +83,7 @@ export function CreateUserModal({ open, onClose, tenantId, onSuccess }: CreateUs
       onSuccess();
       onClose();
     } catch (error: any) {
+      console.error('Create user error:', error);
       toast({
         title: 'Error',
         description: error.message || 'Failed to create user',
