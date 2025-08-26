@@ -17,6 +17,7 @@ export type Database = {
       activities: {
         Row: {
           assigned_to: string | null
+          company_id: string | null
           completed: boolean
           completed_at: string | null
           contact_id: string | null
@@ -36,6 +37,7 @@ export type Database = {
         }
         Insert: {
           assigned_to?: string | null
+          company_id?: string | null
           completed?: boolean
           completed_at?: string | null
           contact_id?: string | null
@@ -55,6 +57,7 @@ export type Database = {
         }
         Update: {
           assigned_to?: string | null
+          company_id?: string | null
           completed?: boolean
           completed_at?: string | null
           contact_id?: string | null
@@ -130,6 +133,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      activity_logs: {
+        Row: {
+          activity_type: string
+          created_at: string
+          created_by: string
+          description: string | null
+          entity_id: string
+          entity_type: string
+          id: string
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          activity_type: string
+          created_at?: string
+          created_by: string
+          description?: string | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          tenant_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          activity_type?: string
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       categories: {
         Row: {
