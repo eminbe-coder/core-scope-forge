@@ -157,6 +157,13 @@ export default function Admin() {
     }
   };
 
+  console.log('Admin Panel Debug:', {
+    isAdmin,
+    isSuperAdmin,
+    userRole,
+    user: 'moaath@bukaai.com' // just for debugging
+  });
+
   if (!isAdmin) {
     return (
       <DashboardLayout>
@@ -165,6 +172,7 @@ export default function Admin() {
             <CardTitle>Access Denied</CardTitle>
             <CardDescription>
               You don't have permission to access the admin panel.
+              Debug: isAdmin={String(isAdmin)}, isSuperAdmin={String(isSuperAdmin)}, userRole={userRole}
             </CardDescription>
           </CardHeader>
         </Card>
