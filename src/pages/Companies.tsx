@@ -1,20 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Plus, Building, Globe, MapPin, Phone, Mail } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Building, Globe, MapPin, Phone, Mail } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useTenant } from '@/hooks/use-tenant';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { EntityListing } from '@/components/entity-listing';
+import { DeleteConfirmationModal } from '@/components/modals/DeleteConfirmationModal';
 
 interface Company {
   id: string;
@@ -30,6 +22,7 @@ interface Company {
   logo_url?: string;
   notes?: string;
   active: boolean;
+  is_lead?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -37,8 +30,15 @@ interface Company {
 export default function Companies() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; company: Company | null }>({
+    open: false,
+    company: null,
+  });
+  const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
   const { currentTenant } = useTenant();
+  const navigate = useNavigate();
 
   const fetchCompanies = async () => {
     if (!currentTenant) return;
@@ -67,19 +67,19 @@ export default function Companies() {
     fetchCompanies();
   }, [currentTenant]);
 
-  const toggleCompanyStatus = async (companyId: string, currentStatus: boolean) => {
+  const toggleLeadStatus = async (company: Company) => {
     try {
       const { error } = await supabase
         .from('companies')
-        .update({ active: !currentStatus })
-        .eq('id', companyId);
+        .update({ is_lead: !company.is_lead })
+        .eq('id', company.id);
 
       if (error) throw error;
 
       await fetchCompanies();
       toast({
         title: 'Success',
-        description: `Company ${!currentStatus ? 'activated' : 'deactivated'} successfully`,
+        description: `Company ${!company.is_lead ? 'marked as lead' : 'removed from leads'}`,
       });
     } catch (error: any) {
       toast({
@@ -90,140 +90,187 @@ export default function Companies() {
     }
   };
 
-  if (loading) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <p>Loading companies...</p>
-        </div>
-      </DashboardLayout>
-    );
-  }
+  const handleEdit = (company: Company) => {
+    navigate(`/companies/edit/${company.id}`);
+  };
+
+  const handleDelete = (company: Company) => {
+    setDeleteModal({ open: true, company });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteModal.company) return;
+
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('companies')
+        .delete()
+        .eq('id', deleteModal.company.id);
+
+      if (error) throw error;
+
+      await fetchCompanies();
+      toast({
+        title: 'Success',
+        description: 'Company deleted successfully',
+      });
+      setDeleteModal({ open: false, company: null });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const filteredCompanies = companies.filter(company =>
+    company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    company.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    company.industry?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Companies</h1>
-            <p className="text-muted-foreground">
-              Manage your company relationships and partnerships
-            </p>
-          </div>
-          <Button onClick={() => window.location.href = '/companies/add'}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Company
-          </Button>
-        </div>
-
-        {companies.length === 0 ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building className="h-5 w-5" />
-                No Companies Found
-              </CardTitle>
-              <CardDescription>
-                You haven't added any companies yet. Companies help you track your business relationships and partnerships.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button onClick={() => window.location.href = '/companies/add'}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Your First Company
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building className="h-5 w-5" />
-                Companies ({companies.length})
-              </CardTitle>
-              <CardDescription>
-                Manage your company relationships and track business partnerships
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Company</TableHead>
-                    <TableHead>Industry</TableHead>
-                    <TableHead>Size</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {companies.map((company) => (
-                    <TableRow key={company.id}>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <div className="font-medium">{company.name}</div>
-                          {company.description && (
-                            <div className="text-sm text-muted-foreground">
-                              {company.description}
-                            </div>
-                          )}
-                          {company.website && (
-                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                              <Globe className="h-3 w-3" />
-                              <a href={company.website} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                                {company.website}
-                              </a>
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>{company.industry || '-'}</TableCell>
-                      <TableCell>{company.size || '-'}</TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          {company.headquarters && (
-                            <div className="flex items-center gap-1 text-sm">
-                              <MapPin className="h-3 w-3" />
-                              {company.headquarters}
-                            </div>
-                          )}
-                          {company.phone && (
-                            <div className="flex items-center gap-1 text-sm">
-                              <Phone className="h-3 w-3" />
-                              {company.phone}
-                            </div>
-                          )}
-                          {company.email && (
-                            <div className="flex items-center gap-1 text-sm">
-                              <Mail className="h-3 w-3" />
-                              {company.email}
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={company.active ? 'default' : 'secondary'}>
-                          {company.active ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => toggleCompanyStatus(company.id, company.active)}
-                        >
-                          {company.active ? 'Deactivate' : 'Activate'}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      <EntityListing
+        title="Companies"
+        description="Manage your company relationships and partnerships"
+        icon={Building}
+        entities={filteredCompanies}
+        loading={loading}
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        onAdd={() => navigate('/add-company')}
+        addButtonText="Add Company"
+        getEntityCardProps={(company) => ({
+          id: company.id,
+          title: company.name,
+          icon: Building,
+          badge: company.active ? undefined : {
+            text: 'Inactive',
+            variant: 'secondary' as const,
+          },
+          fields: [
+            ...(company.description ? [{
+              value: company.description,
+              isSecondary: true,
+            }] : []),
+            ...(company.industry ? [{
+              label: 'Industry',
+              value: company.industry,
+              isSecondary: true,
+            }] : []),
+            ...(company.size ? [{
+              label: 'Size',
+              value: company.size,
+              isSecondary: true,
+            }] : []),
+            ...(company.website ? [{
+              icon: Globe,
+              value: company.website,
+              isSecondary: true,
+            }] : []),
+            ...(company.headquarters ? [{
+              icon: MapPin,
+              value: company.headquarters,
+              isSecondary: true,
+            }] : []),
+            ...(company.phone ? [{
+              icon: Phone,
+              value: company.phone,
+              isSecondary: true,
+            }] : []),
+            ...(company.email ? [{
+              icon: Mail,
+              value: company.email,
+              isSecondary: true,
+            }] : []),
+            {
+              value: `Added ${new Date(company.created_at).toLocaleDateString()}`,
+              isSecondary: true,
+            },
+          ],
+        })}
+        columns={[
+          {
+            key: 'name',
+            label: 'Company',
+            render: (_, company) => (
+              <div className="space-y-1">
+                <div className="font-medium">{company.name}</div>
+                {company.description && (
+                  <div className="text-sm text-muted-foreground">
+                    {company.description}
+                  </div>
+                )}
+                {company.website && (
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                    <Globe className="h-3 w-3" />
+                    <a href={company.website} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                      {company.website}
+                    </a>
+                  </div>
+                )}
+              </div>
+            ),
+          },
+          {
+            key: 'industry',
+            label: 'Industry',
+            render: (value) => value || '-',
+          },
+          {
+            key: 'size',
+            label: 'Size',
+            render: (value) => value || '-',
+          },
+          {
+            key: 'contact',
+            label: 'Contact',
+            render: (_, company) => (
+              <div className="space-y-1">
+                {company.headquarters && (
+                  <div className="flex items-center gap-1 text-sm">
+                    <MapPin className="h-3 w-3" />
+                    {company.headquarters}
+                  </div>
+                )}
+                {company.phone && (
+                  <div className="flex items-center gap-1 text-sm">
+                    <Phone className="h-3 w-3" />
+                    {company.phone}
+                  </div>
+                )}
+                {company.email && (
+                  <div className="flex items-center gap-1 text-sm">
+                    <Mail className="h-3 w-3" />
+                    {company.email}
+                  </div>
+                )}
+              </div>
+            ),
+          },
+        ]}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        onToggleLead={toggleLeadStatus}
+        editPermission="companies.edit"
+        deletePermission="companies.delete"
+        leadPermission="companies.manage_leads"
+        emptyStateMessage="You haven't added any companies yet. Companies help you track your business relationships and partnerships."
+      />
+      
+      <DeleteConfirmationModal
+        open={deleteModal.open}
+        onClose={() => setDeleteModal({ open: false, company: null })}
+        onConfirm={confirmDelete}
+        title="Delete Company"
+        description={`Are you sure you want to delete "${deleteModal.company?.name}"? This action cannot be undone.`}
+        isDeleting={isDeleting}
+      />
     </DashboardLayout>
   );
 }

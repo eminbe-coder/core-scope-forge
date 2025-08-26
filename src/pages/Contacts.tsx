@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { useNavigate } from 'react-router-dom';
+import { User, Mail, Phone } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
-import { Plus, Search, User, Mail, Phone } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { EntityListing } from '@/components/entity-listing';
+import { DeleteConfirmationModal } from '@/components/modals/DeleteConfirmationModal';
 
 interface Contact {
   id: string;
@@ -18,6 +19,7 @@ interface Contact {
   position?: string;
   notes?: string;
   active: boolean;
+  is_lead?: boolean;
   customers: {
     name: string;
   } | null;
@@ -27,9 +29,16 @@ interface Contact {
 
 const Contacts = () => {
   const { currentTenant } = useTenant();
+  const { toast } = useToast();
+  const navigate = useNavigate();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; contact: Contact | null }>({
+    open: false,
+    contact: null,
+  });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchContacts = async () => {
     if (!currentTenant) return;
@@ -57,110 +66,162 @@ const Contacts = () => {
     fetchContacts();
   }, [currentTenant]);
 
+  const toggleLeadStatus = async (contact: Contact) => {
+    try {
+      const { error } = await supabase
+        .from('contacts')
+        .update({ is_lead: !contact.is_lead })
+        .eq('id', contact.id);
+
+      if (error) throw error;
+
+      await fetchContacts();
+      toast({
+        title: 'Success',
+        description: `Contact ${!contact.is_lead ? 'marked as lead' : 'removed from leads'}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleEdit = (contact: Contact) => {
+    navigate(`/contacts/edit/${contact.id}`);
+  };
+
+  const handleDelete = (contact: Contact) => {
+    setDeleteModal({ open: true, contact });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteModal.contact) return;
+
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('contacts')
+        .delete()
+        .eq('id', deleteModal.contact.id);
+
+      if (error) throw error;
+
+      await fetchContacts();
+      toast({
+        title: 'Success',
+        description: 'Contact deleted successfully',
+      });
+      setDeleteModal({ open: false, contact: null });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const filteredContacts = contacts.filter(contact =>
     `${contact.first_name} ${contact.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
     contact.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     contact.customers?.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (loading) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <p>Loading contacts...</p>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold">Contacts</h1>
-            <p className="text-muted-foreground">
-              Manage your business contacts
-            </p>
-          </div>
-          <Button onClick={() => window.location.href = '/contacts/add'}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Contact
-          </Button>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search contacts..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8"
-            />
-          </div>
-        </div>
-
-        {filteredContacts.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-16">
-              <User className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No contacts found</h3>
-              <p className="text-muted-foreground text-center max-w-sm">
-                Add contacts to keep track of important business relationships.
-              </p>
-              <Button className="mt-4" onClick={() => window.location.href = '/contacts/add'}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Contact
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {filteredContacts.map((contact) => (
-              <Card key={contact.id} className="hover:shadow-md transition-shadow cursor-pointer">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-primary" />
-                    <CardTitle className="text-lg">
-                      {contact.first_name} {contact.last_name}
-                    </CardTitle>
+      <EntityListing
+        title="Contacts"
+        description="Manage your business contacts"
+        icon={User}
+        entities={filteredContacts}
+        loading={loading}
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        onAdd={() => navigate('/add-contact')}
+        addButtonText="Add Contact"
+        getEntityCardProps={(contact) => ({
+          id: contact.id,
+          title: `${contact.first_name} ${contact.last_name}`,
+          icon: User,
+          fields: [
+            ...(contact.position ? [{
+              value: contact.position,
+              isSecondary: true,
+            }] : []),
+            ...(contact.email ? [{
+              icon: Mail,
+              value: contact.email,
+              isSecondary: true,
+            }] : []),
+            ...(contact.phone ? [{
+              icon: Phone,
+              value: contact.phone,
+              isSecondary: true,
+            }] : []),
+            ...(contact.customers ? [{
+              label: 'Company',
+              value: contact.customers.name,
+              isSecondary: true,
+            }] : []),
+            {
+              value: `Added ${new Date(contact.created_at).toLocaleDateString()}`,
+              isSecondary: true,
+            },
+          ],
+        })}
+        columns={[
+          {
+            key: 'name',
+            label: 'Name',
+            render: (_, contact) => (
+              <div className="space-y-1">
+                <div className="font-medium">{contact.first_name} {contact.last_name}</div>
+                {contact.position && (
+                  <div className="text-sm text-muted-foreground">
+                    {contact.position}
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {contact.position && (
-                      <p className="text-sm font-medium text-muted-foreground">
-                        {contact.position}
-                      </p>
-                    )}
-                    {contact.email && (
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-3 w-3 text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground">{contact.email}</p>
-                      </div>
-                    )}
-                    {contact.phone && (
-                      <div className="flex items-center gap-2">
-                        <Phone className="h-3 w-3 text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground">{contact.phone}</p>
-                      </div>
-                    )}
-                    {contact.customers && (
-                      <p className="text-sm text-muted-foreground">
-                        Company: {contact.customers.name}
-                      </p>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      Added {new Date(contact.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
+                )}
+              </div>
+            ),
+          },
+          {
+            key: 'email',
+            label: 'Email',
+            render: (value) => value || '-',
+          },
+          {
+            key: 'phone',
+            label: 'Phone',
+            render: (value) => value || '-',
+          },
+          {
+            key: 'company',
+            label: 'Company',
+            render: (_, contact) => contact.customers?.name || '-',
+          },
+        ]}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        onToggleLead={toggleLeadStatus}
+        editPermission="contacts.edit"
+        deletePermission="contacts.delete"
+        leadPermission="contacts.manage_leads"
+        emptyStateMessage="Add contacts to keep track of important business relationships."
+      />
+      
+      <DeleteConfirmationModal
+        open={deleteModal.open}
+        onClose={() => setDeleteModal({ open: false, contact: null })}
+        onConfirm={confirmDelete}
+        title="Delete Contact"
+        description={`Are you sure you want to delete "${deleteModal.contact?.first_name} ${deleteModal.contact?.last_name}"? This action cannot be undone.`}
+        isDeleting={isDeleting}
+      />
     </DashboardLayout>
   );
 };
