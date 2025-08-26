@@ -1037,10 +1037,14 @@ export type Database = {
           active: boolean
           address: string
           city: string | null
-          country: string | null
+          company_id: string | null
+          contact_id: string | null
+          country: string
           created_at: string
           customer_id: string | null
           id: string
+          images: string[] | null
+          is_deal: boolean | null
           latitude: number | null
           longitude: number | null
           name: string
@@ -1054,10 +1058,14 @@ export type Database = {
           active?: boolean
           address: string
           city?: string | null
-          country?: string | null
+          company_id?: string | null
+          contact_id?: string | null
+          country: string
           created_at?: string
           customer_id?: string | null
           id?: string
+          images?: string[] | null
+          is_deal?: boolean | null
           latitude?: number | null
           longitude?: number | null
           name: string
@@ -1071,10 +1079,14 @@ export type Database = {
           active?: boolean
           address?: string
           city?: string | null
-          country?: string | null
+          company_id?: string | null
+          contact_id?: string | null
+          country?: string
           created_at?: string
           customer_id?: string | null
           id?: string
+          images?: string[] | null
+          is_deal?: boolean | null
           latitude?: number | null
           longitude?: number | null
           name?: string

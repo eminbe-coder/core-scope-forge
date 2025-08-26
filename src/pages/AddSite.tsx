@@ -8,23 +8,37 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { validateSiteData } from '@/lib/site-validation';
-import { MapPin, Building, User, Upload, Download, FileSpreadsheet } from 'lucide-react';
+import { MapPin, Building, User, Upload, Download, FileSpreadsheet, Plus, Camera, X } from 'lucide-react';
 import { parseSiteCSV, importSites, downloadSiteTemplate } from '@/lib/site-import';
+
+// GCC Countries list
+const GCC_COUNTRIES = [
+  'Saudi Arabia',
+  'United Arab Emirates',
+  'Kuwait',
+  'Qatar',
+  'Bahrain',
+  'Oman'
+];
 
 const siteSchema = z.object({
   name: z.string().min(2, 'Site name must be at least 2 characters'),
   address: z.string().min(1, 'Address is required'),
   city: z.string().optional(),
   state: z.string().optional(),
-  country: z.string().optional(),
+  country: z.string().min(1, 'Country is required'),
   postal_code: z.string().optional(),
   customer_id: z.string().optional(),
+  contact_id: z.string().optional(),
+  company_id: z.string().optional(),
+  is_deal: z.boolean(),
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),
   notes: z.string().optional(),
@@ -37,12 +51,28 @@ interface Customer {
   name: string;
 }
 
+interface Contact {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email?: string;
+}
+
+interface Company {
+  id: string;
+  name: string;
+}
+
 const AddSite = () => {
   const { currentTenant } = useTenant();
   const navigate = useNavigate();
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [uploadedImages, setUploadedImages] = useState<File[]>([]);
+  const [imageUploading, setImageUploading] = useState(false);
 
   const form = useForm<SiteFormData>({
     resolver: zodResolver(siteSchema),
@@ -54,34 +84,89 @@ const AddSite = () => {
       country: '',
       postal_code: '',
       customer_id: undefined,
+      contact_id: undefined,
+      company_id: undefined,
+      is_deal: false,
       latitude: undefined,
       longitude: undefined,
       notes: '',
     },
   });
 
-  const fetchCustomers = async () => {
+  const fetchData = async () => {
     if (!currentTenant) return;
 
     try {
-      const { data, error } = await supabase
+      // Fetch customers
+      const { data: customersData, error: customersError } = await supabase
         .from('customers')
         .select('id, name')
         .eq('tenant_id', currentTenant.id)
         .eq('active', true)
         .order('name');
 
-      if (error) throw error;
-      setCustomers(data || []);
+      if (customersError) throw customersError;
+      setCustomers(customersData || []);
+
+      // Fetch contacts
+      const { data: contactsData, error: contactsError } = await supabase
+        .from('contacts')
+        .select('id, first_name, last_name, email')
+        .eq('tenant_id', currentTenant.id)
+        .eq('active', true)
+        .order('first_name');
+
+      if (contactsError) throw contactsError;
+      setContacts(contactsData || []);
+
+      // Fetch companies
+      const { data: companiesData, error: companiesError } = await supabase
+        .from('companies')
+        .select('id, name')
+        .eq('tenant_id', currentTenant.id)
+        .eq('active', true)
+        .order('name');
+
+      if (companiesError) throw companiesError;
+      setCompanies(companiesData || []);
     } catch (error) {
-      console.error('Error fetching customers:', error);
-      toast.error('Failed to load customers');
+      console.error('Error fetching data:', error);
+      toast.error('Failed to load data');
     }
   };
 
   useEffect(() => {
-    fetchCustomers();
+    fetchData();
   }, [currentTenant]);
+
+  const uploadImages = async (): Promise<string[]> => {
+    if (!currentTenant || uploadedImages.length === 0) return [];
+    
+    const imageUrls: string[] = [];
+    
+    for (const file of uploadedImages) {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${currentTenant.id}/${Date.now()}-${Math.random()}.${fileExt}`;
+      
+      const { data, error } = await supabase.storage
+        .from('site-images')
+        .upload(fileName, file);
+      
+      if (error) {
+        console.error('Error uploading image:', error);
+        toast.error(`Failed to upload ${file.name}`);
+        continue;
+      }
+      
+      const { data: { publicUrl } } = supabase.storage
+        .from('site-images')
+        .getPublicUrl(fileName);
+      
+      imageUrls.push(publicUrl);
+    }
+    
+    return imageUrls;
+  };
 
   const onSubmit = async (data: SiteFormData) => {
     if (!currentTenant) {
@@ -104,10 +189,16 @@ const AddSite = () => {
         return;
       }
 
+      // Upload images
+      const imageUrls = await uploadImages();
+
       // Prepare data for submission
       const submitData = {
         ...data,
         customer_id: data.customer_id === 'none' ? null : data.customer_id,
+        contact_id: data.contact_id === 'none' ? null : data.contact_id,
+        company_id: data.company_id === 'none' ? null : data.company_id,
+        images: imageUrls.length > 0 ? imageUrls : null,
         tenant_id: currentTenant.id,
         active: true
       };
@@ -176,6 +267,23 @@ const AddSite = () => {
       // Reset file input
       event.target.value = '';
     }
+  };
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    const imageFiles = files.filter(file => file.type.startsWith('image/'));
+    
+    if (imageFiles.length !== files.length) {
+      toast.error('Please select only image files');
+      return;
+    }
+    
+    setUploadedImages(prev => [...prev, ...imageFiles]);
+    event.target.value = ''; // Reset input
+  };
+
+  const removeImage = (index: number) => {
+    setUploadedImages(prev => prev.filter((_, i) => i !== index));
   };
 
   return (
@@ -263,6 +371,106 @@ const AddSite = () => {
                       </FormItem>
                     )}
                   />
+
+                  <FormField
+                    control={form.control}
+                    name="contact_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center justify-between">
+                          Contact (Optional)
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate('/contacts/add')}
+                            className="flex items-center gap-1 h-6 px-2"
+                          >
+                            <Plus className="h-3 w-3" />
+                            Add Contact
+                          </Button>
+                        </FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a contact" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="none">No contact</SelectItem>
+                            {contacts.map((contact) => (
+                              <SelectItem key={contact.id} value={contact.id}>
+                                {contact.first_name} {contact.last_name}
+                                {contact.email && ` (${contact.email})`}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="company_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center justify-between">
+                          Company (Optional)
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate('/companies/add')}
+                            className="flex items-center gap-1 h-6 px-2"
+                          >
+                            <Plus className="h-3 w-3" />
+                            Add Company
+                          </Button>
+                        </FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a company" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="none">No company</SelectItem>
+                            {companies.map((company) => (
+                              <SelectItem key={company.id} value={company.id}>
+                                {company.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="is_deal"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>
+                            Flag as Deal
+                          </FormLabel>
+                          <p className="text-sm text-muted-foreground">
+                            Mark this site as a potential business opportunity
+                          </p>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
                 </CardContent>
               </Card>
 
@@ -320,19 +528,30 @@ const AddSite = () => {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="country"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Country</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Country" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                     <FormField
+                       control={form.control}
+                       name="country"
+                       render={({ field }) => (
+                         <FormItem>
+                           <FormLabel>Country *</FormLabel>
+                           <Select onValueChange={field.onChange} value={field.value}>
+                             <FormControl>
+                               <SelectTrigger>
+                                 <SelectValue placeholder="Select a country" />
+                               </SelectTrigger>
+                             </FormControl>
+                             <SelectContent>
+                               {GCC_COUNTRIES.map((country) => (
+                                 <SelectItem key={country} value={country}>
+                                   {country}
+                                 </SelectItem>
+                               ))}
+                             </SelectContent>
+                           </Select>
+                           <FormMessage />
+                         </FormItem>
+                       )}
+                     />
 
                     <FormField
                       control={form.control}
@@ -403,11 +622,62 @@ const AddSite = () => {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Additional Information</CardTitle>
-                </CardHeader>
-                <CardContent>
+               <Card>
+                 <CardHeader>
+                   <CardTitle>Site Images</CardTitle>
+                 </CardHeader>
+                 <CardContent className="space-y-4">
+                   <div>
+                     <div className="flex items-center gap-2 mb-4">
+                       <div className="relative">
+                         <input
+                           type="file"
+                           accept="image/*"
+                           multiple
+                           onChange={handleImageUpload}
+                           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                         />
+                         <Button variant="outline" type="button">
+                           <Camera className="mr-2 h-4 w-4" />
+                           Attach Pictures
+                         </Button>
+                       </div>
+                       <span className="text-sm text-muted-foreground">
+                         Upload images of the site
+                       </span>
+                     </div>
+                     
+                     {uploadedImages.length > 0 && (
+                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                         {uploadedImages.map((file, index) => (
+                           <div key={index} className="relative group">
+                             <img
+                               src={URL.createObjectURL(file)}
+                               alt={`Site image ${index + 1}`}
+                               className="w-full h-24 object-cover rounded-md border"
+                             />
+                             <Button
+                               type="button"
+                               variant="destructive"
+                               size="sm"
+                               className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                               onClick={() => removeImage(index)}
+                             >
+                               <X className="h-3 w-3" />
+                             </Button>
+                           </div>
+                         ))}
+                       </div>
+                     )}
+                   </div>
+                 </CardContent>
+               </Card>
+
+               <Card>
+                 <CardHeader>
+                   <CardTitle>Additional Information</CardTitle>
+                 </CardHeader>
+                 <CardContent>
                   <FormField
                     control={form.control}
                     name="notes"
