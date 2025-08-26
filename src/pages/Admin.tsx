@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Users, Building, Settings } from 'lucide-react';
+import { Plus, Users, Building, Settings, UserPlus, Edit } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useTenant } from '@/hooks/use-tenant';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { CreateTenantForm } from '@/components/forms/CreateTenantForm';
+import { CreateUserModal } from '@/components/forms/CreateUserModal';
 import {
   Dialog,
   DialogContent,
@@ -31,6 +32,11 @@ interface TenantData {
   slug: string;
   domain: string | null;
   active: boolean;
+  company_location?: string;
+  cr_number?: string;
+  tax_number?: string;
+  contact_email?: string;
+  contact_phone?: string;
   created_at: string;
   updated_at: string;
   _count?: {
@@ -43,6 +49,8 @@ export default function Admin() {
   const [memberships, setMemberships] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateTenant, setShowCreateTenant] = useState(false);
+  const [showCreateUser, setShowCreateUser] = useState(false);
+  const [selectedTenantId, setSelectedTenantId] = useState('');
   const { toast } = useToast();
   const { isSuperAdmin, userRole, isAdmin } = useTenant();
 
@@ -68,16 +76,7 @@ export default function Admin() {
     try {
       if (isSuperAdmin) {
         const { data, error } = await supabase
-          .from('user_tenant_memberships')
-          .select(`
-            id,
-            role,
-            active,
-            created_at,
-            tenants (name),
-            profiles (first_name, last_name, email)
-          `)
-          .order('created_at', { ascending: false });
+          .rpc('get_all_tenant_memberships_for_super_admin');
         
         if (error) throw error;
         setMemberships(data || []);
@@ -109,6 +108,20 @@ export default function Admin() {
     toast({
       title: 'Success',
       description: 'Tenant created successfully',
+    });
+  };
+
+  const openCreateUserModal = (tenantId: string) => {
+    setSelectedTenantId(tenantId);
+    setShowCreateUser(true);
+  };
+
+  const handleUserCreateSuccess = () => {
+    setShowCreateUser(false);
+    fetchMemberships();
+    toast({
+      title: 'Success',
+      description: 'User created successfully',
     });
   };
 
@@ -216,34 +229,46 @@ export default function Admin() {
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Slug</TableHead>
-                      <TableHead>Domain</TableHead>
+                      <TableHead>Location</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Created</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {tenants.map((tenant) => (
                       <TableRow key={tenant.id}>
-                        <TableCell className="font-medium">{tenant.name}</TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{tenant.name}</div>
+                            {tenant.domain && (
+                              <div className="text-sm text-muted-foreground">{tenant.domain}</div>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell>{tenant.slug}</TableCell>
-                        <TableCell>{tenant.domain || '-'}</TableCell>
+                        <TableCell>{tenant.company_location || '-'}</TableCell>
                         <TableCell>
                           <Badge variant={tenant.active ? 'default' : 'secondary'}>
                             {tenant.active ? 'Active' : 'Inactive'}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {new Date(tenant.created_at).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => toggleTenantStatus(tenant.id, tenant.active)}
-                          >
-                            {tenant.active ? 'Deactivate' : 'Activate'}
-                          </Button>
+                          <div className="flex items-center space-x-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => openCreateUserModal(tenant.id)}
+                            >
+                              <UserPlus className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => toggleTenantStatus(tenant.id, tenant.active)}
+                            >
+                              {tenant.active ? 'Deactivate' : 'Activate'}
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -279,10 +304,10 @@ export default function Admin() {
                     {memberships.map((membership) => (
                       <TableRow key={membership.id}>
                         <TableCell>
-                          {membership.profiles?.first_name} {membership.profiles?.last_name}
+                          {membership.user_profile?.first_name} {membership.user_profile?.last_name}
                         </TableCell>
-                        <TableCell>{membership.profiles?.email}</TableCell>
-                        <TableCell>{membership.tenants?.name}</TableCell>
+                        <TableCell>{membership.user_profile?.email}</TableCell>
+                        <TableCell>{membership.tenant?.name}</TableCell>
                         <TableCell>
                           <Badge variant={membership.role === 'super_admin' ? 'destructive' : membership.role === 'admin' ? 'default' : 'secondary'}>
                             {membership.role}
@@ -354,6 +379,13 @@ export default function Admin() {
           </div>
         )}
       </div>
+
+      <CreateUserModal
+        open={showCreateUser}
+        onClose={() => setShowCreateUser(false)}
+        tenantId={selectedTenantId}
+        onSuccess={handleUserCreateSuccess}
+      />
     </DashboardLayout>
   );
 }

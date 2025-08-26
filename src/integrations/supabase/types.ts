@@ -1161,6 +1161,10 @@ export type Database = {
       tenants: {
         Row: {
           active: boolean
+          company_location: string | null
+          contact_email: string | null
+          contact_phone: string | null
+          cr_number: string | null
           created_at: string
           default_currency_id: string | null
           domain: string | null
@@ -1168,10 +1172,15 @@ export type Database = {
           name: string
           settings: Json | null
           slug: string
+          tax_number: string | null
           updated_at: string
         }
         Insert: {
           active?: boolean
+          company_location?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          cr_number?: string | null
           created_at?: string
           default_currency_id?: string | null
           domain?: string | null
@@ -1179,10 +1188,15 @@ export type Database = {
           name: string
           settings?: Json | null
           slug: string
+          tax_number?: string | null
           updated_at?: string
         }
         Update: {
           active?: boolean
+          company_location?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          cr_number?: string | null
           created_at?: string
           default_currency_id?: string | null
           domain?: string | null
@@ -1190,6 +1204,7 @@ export type Database = {
           name?: string
           settings?: Json | null
           slug?: string
+          tax_number?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1309,6 +1324,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_all_tenant_memberships_for_super_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          active: boolean
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          tenant: Json
+          tenant_id: string
+          updated_at: string
+          user_id: string
+          user_profile: Json
+        }[]
+      }
       get_all_tenants_for_super_admin: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -1334,6 +1363,19 @@ export type Database = {
           input_tenant_id: string
         }
         Returns: string
+      }
+      get_user_tenant_memberships: {
+        Args: { _user_id: string }
+        Returns: {
+          active: boolean
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          tenant: Json
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }[]
       }
       has_role_in_tenant: {
         Args: {

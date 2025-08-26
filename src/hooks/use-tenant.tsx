@@ -7,8 +7,16 @@ interface Tenant {
   name: string;
   slug: string;
   domain: string | null;
-  settings: any;
   active: boolean;
+  company_location?: string;
+  cr_number?: string;
+  tax_number?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  default_currency_id?: string;
+  settings: any;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface UserTenantMembership {

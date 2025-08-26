@@ -1,56 +1,78 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import { z } from 'zod';
 import { Button } from '@/components/ui/button';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-const formSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  slug: z.string().min(2, 'Slug must be at least 2 characters').regex(/^[a-z0-9-]+$/, 'Slug must contain only lowercase letters, numbers, and hyphens'),
+const tenantSchema = z.object({
+  name: z.string().min(1, 'Company name is required'),
+  slug: z.string().min(1, 'Slug is required').regex(/^[a-z0-9-]+$/, 'Slug can only contain lowercase letters, numbers and hyphens'),
   domain: z.string().optional(),
+  company_location: z.string().optional(),
+  cr_number: z.string().optional(),
+  tax_number: z.string().optional(),
+  contact_email: z.string().email().optional().or(z.literal('')),
+  contact_phone: z.string().optional(),
+  default_currency_id: z.string().optional(),
 });
 
+type TenantFormData = z.infer<typeof tenantSchema>;
+
 interface CreateTenantFormProps {
-  onSuccess?: () => void;
-  onCancel?: () => void;
+  onSuccess: () => void;
+  onCancel: () => void;
 }
 
 export function CreateTenantForm({ onSuccess, onCancel }: CreateTenantFormProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [currencies, setCurrencies] = useState<Array<{ id: string; code: string; name: string }>>([]);
   const { toast } = useToast();
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<TenantFormData>({
+    resolver: zodResolver(tenantSchema),
     defaultValues: {
       name: '',
       slug: '',
       domain: '',
+      company_location: '',
+      cr_number: '',
+      tax_number: '',
+      contact_email: '',
+      contact_phone: '',
+      default_currency_id: '',
     },
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  // Load currencies on mount
+  useState(() => {
+    const loadCurrencies = async () => {
+      const { data } = await supabase.from('currencies').select('id, code, name').eq('active', true);
+      if (data) setCurrencies(data);
+    };
+    loadCurrencies();
+  });
+
+  const onSubmit = async (data: TenantFormData) => {
     setIsLoading(true);
     try {
-      const { error } = await supabase
-        .from('tenants')
-        .insert([{
-          name: values.name,
-          slug: values.slug,
-          domain: values.domain || null,
-          active: true,
-        }]);
+      const { error } = await supabase.from('tenants').insert([{
+        name: data.name,
+        slug: data.slug,
+        domain: data.domain || null,
+        company_location: data.company_location || null,
+        cr_number: data.cr_number || null,
+        tax_number: data.tax_number || null,
+        contact_email: data.contact_email || null,
+        contact_phone: data.contact_phone || null,
+        default_currency_id: data.default_currency_id || null,
+        active: true,
+      }]);
 
       if (error) throw error;
 
@@ -59,18 +81,24 @@ export function CreateTenantForm({ onSuccess, onCancel }: CreateTenantFormProps)
         description: 'Tenant created successfully',
       });
 
-      form.reset();
-      onSuccess?.();
+      onSuccess();
     } catch (error: any) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error.message || 'Failed to create tenant',
         variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
     }
-  }
+  };
+
+  // Auto-generate slug from name
+  const handleNameChange = (value: string) => {
+    form.setValue('name', value);
+    const slug = value.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').trim();
+    form.setValue('slug', slug);
+  };
 
   return (
     <Form {...form}>
@@ -80,9 +108,13 @@ export function CreateTenantForm({ onSuccess, onCancel }: CreateTenantFormProps)
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Tenant Name</FormLabel>
+              <FormLabel>Company Name</FormLabel>
               <FormControl>
-                <Input placeholder="Enter tenant name" {...field} />
+                <Input 
+                  {...field} 
+                  onChange={(e) => handleNameChange(e.target.value)}
+                  placeholder="Enter company name" 
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -96,7 +128,7 @@ export function CreateTenantForm({ onSuccess, onCancel }: CreateTenantFormProps)
             <FormItem>
               <FormLabel>Slug</FormLabel>
               <FormControl>
-                <Input placeholder="tenant-slug" {...field} />
+                <Input {...field} placeholder="company-slug" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -108,21 +140,118 @@ export function CreateTenantForm({ onSuccess, onCancel }: CreateTenantFormProps)
           name="domain"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Domain (Optional)</FormLabel>
+              <FormLabel>Domain (optional)</FormLabel>
               <FormControl>
-                <Input placeholder="example.com" {...field} />
+                <Input {...field} placeholder="company.com" />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        <div className="flex justify-end space-x-2">
-          {onCancel && (
-            <Button type="button" variant="outline" onClick={onCancel}>
-              Cancel
-            </Button>
+        <FormField
+          control={form.control}
+          name="company_location"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Company Location</FormLabel>
+              <FormControl>
+                <Input {...field} placeholder="City, Country" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
           )}
+        />
+
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="cr_number"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>CR Number</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="Commercial registration number" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="tax_number"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Tax Number</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="Tax identification number" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="contact_email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Contact Email</FormLabel>
+                <FormControl>
+                  <Input {...field} type="email" placeholder="contact@company.com" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="contact_phone"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Contact Phone</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="+1 (555) 123-4567" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <FormField
+          control={form.control}
+          name="default_currency_id"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Default Currency</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select default currency" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {currencies.map((currency) => (
+                    <SelectItem key={currency.id} value={currency.id}>
+                      {currency.code} - {currency.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="flex justify-end space-x-2 pt-4">
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
+            Cancel
+          </Button>
           <Button type="submit" disabled={isLoading}>
             {isLoading ? 'Creating...' : 'Create Tenant'}
           </Button>

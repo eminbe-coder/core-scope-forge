@@ -20,6 +20,8 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useAuth } from '@/hooks/use-auth';
 import { useTheme } from '@/hooks/use-theme';
 import { useTenant } from '@/hooks/use-tenant';
+import { usePermissions } from '@/hooks/use-permissions';
+import { TenantSwitcher } from './TenantSwitcher';
 import { LogOut, User, Palette, Home } from 'lucide-react';
 
 interface AppHeaderProps {
@@ -35,7 +37,7 @@ export function AppHeader({
 }: AppHeaderProps = {}) {
   const { user, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
-  const { currentTenant } = useTenant();
+  const { currentTenant, isSuperAdmin } = useTenant();
   const navigate = useNavigate();
 
   const getUserInitials = () => {
@@ -67,10 +69,12 @@ export function AppHeader({
           )}
         </div>
 
-        {/* Center Title/Breadcrumb */}
+        {/* Center Title/Breadcrumb or Tenant Switcher */}
         <div className="flex-1 flex justify-center">
           {title ? (
             <h1 className="text-lg font-semibold text-foreground">{title}</h1>
+          ) : (isSuperAdmin && currentTenant) ? (
+            <TenantSwitcher />
           ) : currentTenant ? (
             <h1 className="text-lg font-semibold text-foreground">
               {currentTenant.name}
