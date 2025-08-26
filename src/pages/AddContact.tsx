@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
@@ -444,33 +445,19 @@ const AddContact = () => {
                       name="customer_id"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="flex items-center justify-between">
-                            Company
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setShowCompanyModal(true)}
-                              className="flex items-center gap-1 h-6 px-2"
-                            >
-                              <Plus className="h-3 w-3" />
-                              Add Company
-                            </Button>
-                          </FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a company" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {customers.map((customer) => (
-                                <SelectItem key={customer.id} value={customer.id}>
-                                  {customer.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <FormLabel>Company</FormLabel>
+                          <FormControl>
+                            <SearchableSelect
+                              value={field.value}
+                              onValueChange={field.onChange}
+                              options={customers}
+                              placeholder="Search and select company..."
+                              searchPlaceholder="Search companies..."
+                              emptyText="No companies found."
+                              onAddNew={() => setShowCompanyModal(true)}
+                              addNewLabel="Add Company"
+                            />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -489,39 +476,23 @@ const AddContact = () => {
                     name="site_ids"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="flex items-center justify-between">
-                          Sites
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setShowSiteModal(true)}
-                            className="flex items-center gap-1 h-6 px-2"
-                          >
-                            <Plus className="h-3 w-3" />
-                            Add Site
-                          </Button>
-                        </FormLabel>
+                        <FormLabel>Sites (Optional)</FormLabel>
                         <FormControl>
-                          <Select
+                          <SearchableSelect
+                            value=""
                             onValueChange={(value) => {
                               const currentValues = field.value || [];
                               if (!currentValues.includes(value)) {
                                 field.onChange([...currentValues, value]);
                               }
                             }}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select sites to assign" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {sites.map((site) => (
-                                <SelectItem key={site.id} value={site.id}>
-                                  {site.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            options={sites}
+                            placeholder="Search and select sites..."
+                            searchPlaceholder="Search sites..."
+                            emptyText="No sites found."
+                            onAddNew={() => setShowSiteModal(true)}
+                            addNewLabel="Add Site"
+                          />
                         </FormControl>
                         {field.value && field.value.length > 0 && (
                           <div className="flex flex-wrap gap-2 mt-2">

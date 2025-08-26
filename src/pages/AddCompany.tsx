@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -50,6 +51,7 @@ const companySchema = z.object({
   notes: z.string().optional(),
   contactIds: z.array(z.string()).optional(),
   is_lead: z.boolean(),
+  siteIds: z.array(z.string()).optional(),
 });
 
 type CompanyFormSchema = z.infer<typeof companySchema>;
@@ -62,6 +64,11 @@ interface Contact {
   position?: string;
 }
 
+interface Site {
+  id: string;
+  name: string;
+}
+
 const AddCompany = () => {
   const navigate = useNavigate();
   const { currentTenant } = useTenant();
@@ -69,6 +76,7 @@ const AddCompany = () => {
   
   const [loading, setLoading] = useState(false);
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [sites, setSites] = useState<Site[]>([]);
   const [selectedContacts, setSelectedContacts] = useState<Contact[]>([]);
   const [contactSearchOpen, setContactSearchOpen] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
@@ -92,12 +100,14 @@ const AddCompany = () => {
       postalCode: '',
       notes: '',
       contactIds: [],
+      siteIds: [],
       is_lead: false,
     },
   });
 
   useEffect(() => {
     fetchContacts();
+    fetchSites();
   }, [currentTenant]);
 
   const fetchContacts = async () => {
@@ -115,6 +125,24 @@ const AddCompany = () => {
       setContacts(data || []);
     } catch (error) {
       console.error('Error fetching contacts:', error);
+    }
+  };
+
+  const fetchSites = async () => {
+    if (!currentTenant) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('sites')
+        .select('id, name')
+        .eq('tenant_id', currentTenant.id)
+        .eq('active', true)
+        .order('name');
+
+      if (error) throw error;
+      setSites(data || []);
+    } catch (error) {
+      console.error('Error fetching sites:', error);
     }
   };
 
@@ -320,12 +348,9 @@ const AddCompany = () => {
   };
 
   const handleSiteCreated = (site: { id: string; name: string }) => {
-    // For now, just show a toast since companies don't directly link to sites
-    // Sites can be linked through contacts
-    toast({
-      title: 'Site created successfully',
-      description: `${site.name} has been created. You can link it to contacts later.`,
-    });
+    setSites(prev => [...prev, site]);
+    const currentSiteIds = form.getValues('siteIds') || [];
+    form.setValue('siteIds', [...currentSiteIds, site.id]);
   };
 
   return (
@@ -641,100 +666,100 @@ const AddCompany = () => {
                   </div>
                 </div>
 
-                 {/* Contacts */}
+                 {/* Contacts Assignment */}
                  <div className="space-y-4">
-                   <h3 className="text-lg font-medium flex items-center justify-between">
-                     <span className="flex items-center gap-2">
-                       <Users className="h-4 w-4" />
-                       Contact Assignment
-                     </span>
-                     <div className="flex gap-2">
-                       <Button
-                         type="button"
-                         variant="outline"
-                         size="sm"
-                         onClick={() => setShowContactModal(true)}
-                         className="flex items-center gap-1 h-6 px-2"
-                       >
-                         <Plus className="h-3 w-3" />
-                         Add Contact
-                       </Button>
-                       <Button
-                         type="button"
-                         variant="outline"
-                         size="sm"
-                         onClick={() => setShowSiteModal(true)}
-                         className="flex items-center gap-1 h-6 px-2"
-                       >
-                         <Plus className="h-3 w-3" />
-                         Add Site
-                       </Button>
-                     </div>
+                   <h3 className="text-lg font-medium flex items-center gap-2">
+                     <Users className="h-4 w-4" />
+                     Contact Assignment
                    </h3>
-                   
-                   <Popover open={contactSearchOpen} onOpenChange={setContactSearchOpen}>
-                     <PopoverTrigger asChild>
-                       <Button variant="outline" className="justify-start">
-                         <Search className="h-4 w-4 mr-2" />
-                         Search and select contacts...
-                       </Button>
-                     </PopoverTrigger>
-                     <PopoverContent className="w-96 p-0">
-                       <Command>
-                         <CommandInput placeholder="Search contacts..." />
-                         <CommandList>
-                           <CommandEmpty>No contacts found.</CommandEmpty>
-                           <CommandGroup>
-                             {contacts.map((contact) => (
-                               <CommandItem
-                                 key={contact.id}
-                                 onSelect={() => handleContactSelect(contact)}
-                               >
-                                 <div className="flex items-center space-x-2 w-full">
-                                   <Checkbox
-                                     checked={selectedContacts.some(c => c.id === contact.id)}
-                                   />
-                                   <div className="flex-1">
-                                     <p className="font-medium">
-                                       {contact.first_name} {contact.last_name}
-                                     </p>
-                                     {contact.email && (
-                                       <p className="text-sm text-muted-foreground">{contact.email}</p>
-                                     )}
-                                     {contact.position && (
-                                       <p className="text-sm text-muted-foreground">{contact.position}</p>
-                                     )}
-                                   </div>
-                                 </div>
-                               </CommandItem>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div>
+                       <label className="text-sm font-medium">Contacts</label>
+                       <SearchableSelect
+                         value=""
+                         onValueChange={(contactId) => {
+                           const contact = contacts.find(c => c.id === contactId);
+                           if (contact) handleContactSelect(contact);
+                         }}
+                         options={contacts}
+                         placeholder="Search and select contacts..."
+                         searchPlaceholder="Search contacts..."
+                         emptyText="No contacts found."
+                         renderOption={(contact) => `${contact.first_name} ${contact.last_name}${contact.email ? ` (${contact.email})` : ''}`}
+                         onAddNew={() => setShowContactModal(true)}
+                         addNewLabel="Add Contact"
+                       />
+                       
+                       {/* Selected Contacts */}
+                       {selectedContacts.length > 0 && (
+                         <div className="space-y-2 mt-2">
+                           <p className="text-sm font-medium">Selected Contacts:</p>
+                           <div className="flex flex-wrap gap-2">
+                             {selectedContacts.map((contact) => (
+                               <Badge key={contact.id} variant="secondary" className="px-3 py-1">
+                                 {contact.first_name} {contact.last_name}
+                                 <Button
+                                   variant="ghost"
+                                   size="sm"
+                                   className="h-4 w-4 p-0 ml-2"
+                                   onClick={() => handleContactSelect(contact)}
+                                 >
+                                   ×
+                                 </Button>
+                               </Badge>
                              ))}
-                           </CommandGroup>
-                         </CommandList>
-                       </Command>
-                     </PopoverContent>
-                   </Popover>
-
-                   {/* Selected Contacts */}
-                   {selectedContacts.length > 0 && (
-                     <div className="space-y-2">
-                       <p className="text-sm font-medium">Selected Contacts:</p>
-                       <div className="flex flex-wrap gap-2">
-                         {selectedContacts.map((contact) => (
-                           <Badge key={contact.id} variant="secondary" className="px-3 py-1">
-                             {contact.first_name} {contact.last_name}
-                             <Button
-                               variant="ghost"
-                               size="sm"
-                               className="h-4 w-4 p-0 ml-2"
-                               onClick={() => handleContactSelect(contact)}
-                             >
-                               ×
-                             </Button>
-                           </Badge>
-                         ))}
-                       </div>
+                           </div>
+                         </div>
+                       )}
                      </div>
-                   )}
+                     
+                     <div>
+                       <label className="text-sm font-medium">Sites</label>
+                       <SearchableSelect
+                         value=""
+                         onValueChange={(siteId) => {
+                           const currentSiteIds = form.getValues('siteIds') || [];
+                           if (!currentSiteIds.includes(siteId)) {
+                             form.setValue('siteIds', [...currentSiteIds, siteId]);
+                           }
+                         }}
+                         options={sites}
+                         placeholder="Search and select sites..."
+                         searchPlaceholder="Search sites..."
+                         emptyText="No sites found."
+                         onAddNew={() => setShowSiteModal(true)}
+                         addNewLabel="Add Site"
+                       />
+                       
+                       {/* Selected Sites */}
+                       {form.watch('siteIds')?.length > 0 && (
+                         <div className="space-y-2 mt-2">
+                           <p className="text-sm font-medium">Selected Sites:</p>
+                           <div className="flex flex-wrap gap-2">
+                             {form.watch('siteIds')?.map((siteId) => {
+                               const site = sites.find(s => s.id === siteId);
+                               return site ? (
+                                 <Badge key={siteId} variant="secondary" className="px-3 py-1">
+                                   {site.name}
+                                   <Button
+                                     variant="ghost"
+                                     size="sm"
+                                     className="h-4 w-4 p-0 ml-2"
+                                     onClick={() => {
+                                       const currentSiteIds = form.getValues('siteIds') || [];
+                                       form.setValue('siteIds', currentSiteIds.filter(id => id !== siteId));
+                                     }}
+                                   >
+                                     ×
+                                   </Button>
+                                 </Badge>
+                               ) : null;
+                             })}
+                           </div>
+                         </div>
+                       )}
+                     </div>
+                   </div>
                  </div>
 
                  {/* Lead Flag */}

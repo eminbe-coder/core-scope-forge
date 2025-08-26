@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
@@ -391,35 +392,20 @@ const AddSite = () => {
                     name="contact_id"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="flex items-center justify-between">
-                          Contact (Optional)
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setShowContactModal(true)}
-                            className="flex items-center gap-1 h-6 px-2"
-                          >
-                            <Plus className="h-3 w-3" />
-                            Add Contact
-                          </Button>
-                        </FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a contact" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="none">No contact</SelectItem>
-                            {contacts.map((contact) => (
-                              <SelectItem key={contact.id} value={contact.id}>
-                                {contact.first_name} {contact.last_name}
-                                {contact.email && ` (${contact.email})`}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FormLabel>Contact (Optional)</FormLabel>
+                        <FormControl>
+                          <SearchableSelect
+                            value={field.value}
+                            onValueChange={field.onChange}
+                            options={contacts}
+                            placeholder="Search and select contact..."
+                            searchPlaceholder="Search contacts..."
+                            emptyText="No contacts found."
+                            renderOption={(contact) => `${contact.first_name} ${contact.last_name}${contact.email ? ` (${contact.email})` : ''}`}
+                            onAddNew={() => setShowContactModal(true)}
+                            addNewLabel="Add Contact"
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -430,34 +416,19 @@ const AddSite = () => {
                     name="company_id"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="flex items-center justify-between">
-                          Company (Optional)
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setShowCompanyModal(true)}
-                            className="flex items-center gap-1 h-6 px-2"
-                          >
-                            <Plus className="h-3 w-3" />
-                            Add Company
-                          </Button>
-                        </FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a company" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="none">No company</SelectItem>
-                            {companies.map((company) => (
-                              <SelectItem key={company.id} value={company.id}>
-                                {company.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FormLabel>Company (Optional)</FormLabel>
+                        <FormControl>
+                          <SearchableSelect
+                            value={field.value}
+                            onValueChange={field.onChange}
+                            options={companies}
+                            placeholder="Search and select company..."
+                            searchPlaceholder="Search companies..."
+                            emptyText="No companies found."
+                            onAddNew={() => setShowCompanyModal(true)}
+                            addNewLabel="Add Company"
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
