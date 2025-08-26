@@ -82,8 +82,19 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
     if (!user) return;
 
     try {
-      // Super admins can see all tenants
-      if (user?.email === 'moaath@essensia.bh') {
+      // Check if user is a super admin by querying their memberships
+      const { data: superAdminCheck, error: superAdminError } = await supabase
+        .from('user_tenant_memberships')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'super_admin')
+        .eq('active', true)
+        .limit(1);
+
+      if (superAdminError) throw superAdminError;
+
+      // If user is super admin, load all tenants
+      if (superAdminCheck && superAdminCheck.length > 0) {
         const { data: allTenants, error: allTenantsError } = await supabase
           .rpc('get_all_tenants_for_super_admin');
         
