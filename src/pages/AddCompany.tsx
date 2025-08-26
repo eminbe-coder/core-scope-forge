@@ -24,7 +24,7 @@ import {
 import { importCompaniesFromCSV } from '@/lib/company-import';
 import { 
   ArrowLeft, Upload, Download, Building2, Mail, Phone, MapPin, 
-  Globe, Users, FileText, Search 
+  Globe, Users, FileText, Search, Plus 
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
@@ -38,6 +38,8 @@ const companySchema = z.object({
   website: z.string().optional(),
   email: z.string().optional(),
   phone: z.string().optional(),
+  instagramPage: z.string().optional(),
+  linkedinPage: z.string().optional(),
   street: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
@@ -76,6 +78,8 @@ const AddCompany = () => {
       website: '',
       email: '',
       phone: '',
+      instagramPage: '',
+      linkedinPage: '',
       street: '',
       city: '',
       state: '',
@@ -492,19 +496,47 @@ const AddCompany = () => {
                       )}
                     />
 
-                    <FormField
-                      control={form.control}
-                      name="website"
-                      render={({ field }) => (
-                        <FormItem className="md:col-span-2">
-                          <FormLabel>Website</FormLabel>
-                          <FormControl>
-                            <Input placeholder="https://company.com" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                     <FormField
+                       control={form.control}
+                       name="website"
+                       render={({ field }) => (
+                         <FormItem className="md:col-span-2">
+                           <FormLabel>Website</FormLabel>
+                           <FormControl>
+                             <Input placeholder="https://company.com" {...field} />
+                           </FormControl>
+                           <FormMessage />
+                         </FormItem>
+                       )}
+                     />
+
+                     <FormField
+                       control={form.control}
+                       name="instagramPage"
+                       render={({ field }) => (
+                         <FormItem>
+                           <FormLabel>Instagram Page</FormLabel>
+                           <FormControl>
+                             <Input placeholder="https://instagram.com/company" {...field} />
+                           </FormControl>
+                           <FormMessage />
+                         </FormItem>
+                       )}
+                     />
+
+                     <FormField
+                       control={form.control}
+                       name="linkedinPage"
+                       render={({ field }) => (
+                         <FormItem>
+                           <FormLabel>LinkedIn Page</FormLabel>
+                           <FormControl>
+                             <Input placeholder="https://linkedin.com/company/company" {...field} />
+                           </FormControl>
+                           <FormMessage />
+                         </FormItem>
+                       )}
+                     />
                   </div>
                 </div>
 
@@ -587,20 +619,32 @@ const AddCompany = () => {
                   </div>
                 </div>
 
-                {/* Contacts */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium flex items-center gap-2">
-                    <Users className="h-4 w-4" />
-                    Linked Contacts
-                  </h3>
-                  
-                  <Popover open={contactSearchOpen} onOpenChange={setContactSearchOpen}>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="justify-start">
-                        <Search className="h-4 w-4 mr-2" />
-                        Search and select contacts...
-                      </Button>
-                    </PopoverTrigger>
+                 {/* Contacts */}
+                 <div className="space-y-4">
+                   <div className="flex items-center justify-between">
+                     <h3 className="text-lg font-medium flex items-center gap-2">
+                       <Users className="h-4 w-4" />
+                       Linked Contacts
+                     </h3>
+                     <Button
+                       type="button"
+                       variant="outline"
+                       size="sm"
+                       onClick={() => navigate('/contacts/add')}
+                       className="flex items-center gap-2"
+                     >
+                       <Plus className="h-4 w-4" />
+                       Add Contact
+                     </Button>
+                   </div>
+                   
+                   <Popover open={contactSearchOpen} onOpenChange={setContactSearchOpen}>
+                     <PopoverTrigger asChild>
+                       <Button variant="outline" className="justify-start">
+                         <Search className="h-4 w-4 mr-2" />
+                         Search and select contacts...
+                       </Button>
+                     </PopoverTrigger>
                     <PopoverContent className="w-96 p-0">
                       <Command>
                         <CommandInput placeholder="Search contacts..." />
