@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useTenant } from '@/hooks/use-tenant';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { CreateTenantForm } from '@/components/forms/CreateTenantForm';
+import { TenantForm } from '@/components/forms/TenantForm';
 import { CreateUserModal } from '@/components/forms/CreateUserModal';
 import {
   Dialog,
@@ -49,6 +49,8 @@ export default function Admin() {
   const [memberships, setMemberships] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateTenant, setShowCreateTenant] = useState(false);
+  const [showEditTenant, setShowEditTenant] = useState(false);
+  const [selectedTenant, setSelectedTenant] = useState<TenantData | null>(null);
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [selectedTenantId, setSelectedTenantId] = useState('');
   const { toast } = useToast();
@@ -104,11 +106,18 @@ export default function Admin() {
 
   const handleCreateSuccess = () => {
     setShowCreateTenant(false);
+    setShowEditTenant(false);
+    setSelectedTenant(null);
     fetchTenants();
     toast({
       title: 'Success',
-      description: 'Tenant created successfully',
+      description: selectedTenant ? 'Tenant updated successfully' : 'Tenant created successfully',
     });
+  };
+
+  const openEditTenant = (tenant: TenantData) => {
+    setSelectedTenant(tenant);
+    setShowEditTenant(true);
   };
 
   const openCreateUserModal = (tenantId: string) => {
@@ -209,14 +218,14 @@ export default function Admin() {
                       Create Tenant
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle>Create New Tenant</DialogTitle>
                       <DialogDescription>
                         Add a new tenant to the platform
                       </DialogDescription>
                     </DialogHeader>
-                    <CreateTenantForm 
+                    <TenantForm 
                       onSuccess={handleCreateSuccess}
                       onCancel={() => setShowCreateTenant(false)}
                     />
@@ -257,7 +266,16 @@ export default function Admin() {
                             <Button 
                               variant="outline" 
                               size="sm"
+                              onClick={() => openEditTenant(tenant)}
+                              title="Edit Tenant"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
                               onClick={() => openCreateUserModal(tenant.id)}
+                              title="Add User"
                             >
                               <UserPlus className="h-4 w-4" />
                             </Button>
@@ -379,6 +397,26 @@ export default function Admin() {
           </div>
         )}
       </div>
+
+      {/* Edit Tenant Dialog */}
+      <Dialog open={showEditTenant} onOpenChange={setShowEditTenant}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Tenant</DialogTitle>
+            <DialogDescription>
+              Update tenant information and settings
+            </DialogDescription>
+          </DialogHeader>
+          <TenantForm 
+            tenant={selectedTenant || undefined}
+            onSuccess={handleCreateSuccess}
+            onCancel={() => {
+              setShowEditTenant(false);
+              setSelectedTenant(null);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
 
       <CreateUserModal
         open={showCreateUser}
