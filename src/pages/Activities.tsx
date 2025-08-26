@@ -11,7 +11,7 @@ import { Plus, Search, Activity, Phone, Mail, Calendar, CheckSquare, FileText } 
 interface ActivityItem {
   id: string;
   tenant_id: string;
-  type: 'note' | 'email' | 'call' | 'meeting' | 'task' | 'deal_updated' | 'customer_updated' | 'project_updated' | 'task_completed';
+  type: 'note' | 'email' | 'call' | 'meeting' | 'task' | 'deal_updated' | 'customer_updated' | 'project_updated' | 'task_completed' | 'follow_up';
   title: string;
   description?: string;
   customer_id?: string;
@@ -47,6 +47,7 @@ const activityIcons = {
   customer_updated: FileText,
   project_updated: FileText,
   task_completed: CheckSquare,
+  follow_up: Activity,
 };
 
 const activityColors = {
@@ -59,6 +60,7 @@ const activityColors = {
   customer_updated: 'bg-teal-500',
   project_updated: 'bg-indigo-500',
   task_completed: 'bg-emerald-500',
+  follow_up: 'bg-yellow-500',
 };
 
 const Activities = () => {

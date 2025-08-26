@@ -22,7 +22,8 @@ import {
   Zap,
   Smartphone,
   Shield,
-  Target
+  Target,
+  CheckSquare
 } from 'lucide-react';
 
 interface NavigationItem {
@@ -91,6 +92,12 @@ const navigationModules: NavigationModule[] = [
         title: 'Activities',
         url: '/activities',
         icon: Zap,
+        permission: 'activities.read',
+      },
+      {
+        title: 'My To-Dos',
+        url: '/todos',
+        icon: CheckSquare,
         permission: 'activities.read',
       },
     ]

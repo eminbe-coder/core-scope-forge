@@ -20,6 +20,7 @@ import Leads from "./pages/Leads";
 import Deals from "./pages/Deals";
 import Projects from "./pages/Projects";
 import Activities from "./pages/Activities";
+import Todos from "./pages/Todos";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
 import Devices from "./pages/Devices";
@@ -92,6 +93,11 @@ const App = () => (
                 <Route path="/activities" element={
                   <ProtectedRoute>
                     <Activities />
+                  </ProtectedRoute>
+                } />
+                <Route path="/todos" element={
+                  <ProtectedRoute>
+                    <Todos />
                   </ProtectedRoute>
                 } />
                 <Route path="/devices" element={

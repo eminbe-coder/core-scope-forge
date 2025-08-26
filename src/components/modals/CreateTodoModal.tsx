@@ -43,7 +43,7 @@ const todoSchema = z.object({
   description: z.string().optional(),
   due_date: z.date().optional(),
   assigned_to: z.string().min(1, 'Assigned user is required'),
-  type: z.enum(['task', 'call', 'meeting', 'email', 'follow_up']),
+  type: z.enum(['task', 'call', 'meeting', 'email']),
 });
 
 type TodoFormData = z.infer<typeof todoSchema>;
@@ -202,7 +202,6 @@ export const CreateTodoModal = ({
                       <SelectItem value="call">Call</SelectItem>
                       <SelectItem value="meeting">Meeting</SelectItem>
                       <SelectItem value="email">Email</SelectItem>
-                      <SelectItem value="follow_up">Follow-up</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

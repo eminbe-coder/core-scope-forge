@@ -58,75 +58,73 @@ export const LeadActivities = ({ entityId, entityType, entityName }: LeadActivit
       // Fetch activity logs
       const { data: activityLogs, error: activityError } = await supabase
         .from('activity_logs')
-        .select(`
-          id,
-          title,
-          description,
-          activity_type,
-          created_at,
-          created_user:created_by(
-            first_name,
-            last_name
-          )
-        `)
+        .select('*')
         .eq('entity_id', entityId)
         .eq('entity_type', entityType)
         .order('created_at', { ascending: false });
 
       if (activityError) throw activityError;
 
-      activityLogs?.forEach(log => {
-        allActivities.push({
-          id: log.id,
-          type: 'activity',
-          title: log.title,
-          description: log.description,
-          activity_type: log.activity_type,
-          created_user: log.created_user,
-          created_at: log.created_at,
-        });
-      });
+      // Get user data for activity logs
+      for (const log of activityLogs || []) {
+        const { data: userData } = await supabase
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', log.created_by)
+          .single();
+
+        if (userData) {
+          allActivities.push({
+            id: log.id,
+            type: 'activity',
+            title: log.title,
+            description: log.description,
+            activity_type: log.activity_type,
+            created_user: userData,
+            created_at: log.created_at,
+          });
+        }
+      }
 
       // Fetch todos (activities with type task)
       const { data: todos, error: todoError } = await supabase
         .from('activities')
-        .select(`
-          id,
-          title,
-          description,
-          due_date,
-          completed,
-          completed_at,
-          created_at,
-          assigned_user:assigned_to(
-            first_name,
-            last_name
-          ),
-          created_user:created_by(
-            first_name,
-            last_name
-          )
-        `)
+        .select('*')
         .eq(`${entityType}_id`, entityId)
-        .in('type', ['task', 'call', 'meeting', 'email', 'follow_up'])
+        .in('type', ['task', 'call', 'meeting', 'email'])
         .order('created_at', { ascending: false });
 
       if (todoError) throw todoError;
 
-      todos?.forEach(todo => {
-        allActivities.push({
-          id: todo.id,
-          type: 'todo',
-          title: todo.title,
-          description: todo.description,
-          due_date: todo.due_date,
-          completed: todo.completed,
-          completed_at: todo.completed_at,
-          assigned_user: todo.assigned_user,
-          created_user: todo.created_user,
-          created_at: todo.created_at,
-        });
-      });
+      // Get user data for todos
+      for (const todo of todos || []) {
+        const { data: createdUser } = await supabase
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', todo.created_by)
+          .single();
+
+        const assignedUser = todo.assigned_to ? await supabase
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', todo.assigned_to)
+          .single() : null;
+
+        if (createdUser) {
+          allActivities.push({
+            id: todo.id,
+            type: 'todo',
+            title: todo.title,
+            description: todo.description,
+            due_date: todo.due_date,
+            completed: todo.completed,
+            completed_at: todo.completed_at,
+            assigned_user: assignedUser?.data || undefined,
+            created_user: createdUser,
+            created_at: todo.created_at,
+          });
+        }
+      }
 
       // Sort by created_at descending
       allActivities.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
