@@ -184,6 +184,8 @@ export type Database = {
           headquarters: string | null
           id: string
           industry: string | null
+          instagram_page: string | null
+          linkedin_page: string | null
           logo_url: string | null
           name: string
           notes: string | null
@@ -201,6 +203,8 @@ export type Database = {
           headquarters?: string | null
           id?: string
           industry?: string | null
+          instagram_page?: string | null
+          linkedin_page?: string | null
           logo_url?: string | null
           name: string
           notes?: string | null
@@ -218,6 +222,8 @@ export type Database = {
           headquarters?: string | null
           id?: string
           industry?: string | null
+          instagram_page?: string | null
+          linkedin_page?: string | null
           logo_url?: string | null
           name?: string
           notes?: string | null

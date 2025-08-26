@@ -40,6 +40,8 @@ export interface CompanyFormData {
   website?: string;
   email?: string;
   phone?: string;
+  instagramPage?: string;
+  linkedinPage?: string;
   address?: CompanyAddress;
   notes?: string;
   contactIds?: string[];
@@ -305,6 +307,8 @@ export function normalizeCompanyData(data: CompanyFormData): any {
     website: data.website ? normalizeUrl(data.website) : null,
     email: data.email ? data.email.trim().toLowerCase() : null,
     phone: data.phone?.trim() || null,
+    instagram_page: data.instagramPage ? normalizeUrl(data.instagramPage) : null,
+    linkedin_page: data.linkedinPage ? normalizeUrl(data.linkedinPage) : null,
     headquarters: addressString,
     notes: data.notes?.trim() || null,
     // Store company types as JSON in notes for now, until we add a proper field
