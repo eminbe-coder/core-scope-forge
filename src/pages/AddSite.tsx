@@ -104,14 +104,18 @@ const AddSite = () => {
         return;
       }
 
+      // Prepare data for submission
+      const submitData = {
+        ...data,
+        customer_id: data.customer_id === 'none' ? null : data.customer_id,
+        tenant_id: currentTenant.id,
+        active: true
+      };
+
       // Create site
       const { data: siteData, error } = await supabase
         .from('sites')
-        .insert({
-          ...data,
-          tenant_id: currentTenant.id,
-          active: true
-        })
+        .insert(submitData)
         .select()
         .single();
 
@@ -247,7 +251,7 @@ const AddSite = () => {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="">No customer</SelectItem>
+                            <SelectItem value="none">No customer</SelectItem>
                             {customers.map((customer) => (
                               <SelectItem key={customer.id} value={customer.id}>
                                 {customer.name}
