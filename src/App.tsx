@@ -16,6 +16,7 @@ import Sites from "./pages/Sites";
 import AddSite from "./pages/AddSite";
 import Contacts from "./pages/Contacts";
 import AddContact from "./pages/AddContact";
+import Leads from "./pages/Leads";
 import Deals from "./pages/Deals";
 import Projects from "./pages/Projects";
 import Activities from "./pages/Activities";
@@ -72,11 +73,16 @@ const App = () => (
                   <ProtectedRoute>
                     <AddContact />
                   </ProtectedRoute>
-                } />
-                <Route path="/deals" element={
-                  <ProtectedRoute>
-                    <Deals />
-                  </ProtectedRoute>
+                 } />
+                 <Route path="/leads" element={
+                   <ProtectedRoute>
+                     <Leads />
+                   </ProtectedRoute>
+                 } />
+                 <Route path="/deals" element={
+                   <ProtectedRoute>
+                     <Deals />
+                   </ProtectedRoute>
                 } />
                 <Route path="/projects" element={
                   <ProtectedRoute>

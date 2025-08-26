@@ -185,6 +185,7 @@ export type Database = {
           id: string
           industry: string | null
           instagram_page: string | null
+          is_lead: boolean | null
           linkedin_page: string | null
           logo_url: string | null
           name: string
@@ -204,6 +205,7 @@ export type Database = {
           id?: string
           industry?: string | null
           instagram_page?: string | null
+          is_lead?: boolean | null
           linkedin_page?: string | null
           logo_url?: string | null
           name: string
@@ -223,6 +225,7 @@ export type Database = {
           id?: string
           industry?: string | null
           instagram_page?: string | null
+          is_lead?: boolean | null
           linkedin_page?: string | null
           logo_url?: string | null
           name?: string
@@ -1044,7 +1047,7 @@ export type Database = {
           customer_id: string | null
           id: string
           images: string[] | null
-          is_deal: boolean | null
+          is_lead: boolean | null
           latitude: number | null
           longitude: number | null
           name: string
@@ -1065,7 +1068,7 @@ export type Database = {
           customer_id?: string | null
           id?: string
           images?: string[] | null
-          is_deal?: boolean | null
+          is_lead?: boolean | null
           latitude?: number | null
           longitude?: number | null
           name: string
@@ -1086,7 +1089,7 @@ export type Database = {
           customer_id?: string | null
           id?: string
           images?: string[] | null
-          is_deal?: boolean | null
+          is_lead?: boolean | null
           latitude?: number | null
           longitude?: number | null
           name?: string

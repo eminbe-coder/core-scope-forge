@@ -45,6 +45,7 @@ export interface CompanyFormData {
   address?: CompanyAddress;
   notes?: string;
   contactIds?: string[];
+  is_lead?: boolean;
 }
 
 // Industry options - can be moved to a config file later
@@ -311,6 +312,7 @@ export function normalizeCompanyData(data: CompanyFormData): any {
     linkedin_page: data.linkedinPage ? normalizeUrl(data.linkedinPage) : null,
     headquarters: addressString,
     notes: data.notes?.trim() || null,
+    is_lead: data.is_lead || false,
     // Store company types as JSON in notes for now, until we add a proper field
     description: data.companyType && data.companyType.length > 0 
       ? `Company Types: ${data.companyType.join(', ')}` 

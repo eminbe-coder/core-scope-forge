@@ -38,7 +38,7 @@ const siteSchema = z.object({
   customer_id: z.string().optional(),
   contact_id: z.string().optional(),
   company_id: z.string().optional(),
-  is_deal: z.boolean(),
+  is_lead: z.boolean(),
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),
   notes: z.string().optional(),
@@ -86,7 +86,7 @@ const AddSite = () => {
       customer_id: undefined,
       contact_id: undefined,
       company_id: undefined,
-      is_deal: false,
+      is_lead: false,
       latitude: undefined,
       longitude: undefined,
       notes: '',
@@ -451,7 +451,7 @@ const AddSite = () => {
 
                   <FormField
                     control={form.control}
-                    name="is_deal"
+                    name="is_lead"
                     render={({ field }) => (
                       <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                         <FormControl>
@@ -462,10 +462,10 @@ const AddSite = () => {
                         </FormControl>
                         <div className="space-y-1 leading-none">
                           <FormLabel>
-                            Flag as Deal
+                            Flag as Lead
                           </FormLabel>
                           <p className="text-sm text-muted-foreground">
-                            Mark this site as a potential business opportunity
+                            Mark this site as a potential business lead
                           </p>
                         </div>
                       </FormItem>

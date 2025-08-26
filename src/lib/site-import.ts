@@ -168,7 +168,7 @@ export const importSites = async (
           tenant_id: tenantId,
           active: true,
           country: site.country || 'Saudi Arabia', // Default country if not provided
-          is_deal: false, // Default value for new column
+          is_lead: false, // Default value for new column
           contact_id: null, // Default value for new column
           company_id: null, // Default value for new column
           images: null, // Default value for new column

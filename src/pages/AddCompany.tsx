@@ -47,6 +47,7 @@ const companySchema = z.object({
   postalCode: z.string().optional(),
   notes: z.string().optional(),
   contactIds: z.array(z.string()).optional(),
+  is_lead: z.boolean(),
 });
 
 type CompanyFormSchema = z.infer<typeof companySchema>;
@@ -87,6 +88,7 @@ const AddCompany = () => {
       postalCode: '',
       notes: '',
       contactIds: [],
+      is_lead: false,
     },
   });
 
@@ -645,63 +647,93 @@ const AddCompany = () => {
                          Search and select contacts...
                        </Button>
                      </PopoverTrigger>
-                    <PopoverContent className="w-96 p-0">
-                      <Command>
-                        <CommandInput placeholder="Search contacts..." />
-                        <CommandList>
-                          <CommandEmpty>No contacts found.</CommandEmpty>
-                          <CommandGroup>
-                            {contacts.map((contact) => (
-                              <CommandItem
-                                key={contact.id}
-                                onSelect={() => handleContactSelect(contact)}
-                              >
-                                <div className="flex items-center space-x-2 w-full">
-                                  <Checkbox
-                                    checked={selectedContacts.some(c => c.id === contact.id)}
-                                  />
-                                  <div className="flex-1">
-                                    <p className="font-medium">
-                                      {contact.first_name} {contact.last_name}
-                                    </p>
-                                    {contact.email && (
-                                      <p className="text-sm text-muted-foreground">{contact.email}</p>
-                                    )}
-                                    {contact.position && (
-                                      <p className="text-sm text-muted-foreground">{contact.position}</p>
-                                    )}
-                                  </div>
-                                </div>
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                     <PopoverContent className="w-96 p-0">
+                       <Command>
+                         <CommandInput placeholder="Search contacts..." />
+                         <CommandList>
+                           <CommandEmpty>No contacts found.</CommandEmpty>
+                           <CommandGroup>
+                             {contacts.map((contact) => (
+                               <CommandItem
+                                 key={contact.id}
+                                 onSelect={() => handleContactSelect(contact)}
+                               >
+                                 <div className="flex items-center space-x-2 w-full">
+                                   <Checkbox
+                                     checked={selectedContacts.some(c => c.id === contact.id)}
+                                   />
+                                   <div className="flex-1">
+                                     <p className="font-medium">
+                                       {contact.first_name} {contact.last_name}
+                                     </p>
+                                     {contact.email && (
+                                       <p className="text-sm text-muted-foreground">{contact.email}</p>
+                                     )}
+                                     {contact.position && (
+                                       <p className="text-sm text-muted-foreground">{contact.position}</p>
+                                     )}
+                                   </div>
+                                 </div>
+                               </CommandItem>
+                             ))}
+                           </CommandGroup>
+                         </CommandList>
+                       </Command>
+                     </PopoverContent>
+                   </Popover>
 
-                  {/* Selected Contacts */}
-                  {selectedContacts.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium">Selected Contacts:</p>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedContacts.map((contact) => (
-                          <Badge key={contact.id} variant="secondary" className="px-3 py-1">
-                            {contact.first_name} {contact.last_name}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-4 w-4 p-0 ml-2"
-                              onClick={() => handleContactSelect(contact)}
-                            >
-                              ×
-                            </Button>
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                   {/* Selected Contacts */}
+                   {selectedContacts.length > 0 && (
+                     <div className="space-y-2">
+                       <p className="text-sm font-medium">Selected Contacts:</p>
+                       <div className="flex flex-wrap gap-2">
+                         {selectedContacts.map((contact) => (
+                           <Badge key={contact.id} variant="secondary" className="px-3 py-1">
+                             {contact.first_name} {contact.last_name}
+                             <Button
+                               variant="ghost"
+                               size="sm"
+                               className="h-4 w-4 p-0 ml-2"
+                               onClick={() => handleContactSelect(contact)}
+                             >
+                               ×
+                             </Button>
+                           </Badge>
+                         ))}
+                       </div>
+                     </div>
+                   )}
+                 </div>
+
+                 {/* Lead Flag */}
+                 <div className="space-y-4">
+                   <h3 className="text-lg font-medium flex items-center gap-2">
+                     <Users className="h-4 w-4" />
+                     Lead Status
+                   </h3>
+                   <FormField
+                     control={form.control}
+                     name="is_lead"
+                     render={({ field }) => (
+                       <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                         <FormControl>
+                           <Checkbox
+                             checked={field.value}
+                             onCheckedChange={field.onChange}
+                           />
+                         </FormControl>
+                         <div className="space-y-1 leading-none">
+                           <FormLabel>
+                             Flag as Lead
+                           </FormLabel>
+                           <p className="text-sm text-muted-foreground">
+                             Mark this company as a potential business lead
+                           </p>
+                         </div>
+                       </FormItem>
+                     )}
+                   />
+                 </div>
 
                 {/* Notes */}
                 <div className="space-y-4">

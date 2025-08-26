@@ -21,7 +21,8 @@ import {
   FolderOpen, 
   Zap,
   Smartphone,
-  Shield
+  Shield,
+  Target
 } from 'lucide-react';
 
 interface NavigationItem {
@@ -67,6 +68,12 @@ const navigationModules: NavigationModule[] = [
         url: '/contacts',
         icon: Contact,
         permission: 'contacts.read',
+      },
+      {
+        title: 'Leads',
+        url: '/leads',
+        icon: Target,
+        permission: 'leads.read',
       },
       {
         title: 'Deals',
