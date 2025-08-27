@@ -17,9 +17,7 @@ import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
 import { 
   validateCompany, 
-  normalizeCompanyData, 
-  INDUSTRY_OPTIONS, 
-  COMPANY_TYPE_OPTIONS,
+  normalizeCompanyData,
   CompanyFormData 
 } from '@/lib/company-validation';
 import { importCompaniesFromCSV } from '@/lib/company-import';
@@ -69,6 +67,18 @@ interface Site {
   name: string;
 }
 
+interface CompanyIndustry {
+  id: string;
+  name: string;
+  active: boolean;
+}
+
+interface CompanyType {
+  id: string;
+  name: string;
+  active: boolean;
+}
+
 const AddCompany = () => {
   const navigate = useNavigate();
   const { currentTenant } = useTenant();
@@ -77,6 +87,8 @@ const AddCompany = () => {
   const [loading, setLoading] = useState(false);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
+  const [industries, setIndustries] = useState<CompanyIndustry[]>([]);
+  const [companyTypes, setCompanyTypes] = useState<CompanyType[]>([]);
   const [selectedContacts, setSelectedContacts] = useState<Contact[]>([]);
   const [contactSearchOpen, setContactSearchOpen] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
@@ -106,8 +118,12 @@ const AddCompany = () => {
   });
 
   useEffect(() => {
-    fetchContacts();
-    fetchSites();
+    if (currentTenant) {
+      fetchContacts();
+      fetchSites();
+      fetchIndustries();
+      fetchCompanyTypes();
+    }
   }, [currentTenant]);
 
   const fetchContacts = async () => {
@@ -143,6 +159,42 @@ const AddCompany = () => {
       setSites(data || []);
     } catch (error) {
       console.error('Error fetching sites:', error);
+    }
+  };
+
+  const fetchIndustries = async () => {
+    if (!currentTenant) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('company_industries')
+        .select('id, name, active')
+        .eq('tenant_id', currentTenant.id)
+        .eq('active', true)
+        .order('name');
+
+      if (error) throw error;
+      setIndustries(data || []);
+    } catch (error) {
+      console.error('Error fetching industries:', error);
+    }
+  };
+
+  const fetchCompanyTypes = async () => {
+    if (!currentTenant) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('company_types')
+        .select('id, name, active')
+        .eq('tenant_id', currentTenant.id)
+        .eq('active', true)
+        .order('name');
+
+      if (error) throw error;
+      setCompanyTypes(data || []);
+    } catch (error) {
+      console.error('Error fetching company types:', error);
     }
   };
 
@@ -293,19 +345,22 @@ const AddCompany = () => {
   };
 
   const downloadSampleExcel = () => {
-    // Create sample Excel data
+    // Create sample Excel data with tenant-specific industries and types
+    const sampleIndustry = industries.length > 0 ? industries[0].name : 'Technology';
+    const sampleCompanyType = companyTypes.length > 0 ? companyTypes[0].name : 'Client';
+    
     const headers = [
       'Company Name*', 'Industry', 'Company Type', 'Website', 'Email', 
       'Phone', 'Street', 'City', 'State', 'Country', 'Postal Code', 'Notes'
     ];
     const sampleData = [
       [
-        'Tech Corp', 'Technology', 'Client', 'https://techcorp.com', 
+        'Tech Corp', sampleIndustry, sampleCompanyType, 'https://techcorp.com', 
         'info@techcorp.com', '+1234567890', '123 Tech St', 'San Francisco', 
         'CA', 'USA', '94105', 'Leading technology company'
       ],
       [
-        'Business Solutions Inc', 'Consulting', 'Partner', 'businesssolutions.com', 
+        'Business Solutions Inc', sampleIndustry, sampleCompanyType, 'businesssolutions.com', 
         'contact@businesssolutions.com', '+0987654321', '456 Business Ave', 'New York', 
         'NY', 'USA', '10001', 'Business consulting services'
       ],
@@ -469,11 +524,17 @@ const AddCompany = () => {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {INDUSTRY_OPTIONS.map((industry) => (
-                                <SelectItem key={industry} value={industry}>
-                                  {industry}
+                              {industries.length > 0 ? (
+                                industries.map((industry) => (
+                                  <SelectItem key={industry.id} value={industry.name}>
+                                    {industry.name}
+                                  </SelectItem>
+                                ))
+                              ) : (
+                                <SelectItem value="" disabled>
+                                  No industries configured. Add industries in CRM Settings.
                                 </SelectItem>
-                              ))}
+                              )}
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -488,18 +549,24 @@ const AddCompany = () => {
                         <FormItem>
                           <FormLabel>Company Type</FormLabel>
                           <div className="grid grid-cols-2 gap-2 p-3 border rounded-md">
-                            {COMPANY_TYPE_OPTIONS.map((type) => (
-                              <div key={type} className="flex items-center space-x-2">
-                                <Checkbox
-                                  id={type}
-                                  checked={(form.getValues('companyType') || []).includes(type)}
-                                  onCheckedChange={(checked) => handleCompanyTypeChange(type, checked as boolean)}
-                                />
-                                <label htmlFor={type} className="text-sm font-medium">
-                                  {type}
-                                </label>
+                            {companyTypes.length > 0 ? (
+                              companyTypes.map((type) => (
+                                <div key={type.id} className="flex items-center space-x-2">
+                                  <Checkbox
+                                    id={type.name}
+                                    checked={(form.getValues('companyType') || []).includes(type.name)}
+                                    onCheckedChange={(checked) => handleCompanyTypeChange(type.name, checked as boolean)}
+                                  />
+                                  <label htmlFor={type.name} className="text-sm font-medium">
+                                    {type.name}
+                                  </label>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="col-span-2 text-sm text-muted-foreground text-center py-4">
+                                No company types configured. Add company types in CRM Settings.
                               </div>
-                            ))}
+                            )}
                           </div>
                           <FormMessage />
                         </FormItem>
