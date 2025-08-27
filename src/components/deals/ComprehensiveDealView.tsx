@@ -1,0 +1,1143 @@
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { 
+  DollarSign, 
+  Calendar, 
+  Building, 
+  MapPin, 
+  Users, 
+  User, 
+  Plus, 
+  CheckSquare, 
+  Trash2, 
+  Edit3, 
+  Save, 
+  X, 
+  FileText, 
+  Upload,
+  Folder,
+  ExternalLink,
+  Activity
+} from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useTenant } from '@/hooks/use-tenant';
+import { useToast } from '@/hooks/use-toast';
+
+interface Deal {
+  id: string;
+  name: string;
+  description?: string;
+  value?: number;
+  status: string;
+  stage_id?: string;
+  site_id?: string;
+  customer_id?: string;
+  customer_reference_number?: string;
+  probability?: number;
+  expected_close_date?: string;
+  notes?: string;
+  assigned_to?: string;
+  customers?: {
+    id: string;
+    name: string;
+  };
+  sites?: {
+    name: string;
+  };
+  currencies?: {
+    symbol: string;
+  };
+  deal_stages?: {
+    name: string;
+    win_percentage: number;
+  };
+  assigned_user?: {
+    first_name: string;
+    last_name: string;
+    email: string;
+  };
+  created_at: string;
+  updated_at: string;
+}
+
+interface DealStage {
+  id: string;
+  name: string;
+  win_percentage: number;
+}
+
+interface PaymentTerm {
+  id?: string;
+  installment_number: number;
+  amount_type: 'fixed' | 'percentage';
+  amount_value: number;
+  calculated_amount?: number;
+  due_date?: string;
+  notes?: string;
+}
+
+interface Company {
+  id: string;
+  name: string;
+}
+
+interface Contact {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email?: string;
+}
+
+interface Site {
+  id: string;
+  name: string;
+  address: string;
+}
+
+interface Customer {
+  id: string;
+  name: string;
+}
+
+interface Activity {
+  id: string;
+  title?: string;
+  description?: string;
+  type: string;
+  due_date?: string;
+  completed?: boolean;
+  created_at: string;
+  created_by: string;
+  profiles?: {
+    first_name: string;
+    last_name: string;
+  };
+}
+
+interface OneDriveSettings {
+  enabled: boolean;
+  folder_structure: {
+    deals: string;
+    sites: string;
+    customers: string;
+  };
+}
+
+interface OneDriveSettingsRaw {
+  enabled: boolean;
+  folder_structure: any;
+}
+
+interface ComprehensiveDealViewProps {
+  deal: Deal;
+  onUpdate: () => void;
+}
+
+export const ComprehensiveDealView = ({ deal, onUpdate }: ComprehensiveDealViewProps) => {
+  const { currentTenant } = useTenant();
+  const { toast } = useToast();
+  
+  // State for all data
+  const [stages, setStages] = useState<DealStage[]>([]);
+  const [sites, setSites] = useState<Site[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [linkedCompanies, setLinkedCompanies] = useState<Company[]>([]);
+  const [linkedContacts, setLinkedContacts] = useState<Contact[]>([]);
+  const [tenantUsers, setTenantUsers] = useState<{ id: string; name: string; email: string }[]>([]);
+  const [paymentTerms, setPaymentTerms] = useState<PaymentTerm[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [nextTodo, setNextTodo] = useState<{ title: string; due_date?: string } | null>(null);
+  const [oneDriveSettings, setOneDriveSettings] = useState<OneDriveSettings | null>(null);
+  const [dealFolderPath, setDealFolderPath] = useState<string>('');
+  
+  // UI state
+  const [editMode, setEditMode] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showFolderModal, setShowFolderModal] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadNotes, setUploadNotes] = useState('');
+  const [newNote, setNewNote] = useState('');
+  const [customFolderPath, setCustomFolderPath] = useState('');
+  
+  const [editedDeal, setEditedDeal] = useState({
+    stage_id: deal.stage_id || '',
+    description: deal.description || '',
+    value: deal.value || 0,
+    expected_close_date: deal.expected_close_date || '',
+    site_id: deal.site_id || 'no-site-selected',
+    customer_id: deal.customer_id || '',
+    customer_reference_number: deal.customer_reference_number || '',
+    assigned_to: deal.assigned_to || 'unassigned',
+    company_ids: [] as string[],
+    contact_ids: [] as string[],
+  });
+
+  // Fetch all data
+  const fetchAllData = async () => {
+    if (!currentTenant || !deal.id) return;
+
+    try {
+      await Promise.all([
+        fetchStages(),
+        fetchSites(),
+        fetchCompanies(),
+        fetchContacts(),
+        fetchCustomers(),
+        fetchTenantUsers(),
+        fetchLinkedEntities(),
+        fetchPaymentTerms(),
+        fetchActivities(),
+        fetchNextTodo(),
+        fetchOneDriveSettings(),
+      ]);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    }
+  };
+
+  const fetchStages = async () => {
+    const { data, error } = await supabase
+      .from('deal_stages')
+      .select('id, name, win_percentage')
+      .eq('tenant_id', currentTenant!.id)
+      .eq('active', true)
+      .order('sort_order');
+
+    if (error) throw error;
+    setStages(data || []);
+  };
+
+  const fetchSites = async () => {
+    const { data, error } = await supabase
+      .from('sites')
+      .select('id, name, address')
+      .eq('tenant_id', currentTenant!.id)
+      .eq('active', true)
+      .order('name');
+
+    if (error) throw error;
+    setSites(data || []);
+  };
+
+  const fetchCompanies = async () => {
+    const { data, error } = await supabase
+      .from('companies')
+      .select('id, name')
+      .eq('tenant_id', currentTenant!.id)
+      .eq('active', true)
+      .order('name');
+
+    if (error) throw error;
+    setCompanies(data || []);
+  };
+
+  const fetchContacts = async () => {
+    const { data, error } = await supabase
+      .from('contacts')
+      .select('id, first_name, last_name, email')
+      .eq('tenant_id', currentTenant!.id)
+      .eq('active', true)
+      .order('first_name');
+
+    if (error) throw error;
+    setContacts(data || []);
+  };
+
+  const fetchCustomers = async () => {
+    const { data, error } = await supabase
+      .from('customers')
+      .select('id, name')
+      .eq('tenant_id', currentTenant!.id)
+      .eq('active', true)
+      .order('name');
+
+    if (error) throw error;
+    setCustomers(data || []);
+  };
+
+  const fetchTenantUsers = async () => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select(`
+        id,
+        first_name,
+        last_name,
+        email,
+        user_tenant_memberships!inner(tenant_id, active)
+      `)
+      .eq('user_tenant_memberships.tenant_id', currentTenant!.id)
+      .eq('user_tenant_memberships.active', true);
+
+    if (error) throw error;
+    
+    const users = data?.map(user => ({
+      id: user.id,
+      name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email,
+      email: user.email,
+    })) || [];
+    
+    setTenantUsers(users);
+  };
+
+  const fetchLinkedEntities = async () => {
+    // Fetch linked companies
+    const { data: companyData, error: companyError } = await supabase
+      .from('deal_companies')
+      .select('companies(id, name)')
+      .eq('deal_id', deal.id);
+
+    if (companyError) throw companyError;
+    const linkedCompaniesData = companyData?.map(dc => dc.companies).filter(Boolean) || [];
+    setLinkedCompanies(linkedCompaniesData as Company[]);
+
+    // Fetch linked contacts
+    const { data: contactData, error: contactError } = await supabase
+      .from('deal_contacts')
+      .select('contacts(id, first_name, last_name, email)')
+      .eq('deal_id', deal.id);
+
+    if (contactError) throw contactError;
+    const linkedContactsData = contactData?.map(dc => dc.contacts).filter(Boolean) || [];
+    setLinkedContacts(linkedContactsData as Contact[]);
+
+    setEditedDeal(prev => ({
+      ...prev,
+      company_ids: linkedCompaniesData.map(c => c?.id || ''),
+      contact_ids: linkedContactsData.map(c => c?.id || ''),
+    }));
+  };
+
+  const fetchPaymentTerms = async () => {
+    const { data, error } = await supabase
+      .from('deal_payment_terms')
+      .select('*')
+      .eq('deal_id', deal.id)
+      .order('installment_number');
+
+    if (error) throw error;
+    const paymentTermsData = (data || []).map(term => ({
+      ...term,
+      amount_type: term.amount_type as 'fixed' | 'percentage'
+    }));
+    setPaymentTerms(paymentTermsData);
+  };
+
+  const fetchActivities = async () => {
+    const { data, error } = await supabase
+      .from('activities')
+      .select(`
+        id,
+        title,
+        description,
+        type,
+        due_date,
+        completed,
+        created_at,
+        created_by,
+        profiles!activities_created_by_fkey(first_name, last_name)
+      `)
+      .eq('deal_id', deal.id)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (error) throw error;
+    setActivities(data || []);
+  };
+
+  const fetchNextTodo = async () => {
+    const { data, error } = await supabase
+      .from('activities')
+      .select('title, due_date')
+      .eq('deal_id', deal.id)
+      .eq('type', 'task')
+      .eq('completed', false)
+      .not('due_date', 'is', null)
+      .order('due_date', { ascending: true })
+      .limit(1)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+    setNextTodo(data);
+  };
+
+  const fetchOneDriveSettings = async () => {
+    const { data, error } = await supabase
+      .from('tenant_onedrive_settings')
+      .select('enabled, folder_structure')
+      .eq('tenant_id', currentTenant!.id)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('Error fetching OneDrive settings:', error);
+      return;
+    }
+
+    if (data) {
+      // Type guard and parse the folder_structure JSON
+      let folderStructure = { deals: '', sites: '', customers: '' };
+      
+      if (data.folder_structure && typeof data.folder_structure === 'object') {
+        folderStructure = {
+          deals: (data.folder_structure as any)?.deals || '',
+          sites: (data.folder_structure as any)?.sites || '',
+          customers: (data.folder_structure as any)?.customers || '',
+        };
+      }
+
+      const oneDriveSettings: OneDriveSettings = {
+        enabled: data.enabled,
+        folder_structure: folderStructure,
+      };
+
+      setOneDriveSettings(oneDriveSettings);
+      
+      // Generate deal folder path
+      const customerName = deal.customers?.name || 'Unknown Customer';
+      const dealName = deal.name;
+      const folderPath = `${folderStructure.deals}/${customerName}/${dealName}`;
+      setDealFolderPath(folderPath);
+      setCustomFolderPath(folderPath);
+    }
+  };
+
+  useEffect(() => {
+    fetchAllData();
+  }, [currentTenant, deal.id]);
+
+  const getCurrentStage = () => {
+    return stages.find(stage => stage.id === deal.stage_id);
+  };
+
+  const handleSave = async () => {
+    if (!currentTenant) return;
+
+    try {
+      const changes: string[] = [];
+      
+      // Check what changed and build update object
+      const updateData: any = {};
+      
+      if (editedDeal.stage_id !== deal.stage_id) {
+        const newStage = stages.find(s => s.id === editedDeal.stage_id);
+        const oldStage = stages.find(s => s.id === deal.stage_id);
+        
+        updateData.stage_id = editedDeal.stage_id;
+        // Auto-update probability based on stage
+        if (newStage) {
+          updateData.probability = newStage.win_percentage;
+        }
+        changes.push(`Stage changed to "${newStage?.name || 'None'}"`);
+      }
+      
+      if (editedDeal.description !== deal.description) {
+        updateData.description = editedDeal.description;
+        changes.push('Description updated');
+      }
+      
+      if (editedDeal.value !== deal.value) {
+        updateData.value = editedDeal.value;
+        changes.push('Value updated');
+      }
+      
+      if (editedDeal.expected_close_date !== deal.expected_close_date) {
+        updateData.expected_close_date = editedDeal.expected_close_date || null;
+        changes.push('Expected close date updated');
+      }
+      
+      if (editedDeal.site_id !== deal.site_id) {
+        updateData.site_id = editedDeal.site_id === 'no-site-selected' ? null : editedDeal.site_id;
+        changes.push('Site updated');
+      }
+      
+      if (editedDeal.customer_id !== deal.customer_id) {
+        updateData.customer_id = editedDeal.customer_id;
+        changes.push('Customer updated');
+      }
+      
+      if (editedDeal.customer_reference_number !== deal.customer_reference_number) {
+        updateData.customer_reference_number = editedDeal.customer_reference_number;
+        changes.push('Customer reference updated');
+      }
+      
+      if (editedDeal.assigned_to !== deal.assigned_to) {
+        updateData.assigned_to = editedDeal.assigned_to === 'unassigned' ? null : editedDeal.assigned_to;
+        changes.push('Salesperson updated');
+      }
+
+      // Update deal if there are changes
+      if (Object.keys(updateData).length > 0) {
+        const { error } = await supabase
+          .from('deals')
+          .update(updateData)
+          .eq('id', deal.id);
+
+        if (error) throw error;
+      }
+
+      // Handle linked companies and contacts
+      await updateLinkedEntities();
+
+      // Log activity if there are changes
+      if (changes.length > 0) {
+        await logActivity(changes);
+      }
+
+      setEditMode(false);
+      onUpdate();
+      
+      toast({
+        title: 'Success',
+        description: 'Deal updated successfully',
+      });
+    } catch (error: any) {
+      console.error('Error updating deal:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update deal',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const updateLinkedEntities = async () => {
+    // Update companies
+    const currentCompanyIds = linkedCompanies.map(c => c.id);
+    const newCompanyIds = editedDeal.company_ids;
+    
+    const companiesToRemove = currentCompanyIds.filter(id => !newCompanyIds.includes(id));
+    const companiesToAdd = newCompanyIds.filter(id => !currentCompanyIds.includes(id));
+    
+    if (companiesToRemove.length > 0) {
+      await supabase
+        .from('deal_companies')
+        .delete()
+        .eq('deal_id', deal.id)
+        .in('company_id', companiesToRemove);
+    }
+    
+    if (companiesToAdd.length > 0) {
+      const companyInserts = companiesToAdd.map(companyId => ({
+        deal_id: deal.id,
+        company_id: companyId,
+      }));
+      await supabase.from('deal_companies').insert(companyInserts);
+    }
+
+    // Update contacts
+    const currentContactIds = linkedContacts.map(c => c.id);
+    const newContactIds = editedDeal.contact_ids;
+    
+    const contactsToRemove = currentContactIds.filter(id => !newContactIds.includes(id));
+    const contactsToAdd = newContactIds.filter(id => !currentContactIds.includes(id));
+    
+    if (contactsToRemove.length > 0) {
+      await supabase
+        .from('deal_contacts')
+        .delete()
+        .eq('deal_id', deal.id)
+        .in('contact_id', contactsToRemove);
+    }
+    
+    if (contactsToAdd.length > 0) {
+      const contactInserts = contactsToAdd.map(contactId => ({
+        deal_id: deal.id,
+        contact_id: contactId,
+      }));
+      await supabase.from('deal_contacts').insert(contactInserts);
+    }
+  };
+
+  const logActivity = async (changes: string[]) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !currentTenant || changes.length === 0) return;
+
+      await supabase
+        .from('activities')
+        .insert({
+          tenant_id: currentTenant.id,
+          deal_id: deal.id,
+          type: 'note',
+          title: 'Deal Updated',
+          description: `Deal information updated: ${changes.join(', ')}`,
+          created_by: user.id,
+        });
+    } catch (error) {
+      console.error('Error logging activity:', error);
+    }
+  };
+
+  const addNote = async () => {
+    if (!newNote.trim() || !currentTenant) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await supabase
+        .from('activities')
+        .insert({
+          tenant_id: currentTenant.id,
+          deal_id: deal.id,
+          type: 'note',
+          title: 'Note',
+          description: newNote,
+          created_by: user.id,
+        });
+
+      setNewNote('');
+      await fetchActivities();
+      
+      toast({
+        title: 'Success',
+        description: 'Note added successfully',
+      });
+    } catch (error: any) {
+      console.error('Error adding note:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to add note',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleOpenFolder = () => {
+    if (oneDriveSettings?.enabled && dealFolderPath) {
+      // This would open the OneDrive folder in a new tab
+      // For now, we'll show a modal with the folder path
+      setShowFolderModal(true);
+    } else {
+      toast({
+        title: 'OneDrive Not Configured',
+        description: 'Please configure OneDrive integration in settings',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const formatCurrency = (value: number) => {
+    const symbol = deal.currencies?.symbol || '$';
+    return `${symbol}${value.toLocaleString()}`;
+  };
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'Not set';
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header Section */}
+      <div className="flex items-center justify-between">
+        <div className="flex-1">
+          <div className="flex items-center gap-4 mb-2">
+            <h2 className="text-2xl font-bold">{deal.name}</h2>
+            {deal.deal_stages && (
+              <Badge 
+                className={`text-white ${deal.deal_stages.win_percentage >= 80 ? 'bg-green-500' : 
+                                       deal.deal_stages.win_percentage >= 60 ? 'bg-orange-500' :
+                                       deal.deal_stages.win_percentage >= 30 ? 'bg-yellow-500' :
+                                       deal.deal_stages.win_percentage >= 10 ? 'bg-blue-500' :
+                                       'bg-gray-500'}`}
+                variant="secondary"
+              >
+                {deal.deal_stages.name} ({deal.deal_stages.win_percentage}%)
+              </Badge>
+            )}
+            {nextTodo && (
+              <Badge variant="outline">
+                Next: {nextTodo.title}
+                {nextTodo.due_date && ` (${formatDate(nextTodo.due_date)})`}
+              </Badge>
+            )}
+          </div>
+          <p className="text-muted-foreground">
+            Customer: {deal.customers?.name || 'Not assigned'}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {oneDriveSettings?.enabled && (
+            <Button variant="outline" onClick={handleOpenFolder}>
+              <Folder className="h-4 w-4 mr-2" />
+              Open Folder
+            </Button>
+          )}
+          {!editMode ? (
+            <Button onClick={() => setEditMode(true)}>
+              <Edit3 className="h-4 w-4 mr-2" />
+              Edit Deal
+            </Button>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => setEditMode(false)}>
+                <X className="h-4 w-4 mr-2" />
+                Cancel
+              </Button>
+              <Button onClick={handleSave}>
+                <Save className="h-4 w-4 mr-2" />
+                Save Changes
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column - Main Deal Info */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Basic Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Deal Information</CardTitle>
+              <CardDescription>Basic deal details and status</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Stage</Label>
+                  {editMode ? (
+                    <Select
+                      value={editedDeal.stage_id}
+                      onValueChange={(value) => setEditedDeal(prev => ({ ...prev, stage_id: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select stage" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {stages.map((stage) => (
+                          <SelectItem key={stage.id} value={stage.id}>
+                            {stage.name} ({stage.win_percentage}%)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                      <span>{getCurrentStage()?.name || 'Not set'}</span>
+                    </div>
+                  )}
+                </div>
+                
+                <div>
+                  <Label>Deal Value</Label>
+                  {editMode ? (
+                    <Input
+                      type="number"
+                      value={editedDeal.value}
+                      onChange={(e) => setEditedDeal(prev => ({ ...prev, value: parseFloat(e.target.value) || 0 }))}
+                      placeholder="0.00"
+                    />
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                      <span>{deal.value ? formatCurrency(deal.value) : 'Not set'}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <Label>Expected Close Date</Label>
+                  {editMode ? (
+                    <Input
+                      type="date"
+                      value={editedDeal.expected_close_date}
+                      onChange={(e) => setEditedDeal(prev => ({ ...prev, expected_close_date: e.target.value }))}
+                    />
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <span>{formatDate(deal.expected_close_date)}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <Label>Assigned Salesperson</Label>
+                  {editMode ? (
+                    <Select
+                      value={editedDeal.assigned_to}
+                      onValueChange={(value) => setEditedDeal(prev => ({ ...prev, assigned_to: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select salesperson" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unassigned">No Assignment</SelectItem>
+                        {tenantUsers.map((user) => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span>
+                        {deal.assigned_user ? 
+                          `${deal.assigned_user.first_name} ${deal.assigned_user.last_name}` : 
+                          'Not assigned'
+                        }
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <Label>Description</Label>
+                {editMode ? (
+                  <Textarea
+                    value={editedDeal.description}
+                    onChange={(e) => setEditedDeal(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Deal description"
+                    rows={3}
+                  />
+                ) : (
+                  <div className="p-3 bg-muted rounded-lg">
+                    {deal.description || 'No description provided'}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <Label>Customer Reference Number</Label>
+                {editMode ? (
+                  <Input
+                    value={editedDeal.customer_reference_number}
+                    onChange={(e) => setEditedDeal(prev => ({ ...prev, customer_reference_number: e.target.value }))}
+                    placeholder="Customer reference number"
+                  />
+                ) : (
+                  <div className="p-2 bg-muted rounded">
+                    {deal.customer_reference_number || 'Not set'}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Payment Terms */}
+          {paymentTerms.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Payment Terms</CardTitle>
+                <CardDescription>Installment breakdown for this deal</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {paymentTerms.map((term, index) => (
+                    <div key={term.id || index} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                      <div>
+                        <span className="font-medium">Installment {term.installment_number}</span>
+                        <p className="text-sm text-muted-foreground">
+                          {term.amount_type === 'percentage' ? `${term.amount_value}%` : formatCurrency(term.amount_value)}
+                          {term.due_date && ` - Due: ${formatDate(term.due_date)}`}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-medium">
+                          {term.calculated_amount ? formatCurrency(term.calculated_amount) : 'TBD'}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Recent Activities */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Recent Activities</CardTitle>
+                  <CardDescription>Latest updates and notes</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Add new note */}
+              <div className="flex gap-2">
+                <Textarea
+                  value={newNote}
+                  onChange={(e) => setNewNote(e.target.value)}
+                  placeholder="Add a note..."
+                  rows={2}
+                  className="flex-1"
+                />
+                <Button onClick={addNote} disabled={!newNote.trim()}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              <Separator />
+              
+              {/* Activity list */}
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {activities.map((activity) => (
+                  <div key={activity.id} className="flex gap-3 p-3 bg-muted rounded-lg">
+                    <div className="flex-shrink-0 mt-1">
+                      {activity.type === 'task' ? (
+                        <CheckSquare className="h-4 w-4 text-blue-500" />
+                      ) : (
+                        <Activity className="h-4 w-4 text-green-500" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      {activity.title && (
+                        <div className="font-medium text-sm">{activity.title}</div>
+                      )}
+                      {activity.description && (
+                        <div className="text-sm text-muted-foreground">{activity.description}</div>
+                      )}
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {activity.profiles ? 
+                          `${activity.profiles.first_name} ${activity.profiles.last_name}` : 
+                          'Unknown'
+                        } • {formatDate(activity.created_at)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                {activities.length === 0 && (
+                  <div className="text-center py-4 text-muted-foreground">
+                    No activities yet
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Column - Related Info */}
+        <div className="space-y-6">
+          {/* Folder Reference */}
+          {oneDriveSettings?.enabled && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Folder className="h-5 w-5" />
+                  Folder Reference
+                </CardTitle>
+                <CardDescription>OneDrive folder for this deal</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="p-3 bg-muted rounded-lg">
+                  <div className="text-sm font-mono break-all">
+                    {dealFolderPath || 'No folder path configured'}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleOpenFolder}
+                    className="flex-1"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Open Folder
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowUploadModal(true)}
+                  >
+                    <Upload className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Linked Companies */}
+          {linkedCompanies.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building className="h-5 w-5" />
+                  Linked Companies
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {linkedCompanies.map((company) => (
+                    <div key={company.id} className="flex items-center gap-2 p-2 bg-muted rounded">
+                      <Building className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">{company.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Linked Contacts */}
+          {linkedContacts.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Linked Contacts
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {linkedContacts.map((contact) => (
+                    <div key={contact.id} className="flex items-center gap-2 p-2 bg-muted rounded">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">
+                        {contact.first_name} {contact.last_name}
+                        {contact.email && <span className="text-muted-foreground ml-1">({contact.email})</span>}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Site Information */}
+          {deal.sites && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5" />
+                  Site Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="p-3 bg-muted rounded-lg">
+                  <div className="font-medium">{deal.sites.name}</div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Quick Stats */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Quick Stats</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Created</span>
+                <span className="text-sm font-medium">{formatDate(deal.created_at)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Last Updated</span>
+                <span className="text-sm font-medium">{formatDate(deal.updated_at)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Activities</span>
+                <span className="text-sm font-medium">{activities.length}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Payment Terms</span>
+                <span className="text-sm font-medium">{paymentTerms.length}</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Folder Modal */}
+      <Dialog open={showFolderModal} onOpenChange={setShowFolderModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Deal Folder</DialogTitle>
+            <DialogDescription>
+              OneDrive folder path for this deal
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Folder Path</Label>
+              <div className="p-3 bg-muted rounded-lg font-mono text-sm break-all">
+                {dealFolderPath}
+              </div>
+            </div>
+            <div>
+              <Label>Custom Folder Path</Label>
+              <Input
+                value={customFolderPath}
+                onChange={(e) => setCustomFolderPath(e.target.value)}
+                placeholder="Enter custom folder path"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowFolderModal(false)}>
+              Close
+            </Button>
+            <Button onClick={() => {
+              // Here you would implement the folder opening logic
+              window.open(`https://onedrive.live.com/`, '_blank');
+              setShowFolderModal(false);
+            }}>
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Open in OneDrive
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Upload File Modal */}
+      <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Upload File</DialogTitle>
+            <DialogDescription>
+              Upload a file to this deal's OneDrive folder
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="file-upload">Select File</Label>
+              <Input
+                id="file-upload"
+                type="file"
+                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif"
+              />
+            </div>
+            <div>
+              <Label htmlFor="upload-notes">Notes (Optional)</Label>
+              <Textarea
+                id="upload-notes"
+                placeholder="Add any notes about this file..."
+                value={uploadNotes}
+                onChange={(e) => setUploadNotes(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowUploadModal(false)}>
+              Cancel
+            </Button>
+            <Button disabled={!selectedFile}>
+              <Upload className="h-4 w-4 mr-2" />
+              Upload File
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};

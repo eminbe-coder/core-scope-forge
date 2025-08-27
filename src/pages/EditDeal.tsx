@@ -2,18 +2,13 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Plus, FileText, Calendar, CheckSquare, Activity } from 'lucide-react';
+import { ArrowLeft, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
 import { CreateActivityModal } from '@/components/modals/CreateActivityModal';
-import { DealFiles } from '@/components/deals/DealFiles';
-import { DealActivities } from '@/components/deals/DealActivities';
-import { DealInfo } from '@/components/deals/DealInfo';
-import { DealTodos } from '@/components/deals/DealTodos';
+import { CreateTodoModal } from '@/components/modals/CreateTodoModal';
+import { ComprehensiveDealView } from '@/components/deals/ComprehensiveDealView';
 
 interface Deal {
   id: string;
@@ -61,6 +56,7 @@ const EditDeal = () => {
   const [deal, setDeal] = useState<Deal | null>(null);
   const [loading, setLoading] = useState(true);
   const [showActivityModal, setShowActivityModal] = useState(false);
+  const [showTodoModal, setShowTodoModal] = useState(false);
 
   const fetchDeal = async () => {
     if (!id || !currentTenant) return;
@@ -129,51 +125,22 @@ const EditDeal = () => {
           <div className="flex-1">
             <h1 className="text-3xl font-bold">{deal.name}</h1>
             <p className="text-muted-foreground">
-              Manage deal activities, tasks, and files
+              Comprehensive deal management with all related information
             </p>
           </div>
-          {deal.deal_stages && (
-            <Badge 
-              className={`text-white ${deal.deal_stages.win_percentage >= 80 ? 'bg-green-500' : 
-                                     deal.deal_stages.win_percentage >= 60 ? 'bg-orange-500' :
-                                     deal.deal_stages.win_percentage >= 30 ? 'bg-yellow-500' :
-                                     deal.deal_stages.win_percentage >= 10 ? 'bg-blue-500' :
-                                     'bg-gray-500'}`}
-              variant="secondary"
-            >
-              {deal.deal_stages.name} ({deal.deal_stages.win_percentage}%)
-            </Badge>
-          )}
-          <Button onClick={() => setShowActivityModal(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Log Activity
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowTodoModal(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Todo
+            </Button>
+            <Button onClick={() => setShowActivityModal(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Log Activity
+            </Button>
+          </div>
         </div>
 
-        <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="activities">Activities</TabsTrigger>
-            <TabsTrigger value="todos">To-Dos</TabsTrigger>
-            <TabsTrigger value="files">Files</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview">
-            <DealInfo deal={deal} onUpdate={fetchDeal} />
-          </TabsContent>
-
-          <TabsContent value="activities">
-            <DealActivities dealId={deal.id} />
-          </TabsContent>
-
-          <TabsContent value="todos">
-            <DealTodos dealId={deal.id} dealName={deal.name} />
-          </TabsContent>
-
-          <TabsContent value="files">
-            <DealFiles dealId={deal.id} />
-          </TabsContent>
-        </Tabs>
+        <ComprehensiveDealView deal={deal} onUpdate={fetchDeal} />
       </div>
 
       <CreateActivityModal
@@ -181,9 +148,26 @@ const EditDeal = () => {
         onClose={() => setShowActivityModal(false)}
         onSuccess={() => {
           setShowActivityModal(false);
+          fetchDeal();
           toast({
             title: 'Success',
             description: 'Activity logged successfully',
+          });
+        }}
+        entityId={deal.id}
+        entityType="deal"
+        entityName={deal.name}
+      />
+
+      <CreateTodoModal
+        open={showTodoModal}
+        onClose={() => setShowTodoModal(false)}
+        onSuccess={() => {
+          setShowTodoModal(false);
+          fetchDeal();
+          toast({
+            title: 'Success',
+            description: 'Todo created successfully',
           });
         }}
         entityId={deal.id}
