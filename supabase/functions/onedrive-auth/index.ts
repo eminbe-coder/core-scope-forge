@@ -17,11 +17,20 @@ interface OneDriveAuthRequest {
 }
 
 // Helper function to refresh access token
-async function refreshAccessToken(supabase: any, tenant_id: string, refresh_token: string, client_id: string, client_secret: string) {
-  console.log(`Refreshing access token for tenant: ${tenant_id}`);
-  
-  const tokenUrl = 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
-  
+async function refreshAccessToken(
+  supabase: any,
+  tenant_id: string,
+  refresh_token: string,
+  client_id: string,
+  client_secret: string,
+  azureTenantId?: string,
+  scope: string = 'https://graph.microsoft.com/.default offline_access'
+) {
+  console.log(`Refreshing access token for tenant: ${tenant_id} (PKCE: using v2.0 endpoint)`);
+
+  const authority = azureTenantId && azureTenantId.trim().length > 0 ? azureTenantId : 'common';
+  const tokenUrl = `https://login.microsoftonline.com/${authority}/oauth2/v2.0/token`;
+
   const response = await fetch(tokenUrl, {
     method: 'POST',
     headers: {
@@ -32,6 +41,7 @@ async function refreshAccessToken(supabase: any, tenant_id: string, refresh_toke
       client_secret: client_secret,
       grant_type: 'refresh_token',
       refresh_token: refresh_token,
+      scope,
     }),
   });
 
@@ -39,12 +49,12 @@ async function refreshAccessToken(supabase: any, tenant_id: string, refresh_toke
 
   if (!response.ok) {
     console.error('Token refresh error:', tokenData);
-    throw new Error(`Token refresh failed: ${tokenData.error_description || tokenData.error}`);
+    throw new Error(`Token refresh failed: ${tokenData.error_description || tokenData.error || 'Unknown error'}`);
   }
 
   // Update stored tokens
   const expiresAt = new Date(Date.now() + (tokenData.expires_in * 1000));
-  
+
   const { error: updateError } = await supabase
     .from('tenant_onedrive_settings')
     .update({
@@ -95,7 +105,8 @@ async function makeGraphRequest(supabase: any, tenant_id: string, url: string, o
         tenant_id, 
         settings.refresh_token, 
         settings.client_id, 
-        settings.client_secret
+        settings.client_secret,
+        settings.azure_tenant_id
       );
     }
   }
@@ -122,7 +133,8 @@ async function makeGraphRequest(supabase: any, tenant_id: string, url: string, o
         tenant_id, 
         settings.refresh_token, 
         settings.client_id, 
-        settings.client_secret
+        settings.client_secret,
+        settings.azure_tenant_id
       );
 
       // Retry the request with new token
@@ -208,8 +220,10 @@ serve(async (req) => {
         }
 
         // Exchange code for tokens
-        const tokenUrl = 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
+        const authority = settings.azure_tenant_id && settings.azure_tenant_id.trim().length > 0 ? settings.azure_tenant_id : 'common';
+        const tokenUrl = `https://login.microsoftonline.com/${authority}/oauth2/v2.0/token`;
         const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/onedrive-auth`;
+        const scope = 'https://graph.microsoft.com/.default offline_access';
 
         console.log(`Exchanging authorization code for access token...`);
         const tokenResponse = await fetch(tokenUrl, {
@@ -217,22 +231,24 @@ serve(async (req) => {
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
           },
-            body: new URLSearchParams({
-              client_id: settings.client_id,
-              client_secret: settings.client_secret,
-              code: authCode,
-              grant_type: 'authorization_code',
-              redirect_uri: redirectUri,
-              code_verifier: settings.code_verifier,
-            }),
+          body: new URLSearchParams({
+            client_id: settings.client_id,
+            client_secret: settings.client_secret,
+            code: authCode,
+            grant_type: 'authorization_code',
+            redirect_uri: redirectUri,
+            code_verifier: settings.code_verifier,
+            scope,
+          }),
         });
 
         const tokenData = await tokenResponse.json();
 
         if (!tokenResponse.ok) {
           console.error('Token exchange error:', tokenData);
+          const safeMsg = tokenData.error_description || tokenData.error || 'Unknown error';
           return new Response(
-            '<html><body><script>window.close();</script><p>Failed to get access token</p></body></html>',
+            `<html><body><script>window.close();</script><p>Failed to get access token: ${safeMsg}</p></body></html>`,
             { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
           );
         }
@@ -356,6 +372,9 @@ serve(async (req) => {
         const hashed = await crypto.subtle.digest('SHA-256', encoder.encode(codeVerifier));
         const codeChallenge = btoa(String.fromCharCode(...new Uint8Array(hashed)))
           .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+/g, '');
+
+        // Log PKCE info without sensitive values
+        console.log(`PKCE prepared (verifier length: ${codeVerifier.length}, method: S256)`);
 
         // Persist code_verifier for this tenant to use during token exchange
         const { error: pkceSaveError } = await supabase
