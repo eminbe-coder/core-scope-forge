@@ -156,8 +156,16 @@ const navigationModules: NavigationModule[] = [
 export function AppSidebar() {
   const location = useLocation();
   const { hasPermission, isAdmin } = usePermissions();
-  const { isSuperAdmin } = useTenant();
+  const { isSuperAdmin, userRole } = useTenant();
   const currentPath = location.pathname;
+
+  // Debug logging
+  console.log('AppSidebar Debug:', {
+    isAdmin,
+    isSuperAdmin,
+    userRole,
+    hasAdminPermission: hasPermission('admin.access')
+  });
 
   const isActive = (path: string) => {
     if (path === '/') {

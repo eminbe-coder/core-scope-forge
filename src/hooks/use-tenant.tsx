@@ -159,6 +159,11 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
         const savedTenantId = localStorage.getItem('currentTenantId');
         const savedTenant = data.find(m => m.tenant_id === savedTenantId);
         const tenantToSet = savedTenant || data[0];
+        console.log('useTenant Debug - Setting initial tenant:', {
+          tenantToSet: tenantToSet.tenant.name,
+          role: tenantToSet.role,
+          userEmail: user?.email
+        });
         setUserRole(tenantToSet.role); // Set user role for this tenant
         await setCurrentTenant(tenantToSet.tenant);
       }
