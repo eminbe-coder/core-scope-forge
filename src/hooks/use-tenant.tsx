@@ -76,7 +76,10 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
     // Find user role in this tenant - but if we're already super admin, keep that role
     if (userRole !== 'super_admin') {
       const membership = userTenants.find(m => m.tenant_id === tenant.id);
-      setUserRole(membership?.role || null);
+      // Only update if we actually found a role for this tenant; don't overwrite with null
+      if (membership?.role) {
+        setUserRole(membership.role);
+      }
     }
   };
 
