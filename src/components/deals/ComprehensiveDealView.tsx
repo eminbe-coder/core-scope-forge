@@ -157,6 +157,7 @@ export const ComprehensiveDealView = ({ deal, onUpdate }: ComprehensiveDealViewP
   const [tenantUsers, setTenantUsers] = useState<{ id: string; name: string; email: string }[]>([]);
   const [paymentTerms, setPaymentTerms] = useState<PaymentTerm[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [todos, setTodos] = useState<Activity[]>([]);
   const [nextTodo, setNextTodo] = useState<{ title: string; due_date?: string } | null>(null);
   const [oneDriveSettings, setOneDriveSettings] = useState<OneDriveSettings | null>(null);
   const [dealFolderPath, setDealFolderPath] = useState<string>('');
@@ -198,6 +199,7 @@ export const ComprehensiveDealView = ({ deal, onUpdate }: ComprehensiveDealViewP
         fetchLinkedEntities(),
         fetchPaymentTerms(),
         fetchActivities(),
+        fetchTodos(),
         fetchNextTodo(),
         fetchOneDriveSettings(),
       ]);
@@ -348,11 +350,35 @@ export const ComprehensiveDealView = ({ deal, onUpdate }: ComprehensiveDealViewP
         profiles!activities_created_by_fkey(first_name, last_name)
       `)
       .eq('deal_id', deal.id)
+      .in('type', ['note', 'call', 'email', 'meeting'])
       .order('created_at', { ascending: false })
       .limit(10);
 
     if (error) throw error;
     setActivities(data || []);
+  };
+
+  const fetchTodos = async () => {
+    const { data, error } = await supabase
+      .from('activities')
+      .select(`
+        id,
+        title,
+        description,
+        type,
+        due_date,
+        completed,
+        created_at,
+        created_by,
+        profiles!activities_created_by_fkey(first_name, last_name)
+      `)
+      .eq('deal_id', deal.id)
+      .eq('type', 'task')
+      .eq('completed', false)
+      .order('due_date', { ascending: true, nullsFirst: false });
+
+    if (error) throw error;
+    setTodos(data || []);
   };
 
   const fetchNextTodo = async () => {
@@ -598,6 +624,7 @@ export const ComprehensiveDealView = ({ deal, onUpdate }: ComprehensiveDealViewP
 
       setNewNote('');
       await fetchActivities();
+      await fetchTodos(); // Refresh todos in case the note was related to a task
       
       toast({
         title: 'Success',
@@ -1028,6 +1055,63 @@ export const ComprehensiveDealView = ({ deal, onUpdate }: ComprehensiveDealViewP
               </CardContent>
             </Card>
           )}
+
+          {/* To-Do List */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CheckSquare className="h-5 w-5" />
+                To-Do List
+              </CardTitle>
+              <CardDescription>Pending tasks for this deal</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 max-h-64 overflow-y-auto">
+                {todos.map((todo) => (
+                  <div key={todo.id} className="flex items-start gap-3 p-3 bg-muted rounded-lg">
+                    <CheckSquare className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
+                          {todo.title?.toLowerCase().includes('email') ? 'Email' :
+                           todo.title?.toLowerCase().includes('call') ? 'Call' :
+                           todo.title?.toLowerCase().includes('follow') ? 'Follow-up' :
+                           todo.title?.toLowerCase().includes('payment') ? 'Payment' :
+                           todo.title?.toLowerCase().includes('meeting') ? 'Meeting' :
+                           todo.title?.toLowerCase().includes('review') ? 'Review' :
+                           'Task'}
+                        </span>
+                      </div>
+                      <div className="font-medium text-sm">{todo.title}</div>
+                      {todo.description && (
+                        <div className="text-xs text-muted-foreground mt-1">{todo.description}</div>
+                      )}
+                      <div className="flex items-center gap-2 mt-2">
+                        <Calendar className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">
+                          {todo.due_date ? 
+                            `Due: ${new Date(todo.due_date).toLocaleDateString('en-US', { 
+                              month: 'short', 
+                              day: 'numeric' 
+                            })}` : 
+                            'No due date'
+                          }
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                {todos.length === 0 && (
+                  <div className="text-center py-4 text-muted-foreground">
+                    <CheckSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No pending todos</p>
+                    <p className="text-xs">All tasks are completed!</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Quick Stats */}
           <Card>
