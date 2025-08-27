@@ -25,7 +25,8 @@ import {
   Shield,
   Target,
   CheckSquare,
-  DollarSign
+  DollarSign,
+  Settings
 } from 'lucide-react';
 
 interface NavigationItem {
@@ -124,6 +125,12 @@ const navigationModules: NavigationModule[] = [
   {
     title: 'Administration',
     items: [
+      {
+        title: 'Admin Panel',
+        url: '/admin',
+        icon: Settings,
+        permission: 'admin.access',
+      },
       {
         title: 'Global Admin',
         url: '/global-admin',

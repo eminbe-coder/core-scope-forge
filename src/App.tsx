@@ -114,6 +114,11 @@ const App = () => (
                     <Devices />
                   </ProtectedRoute>
                 } />
+                <Route path="/admin" element={
+                  <ProtectedRoute>
+                    <Admin />
+                  </ProtectedRoute>
+                } />
                 <Route path="/global-admin" element={
                   <ProtectedRoute>
                     <GlobalAdmin />

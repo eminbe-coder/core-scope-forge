@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -63,7 +64,19 @@ export default function Admin() {
   const [filterTenant, setFilterTenant] = useState('all');
   const [filterRole, setFilterRole] = useState('all');
   const { toast } = useToast();
+  const { user } = useAuth();
   const { isSuperAdmin, userRole, isAdmin, loading: tenantLoading } = useTenant();
+
+  // Debug logging
+  useEffect(() => {
+    console.log('Admin Panel Debug:', {
+      isAdmin,
+      isSuperAdmin,
+      userRole,
+      tenantLoading,
+      user: user?.email || 'no user'
+    });
+  }, [isAdmin, isSuperAdmin, userRole, tenantLoading, user]);
 
   const fetchTenants = async () => {
     try {
