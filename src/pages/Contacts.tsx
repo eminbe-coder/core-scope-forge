@@ -143,7 +143,7 @@ const Contacts = () => {
         loading={loading}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
-        onAdd={() => navigate('/add-contact')}
+        onAdd={() => navigate('/contacts/add')}
         addButtonText="Add Contact"
         getEntityCardProps={(contact) => ({
           id: contact.id,

@@ -143,7 +143,7 @@ export default function Companies() {
         loading={loading}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
-        onAdd={() => navigate('/add-company')}
+        onAdd={() => navigate('/companies/add')}
         addButtonText="Add Company"
         getEntityCardProps={(company) => ({
           id: company.id,
