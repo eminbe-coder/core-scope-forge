@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { CreateActivityModal } from '@/components/modals/CreateActivityModal';
 import { CreateTodoModal } from '@/components/modals/CreateTodoModal';
 import { DealFiles } from '@/components/deals/DealFiles';
+import { DealActivities } from '@/components/deals/DealActivities';
 import { DealInfo } from '@/components/deals/DealInfo';
 
 interface Deal {
@@ -108,12 +109,16 @@ const EditDeal = () => {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Deals
           </Button>
-          <div>
+          <div className="flex-1">
             <h1 className="text-3xl font-bold">{deal.name}</h1>
             <p className="text-muted-foreground">
               Manage deal activities, tasks, and files
             </p>
           </div>
+          <Button onClick={() => setShowActivityModal(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Log Activity
+          </Button>
         </div>
 
         <Tabs defaultValue="overview" className="space-y-4">
@@ -129,31 +134,7 @@ const EditDeal = () => {
           </TabsContent>
 
           <TabsContent value="activities">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Activity className="h-5 w-5" />
-                      Activities
-                    </CardTitle>
-                    <CardDescription>
-                      Track interactions and communications for this deal
-                    </CardDescription>
-                  </div>
-                  <Button onClick={() => setShowActivityModal(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Log Activity
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {/* Activities will be loaded here */}
-                <div className="text-center py-8 text-muted-foreground">
-                  No activities logged yet. Click "Log Activity" to get started.
-                </div>
-              </CardContent>
-            </Card>
+            <DealActivities dealId={deal.id} />
           </TabsContent>
 
           <TabsContent value="todos">
