@@ -109,7 +109,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
     site_id: deal.site_id || 'no-site-selected',
     customer_id: deal.customer_id || '',
     customer_reference_number: deal.customer_reference_number || '',
-    assigned_to: deal.assigned_to || '',
+    assigned_to: deal.assigned_to || 'unassigned',
     company_ids: [] as string[],
     contact_ids: [] as string[],
   });
@@ -502,7 +502,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
           site_id: editedDeal.site_id === 'no-site-selected' ? null : editedDeal.site_id || null,
           customer_id: editedDeal.customer_id || null,
           customer_reference_number: editedDeal.customer_reference_number || null,
-          assigned_to: editedDeal.assigned_to || null,
+          assigned_to: editedDeal.assigned_to === 'unassigned' ? null : editedDeal.assigned_to || null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', deal.id);
@@ -561,7 +561,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
       site_id: deal.site_id || 'no-site-selected',
       customer_id: deal.customer_id || '',
       customer_reference_number: deal.customer_reference_number || '',
-      assigned_to: deal.assigned_to || '',
+      assigned_to: deal.assigned_to || 'unassigned',
       company_ids: linkedCompanies.map(c => c.id),
       contact_ids: linkedContacts.map(c => c.id),
     });
@@ -690,7 +690,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
                     <SelectValue placeholder="Select user" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No Assignment</SelectItem>
+                    <SelectItem value="unassigned">No Assignment</SelectItem>
                     {tenantUsers.map((user) => (
                       <SelectItem key={user.id} value={user.id}>
                         {user.name}

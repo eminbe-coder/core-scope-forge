@@ -370,7 +370,7 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
         priority: data.priority,
         probability: data.probability ? parseInt(data.probability) : null,
         expected_close_date: data.expected_close_date || null,
-        assigned_to: data.assigned_to || null,
+        assigned_to: data.assigned_to === 'unassigned' ? null : data.assigned_to || null,
         notes: data.notes || null,
         tenant_id: currentTenant.id,
       };
@@ -859,7 +859,7 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">No Assignment</SelectItem>
+                        <SelectItem value="unassigned">No Assignment</SelectItem>
                         {tenantUsers.map((user) => (
                           <SelectItem key={user.id} value={user.id}>
                             {user.name}
