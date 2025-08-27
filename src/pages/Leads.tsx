@@ -299,6 +299,9 @@ const Leads = () => {
               </p>
             </div>
             <div className="flex items-center gap-2">
+              <Button onClick={() => navigate('/leads/add')}>
+                Add New Lead
+              </Button>
               <Badge variant="outline" className="text-lg px-3 py-1">
                 <Target className="h-4 w-4 mr-2" />
                 {leadCounts.all} Total Leads

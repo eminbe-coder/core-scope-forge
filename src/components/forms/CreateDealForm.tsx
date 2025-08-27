@@ -376,7 +376,7 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
         if (paymentError) throw paymentError;
       }
 
-      // If converting from a lead, remove lead status
+      // If converting from a lead, remove lead status and migrate files
       if (leadType && leadId) {
         const tableName = leadType === 'contact' ? 'contacts' : 
                          leadType === 'company' ? 'companies' : 'sites';
@@ -385,6 +385,49 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
           .from(tableName)
           .update({ is_lead: false })
           .eq('id', leadId);
+
+        // Migrate lead files to deal files
+        try {
+          const { data: leadFiles } = await supabase
+            .from('lead_files')
+            .select('*')
+            .eq('entity_id', leadId)
+            .eq('entity_type', leadType)
+            .eq('tenant_id', currentTenant.id);
+
+          if (leadFiles && leadFiles.length > 0) {
+            const dealFilesData = leadFiles.map(file => ({
+              deal_id: deal.id,
+              name: file.name,
+              file_path: file.file_path.replace('lead-files/', 'deal-files/'),
+              mime_type: file.mime_type,
+              file_size: file.file_size,
+              notes: file.notes,
+              created_by: file.created_by,
+              tenant_id: currentTenant.id,
+            }));
+
+            // Copy files in storage
+            for (const file of leadFiles) {
+              const { data: fileData } = await supabase.storage
+                .from('lead-files')
+                .download(file.file_path);
+              
+              if (fileData) {
+                const newPath = file.file_path.replace('lead-files/', 'deal-files/');
+                await supabase.storage
+                  .from('deal-files')
+                  .upload(newPath, fileData);
+              }
+            }
+
+            await supabase.from('deal_files').insert(dealFilesData);
+            await supabase.from('lead_files').delete().eq('entity_id', leadId).eq('entity_type', leadType);
+            await supabase.storage.from('lead-files').remove(leadFiles.map(f => f.file_path));
+          }
+        } catch (fileError) {
+          console.error('Error migrating files:', fileError);
+        }
       }
 
       toast({

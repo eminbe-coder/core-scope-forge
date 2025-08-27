@@ -18,6 +18,8 @@ import AddSite from "./pages/AddSite";
 import Contacts from "./pages/Contacts";
 import AddContact from "./pages/AddContact";
 import Leads from "./pages/Leads";
+import AddLead from "./pages/AddLead";
+import LeadDetail from "./pages/LeadDetail";
 import Deals from "./pages/Deals";
 import AddDeal from "./pages/AddDeal";
 import EditDeal from "./pages/EditDeal";
@@ -89,6 +91,16 @@ const App = () => (
                  <Route path="/leads" element={
                    <ProtectedRoute>
                      <Leads />
+                   </ProtectedRoute>
+                 } />
+                 <Route path="/leads/add" element={
+                   <ProtectedRoute>
+                     <AddLead />
+                   </ProtectedRoute>
+                 } />
+                 <Route path="/leads/:type/:id" element={
+                   <ProtectedRoute>
+                     <LeadDetail />
                    </ProtectedRoute>
                  } />
                  <Route path="/deals" element={
