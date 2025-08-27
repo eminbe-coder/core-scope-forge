@@ -464,7 +464,22 @@ export type Database = {
           notes?: string | null
           site_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "company_sites_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_sites_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       company_types: {
         Row: {

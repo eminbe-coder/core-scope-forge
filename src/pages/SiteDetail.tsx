@@ -89,8 +89,6 @@ const SiteDetail = () => {
 
   const fetchSiteData = async () => {
     try {
-      console.log('Fetching site data for ID:', id, 'Tenant:', currentTenant?.id);
-      
       // Fetch site details
       const { data: siteData, error: siteError } = await supabase
         .from('sites')
@@ -101,8 +99,6 @@ const SiteDetail = () => {
         .eq('id', id)
         .eq('tenant_id', currentTenant?.id)
         .maybeSingle();
-
-      console.log('Site data result:', siteData, 'Error:', siteError);
 
       if (siteError) throw siteError;
       setSite(siteData);
@@ -123,27 +119,19 @@ const SiteDetail = () => {
         .eq('site_id', id)
         .eq('tenant_id', currentTenant?.id);
 
-      console.log('Deals query result:', dealsQuery);
-
       if (dealsQuery.error) throw dealsQuery.error;
       setDeals(dealsQuery.data || []);
 
       // Fetch linked contacts with notes
-      console.log('Fetching contact links for site ID:', id);
       const contactLinksQuery = await supabase
         .from('contact_sites')
         .select(`
           notes,
-          contacts(id, first_name, last_name, email, created_at, tenant_id)
+          contacts(id, first_name, last_name, email, created_at)
         `)
         .eq('site_id', id);
 
-      console.log('Contact links result:', contactLinksQuery);
-
-      if (contactLinksQuery.error) {
-        console.error('Contact links error:', contactLinksQuery.error);
-        throw contactLinksQuery.error;
-      }
+      if (contactLinksQuery.error) throw contactLinksQuery.error;
       
       const linkedContacts = contactLinksQuery.data?.map(link => ({
         id: (link.contacts as any)?.id,
@@ -157,21 +145,15 @@ const SiteDetail = () => {
       setContacts(linkedContacts);
 
       // Fetch linked companies with notes
-      console.log('Fetching company links for site ID:', id);
       const companyLinksQuery = await supabase
         .from('company_sites')
         .select(`
           notes,
-          companies(id, name, email, created_at, tenant_id)
+          companies(id, name, email, created_at)
         `)
         .eq('site_id', id);
 
-      console.log('Company links result:', companyLinksQuery);
-
-      if (companyLinksQuery.error) {
-        console.error('Company links error:', companyLinksQuery.error);
-        throw companyLinksQuery.error;
-      }
+      if (companyLinksQuery.error) throw companyLinksQuery.error;
       
       const linkedCompanies = companyLinksQuery.data?.map(link => ({
         id: (link.companies as any)?.id,
