@@ -76,7 +76,7 @@ const Deals = () => {
     if (!currentTenant) return;
 
     try {
-      const { data, error } = await supabase
+      const { data: dealsData, error } = await supabase
         .from('deals')
         .select(`
           *,
@@ -84,28 +84,38 @@ const Deals = () => {
           sites(name),
           currencies(symbol),
           deal_stages(name, win_percentage),
-          assigned_user:profiles!deals_assigned_to_fkey(first_name, last_name, email),
-          next_todo:activities!deals_deal_id_fkey(title, due_date, type, completed)
+          assigned_user:profiles!deals_assigned_to_fkey(first_name, last_name, email)
         `)
+        .eq('tenant_id', currentTenant.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      
-      // Process deals to get next step
-      const processedDeals = (data || []).map(deal => {
-        const todos = Array.isArray(deal.next_todo) ? deal.next_todo : [];
-        const nextTodo = todos
-          .filter(todo => todo.type === 'task' && !todo.completed && todo.due_date)
-          .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())[0];
-        
-        return {
-          ...deal,
-          next_step: nextTodo ? {
-            title: nextTodo.title,
-            due_date: nextTodo.due_date
-          } : null
-        };
-      });
+
+      // Fetch next tasks for all deals in one query
+      const dealIds = (dealsData || []).map(d => d.id);
+      let nextByDeal: Record<string, { title: string; due_date: string } | null> = {};
+      if (dealIds.length > 0) {
+        const { data: tasks } = await supabase
+          .from('activities')
+          .select('id, title, due_date, completed, type, deal_id')
+          .in('deal_id', dealIds)
+          .eq('type', 'task')
+          .eq('completed', false)
+          .order('due_date', { ascending: true, nullsFirst: false });
+
+        // pick earliest due task per deal
+        for (const task of tasks || []) {
+          if (!task.deal_id || !task.due_date) continue;
+          if (!nextByDeal[task.deal_id]) {
+            nextByDeal[task.deal_id] = { title: task.title, due_date: task.due_date };
+          }
+        }
+      }
+
+      const processedDeals = (dealsData || []).map(deal => ({
+        ...deal,
+        next_step: nextByDeal[deal.id] || null,
+      }));
       
       setDeals(processedDeals);
     } catch (error) {
@@ -222,6 +232,7 @@ const Deals = () => {
               isSecondary: true,
             },
           ],
+          onClick: () => navigate(`/deals/edit/${deal.id}`),
         })}
         columns={[
           {
