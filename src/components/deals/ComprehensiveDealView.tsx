@@ -984,7 +984,7 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
                     </Button>
                   </div>
                 ) : (
-                  {deal.sites?.name ? (
+                  deal.sites?.name ? (
                     <button
                       className="text-sm font-medium underline hover:opacity-80"
                       onClick={() => navigate('/sites', { state: { highlightSiteId: deal.site_id } })}
@@ -993,7 +993,7 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
                     </button>
                   ) : (
                     <div className="text-sm font-medium">Not assigned</div>
-                  )}
+                  )
                 )}
               </div>
             </CardContent>
