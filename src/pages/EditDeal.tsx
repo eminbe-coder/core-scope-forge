@@ -20,6 +20,8 @@ interface Deal {
   description?: string;
   value?: number;
   status: string;
+  stage_id?: string;
+  site_id?: string;
   probability?: number;
   expected_close_date?: string;
   notes?: string;

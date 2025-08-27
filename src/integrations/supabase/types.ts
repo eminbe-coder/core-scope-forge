@@ -761,6 +761,90 @@ export type Database = {
           },
         ]
       }
+      deal_companies: {
+        Row: {
+          company_id: string
+          created_at: string
+          deal_id: string
+          id: string
+          notes: string | null
+          relationship_type: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          deal_id: string
+          id?: string
+          notes?: string | null
+          relationship_type?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          deal_id?: string
+          id?: string
+          notes?: string | null
+          relationship_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_companies_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_companies_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deal_contacts: {
+        Row: {
+          contact_id: string
+          created_at: string
+          deal_id: string
+          id: string
+          notes: string | null
+          role: string | null
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          deal_id: string
+          id?: string
+          notes?: string | null
+          role?: string | null
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          deal_id?: string
+          id?: string
+          notes?: string | null
+          role?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_contacts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_contacts_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deal_files: {
         Row: {
           created_at: string

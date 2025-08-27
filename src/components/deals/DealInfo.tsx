@@ -4,7 +4,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DollarSign, Calendar, Building, MapPin, Percent, Edit3, Save, X } from 'lucide-react';
+import { SearchableSelect } from '@/components/ui/searchable-select';
+import { MultiSelectDropdown } from '@/components/deals/MultiSelectDropdown';
+import { DollarSign, Calendar, Building, MapPin, Percent, Edit3, Save, X, Users, User, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
@@ -15,6 +17,24 @@ interface DealStage {
   win_percentage: number;
 }
 
+interface Site {
+  id: string;
+  name: string;
+  address: string;
+}
+
+interface Company {
+  id: string;
+  name: string;
+}
+
+interface Contact {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email?: string;
+}
+
 interface Deal {
   id: string;
   name: string;
@@ -22,6 +42,7 @@ interface Deal {
   value?: number;
   status: string;
   stage_id?: string;
+  site_id?: string;
   probability?: number;
   expected_close_date?: string;
   notes?: string;
@@ -47,11 +68,19 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
   const { currentTenant } = useTenant();
   const { toast } = useToast();
   const [stages, setStages] = useState<DealStage[]>([]);
+  const [sites, setSites] = useState<Site[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [linkedCompanies, setLinkedCompanies] = useState<Company[]>([]);
+  const [linkedContacts, setLinkedContacts] = useState<Contact[]>([]);
   const [editMode, setEditMode] = useState(false);
   const [editedDeal, setEditedDeal] = useState({
     stage_id: deal.stage_id || '',
     value: deal.value || 0,
     expected_close_date: deal.expected_close_date || '',
+    site_id: deal.site_id || '',
+    company_ids: [] as string[],
+    contact_ids: [] as string[],
   });
 
   const fetchStages = async () => {
@@ -72,9 +101,106 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
     }
   };
 
+  const fetchSites = async () => {
+    if (!currentTenant) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('sites')
+        .select('id, name, address')
+        .eq('tenant_id', currentTenant.id)
+        .eq('active', true)
+        .order('name');
+
+      if (error) throw error;
+      setSites(data || []);
+    } catch (error) {
+      console.error('Error fetching sites:', error);
+    }
+  };
+
+  const fetchCompanies = async () => {
+    if (!currentTenant) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('id, name')
+        .eq('tenant_id', currentTenant.id)
+        .eq('active', true)
+        .order('name');
+
+      if (error) throw error;
+      setCompanies(data || []);
+    } catch (error) {
+      console.error('Error fetching companies:', error);
+    }
+  };
+
+  const fetchContacts = async () => {
+    if (!currentTenant) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('contacts')
+        .select('id, first_name, last_name, email')
+        .eq('tenant_id', currentTenant.id)
+        .eq('active', true)
+        .order('first_name');
+
+      if (error) throw error;
+      setContacts(data || []);
+    } catch (error) {
+      console.error('Error fetching contacts:', error);
+    }
+  };
+
+  const fetchLinkedEntities = async () => {
+    if (!deal.id) return;
+
+    try {
+      // Fetch linked companies
+      const { data: companyData, error: companyError } = await supabase
+        .from('deal_companies')
+        .select(`
+          companies(id, name)
+        `)
+        .eq('deal_id', deal.id);
+
+      if (companyError) throw companyError;
+      const linkedCompaniesData = companyData?.map(dc => dc.companies).filter(Boolean) || [];
+      setLinkedCompanies(linkedCompaniesData as Company[]);
+
+      // Fetch linked contacts
+      const { data: contactData, error: contactError } = await supabase
+        .from('deal_contacts')
+        .select(`
+          contacts(id, first_name, last_name, email)
+        `)
+        .eq('deal_id', deal.id);
+
+      if (contactError) throw contactError;
+      const linkedContactsData = contactData?.map(dc => dc.contacts).filter(Boolean) || [];
+      setLinkedContacts(linkedContactsData as Contact[]);
+
+      // Update edited deal with current linked IDs
+      setEditedDeal(prev => ({
+        ...prev,
+        company_ids: linkedCompaniesData.map(c => c?.id || ''),
+        contact_ids: linkedContactsData.map(c => c?.id || ''),
+      }));
+    } catch (error) {
+      console.error('Error fetching linked entities:', error);
+    }
+  };
+
   useEffect(() => {
     fetchStages();
-  }, [currentTenant]);
+    fetchSites();
+    fetchCompanies();
+    fetchContacts();
+    fetchLinkedEntities();
+  }, [currentTenant, deal.id]);
 
   const getCurrentStage = () => {
     return stages.find(stage => stage.id === deal.stage_id);
@@ -123,6 +249,12 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
         changes.push(`Expected close date changed from ${oldDate} to ${newDate}`);
       }
 
+      if (editedDeal.site_id !== deal.site_id) {
+        const oldSite = sites.find(s => s.id === deal.site_id);
+        const newSite = sites.find(s => s.id === editedDeal.site_id);
+        changes.push(`Site changed from "${oldSite?.name || 'None'}" to "${newSite?.name || 'None'}"`);
+      }
+
       // Update deal
       const { error } = await supabase
         .from('deals')
@@ -130,11 +262,34 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
           stage_id: editedDeal.stage_id || null,
           value: editedDeal.value,
           expected_close_date: editedDeal.expected_close_date || null,
+          site_id: editedDeal.site_id || null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', deal.id);
 
       if (error) throw error;
+
+      // Update company relationships
+      await supabase.from('deal_companies').delete().eq('deal_id', deal.id);
+      
+      if (editedDeal.company_ids.length > 0) {
+        const companyInserts = editedDeal.company_ids.map(companyId => ({
+          deal_id: deal.id,
+          company_id: companyId,
+        }));
+        await supabase.from('deal_companies').insert(companyInserts);
+      }
+
+      // Update contact relationships
+      await supabase.from('deal_contacts').delete().eq('deal_id', deal.id);
+      
+      if (editedDeal.contact_ids.length > 0) {
+        const contactInserts = editedDeal.contact_ids.map(contactId => ({
+          deal_id: deal.id,
+          contact_id: contactId,
+        }));
+        await supabase.from('deal_contacts').insert(contactInserts);
+      }
 
       // Log activity if there were changes
       if (changes.length > 0) {
@@ -148,6 +303,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
 
       setEditMode(false);
       onUpdate();
+      fetchLinkedEntities(); // Refresh the linked entities display
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -162,6 +318,9 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
       stage_id: deal.stage_id || '',
       value: deal.value || 0,
       expected_close_date: deal.expected_close_date || '',
+      site_id: deal.site_id || '',
+      company_ids: linkedCompanies.map(c => c.id),
+      contact_ids: linkedContacts.map(c => c.id),
     });
     setEditMode(false);
   };
@@ -278,10 +437,132 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Related Information</CardTitle>
-          <CardDescription>Customer and site details</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Related Information</CardTitle>
+              <CardDescription>Customer, site, companies, and contact details</CardDescription>
+            </div>
+            {!editMode && (
+              <Button variant="outline" size="sm" onClick={() => setEditMode(true)}>
+                <Edit3 className="h-4 w-4 mr-2" />
+                Edit Relations
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Site */}
+          {editMode ? (
+            <div className="space-y-2">
+              <span className="text-sm font-medium flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                Site
+              </span>
+              <Select
+                value={editedDeal.site_id}
+                onValueChange={(value) => setEditedDeal(prev => ({ ...prev, site_id: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select site" />
+                </SelectTrigger>
+                <SelectContent className="bg-background border border-border">
+                  <SelectItem value="">No Site</SelectItem>
+                  {sites.map((site) => (
+                    <SelectItem key={site.id} value={site.id}>
+                      {site.name} - {site.address}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <>
+              {deal.sites ? (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    Site
+                  </span>
+                  <span>{deal.sites.name}</span>
+                </div>
+              ) : sites.find(s => s.id === deal.site_id) && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    Site
+                  </span>
+                  <span>{sites.find(s => s.id === deal.site_id)?.name}</span>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Companies */}
+          {editMode ? (
+            <div className="space-y-2">
+              <span className="text-sm font-medium flex items-center gap-2">
+                <Building className="h-4 w-4" />
+                Companies
+              </span>
+              <MultiSelectDropdown
+                options={companies.map(c => ({ id: c.id, name: c.name }))}
+                selected={editedDeal.company_ids}
+                onSelectionChange={(values) => setEditedDeal(prev => ({ ...prev, company_ids: values }))}
+                placeholder="Select companies..."
+                searchPlaceholder="Search companies..."
+              />
+            </div>
+          ) : linkedCompanies.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Building className="h-4 w-4" />
+                <span className="text-sm font-medium">Companies</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {linkedCompanies.map((company) => (
+                  <Badge key={company.id} variant="secondary">
+                    {company.name}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Contacts */}
+          {editMode ? (
+            <div className="space-y-2">
+              <span className="text-sm font-medium flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Contacts
+              </span>
+              <MultiSelectDropdown
+                options={contacts.map(c => ({ 
+                  id: c.id, 
+                  name: `${c.first_name} ${c.last_name}${c.email ? ` (${c.email})` : ''}` 
+                }))}
+                selected={editedDeal.contact_ids}
+                onSelectionChange={(values) => setEditedDeal(prev => ({ ...prev, contact_ids: values }))}
+                placeholder="Select contacts..."
+                searchPlaceholder="Search contacts..."
+              />
+            </div>
+          ) : linkedContacts.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <User className="h-4 w-4" />
+                <span className="text-sm font-medium">Contacts</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {linkedContacts.map((contact) => (
+                  <Badge key={contact.id} variant="secondary">
+                    {contact.first_name} {contact.last_name}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Customer (existing) */}
           {deal.customers && (
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium flex items-center gap-2">
@@ -292,16 +573,6 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
             </div>
           )}
           
-          {deal.sites && (
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium flex items-center gap-2">
-                <MapPin className="h-4 w-4" />
-                Site
-              </span>
-              <span>{deal.sites.name}</span>
-            </div>
-          )}
-          
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium flex items-center gap-2">
               <Calendar className="h-4 w-4" />
@@ -309,6 +580,19 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
             </span>
             <span>{new Date(deal.created_at).toLocaleDateString()}</span>
           </div>
+
+          {editMode && (
+            <div className="flex gap-2 pt-4">
+              <Button variant="outline" onClick={handleCancel}>
+                <X className="h-4 w-4 mr-2" />
+                Cancel
+              </Button>
+              <Button onClick={handleSave}>
+                <Save className="h-4 w-4 mr-2" />
+                Save Relations
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
