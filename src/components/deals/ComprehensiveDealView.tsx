@@ -28,6 +28,9 @@ import {
   ExternalLink,
   Activity
 } from 'lucide-react';
+import { QuickAddCompanyModal } from '@/components/modals/QuickAddCompanyModal';
+import { QuickAddContactModal } from '@/components/modals/QuickAddContactModal';
+import { QuickAddSiteModal } from '@/components/modals/QuickAddSiteModal';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
@@ -166,6 +169,9 @@ export const ComprehensiveDealView = ({ deal, onUpdate }: ComprehensiveDealViewP
   const [editMode, setEditMode] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showFolderModal, setShowFolderModal] = useState(false);
+  const [showCompanyModal, setShowCompanyModal] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [showSiteModal, setShowSiteModal] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadNotes, setUploadNotes] = useState('');
   const [newNote, setNewNote] = useState('');
@@ -664,6 +670,34 @@ export const ComprehensiveDealView = ({ deal, onUpdate }: ComprehensiveDealViewP
     return new Date(dateString).toLocaleDateString();
   };
 
+  // Quick add handlers
+  const handleCompanyCreated = (newCompany: { id: string; name: string }) => {
+    setLinkedCompanies(prev => [...prev, newCompany]);
+    setEditedDeal(prev => ({ ...prev, company_ids: [...prev.company_ids, newCompany.id] }));
+    fetchCompanies(); // Refresh full list
+  };
+
+  const handleContactCreated = (newContact: { id: string; first_name: string; last_name: string; email?: string }) => {
+    setLinkedContacts(prev => [...prev, newContact]);
+    setEditedDeal(prev => ({ ...prev, contact_ids: [...prev.contact_ids, newContact.id] }));
+    fetchContacts(); // Refresh full list
+  };
+
+  const handleSiteCreated = (newSite: { id: string; name: string }) => {
+    setEditedDeal(prev => ({ ...prev, site_id: newSite.id }));
+    fetchSites(); // Refresh full list
+  };
+
+  const handleUnlinkCompany = (companyId: string) => {
+    setLinkedCompanies(prev => prev.filter(c => c.id !== companyId));
+    setEditedDeal(prev => ({ ...prev, company_ids: prev.company_ids.filter(id => id !== companyId) }));
+  };
+
+  const handleUnlinkContact = (contactId: string) => {
+    setLinkedContacts(prev => prev.filter(c => c.id !== contactId));
+    setEditedDeal(prev => ({ ...prev, contact_ids: prev.contact_ids.filter(id => id !== contactId) }));
+  };
+
   return (
     <div className="space-y-6">
       {/* Header Section */}
@@ -721,9 +755,250 @@ export const ComprehensiveDealView = ({ deal, onUpdate }: ComprehensiveDealViewP
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Main Deal Info */}
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Left Sidebar - Linked Entities */}
+        <div className="lg:col-span-1 space-y-4">
+          {/* Customer & Site Selection */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2">
+                <Building className="h-5 w-5" />
+                Customer & Site
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <Label className="text-xs text-muted-foreground">Customer</Label>
+                {editMode ? (
+                  <Select
+                    value={editedDeal.customer_id}
+                    onValueChange={(value) => setEditedDeal(prev => ({ ...prev, customer_id: value }))}
+                  >
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue placeholder="Select customer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customers.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="text-sm font-medium">
+                    {deal.customers?.name || 'Not assigned'}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <Label className="text-xs text-muted-foreground">Site</Label>
+                {editMode ? (
+                  <div className="flex gap-1">
+                    <Select
+                      value={editedDeal.site_id}
+                      onValueChange={(value) => setEditedDeal(prev => ({ ...prev, site_id: value }))}
+                    >
+                      <SelectTrigger className="h-8 text-sm flex-1">
+                        <SelectValue placeholder="Select site" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="no-site-selected">No Site</SelectItem>
+                        {sites.map((site) => (
+                          <SelectItem key={site.id} value={site.id}>
+                            {site.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={() => setShowSiteModal(true)}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="text-sm font-medium">
+                    {deal.sites?.name || 'Not assigned'}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Linked Companies */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Building className="h-4 w-4" />
+                  Companies
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={() => setShowCompanyModal(true)}
+                >
+                  <Plus className="h-3 w-3" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {linkedCompanies.length > 0 ? (
+                  linkedCompanies.map((company) => (
+                    <div key={company.id} className="flex items-center gap-2 p-2 bg-muted rounded text-sm">
+                      <Building className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                      <span className="flex-1 min-w-0 truncate">{company.name}</span>
+                      {editMode && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-5 w-5 p-0"
+                          onClick={() => handleUnlinkCompany(company.id)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-xs text-muted-foreground text-center py-2">
+                    No companies linked
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Linked Contacts */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Users className="h-4 w-4" />
+                  Contacts
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={() => setShowContactModal(true)}
+                >
+                  <Plus className="h-3 w-3" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {linkedContacts.length > 0 ? (
+                  linkedContacts.map((contact) => (
+                    <div key={contact.id} className="flex items-center gap-2 p-2 bg-muted rounded text-sm">
+                      <User className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="truncate">{contact.first_name} {contact.last_name}</div>
+                        {contact.email && (
+                          <div className="text-xs text-muted-foreground truncate">
+                            {contact.email}
+                          </div>
+                        )}
+                      </div>
+                      {editMode && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-5 w-5 p-0"
+                          onClick={() => handleUnlinkContact(contact.id)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-xs text-muted-foreground text-center py-2">
+                    No contacts linked
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* To-Do List */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <CheckSquare className="h-4 w-4" />
+                To-Do List
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {todos.map((todo) => (
+                  <div key={todo.id} className="p-2 bg-muted rounded text-xs">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-medium">
+                        {todo.title?.toLowerCase().includes('email') ? 'Email' :
+                         todo.title?.toLowerCase().includes('call') ? 'Call' :
+                         todo.title?.toLowerCase().includes('follow') ? 'Follow-up' :
+                         todo.title?.toLowerCase().includes('payment') ? 'Payment' :
+                         'Task'}
+                      </span>
+                    </div>
+                    <div className="font-medium text-xs mb-1 truncate">{todo.title}</div>
+                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <Calendar className="h-2.5 w-2.5" />
+                      {todo.due_date ? 
+                        new Date(todo.due_date).toLocaleDateString('en-US', { 
+                          month: 'short', 
+                          day: 'numeric' 
+                        }) : 
+                        'No date'
+                      }
+                    </div>
+                  </div>
+                ))}
+                
+                {todos.length === 0 && (
+                  <div className="text-center py-3 text-muted-foreground">
+                    <CheckSquare className="h-6 w-6 mx-auto mb-1 opacity-50" />
+                    <p className="text-xs">No pending todos</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Quick Stats */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Quick Stats</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-muted-foreground">Activities</span>
+                <span className="font-medium">{activities.length}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-muted-foreground">Payment Terms</span>
+                <span className="font-medium">{paymentTerms.length}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-muted-foreground">Created</span>
+                <span className="font-medium">{formatDate(deal.created_at)}</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Main Content - Deal Info */}
+        <div className="lg:col-span-3 space-y-6">
           {/* Basic Information */}
           <Card>
             <CardHeader>
@@ -951,194 +1226,26 @@ export const ComprehensiveDealView = ({ deal, onUpdate }: ComprehensiveDealViewP
             </CardContent>
           </Card>
         </div>
-
-        {/* Right Column - Related Info */}
-        <div className="space-y-6">
-          {/* Folder Reference */}
-          {oneDriveSettings?.enabled && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Folder className="h-5 w-5" />
-                  Folder Reference
-                </CardTitle>
-                <CardDescription>OneDrive folder for this deal</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="p-3 bg-muted rounded-lg">
-                  <div className="text-sm font-mono break-all">
-                    {dealFolderPath || 'No folder path configured'}
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleOpenFolder}
-                    className="flex-1"
-                  >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Open Folder
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowUploadModal(true)}
-                  >
-                    <Upload className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Linked Companies */}
-          {linkedCompanies.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Building className="h-5 w-5" />
-                  Linked Companies
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {linkedCompanies.map((company) => (
-                    <div key={company.id} className="flex items-center gap-2 p-2 bg-muted rounded">
-                      <Building className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">{company.name}</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Linked Contacts */}
-          {linkedContacts.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Linked Contacts
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {linkedContacts.map((contact) => (
-                    <div key={contact.id} className="flex items-center gap-2 p-2 bg-muted rounded">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">
-                        {contact.first_name} {contact.last_name}
-                        {contact.email && <span className="text-muted-foreground ml-1">({contact.email})</span>}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Site Information */}
-          {deal.sites && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5" />
-                  Site Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="p-3 bg-muted rounded-lg">
-                  <div className="font-medium">{deal.sites.name}</div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* To-Do List */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CheckSquare className="h-5 w-5" />
-                To-Do List
-              </CardTitle>
-              <CardDescription>Pending tasks for this deal</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3 max-h-64 overflow-y-auto">
-                {todos.map((todo) => (
-                  <div key={todo.id} className="flex items-start gap-3 p-3 bg-muted rounded-lg">
-                    <CheckSquare className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
-                          {todo.title?.toLowerCase().includes('email') ? 'Email' :
-                           todo.title?.toLowerCase().includes('call') ? 'Call' :
-                           todo.title?.toLowerCase().includes('follow') ? 'Follow-up' :
-                           todo.title?.toLowerCase().includes('payment') ? 'Payment' :
-                           todo.title?.toLowerCase().includes('meeting') ? 'Meeting' :
-                           todo.title?.toLowerCase().includes('review') ? 'Review' :
-                           'Task'}
-                        </span>
-                      </div>
-                      <div className="font-medium text-sm">{todo.title}</div>
-                      {todo.description && (
-                        <div className="text-xs text-muted-foreground mt-1">{todo.description}</div>
-                      )}
-                      <div className="flex items-center gap-2 mt-2">
-                        <Calendar className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">
-                          {todo.due_date ? 
-                            `Due: ${new Date(todo.due_date).toLocaleDateString('en-US', { 
-                              month: 'short', 
-                              day: 'numeric' 
-                            })}` : 
-                            'No due date'
-                          }
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                
-                {todos.length === 0 && (
-                  <div className="text-center py-4 text-muted-foreground">
-                    <CheckSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No pending todos</p>
-                    <p className="text-xs">All tasks are completed!</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Quick Stats */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Stats</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Created</span>
-                <span className="text-sm font-medium">{formatDate(deal.created_at)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Last Updated</span>
-                <span className="text-sm font-medium">{formatDate(deal.updated_at)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Activities</span>
-                <span className="text-sm font-medium">{activities.length}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Payment Terms</span>
-                <span className="text-sm font-medium">{paymentTerms.length}</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
       </div>
+
+      {/* Quick Add Modals */}
+      <QuickAddCompanyModal
+        open={showCompanyModal}
+        onClose={() => setShowCompanyModal(false)}
+        onCompanyCreated={handleCompanyCreated}
+      />
+
+      <QuickAddContactModal
+        open={showContactModal}
+        onClose={() => setShowContactModal(false)}
+        onContactCreated={handleContactCreated}
+      />
+
+      <QuickAddSiteModal
+        open={showSiteModal}
+        onClose={() => setShowSiteModal(false)}
+        onSiteCreated={handleSiteCreated}
+      />
 
       {/* Folder Modal */}
       <Dialog open={showFolderModal} onOpenChange={setShowFolderModal}>
