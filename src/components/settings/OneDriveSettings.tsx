@@ -6,7 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Cloud, CheckCircle, AlertCircle, Settings, TestTube } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Cloud, CheckCircle, AlertCircle, Settings, TestTube, FolderTree } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useTenant } from '@/hooks/use-tenant';
@@ -20,6 +21,8 @@ interface OneDriveSettings {
   refresh_token?: string;
   token_expires_at?: string;
   root_folder_id?: string;
+  selected_library_id?: string;
+  selected_library_name?: string;
   folder_structure?: {
     customers: string;
     sites: string;
@@ -27,17 +30,27 @@ interface OneDriveSettings {
   };
 }
 
+interface DocumentLibrary {
+  id: string;
+  name: string;
+  type: 'personal' | 'sharepoint';
+  webUrl: string;
+  siteId?: string;
+}
+
 export const OneDriveSettings = () => {
   const { currentTenant } = useTenant();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [loadingLibraries, setLoadingLibraries] = useState(false);
   const [settings, setSettings] = useState<OneDriveSettings>({
     enabled: false,
     client_id: '',
     client_secret: ''
   });
   const [isConnected, setIsConnected] = useState(false);
+  const [libraries, setLibraries] = useState<DocumentLibrary[]>([]);
 
   useEffect(() => {
     if (currentTenant) {
@@ -70,9 +83,16 @@ export const OneDriveSettings = () => {
           refresh_token: data.refresh_token,
           token_expires_at: data.token_expires_at,
           root_folder_id: data.root_folder_id,
+          selected_library_id: data.selected_library_id,
+          selected_library_name: data.selected_library_name,
           folder_structure: data.folder_structure as { customers: string; sites: string; deals: string; } || { customers: '', sites: '', deals: '' }
         });
         setIsConnected(!!data.access_token);
+        
+        // Fetch libraries if connected
+        if (data.access_token) {
+          fetchLibraries();
+        }
       }
     } catch (error) {
       console.error('Error fetching OneDrive settings:', error);
@@ -126,6 +146,74 @@ export const OneDriveSettings = () => {
     }
   };
 
+  const fetchLibraries = async () => {
+    if (!currentTenant || !isConnected) return;
+
+    setLoadingLibraries(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('onedrive-auth', {
+        body: {
+          action: 'get_libraries',
+          tenant_id: currentTenant.id
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.libraries) {
+        setLibraries(data.libraries);
+      }
+    } catch (error) {
+      console.error('Error fetching libraries:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch available document libraries.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingLibraries(false);
+    }
+  };
+
+  const handleLibrarySelect = async (libraryId: string) => {
+    const selectedLibrary = libraries.find(lib => lib.id === libraryId);
+    if (!selectedLibrary || !currentTenant) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.functions.invoke('onedrive-auth', {
+        body: {
+          action: 'set_library',
+          tenant_id: currentTenant.id,
+          library_id: libraryId,
+          library_name: selectedLibrary.name
+        }
+      });
+
+      if (error) throw error;
+
+      setSettings(prev => ({
+        ...prev,
+        selected_library_id: libraryId,
+        selected_library_name: selectedLibrary.name
+      }));
+
+      toast({
+        title: "Library selected",
+        description: `Selected "${selectedLibrary.name}" for file storage.`
+      });
+    } catch (error) {
+      console.error('Error setting library:', error);
+      toast({
+        title: "Error",
+        description: "Failed to set selected library.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleConnect = async () => {
     if (!settings.client_id || !settings.client_secret) {
       toast({
@@ -148,14 +236,14 @@ export const OneDriveSettings = () => {
 
       if (error) throw error;
 
-      if (data.auth_url) {
-        window.open(data.auth_url, '_blank', 'width=600,height=700');
-        
-        toast({
-          title: "Authentication started",
-          description: "Please complete the authentication in the popup window."
-        });
-      }
+        if (data.auth_url) {
+          window.open(data.auth_url, '_blank', 'width=600,height=700');
+          
+          toast({
+            title: "Authentication started",
+            description: "Please complete the authentication in the popup window. After authentication, refresh this page to see available libraries."
+          });
+        }
     } catch (error) {
       console.error('Error initiating OneDrive connection:', error);
       toast({
@@ -230,12 +318,15 @@ export const OneDriveSettings = () => {
       if (error) throw error;
 
       setIsConnected(false);
+      setLibraries([]);
       setSettings(prev => ({
         ...prev,
         access_token: undefined,
         refresh_token: undefined,
         token_expires_at: undefined,
         root_folder_id: undefined,
+        selected_library_id: undefined,
+        selected_library_name: undefined,
         folder_structure: { customers: '', sites: '', deals: '' }
       }));
 
@@ -357,14 +448,62 @@ export const OneDriveSettings = () => {
               )}
             </div>
 
-            {isConnected && settings.folder_structure && (
-              <div className="p-4 bg-muted rounded-lg">
-                <h5 className="text-sm font-medium mb-2">Folder Structure</h5>
-                <div className="text-sm text-muted-foreground space-y-1">
-                  <p>• Customers: /{settings.folder_structure.customers || 'Customers'}</p>
-                  <p>• Sites: /{settings.folder_structure.sites || 'Sites'}</p>
-                  <p>• Deals: /{settings.folder_structure.deals || 'Deals'}</p>
+            {isConnected && (
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="library-select">Document Library</Label>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Select which document library to use for storing files
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={settings.selected_library_id || ''}
+                      onValueChange={handleLibrarySelect}
+                      disabled={loadingLibraries || loading}
+                    >
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Select a document library..." />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background border z-50 max-h-[200px] overflow-y-auto">
+                        {libraries.map((library) => (
+                          <SelectItem key={library.id} value={library.id}>
+                            <div className="flex items-center gap-2">
+                              <FolderTree className="h-4 w-4" />
+                              <span>{library.name}</span>
+                              <Badge variant="secondary" className="ml-auto text-xs">
+                                {library.type}
+                              </Badge>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      onClick={fetchLibraries}
+                      disabled={loadingLibraries || loading}
+                      variant="outline"
+                      size="sm"
+                    >
+                      {loadingLibraries ? 'Loading...' : 'Refresh'}
+                    </Button>
+                  </div>
+                  {settings.selected_library_name && (
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Selected: {settings.selected_library_name}
+                    </p>
+                  )}
                 </div>
+
+                {settings.folder_structure && (
+                  <div className="p-4 bg-muted rounded-lg">
+                    <h5 className="text-sm font-medium mb-2">Folder Structure</h5>
+                    <div className="text-sm text-muted-foreground space-y-1">
+                      <p>• Customers: /{settings.folder_structure.customers || 'Customers'}</p>
+                      <p>• Sites: /{settings.folder_structure.sites || 'Sites'}</p>
+                      <p>• Deals: /{settings.folder_structure.deals || 'Deals'}</p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

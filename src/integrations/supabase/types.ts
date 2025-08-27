@@ -1595,6 +1595,8 @@ export type Database = {
           id: string
           refresh_token: string | null
           root_folder_id: string | null
+          selected_library_id: string | null
+          selected_library_name: string | null
           tenant_id: string
           token_expires_at: string | null
           updated_at: string
@@ -1609,6 +1611,8 @@ export type Database = {
           id?: string
           refresh_token?: string | null
           root_folder_id?: string | null
+          selected_library_id?: string | null
+          selected_library_name?: string | null
           tenant_id: string
           token_expires_at?: string | null
           updated_at?: string
@@ -1623,6 +1627,8 @@ export type Database = {
           id?: string
           refresh_token?: string | null
           root_folder_id?: string | null
+          selected_library_id?: string | null
+          selected_library_name?: string | null
           tenant_id?: string
           token_expires_at?: string | null
           updated_at?: string

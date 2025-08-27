@@ -7,11 +7,13 @@ const corsHeaders = {
 }
 
 interface OneDriveAuthRequest {
-  action: 'initialize' | 'callback' | 'test';
+  action: 'initialize' | 'callback' | 'test' | 'get_libraries' | 'set_library';
   tenant_id?: string;
   client_id?: string;
   client_secret?: string;
   code?: string;
+  library_id?: string;
+  library_name?: string;
 }
 
 serve(async (req) => {
@@ -26,7 +28,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { action, tenant_id, client_id, client_secret, code } = await req.json() as OneDriveAuthRequest;
+    const { action, tenant_id, client_id, client_secret, code, library_id, library_name } = await req.json() as OneDriveAuthRequest;
 
     console.log(`OneDrive Auth - Action: ${action}, Tenant: ${tenant_id}`);
 
@@ -249,6 +251,136 @@ serve(async (req) => {
           return new Response(
             JSON.stringify({ success: false, error: 'Connection test failed' }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+
+      case 'get_libraries': {
+        if (!tenant_id) {
+          return new Response(
+            JSON.stringify({ error: 'Missing tenant_id' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Get tenant's OneDrive settings
+        const { data: settings, error: settingsError } = await supabase
+          .from('tenant_onedrive_settings')
+          .select('access_token, refresh_token, client_id, client_secret, token_expires_at')
+          .eq('tenant_id', tenant_id)
+          .single();
+
+        if (settingsError || !settings || !settings.access_token) {
+          return new Response(
+            JSON.stringify({ error: 'No valid access token found' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        try {
+          // Get available sites with document libraries
+          const sitesResponse = await fetch('https://graph.microsoft.com/v1.0/sites?search=*', {
+            headers: {
+              'Authorization': `Bearer ${settings.access_token}`,
+            },
+          });
+
+          if (!sitesResponse.ok) {
+            throw new Error('Failed to fetch sites');
+          }
+
+          const sitesData = await sitesResponse.json();
+          const libraries = [];
+
+          // Add the personal OneDrive as default option
+          const driveResponse = await fetch('https://graph.microsoft.com/v1.0/me/drive', {
+            headers: {
+              'Authorization': `Bearer ${settings.access_token}`,
+            },
+          });
+
+          if (driveResponse.ok) {
+            const driveData = await driveResponse.json();
+            libraries.push({
+              id: driveData.id,
+              name: `Personal OneDrive (${driveData.owner?.user?.displayName || 'Me'})`,
+              type: 'personal',
+              webUrl: driveData.webUrl
+            });
+          }
+
+          // Add site document libraries
+          for (const site of sitesData.value || []) {
+            try {
+              const drivesResponse = await fetch(`https://graph.microsoft.com/v1.0/sites/${site.id}/drives`, {
+                headers: {
+                  'Authorization': `Bearer ${settings.access_token}`,
+                },
+              });
+
+              if (drivesResponse.ok) {
+                const drivesData = await drivesResponse.json();
+                for (const drive of drivesData.value || []) {
+                  if (drive.driveType === 'documentLibrary') {
+                    libraries.push({
+                      id: drive.id,
+                      name: `${site.displayName} - ${drive.name}`,
+                      type: 'sharepoint',
+                      webUrl: drive.webUrl,
+                      siteId: site.id
+                    });
+                  }
+                }
+              }
+            } catch (error) {
+              console.log(`Error fetching drives for site ${site.id}:`, error);
+            }
+          }
+
+          return new Response(
+            JSON.stringify({ libraries }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } catch (error) {
+          console.error('Error fetching libraries:', error);
+          return new Response(
+            JSON.stringify({ error: 'Failed to fetch document libraries' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+
+      case 'set_library': {
+        if (!tenant_id || !library_id || !library_name) {
+          return new Response(
+            JSON.stringify({ error: 'Missing required parameters' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        try {
+          const { error: updateError } = await supabase
+            .from('tenant_onedrive_settings')
+            .update({
+              selected_library_id: library_id,
+              selected_library_name: library_name,
+              updated_at: new Date().toISOString()
+            })
+            .eq('tenant_id', tenant_id);
+
+          if (updateError) {
+            throw updateError;
+          }
+
+          return new Response(
+            JSON.stringify({ success: true }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } catch (error) {
+          console.error('Error setting library:', error);
+          return new Response(
+            JSON.stringify({ error: 'Failed to set selected library' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
       }
