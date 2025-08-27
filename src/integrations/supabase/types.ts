@@ -1397,6 +1397,51 @@ export type Database = {
           },
         ]
       }
+      user_dashboard_configs: {
+        Row: {
+          active: boolean
+          created_at: string
+          filters: Json | null
+          height: number
+          id: string
+          position_x: number
+          position_y: number
+          settings: Json | null
+          updated_at: string
+          user_id: string
+          widget_id: string
+          width: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          filters?: Json | null
+          height?: number
+          id?: string
+          position_x?: number
+          position_y?: number
+          settings?: Json | null
+          updated_at?: string
+          user_id: string
+          widget_id: string
+          width?: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          filters?: Json | null
+          height?: number
+          id?: string
+          position_x?: number
+          position_y?: number
+          settings?: Json | null
+          updated_at?: string
+          user_id?: string
+          widget_id?: string
+          width?: number
+        }
+        Relationships: []
+      }
       user_tenant_memberships: {
         Row: {
           active: boolean
