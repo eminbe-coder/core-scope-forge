@@ -6,6 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { MultiSelectDropdown } from '@/components/deals/MultiSelectDropdown';
+import { QuickAddSiteModal } from '@/components/modals/QuickAddSiteModal';
+import { QuickAddCompanyModal } from '@/components/modals/QuickAddCompanyModal';
+import { QuickAddContactModal } from '@/components/modals/QuickAddContactModal';
 import { DollarSign, Calendar, Building, MapPin, Percent, Edit3, Save, X, Users, User, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
@@ -74,6 +77,9 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
   const [linkedCompanies, setLinkedCompanies] = useState<Company[]>([]);
   const [linkedContacts, setLinkedContacts] = useState<Contact[]>([]);
   const [editMode, setEditMode] = useState(false);
+  const [showSiteModal, setShowSiteModal] = useState(false);
+  const [showCompanyModal, setShowCompanyModal] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
   const [editedDeal, setEditedDeal] = useState({
     stage_id: deal.stage_id || '',
     value: deal.value || 0,
@@ -458,22 +464,32 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
                 <MapPin className="h-4 w-4" />
                 Site
               </span>
-              <Select
-                value={editedDeal.site_id}
-                onValueChange={(value) => setEditedDeal(prev => ({ ...prev, site_id: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select site" />
-                </SelectTrigger>
-                <SelectContent className="bg-background border border-border">
-                  <SelectItem value="no-site-selected">No Site</SelectItem>
-                  {sites.map((site) => (
-                    <SelectItem key={site.id} value={site.id}>
-                      {site.name} - {site.address}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <Select
+                  value={editedDeal.site_id}
+                  onValueChange={(value) => setEditedDeal(prev => ({ ...prev, site_id: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select site" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background border border-border">
+                    <SelectItem value="no-site-selected">No Site</SelectItem>
+                    {sites.map((site) => (
+                      <SelectItem key={site.id} value={site.id}>
+                        {site.name} - {site.address}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowSiteModal(true)}
+                  className="shrink-0"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           ) : (
             <>
@@ -504,13 +520,25 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
                 <Building className="h-4 w-4" />
                 Companies
               </span>
-              <MultiSelectDropdown
-                options={companies.map(c => ({ id: c.id, name: c.name }))}
-                selected={editedDeal.company_ids}
-                onSelectionChange={(values) => setEditedDeal(prev => ({ ...prev, company_ids: values }))}
-                placeholder="Select companies..."
-                searchPlaceholder="Search companies..."
-              />
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <MultiSelectDropdown
+                    options={companies.map(c => ({ id: c.id, name: c.name }))}
+                    selected={editedDeal.company_ids}
+                    onSelectionChange={(values) => setEditedDeal(prev => ({ ...prev, company_ids: values }))}
+                    placeholder="Select companies..."
+                    searchPlaceholder="Search companies..."
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowCompanyModal(true)}
+                  className="shrink-0"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           ) : linkedCompanies.length > 0 && (
             <div>
@@ -535,16 +563,28 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
                 <User className="h-4 w-4" />
                 Contacts
               </span>
-              <MultiSelectDropdown
-                options={contacts.map(c => ({ 
-                  id: c.id, 
-                  name: `${c.first_name} ${c.last_name}${c.email ? ` (${c.email})` : ''}` 
-                }))}
-                selected={editedDeal.contact_ids}
-                onSelectionChange={(values) => setEditedDeal(prev => ({ ...prev, contact_ids: values }))}
-                placeholder="Select contacts..."
-                searchPlaceholder="Search contacts..."
-              />
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <MultiSelectDropdown
+                    options={contacts.map(c => ({ 
+                      id: c.id, 
+                      name: `${c.first_name} ${c.last_name}${c.email ? ` (${c.email})` : ''}` 
+                    }))}
+                    selected={editedDeal.contact_ids}
+                    onSelectionChange={(values) => setEditedDeal(prev => ({ ...prev, contact_ids: values }))}
+                    placeholder="Select contacts..."
+                    searchPlaceholder="Search contacts..."
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowContactModal(true)}
+                  className="shrink-0"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           ) : linkedContacts.length > 0 && (
             <div>
@@ -617,6 +657,31 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
           </CardContent>
         </Card>
       )}
+      
+      {/* Modals */}
+      <QuickAddSiteModal
+        open={showSiteModal}
+        onClose={() => setShowSiteModal(false)}
+        onSiteCreated={() => {
+          fetchSites();
+        }}
+      />
+      
+      <QuickAddCompanyModal
+        open={showCompanyModal}
+        onClose={() => setShowCompanyModal(false)}
+        onCompanyCreated={() => {
+          fetchCompanies();
+        }}
+      />
+      
+      <QuickAddContactModal
+        open={showContactModal}
+        onClose={() => setShowContactModal(false)}
+        onContactCreated={() => {
+          fetchContacts();
+        }}
+      />
     </div>
   );
 };
