@@ -172,6 +172,7 @@ export const ComprehensiveDealView = ({ deal, onUpdate }: ComprehensiveDealViewP
   const [showCompanyModal, setShowCompanyModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
   const [showSiteModal, setShowSiteModal] = useState(false);
+  const [editingPaymentTerms, setEditingPaymentTerms] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadNotes, setUploadNotes] = useState('');
   const [newNote, setNewNote] = useState('');
@@ -714,6 +715,73 @@ export const ComprehensiveDealView = ({ deal, onUpdate }: ComprehensiveDealViewP
     }
   };
 
+  // Payment Terms Management
+  const addPaymentTerm = () => {
+    const newTerm: PaymentTerm = {
+      installment_number: paymentTerms.length + 1,
+      amount_type: 'percentage',
+      amount_value: 0,
+      due_date: '',
+      notes: ''
+    };
+    setPaymentTerms(prev => [...prev, newTerm]);
+  };
+
+  const updatePaymentTerm = (index: number, updatedTerm: PaymentTerm) => {
+    setPaymentTerms(prev => prev.map((term, i) => i === index ? updatedTerm : term));
+  };
+
+  const removePaymentTerm = (index: number) => {
+    setPaymentTerms(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const savePaymentTerms = async () => {
+    if (!currentTenant) return;
+
+    try {
+      // Delete existing payment terms
+      await supabase
+        .from('deal_payment_terms')
+        .delete()
+        .eq('deal_id', deal.id);
+
+      // Insert new payment terms
+      if (paymentTerms.length > 0) {
+        const termsToInsert = paymentTerms.map((term, index) => ({
+          deal_id: deal.id,
+          tenant_id: currentTenant.id,
+          installment_number: index + 1,
+          amount_type: term.amount_type,
+          amount_value: term.amount_value,
+          due_date: term.due_date || null,
+          notes: term.notes || null,
+          calculated_amount: term.amount_type === 'percentage' && deal.value
+            ? (deal.value * term.amount_value) / 100
+            : term.amount_value
+        }));
+
+        await supabase
+          .from('deal_payment_terms')
+          .insert(termsToInsert);
+      }
+
+      setEditingPaymentTerms(false);
+      await fetchPaymentTerms();
+      
+      toast({
+        title: 'Success',
+        description: 'Payment terms updated successfully',
+      });
+    } catch (error: any) {
+      console.error('Error saving payment terms:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to save payment terms',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header Section */}
@@ -1173,35 +1241,234 @@ export const ComprehensiveDealView = ({ deal, onUpdate }: ComprehensiveDealViewP
             </CardContent>
           </Card>
 
-          {/* Payment Terms */}
-          {paymentTerms.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Payment Terms</CardTitle>
-                <CardDescription>Installment breakdown for this deal</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {paymentTerms.map((term, index) => (
-                    <div key={term.id || index} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                      <div>
-                        <span className="font-medium">Installment {term.installment_number}</span>
-                        <p className="text-sm text-muted-foreground">
-                          {term.amount_type === 'percentage' ? `${term.amount_value}%` : formatCurrency(term.amount_value)}
-                          {term.due_date && ` - Due: ${formatDate(term.due_date)}`}
-                        </p>
+          {/* Payment Terms & Installments */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Payment Terms & Installments</CardTitle>
+                  <CardDescription>Manage payment schedule and installments for this deal</CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  {!editingPaymentTerms ? (
+                    <>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setEditingPaymentTerms(true)}
+                      >
+                        <Edit3 className="h-4 w-4 mr-2" />
+                        Edit Terms
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={addPaymentTerm}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Installment
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => {
+                          setEditingPaymentTerms(false);
+                          fetchPaymentTerms(); // Reset changes
+                        }}
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        Cancel
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        onClick={savePaymentTerms}
+                      >
+                        <Save className="h-4 w-4 mr-2" />
+                        Save Terms
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {paymentTerms.length > 0 ? (
+                  paymentTerms.map((term, index) => (
+                    <div key={term.id || index} className="p-4 border rounded-lg space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium">Installment {index + 1}</h4>
+                        {editingPaymentTerms && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removePaymentTerm(index)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
-                      <div className="text-right">
-                        <div className="font-medium">
-                          {term.calculated_amount ? formatCurrency(term.calculated_amount) : 'TBD'}
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                          <Label className="text-sm">Amount Type</Label>
+                          {editingPaymentTerms ? (
+                            <Select
+                              value={term.amount_type}
+                              onValueChange={(value) => updatePaymentTerm(index, { 
+                                ...term, 
+                                amount_type: value as 'fixed' | 'percentage' 
+                              })}
+                            >
+                              <SelectTrigger className="h-8">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="percentage">Percentage (%)</SelectItem>
+                                <SelectItem value="fixed">Fixed Amount</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <div className="text-sm font-medium">
+                              {term.amount_type === 'percentage' ? 'Percentage (%)' : 'Fixed Amount'}
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <Label className="text-sm">
+                            {term.amount_type === 'percentage' ? 'Percentage' : 'Amount'}
+                          </Label>
+                          {editingPaymentTerms ? (
+                            <Input
+                              type="number"
+                              value={term.amount_value}
+                              onChange={(e) => updatePaymentTerm(index, { 
+                                ...term, 
+                                amount_value: parseFloat(e.target.value) || 0 
+                              })}
+                              placeholder={term.amount_type === 'percentage' ? '0' : '0.00'}
+                              className="h-8"
+                            />
+                          ) : (
+                            <div className="text-sm font-medium">
+                              {term.amount_type === 'percentage' 
+                                ? `${term.amount_value}%` 
+                                : formatCurrency(term.amount_value)
+                              }
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <Label className="text-sm">Due Date</Label>
+                          {editingPaymentTerms ? (
+                            <Input
+                              type="date"
+                              value={term.due_date || ''}
+                              onChange={(e) => updatePaymentTerm(index, { 
+                                ...term, 
+                                due_date: e.target.value 
+                              })}
+                              className="h-8"
+                            />
+                          ) : (
+                            <div className="text-sm font-medium">
+                              {term.due_date ? formatDate(term.due_date) : 'Not set'}
+                            </div>
+                          )}
                         </div>
                       </div>
+
+                      {/* Calculated Amount */}
+                      {term.amount_type === 'percentage' && deal.value && (
+                        <div className="pt-2 border-t">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-muted-foreground">Calculated Amount:</span>
+                            <span className="font-medium">
+                              {formatCurrency((deal.value * term.amount_value) / 100)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Notes */}
+                      <div>
+                        <Label className="text-sm">Notes</Label>
+                        {editingPaymentTerms ? (
+                          <Textarea
+                            value={term.notes || ''}
+                            onChange={(e) => updatePaymentTerm(index, { 
+                              ...term, 
+                              notes: e.target.value 
+                            })}
+                            placeholder="Add notes for this installment..."
+                            rows={2}
+                            className="text-sm"
+                          />
+                        ) : (
+                          <div className="text-sm text-muted-foreground">
+                            {term.notes || 'No notes'}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <h3 className="font-medium mb-2">No Payment Terms Set</h3>
+                    <p className="text-sm mb-4">Add installment terms to break down the deal value into manageable payments.</p>
+                    <Button onClick={addPaymentTerm} size="sm">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add First Installment
+                    </Button>
+                  </div>
+                )}
+
+                {/* Add New Term Button (when editing and terms exist) */}
+                {editingPaymentTerms && paymentTerms.length > 0 && (
+                  <Button 
+                    variant="outline" 
+                    onClick={addPaymentTerm}
+                    className="w-full border-dashed"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Another Installment
+                  </Button>
+                )}
+
+                {/* Payment Summary */}
+                {paymentTerms.length > 0 && deal.value && (
+                  <div className="pt-4 border-t">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Total Deal Value:</span>
+                        <span className="font-medium">{formatCurrency(deal.value)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Total Planned:</span>
+                        <span className="font-medium">
+                          {formatCurrency(
+                            paymentTerms.reduce((sum, term) => {
+                              if (term.amount_type === 'percentage') {
+                                return sum + (deal.value * term.amount_value) / 100;
+                              }
+                              return sum + term.amount_value;
+                            }, 0)
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Recent Activities */}
           <Card>
