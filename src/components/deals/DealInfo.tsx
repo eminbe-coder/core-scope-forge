@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { UnifiedEntitySelect } from '@/components/ui/unified-entity-select';
 import { MultiSelectDropdown } from '@/components/deals/MultiSelectDropdown';
 import { QuickAddSiteModal } from '@/components/modals/QuickAddSiteModal';
 import { QuickAddCompanyModal } from '@/components/modals/QuickAddCompanyModal';
@@ -242,6 +243,80 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
     return stages.find(stage => stage.id === deal.stage_id);
   };
 
+  const handleCustomerEntitySelect = async (entityId: string, entity: any) => {
+    if (entity.type === 'customer') {
+      // Direct customer selection
+      setEditedDeal(prev => ({ ...prev, customer_id: entityId }));
+    } else if (entity.type === 'company' || entity.type === 'contact') {
+      // Promote to customer first
+      const newCustomerId = await promoteToCustomer(entity, entity.type);
+      if (newCustomerId) {
+        setEditedDeal(prev => ({ ...prev, customer_id: newCustomerId }));
+        
+        // Log the promotion activity
+        const entityName = entity.type === 'company' ? entity.name : `${entity.first_name} ${entity.last_name}`;
+        toast({
+          title: 'Success',
+          description: `${entity.type === 'company' ? 'Company' : 'Contact'} "${entityName}" has been promoted to customer`,
+        });
+      }
+    }
+  };
+
+  const promoteToCustomer = async (entity: any, entityType: 'company' | 'contact'): Promise<string | null> => {
+    try {
+      let customerData: any = {
+        tenant_id: currentTenant?.id,
+        active: true,
+      };
+
+      if (entityType === 'company') {
+        customerData = {
+          ...customerData,
+          name: entity.name,
+          type: 'company',
+          // Copy other relevant company fields if they exist
+          email: entity.email || null,
+          phone: entity.phone || null,
+          website: entity.website || null,
+          address: entity.headquarters || null,
+          notes: `Promoted from company: ${entity.name}`,
+        };
+      } else if (entityType === 'contact') {
+        customerData = {
+          ...customerData,
+          name: `${entity.first_name} ${entity.last_name}`.trim(),
+          type: 'individual',
+          email: entity.email || null,
+          phone: entity.phone || null,
+          address: entity.address || null,
+          notes: `Promoted from contact: ${entity.first_name} ${entity.last_name}`,
+        };
+      }
+
+      const { data: customer, error } = await supabase
+        .from('customers')
+        .insert([customerData])
+        .select('id, name')
+        .single();
+
+      if (error) throw error;
+
+      // Refresh customers list
+      await fetchCustomers();
+      
+      return customer.id;
+    } catch (error) {
+      console.error('Error promoting to customer:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to promote to customer',
+        variant: 'destructive',
+      });
+      return null;
+    }
+  };
+
   const logActivity = async (changes: string[]) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -271,7 +346,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
       // Check what changed
       if (editedDeal.stage_id !== deal.stage_id) {
         const newStage = stages.find(s => s.id === editedDeal.stage_id);
-        const oldStage = getCurrentStage();
+        const oldStage = stages.find(stage => stage.id === deal.stage_id);
         changes.push(`Stage changed from "${oldStage?.name || 'None'}" to "${newStage?.name || 'None'}"`);
       }
       
@@ -292,7 +367,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
       }
 
       if (editedDeal.customer_id !== deal.customer_id) {
-        const oldCustomer = customers.find(c => c.id === deal.customer_id);
+        const oldCustomer = deal.customers;
         const newCustomer = customers.find(c => c.id === editedDeal.customer_id);
         changes.push(`Customer changed from "${oldCustomer?.name || 'None'}" to "${newCustomer?.name || 'None'}"`);
       }
@@ -415,7 +490,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
     setEditMode(false);
   };
 
-  const currentStage = getCurrentStage();
+  const currentStage = stages.find(stage => stage.id === deal.stage_id);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -548,14 +623,19 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
                 <Building className="h-4 w-4" />
                 Customer
               </span>
-              <SearchableSelect
+              <UnifiedEntitySelect
                 value={editedDeal.customer_id}
-                onValueChange={(value) => setEditedDeal(prev => ({ ...prev, customer_id: value }))}
-                options={customers}
-                placeholder="Select customer..."
-                searchPlaceholder="Search customers..."
-                emptyText="No customers found."
+                onValueChange={handleCustomerEntitySelect}
+                customers={customers.map(c => ({ ...c, type: 'customer' as const }))}
+                companies={companies.map(c => ({ ...c, type: 'company' as const }))}
+                contacts={contacts.map(c => ({ ...c, type: 'contact' as const }))}
+                placeholder="Select customer, company, or contact..."
+                searchPlaceholder="Search customers, companies, contacts..."
+                emptyText="No entities found."
               />
+              <p className="text-xs text-muted-foreground">
+                Companies and contacts will be automatically promoted to customers when selected.
+              </p>
             </div>
           ) : deal.customers && (
             <div className="flex items-center justify-between">
