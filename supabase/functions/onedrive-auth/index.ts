@@ -188,7 +188,7 @@ serve(async (req) => {
         // Get tenant's OneDrive settings
         const { data: settings, error: settingsError } = await supabase
           .from('tenant_onedrive_settings')
-          .select('client_id, client_secret')
+          .select('client_id, client_secret, code_verifier')
           .eq('tenant_id', tenant_id)
           .single();
 
@@ -196,6 +196,13 @@ serve(async (req) => {
           console.error('Settings error:', settingsError);
           return new Response(
             '<html><body><script>window.close();</script><p>Tenant settings not found</p></body></html>',
+            { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
+          );
+        }
+        if (!settings.code_verifier) {
+          console.error('PKCE code_verifier missing for tenant during callback');
+          return new Response(
+            '<html><body><script>window.close();</script><p>PKCE validation failed: code_verifier not found. Please try connecting again.</p></body></html>',
             { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
           );
         }
@@ -210,13 +217,14 @@ serve(async (req) => {
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
           },
-          body: new URLSearchParams({
-            client_id: settings.client_id,
-            client_secret: settings.client_secret,
-            code: authCode,
-            grant_type: 'authorization_code',
-            redirect_uri: redirectUri,
-          }),
+            body: new URLSearchParams({
+              client_id: settings.client_id,
+              client_secret: settings.client_secret,
+              code: authCode,
+              grant_type: 'authorization_code',
+              redirect_uri: redirectUri,
+              code_verifier: settings.code_verifier,
+            }),
         });
 
         const tokenData = await tokenResponse.json();
@@ -297,6 +305,7 @@ serve(async (req) => {
             token_expires_at: expiresAt.toISOString(),
             root_folder_id: rootFolderId,
             folder_structure: folderStructure,
+            code_verifier: null,
           })
           .eq('tenant_id', tenant_id);
 
@@ -337,7 +346,35 @@ serve(async (req) => {
           );
         }
 
-        // Generate OAuth URL
+        // Generate PKCE code_verifier and code_challenge
+        const randomBytes = new Uint8Array(64);
+        crypto.getRandomValues(randomBytes);
+        const codeVerifier = btoa(String.fromCharCode(...randomBytes))
+          .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+/g, '');
+
+        const encoder = new TextEncoder();
+        const hashed = await crypto.subtle.digest('SHA-256', encoder.encode(codeVerifier));
+        const codeChallenge = btoa(String.fromCharCode(...new Uint8Array(hashed)))
+          .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+/g, '');
+
+        // Persist code_verifier for this tenant to use during token exchange
+        const { error: pkceSaveError } = await supabase
+          .from('tenant_onedrive_settings')
+          .update({
+            code_verifier: codeVerifier,
+            updated_at: new Date().toISOString()
+          })
+          .eq('tenant_id', tenant_id);
+
+        if (pkceSaveError) {
+          console.error('Failed to persist PKCE code_verifier:', pkceSaveError);
+          return new Response(
+            JSON.stringify({ error: 'Failed to initialize OneDrive auth (PKCE save failed)' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Generate OAuth URL with PKCE
         const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/onedrive-auth`;
         const scope = 'Files.ReadWrite Files.ReadWrite.All offline_access';
         const state = btoa(JSON.stringify({ tenant_id }));
@@ -348,7 +385,9 @@ serve(async (req) => {
           `redirect_uri=${encodeURIComponent(redirectUri)}&` +
           `scope=${encodeURIComponent(scope)}&` +
           `state=${encodeURIComponent(state)}&` +
-          `response_mode=query`;
+          `response_mode=query&` +
+          `code_challenge=${encodeURIComponent(codeChallenge)}&` +
+          `code_challenge_method=S256`;
 
         return new Response(
           JSON.stringify({ auth_url: authUrl }),

@@ -1589,6 +1589,7 @@ export type Database = {
           access_token: string | null
           client_id: string | null
           client_secret: string | null
+          code_verifier: string | null
           created_at: string
           enabled: boolean
           folder_structure: Json | null
@@ -1605,6 +1606,7 @@ export type Database = {
           access_token?: string | null
           client_id?: string | null
           client_secret?: string | null
+          code_verifier?: string | null
           created_at?: string
           enabled?: boolean
           folder_structure?: Json | null
@@ -1621,6 +1623,7 @@ export type Database = {
           access_token?: string | null
           client_id?: string | null
           client_secret?: string | null
+          code_verifier?: string | null
           created_at?: string
           enabled?: boolean
           folder_structure?: Json | null
