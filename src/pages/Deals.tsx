@@ -14,6 +14,7 @@ interface Deal {
   tenant_id: string;
   customer_id?: string;
   site_id?: string;
+  stage_id?: string;
   name: string;
   description?: string;
   value?: number;
@@ -32,15 +33,24 @@ interface Deal {
   currencies: {
     symbol: string;
   } | null;
+  deal_stages: {
+    name: string;
+    win_percentage: number;
+  } | null;
+  assigned_user: {
+    first_name: string;
+    last_name: string;
+    email: string;
+  } | null;
   created_at: string;
   updated_at: string;
 }
 
-const statusColors = {
-  lead: 'bg-gray-500',
-  qualified: 'bg-blue-500',
-  proposal: 'bg-yellow-500',
-  negotiation: 'bg-orange-500',
+const stageColors = {
+  default: 'bg-gray-500',
+  low: 'bg-blue-500',
+  medium: 'bg-yellow-500',
+  high: 'bg-orange-500',
   won: 'bg-green-500',
   lost: 'bg-red-500',
 };
@@ -68,7 +78,9 @@ const Deals = () => {
           *,
           customers(name),
           sites(name),
-          currencies(symbol)
+          currencies(symbol),
+          deal_stages(name, win_percentage),
+          assigned_user:profiles!deals_assigned_to_fkey(first_name, last_name, email)
         `)
         .order('created_at', { ascending: false });
 
@@ -144,8 +156,12 @@ const Deals = () => {
           title: deal.name,
           icon: Handshake,
           badge: {
-            text: deal.status,
-            className: `text-white ${statusColors[deal.status]}`,
+            text: deal.deal_stages?.name || 'No Stage',
+            className: `text-white ${deal.deal_stages?.win_percentage >= 80 ? stageColors.won : 
+                                   deal.deal_stages?.win_percentage >= 60 ? stageColors.high :
+                                   deal.deal_stages?.win_percentage >= 30 ? stageColors.medium :
+                                   deal.deal_stages?.win_percentage >= 10 ? stageColors.low :
+                                   stageColors.default}`,
             variant: 'secondary',
           },
           fields: [
@@ -157,6 +173,11 @@ const Deals = () => {
             ...(deal.customers ? [{
               label: 'Customer',
               value: deal.customers.name,
+              isSecondary: true,
+            }] : []),
+            ...(deal.assigned_user ? [{
+              label: 'Salesperson',
+              value: `${deal.assigned_user.first_name} ${deal.assigned_user.last_name}`.trim(),
               isSecondary: true,
             }] : []),
             ...(deal.sites ? [{
@@ -183,10 +204,14 @@ const Deals = () => {
               <div className="space-y-1">
                 <div className="font-medium">{deal.name}</div>
                 <Badge 
-                  className={`text-white ${statusColors[deal.status]}`}
+                  className={`text-white ${deal.deal_stages?.win_percentage >= 80 ? stageColors.won : 
+                                           deal.deal_stages?.win_percentage >= 60 ? stageColors.high :
+                                           deal.deal_stages?.win_percentage >= 30 ? stageColors.medium :
+                                           deal.deal_stages?.win_percentage >= 10 ? stageColors.low :
+                                           stageColors.default}`}
                   variant="secondary"
                 >
-                  {deal.status}
+                  {deal.deal_stages?.name || 'No Stage'}
                 </Badge>
               </div>
             ),
@@ -213,6 +238,12 @@ const Deals = () => {
             key: 'customer',
             label: 'Customer',
             render: (_, deal) => deal.customers?.name || '-',
+          },
+          {
+            key: 'salesperson',
+            label: 'Salesperson',
+            render: (_, deal) => deal.assigned_user ? 
+              `${deal.assigned_user.first_name} ${deal.assigned_user.last_name}`.trim() : '-',
           },
           {
             key: 'expected_close_date',

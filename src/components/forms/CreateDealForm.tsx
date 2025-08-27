@@ -25,9 +25,10 @@ const dealSchema = z.object({
   value: z.string().optional(),
   currency_id: z.string().optional(),
   stage_id: z.string().min(1, 'Stage is required'),
-  priority: z.enum(['low', 'medium', 'high']),
+  priority: z.enum(['low', 'medium', 'high']),  
   probability: z.string().optional(),
   expected_close_date: z.string().optional(),
+  assigned_to: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -102,6 +103,7 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [stages, setStages] = useState<DealStage[]>([]);
   const [paymentTerms, setPaymentTerms] = useState<PaymentTerm[]>([]);
+  const [tenantUsers, setTenantUsers] = useState<{ id: string; name: string; email: string }[]>([]);
   const [selectedCustomerType, setSelectedCustomerType] = useState<'existing' | 'company' | 'contact'>('existing');
   const [showCompanyModal, setShowCompanyModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
@@ -120,6 +122,7 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
       priority: 'medium',
       probability: '10',
       expected_close_date: '',
+      assigned_to: '',
       notes: '',
     },
   });
@@ -212,6 +215,29 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
       if (stageData && stageData.length > 0) {
         form.setValue('stage_id', stageData[0].id);
       }
+
+      // Load tenant users for salesperson assignment
+      const { data: userData, error: userError } = await supabase
+        .from('profiles')
+        .select(`
+          id,
+          first_name,
+          last_name,
+          email,
+          user_tenant_memberships!inner(tenant_id, active)
+        `)
+        .eq('user_tenant_memberships.tenant_id', currentTenant?.id)
+        .eq('user_tenant_memberships.active', true);
+
+      if (userError) throw userError;
+      
+      const users = userData?.map(user => ({
+        id: user.id,
+        name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email,
+        email: user.email,
+      })) || [];
+      
+      setTenantUsers(users);
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
@@ -344,6 +370,7 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
         priority: data.priority,
         probability: data.probability ? parseInt(data.probability) : null,
         expected_close_date: data.expected_close_date || null,
+        assigned_to: data.assigned_to || null,
         notes: data.notes || null,
         tenant_id: currentTenant.id,
       };
@@ -814,6 +841,32 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="assigned_to"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Salesperson</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select salesperson" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="">No Assignment</SelectItem>
+                        {tenantUsers.map((user) => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

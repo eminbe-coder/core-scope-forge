@@ -10,7 +10,7 @@ import { MultiSelectDropdown } from '@/components/deals/MultiSelectDropdown';
 import { QuickAddSiteModal } from '@/components/modals/QuickAddSiteModal';
 import { QuickAddCompanyModal } from '@/components/modals/QuickAddCompanyModal';
 import { QuickAddContactModal } from '@/components/modals/QuickAddContactModal';
-import { DollarSign, Calendar, Building, MapPin, Percent, Edit3, Save, X, Users, User, Plus } from 'lucide-react';
+import { DollarSign, Calendar, Building, MapPin, Percent, Edit3, Save, X, Users, User, Plus, CheckSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
@@ -57,6 +57,7 @@ interface Deal {
   probability?: number;
   expected_close_date?: string;
   notes?: string;
+  assigned_to?: string;
   customers?: {
     id: string;
     name: string;
@@ -66,6 +67,15 @@ interface Deal {
   };
   currencies?: {
     symbol: string;
+  };
+  deal_stages?: {
+    name: string;
+    win_percentage: number;
+  };
+  assigned_user?: {
+    first_name: string;
+    last_name: string;
+    email: string;
   };
   created_at: string;
   updated_at: string;
@@ -86,6 +96,8 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [linkedCompanies, setLinkedCompanies] = useState<Company[]>([]);
   const [linkedContacts, setLinkedContacts] = useState<Contact[]>([]);
+  const [tenantUsers, setTenantUsers] = useState<{ id: string; name: string; email: string }[]>([]);
+  const [nextTodo, setNextTodo] = useState<{ title: string; due_date?: string } | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [showSiteModal, setShowSiteModal] = useState(false);
   const [showCompanyModal, setShowCompanyModal] = useState(false);
@@ -97,6 +109,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
     site_id: deal.site_id || 'no-site-selected',
     customer_id: deal.customer_id || '',
     customer_reference_number: deal.customer_reference_number || '',
+    assigned_to: deal.assigned_to || '',
     company_ids: [] as string[],
     contact_ids: [] as string[],
   });
@@ -191,6 +204,59 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
     }
   };
 
+  const fetchTenantUsers = async () => {
+    if (!currentTenant) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select(`
+          id,
+          first_name,
+          last_name,
+          email,
+          user_tenant_memberships!inner(tenant_id, active)
+        `)
+        .eq('user_tenant_memberships.tenant_id', currentTenant.id)
+        .eq('user_tenant_memberships.active', true);
+
+      if (error) throw error;
+      
+      const users = data?.map(user => ({
+        id: user.id,
+        name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email,
+        email: user.email,
+      })) || [];
+      
+      setTenantUsers(users);
+    } catch (error) {
+      console.error('Error fetching tenant users:', error);
+    }
+  };
+
+  const fetchNextTodo = async () => {
+    if (!deal.id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('activities')
+        .select('title, due_date')
+        .eq('deal_id', deal.id)
+        .eq('type', 'task')
+        .eq('completed', false)
+        .not('due_date', 'is', null)
+        .order('due_date', { ascending: true })
+        .limit(1)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "no rows returned"
+      setNextTodo(data);
+    } catch (error) {
+      console.error('Error fetching next todo:', error);
+      setNextTodo(null);
+    }
+  };
+
   const fetchLinkedEntities = async () => {
     if (!deal.id) return;
 
@@ -236,7 +302,9 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
     fetchCompanies();
     fetchContacts();
     fetchCustomers();
+    fetchTenantUsers();
     fetchLinkedEntities();
+    fetchNextTodo();
   }, [currentTenant, deal.id]);
 
   const getCurrentStage = () => {
@@ -376,6 +444,14 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
         changes.push(`Customer reference changed from "${deal.customer_reference_number || 'None'}" to "${editedDeal.customer_reference_number || 'None'}"`);
       }
 
+      if (editedDeal.assigned_to !== deal.assigned_to) {
+        const oldUser = deal.assigned_user;
+        const newUser = tenantUsers.find(u => u.id === editedDeal.assigned_to);
+        const oldName = oldUser ? `${oldUser.first_name} ${oldUser.last_name}`.trim() : 'None';
+        const newName = newUser ? newUser.name : 'None';
+        changes.push(`Salesperson changed from "${oldName}" to "${newName}"`);
+      }
+
       // Check company changes
       const currentCompanyIds = linkedCompanies.map(c => c.id).sort();
       const newCompanyIds = editedDeal.company_ids.sort();
@@ -426,6 +502,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
           site_id: editedDeal.site_id === 'no-site-selected' ? null : editedDeal.site_id || null,
           customer_id: editedDeal.customer_id || null,
           customer_reference_number: editedDeal.customer_reference_number || null,
+          assigned_to: editedDeal.assigned_to || null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', deal.id);
@@ -484,6 +561,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
       site_id: deal.site_id || 'no-site-selected',
       customer_id: deal.customer_id || '',
       customer_reference_number: deal.customer_reference_number || '',
+      assigned_to: deal.assigned_to || '',
       company_ids: linkedCompanies.map(c => c.id),
       contact_ids: linkedContacts.map(c => c.id),
     });
@@ -596,9 +674,70 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
                 <span>{deal.expected_close_date ? new Date(deal.expected_close_date).toLocaleDateString() : 'Not set'}</span>
               )}
             </div>
+
+            {/* Salesperson */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Salesperson
+              </span>
+              {editMode ? (
+                <Select
+                  value={editedDeal.assigned_to}
+                  onValueChange={(value) => setEditedDeal(prev => ({ ...prev, assigned_to: value }))}
+                >
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="Select user" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">No Assignment</SelectItem>
+                    {tenantUsers.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <span>
+                  {deal.assigned_user ? 
+                    `${deal.assigned_user.first_name} ${deal.assigned_user.last_name}`.trim() : 
+                    'Not assigned'
+                  }
+                </span>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Next Step Card */}
+      {nextTodo && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <CheckSquare className="h-5 w-5" />
+                  Next Step
+                </CardTitle>
+                <CardDescription>Upcoming task for this deal</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <div className="font-medium">{nextTodo.title}</div>
+              {nextTodo.due_date && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Calendar className="h-4 w-4" />
+                  Due: {new Date(nextTodo.due_date).toLocaleDateString()}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

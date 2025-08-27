@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, Plus, FileText, Calendar, CheckSquare, Activity } from 'lucide-react';
@@ -27,6 +28,7 @@ interface Deal {
   probability?: number;
   expected_close_date?: string;
   notes?: string;
+  assigned_to?: string;
   customers?: {
     id: string;
     name: string;
@@ -36,6 +38,15 @@ interface Deal {
   };
   currencies?: {
     symbol: string;
+  };
+  deal_stages?: {
+    name: string;
+    win_percentage: number;
+  };
+  assigned_user?: {
+    first_name: string;
+    last_name: string;
+    email: string;
   };
   created_at: string;
   updated_at: string;
@@ -62,7 +73,9 @@ const EditDeal = () => {
           *,
           customers(id, name),
           sites(name),
-          currencies(symbol)
+          currencies(symbol),
+          deal_stages(name, win_percentage),
+          assigned_user:profiles!deals_assigned_to_fkey(first_name, last_name, email)
         `)
         .eq('id', id)
         .single();
@@ -120,6 +133,18 @@ const EditDeal = () => {
               Manage deal activities, tasks, and files
             </p>
           </div>
+          {deal.deal_stages && (
+            <Badge 
+              className={`text-white ${deal.deal_stages.win_percentage >= 80 ? 'bg-green-500' : 
+                                     deal.deal_stages.win_percentage >= 60 ? 'bg-orange-500' :
+                                     deal.deal_stages.win_percentage >= 30 ? 'bg-yellow-500' :
+                                     deal.deal_stages.win_percentage >= 10 ? 'bg-blue-500' :
+                                     'bg-gray-500'}`}
+              variant="secondary"
+            >
+              {deal.deal_stages.name} ({deal.deal_stages.win_percentage}%)
+            </Badge>
+          )}
           <Button onClick={() => setShowActivityModal(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Log Activity
