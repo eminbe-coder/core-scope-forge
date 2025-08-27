@@ -26,7 +26,6 @@ const dealSchema = z.object({
   currency_id: z.string().optional(),
   stage_id: z.string().min(1, 'Stage is required'),
   priority: z.enum(['low', 'medium', 'high']),  
-  probability: z.string().optional(),
   expected_close_date: z.string().optional(),
   assigned_to: z.string().optional(),
   notes: z.string().optional(),
@@ -120,7 +119,6 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
       currency_id: '',
       stage_id: '',
       priority: 'medium',
-      probability: '10',
       expected_close_date: '',
       assigned_to: '',
       notes: '',
@@ -359,16 +357,20 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
         customerId = customer?.id || '';
       }
 
+      // Get probability from selected stage
+      const selectedStage = stages.find(s => s.id === data.stage_id);
+      const probability = selectedStage ? selectedStage.win_percentage : 0;
+
       const dealData = {
         name: data.name,
         description: data.description || null,
         customer_id: customerId,
         site_id: data.site_id || null,
         value: data.value ? parseFloat(data.value) : null,
-        currency_id: data.currency_id || null,
+        currency_id: data.currency_id || currentTenant.default_currency_id || null,
         stage_id: data.stage_id,
         priority: data.priority,
-        probability: data.probability ? parseInt(data.probability) : null,
+        probability,
         expected_close_date: data.expected_close_date || null,
         assigned_to: data.assigned_to === 'unassigned' ? null : data.assigned_to || null,
         notes: data.notes || null,
@@ -754,83 +756,40 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="site_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Site (Optional)</FormLabel>
-                      <FormControl>
-                        <SearchableSelect
-                          options={sites}
-                          value={field.value || ''}
-                          onValueChange={field.onChange}
-                          placeholder="Select site"
-                          searchPlaceholder="Search sites..."
-                          emptyText="No sites found"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <FormField
+                control={form.control}
+                name="site_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Site (Optional)</FormLabel>
+                    <FormControl>
+                      <SearchableSelect
+                        options={sites}
+                        value={field.value || ''}
+                        onValueChange={field.onChange}
+                        placeholder="Select site"
+                        searchPlaceholder="Search sites..."
+                        emptyText="No sites found"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                <FormField
-                  control={form.control}
-                  name="probability"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Probability (%)</FormLabel>
-                      <FormControl>
-                        <Input type="number" min="0" max="100" placeholder="10" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="value"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Deal Value</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.01" placeholder="0.00" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="currency_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Currency</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select currency" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {currencies.map((currency) => (
-                            <SelectItem key={currency.id} value={currency.id}>
-                              {currency.code} - {currency.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="value"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Deal Value</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="0.01" placeholder="0.00" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}
