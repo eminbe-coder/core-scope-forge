@@ -20,6 +20,19 @@ export interface ContactEmailData {
   excludeContactId?: string; // For updates, exclude current contact
 }
 
+export interface ContactPhoneData {
+  phone: string;
+  tenantId: string;
+  excludeContactId?: string; // For updates, exclude current contact
+}
+
+export interface ContactDuplicateCheckData {
+  email?: string;
+  phone?: string;
+  tenantId: string;
+  excludeContactId?: string;
+}
+
 /**
  * Validates email format using RFC 5322 compliant regex
  */
@@ -132,6 +145,104 @@ export async function validateContactEmailsBatch(
  */
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
+}
+
+/**
+ * Checks if phone number already exists in the contacts table for the given tenant
+ */
+export async function checkPhoneExists(data: ContactPhoneData): Promise<EmailValidationResult> {
+  const { phone, tenantId, excludeContactId } = data;
+  
+  if (!phone.trim()) {
+    return { isValid: true }; // Empty phone is allowed
+  }
+
+  try {
+    let query = supabase
+      .from('contacts')
+      .select('id, phone, first_name, last_name')
+      .eq('phone', phone.trim())
+      .eq('tenant_id', tenantId)
+      .eq('active', true);
+
+    // If we're updating an existing contact, exclude it from the check
+    if (excludeContactId) {
+      query = query.neq('id', excludeContactId);
+    }
+
+    const { data: existingContacts, error } = await query;
+
+    if (error) {
+      console.error('Error checking phone uniqueness:', error);
+      return {
+        isValid: false,
+        error: 'Unable to validate phone number. Please try again.',
+        errorCode: 'DATABASE_ERROR'
+      };
+    }
+
+    if (existingContacts && existingContacts.length > 0) {
+      const contact = existingContacts[0];
+      const contactName = `${contact.first_name} ${contact.last_name || ''}`.trim();
+      return {
+        isValid: false,
+        error: `This phone number already exists for contact: ${contactName}`,
+        errorCode: 'ALREADY_EXISTS'
+      };
+    }
+
+    return { isValid: true };
+
+  } catch (error) {
+    console.error('Unexpected error during phone validation:', error);
+    return {
+      isValid: false,
+      error: 'Unable to validate phone number. Please try again.',
+      errorCode: 'DATABASE_ERROR'
+    };
+  }
+}
+
+/**
+ * Complete contact duplicate validation (email + phone)
+ * This is the main validation function to use in forms
+ */
+export async function validateContactDuplicates(data: ContactDuplicateCheckData): Promise<{
+  isValid: boolean;
+  emailError?: string;
+  phoneError?: string;
+}> {
+  const results = { isValid: true, emailError: undefined as string | undefined, phoneError: undefined as string | undefined };
+
+  // Check email if provided
+  if (data.email && data.email.trim()) {
+    const emailResult = await validateContactEmail({
+      email: data.email,
+      tenantId: data.tenantId,
+      excludeContactId: data.excludeContactId
+    });
+    
+    if (!emailResult.isValid) {
+      results.isValid = false;
+      results.emailError = emailResult.error;
+    }
+  }
+
+  // Check phone if provided
+  if (data.phone && data.phone.trim()) {
+    const phoneResult = await checkPhoneExists({
+      phone: data.phone,
+      tenantId: data.tenantId,
+      excludeContactId: data.excludeContactId
+    });
+    
+    if (!phoneResult.isValid) {
+      results.isValid = false;
+      results.phoneError = phoneResult.error;
+    }
+  }
+
+  return results;
 }
 
 /**

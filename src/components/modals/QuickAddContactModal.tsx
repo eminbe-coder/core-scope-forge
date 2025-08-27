@@ -5,9 +5,11 @@ import { z } from 'zod';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
+import { validateContactDuplicates, normalizeEmail } from '@/lib/contact-validation';
 import { toast } from 'sonner';
 import { User } from 'lucide-react';
 
@@ -45,10 +47,28 @@ export const QuickAddContactModal = ({ open, onClose, onContactCreated }: QuickA
 
     setLoading(true);
     try {
+      // Check for duplicates
+      const duplicateCheck = await validateContactDuplicates({
+        email: data.email,
+        phone: data.phone,
+        tenantId: currentTenant.id,
+      });
+
+      if (!duplicateCheck.isValid) {
+        if (duplicateCheck.emailError) {
+          form.setError('email', { message: duplicateCheck.emailError });
+        }
+        if (duplicateCheck.phoneError) {
+          form.setError('phone', { message: duplicateCheck.phoneError });
+        }
+        setLoading(false);
+        return;
+      }
+
       const contactData = {
         first_name: data.first_name.trim(),
         last_name: data.last_name?.trim() || null,
-        email: data.email?.trim() || null,
+        email: data.email ? normalizeEmail(data.email) : null,
         phone: data.phone?.trim() || null,
         tenant_id: currentTenant.id,
         active: true,
@@ -142,7 +162,11 @@ export const QuickAddContactModal = ({ open, onClose, onContactCreated }: QuickA
                 <FormItem>
                   <FormLabel>Phone</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter phone number" {...field} />
+                    <PhoneInput
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="Enter phone number"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

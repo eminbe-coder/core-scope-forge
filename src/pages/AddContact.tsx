@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -15,7 +16,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
-import { validateContactEmail, normalizeEmail } from '@/lib/contact-validation';
+import { validateContactDuplicates, normalizeEmail } from '@/lib/contact-validation';
 import { ArrowLeft, Upload, Download, User, Mail, FileText, Users, Phone, MapPin, Building2, Plus } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -123,18 +124,22 @@ const AddContact = () => {
 
     setLoading(true);
     try {
-      // Validate email if provided
-      if (data.email && data.email.trim()) {
-        const emailValidation = await validateContactEmail({
-          email: data.email,
-          tenantId: currentTenant.id,
-        });
+      // Check for duplicates
+      const duplicateCheck = await validateContactDuplicates({
+        email: data.email,
+        phone: data.phone,
+        tenantId: currentTenant.id,
+      });
 
-        if (!emailValidation.isValid) {
-          form.setError('email', { message: emailValidation.error || 'Email validation failed' });
-          setLoading(false);
-          return;
+      if (!duplicateCheck.isValid) {
+        if (duplicateCheck.emailError) {
+          form.setError('email', { message: duplicateCheck.emailError });
         }
+        if (duplicateCheck.phoneError) {
+          form.setError('phone', { message: duplicateCheck.phoneError });
+        }
+        setLoading(false);
+        return;
       }
 
       // Prepare contact data for insertion
@@ -412,7 +417,11 @@ const AddContact = () => {
                         <FormItem>
                           <FormLabel>Phone</FormLabel>
                           <FormControl>
-                            <Input placeholder="Enter phone number" {...field} />
+                            <PhoneInput
+                              value={field.value}
+                              onChange={field.onChange}
+                              placeholder="Enter phone number"
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
