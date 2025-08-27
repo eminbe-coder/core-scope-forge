@@ -541,6 +541,58 @@ export type Database = {
         }
         Relationships: []
       }
+      currency_settings: {
+        Row: {
+          conversion_rate: number
+          created_at: string
+          from_currency_id: string
+          id: string
+          tenant_id: string
+          to_currency_id: string
+          updated_at: string
+        }
+        Insert: {
+          conversion_rate: number
+          created_at?: string
+          from_currency_id: string
+          id?: string
+          tenant_id: string
+          to_currency_id: string
+          updated_at?: string
+        }
+        Update: {
+          conversion_rate?: number
+          created_at?: string
+          from_currency_id?: string
+          id?: string
+          tenant_id?: string
+          to_currency_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_currency_settings_from_currency"
+            columns: ["from_currency_id"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_currency_settings_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_currency_settings_to_currency"
+            columns: ["to_currency_id"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           active: boolean
