@@ -987,6 +987,7 @@ export type Database = {
           created_at: string
           currency_id: string | null
           customer_id: string | null
+          customer_reference_number: string | null
           description: string | null
           expected_close_date: string | null
           id: string
@@ -1006,6 +1007,7 @@ export type Database = {
           created_at?: string
           currency_id?: string | null
           customer_id?: string | null
+          customer_reference_number?: string | null
           description?: string | null
           expected_close_date?: string | null
           id?: string
@@ -1025,6 +1027,7 @@ export type Database = {
           created_at?: string
           currency_id?: string | null
           customer_id?: string | null
+          customer_reference_number?: string | null
           description?: string | null
           expected_close_date?: string | null
           id?: string

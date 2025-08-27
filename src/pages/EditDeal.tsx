@@ -22,10 +22,13 @@ interface Deal {
   status: string;
   stage_id?: string;
   site_id?: string;
+  customer_id?: string;
+  customer_reference_number?: string;
   probability?: number;
   expected_close_date?: string;
   notes?: string;
   customers?: {
+    id: string;
     name: string;
   };
   sites?: {
@@ -57,7 +60,7 @@ const EditDeal = () => {
         .from('deals')
         .select(`
           *,
-          customers(name),
+          customers(id, name),
           sites(name),
           currencies(symbol)
         `)

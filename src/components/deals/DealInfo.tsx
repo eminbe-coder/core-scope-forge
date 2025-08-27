@@ -31,6 +31,11 @@ interface Company {
   name: string;
 }
 
+interface Customer {
+  id: string;
+  name: string;
+}
+
 interface Contact {
   id: string;
   first_name: string;
@@ -46,10 +51,13 @@ interface Deal {
   status: string;
   stage_id?: string;
   site_id?: string;
+  customer_id?: string;
+  customer_reference_number?: string;
   probability?: number;
   expected_close_date?: string;
   notes?: string;
   customers?: {
+    id: string;
     name: string;
   };
   sites?: {
@@ -74,6 +82,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
   const [sites, setSites] = useState<Site[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [linkedCompanies, setLinkedCompanies] = useState<Company[]>([]);
   const [linkedContacts, setLinkedContacts] = useState<Contact[]>([]);
   const [editMode, setEditMode] = useState(false);
@@ -85,6 +94,8 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
     value: deal.value || 0,
     expected_close_date: deal.expected_close_date || '',
     site_id: deal.site_id || 'no-site-selected',
+    customer_id: deal.customer_id || '',
+    customer_reference_number: deal.customer_reference_number || '',
     company_ids: [] as string[],
     contact_ids: [] as string[],
   });
@@ -140,6 +151,24 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
       setCompanies(data || []);
     } catch (error) {
       console.error('Error fetching companies:', error);
+    }
+  };
+
+  const fetchCustomers = async () => {
+    if (!currentTenant) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('id, name')
+        .eq('tenant_id', currentTenant.id)
+        .eq('active', true)
+        .order('name');
+
+      if (error) throw error;
+      setCustomers(data || []);
+    } catch (error) {
+      console.error('Error fetching customers:', error);
     }
   };
 
@@ -205,6 +234,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
     fetchSites();
     fetchCompanies();
     fetchContacts();
+    fetchCustomers();
     fetchLinkedEntities();
   }, [currentTenant, deal.id]);
 
@@ -215,7 +245,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
   const logActivity = async (changes: string[]) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user || !currentTenant) return;
+      if (!user || !currentTenant || changes.length === 0) return;
 
       await supabase
         .from('activities')
@@ -261,6 +291,56 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
         changes.push(`Site changed from "${oldSite?.name || 'None'}" to "${newSite?.name || 'None'}"`);
       }
 
+      if (editedDeal.customer_id !== deal.customer_id) {
+        const oldCustomer = customers.find(c => c.id === deal.customer_id);
+        const newCustomer = customers.find(c => c.id === editedDeal.customer_id);
+        changes.push(`Customer changed from "${oldCustomer?.name || 'None'}" to "${newCustomer?.name || 'None'}"`);
+      }
+
+      if (editedDeal.customer_reference_number !== deal.customer_reference_number) {
+        changes.push(`Customer reference changed from "${deal.customer_reference_number || 'None'}" to "${editedDeal.customer_reference_number || 'None'}"`);
+      }
+
+      // Check company changes
+      const currentCompanyIds = linkedCompanies.map(c => c.id).sort();
+      const newCompanyIds = editedDeal.company_ids.sort();
+      if (JSON.stringify(currentCompanyIds) !== JSON.stringify(newCompanyIds)) {
+        const addedCompanies = newCompanyIds.filter(id => !currentCompanyIds.includes(id));
+        const removedCompanies = currentCompanyIds.filter(id => !newCompanyIds.includes(id));
+        
+        if (addedCompanies.length > 0) {
+          const addedNames = addedCompanies.map(id => companies.find(c => c.id === id)?.name).filter(Boolean);
+          changes.push(`Added companies: ${addedNames.join(', ')}`);
+        }
+        if (removedCompanies.length > 0) {
+          const removedNames = removedCompanies.map(id => linkedCompanies.find(c => c.id === id)?.name).filter(Boolean);
+          changes.push(`Removed companies: ${removedNames.join(', ')}`);
+        }
+      }
+
+      // Check contact changes
+      const currentContactIds = linkedContacts.map(c => c.id).sort();
+      const newContactIds = editedDeal.contact_ids.sort();
+      if (JSON.stringify(currentContactIds) !== JSON.stringify(newContactIds)) {
+        const addedContacts = newContactIds.filter(id => !currentContactIds.includes(id));
+        const removedContacts = currentContactIds.filter(id => !newContactIds.includes(id));
+        
+        if (addedContacts.length > 0) {
+          const addedNames = addedContacts.map(id => {
+            const contact = contacts.find(c => c.id === id);
+            return contact ? `${contact.first_name} ${contact.last_name}` : '';
+          }).filter(Boolean);
+          changes.push(`Added contacts: ${addedNames.join(', ')}`);
+        }
+        if (removedContacts.length > 0) {
+          const removedNames = removedContacts.map(id => {
+            const contact = linkedContacts.find(c => c.id === id);
+            return contact ? `${contact.first_name} ${contact.last_name}` : '';
+          }).filter(Boolean);
+          changes.push(`Removed contacts: ${removedNames.join(', ')}`);
+        }
+      }
+
       // Update deal
       const { error } = await supabase
         .from('deals')
@@ -269,6 +349,8 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
           value: editedDeal.value,
           expected_close_date: editedDeal.expected_close_date || null,
           site_id: editedDeal.site_id === 'no-site-selected' ? null : editedDeal.site_id || null,
+          customer_id: editedDeal.customer_id || null,
+          customer_reference_number: editedDeal.customer_reference_number || null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', deal.id);
@@ -325,6 +407,8 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
       value: deal.value || 0,
       expected_close_date: deal.expected_close_date || '',
       site_id: deal.site_id || 'no-site-selected',
+      customer_id: deal.customer_id || '',
+      customer_reference_number: deal.customer_reference_number || '',
       company_ids: linkedCompanies.map(c => c.id),
       contact_ids: linkedContacts.map(c => c.id),
     });
@@ -457,6 +541,49 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Customer */}
+          {editMode ? (
+            <div className="space-y-2">
+              <span className="text-sm font-medium flex items-center gap-2">
+                <Building className="h-4 w-4" />
+                Customer
+              </span>
+              <SearchableSelect
+                value={editedDeal.customer_id}
+                onValueChange={(value) => setEditedDeal(prev => ({ ...prev, customer_id: value }))}
+                options={customers}
+                placeholder="Select customer..."
+                searchPlaceholder="Search customers..."
+                emptyText="No customers found."
+              />
+            </div>
+          ) : deal.customers && (
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium flex items-center gap-2">
+                <Building className="h-4 w-4" />
+                Customer
+              </span>
+              <span>{deal.customers.name}</span>
+            </div>
+          )}
+
+          {/* Customer Reference Number */}
+          {editMode ? (
+            <div className="space-y-2">
+              <span className="text-sm font-medium">Customer Reference</span>
+              <Input
+                value={editedDeal.customer_reference_number}
+                onChange={(e) => setEditedDeal(prev => ({ ...prev, customer_reference_number: e.target.value }))}
+                placeholder="Enter customer reference number"
+              />
+            </div>
+          ) : deal.customer_reference_number && (
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Customer Reference</span>
+              <span>{deal.customer_reference_number}</span>
+            </div>
+          )}
+
           {/* Site */}
           {editMode ? (
             <div className="space-y-2">
@@ -602,16 +729,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
             </div>
           )}
 
-          {/* Customer (existing) */}
-          {deal.customers && (
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium flex items-center gap-2">
-                <Building className="h-4 w-4" />
-                Customer
-              </span>
-              <span>{deal.customers.name}</span>
-            </div>
-          )}
+          {/* Customer (existing) - remove this section since we moved it above */}
           
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium flex items-center gap-2">
