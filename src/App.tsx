@@ -11,6 +11,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Companies from "./pages/Companies";
 import AddCompany from "./pages/AddCompany";
+import EditCompany from "./pages/EditCompany";
 import Customers from "./pages/Customers";
 import Sites from "./pages/Sites";
 import AddSite from "./pages/AddSite";
@@ -53,6 +54,11 @@ const App = () => (
                 <Route path="/companies/add" element={
                   <ProtectedRoute>
                     <AddCompany />
+                  </ProtectedRoute>
+                } />
+                <Route path="/companies/edit/:id" element={
+                  <ProtectedRoute>
+                    <EditCompany />
                   </ProtectedRoute>
                 } />
                 <Route path="/customers" element={
