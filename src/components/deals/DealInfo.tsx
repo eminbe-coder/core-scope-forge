@@ -10,7 +10,9 @@ import { MultiSelectDropdown } from '@/components/deals/MultiSelectDropdown';
 import { QuickAddSiteModal } from '@/components/modals/QuickAddSiteModal';
 import { QuickAddCompanyModal } from '@/components/modals/QuickAddCompanyModal';
 import { QuickAddContactModal } from '@/components/modals/QuickAddContactModal';
-import { DollarSign, Calendar, Building, MapPin, Percent, Edit3, Save, X, Users, User, Plus, CheckSquare } from 'lucide-react';
+import { DollarSign, Calendar, Building, MapPin, Percent, Edit3, Save, X, Users, User, Plus, CheckSquare, Trash2 } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
@@ -42,6 +44,24 @@ interface Contact {
   first_name: string;
   last_name: string;
   email?: string;
+}
+
+interface PaymentTerm {
+  id?: string;
+  installment_number: number;
+  amount_type: 'fixed' | 'percentage';
+  amount_value: number;
+  calculated_amount?: number;
+  due_date?: string;
+  notes?: string;
+}
+
+interface DealNote {
+  id?: string;
+  content: string;
+  created_at?: string;
+  created_by?: string;
+  author_name?: string;
 }
 
 interface Deal {
@@ -98,12 +118,16 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
   const [linkedContacts, setLinkedContacts] = useState<Contact[]>([]);
   const [tenantUsers, setTenantUsers] = useState<{ id: string; name: string; email: string }[]>([]);
   const [nextTodo, setNextTodo] = useState<{ title: string; due_date?: string } | null>(null);
+  const [paymentTerms, setPaymentTerms] = useState<PaymentTerm[]>([]);
+  const [dealNotes, setDealNotes] = useState<DealNote[]>([]);
+  const [newNote, setNewNote] = useState('');
   const [editMode, setEditMode] = useState(false);
   const [showSiteModal, setShowSiteModal] = useState(false);
   const [showCompanyModal, setShowCompanyModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
   const [editedDeal, setEditedDeal] = useState({
     stage_id: deal.stage_id || '',
+    description: deal.description || '',
     value: deal.value || 0,
     expected_close_date: deal.expected_close_date || '',
     site_id: deal.site_id || 'no-site-selected',
@@ -257,6 +281,62 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
     }
   };
 
+  const fetchPaymentTerms = async () => {
+    if (!deal.id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('deal_payment_terms')
+        .select('*')
+        .eq('deal_id', deal.id)
+        .order('installment_number');
+
+      if (error) throw error;
+      const paymentTermsData = (data || []).map(term => ({
+        ...term,
+        amount_type: term.amount_type as 'fixed' | 'percentage'
+      }));
+      setPaymentTerms(paymentTermsData);
+    } catch (error) {
+      console.error('Error fetching payment terms:', error);
+    }
+  };
+
+  const fetchDealNotes = async () => {
+    if (!deal.id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('activities')
+        .select(`
+          id,
+          description,
+          created_at,
+          created_by,
+          profiles!activities_created_by_fkey(first_name, last_name)
+        `)
+        .eq('deal_id', deal.id)
+        .eq('type', 'note')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      
+      const notes = data?.map(activity => ({
+        id: activity.id,
+        content: activity.description || '',
+        created_at: activity.created_at,
+        created_by: activity.created_by,
+        author_name: activity.profiles ? 
+          `${activity.profiles.first_name || ''} ${activity.profiles.last_name || ''}`.trim() : 
+          'Unknown'
+      })) || [];
+      
+      setDealNotes(notes);
+    } catch (error) {
+      console.error('Error fetching deal notes:', error);
+    }
+  };
+
   const fetchLinkedEntities = async () => {
     if (!deal.id) return;
 
@@ -305,6 +385,8 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
     fetchTenantUsers();
     fetchLinkedEntities();
     fetchNextTodo();
+    fetchPaymentTerms();
+    fetchDealNotes();
   }, [currentTenant, deal.id]);
 
   const getCurrentStage = () => {
@@ -418,6 +500,10 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
         changes.push(`Stage changed from "${oldStage?.name || 'None'}" to "${newStage?.name || 'None'}"`);
       }
       
+      if (editedDeal.description !== deal.description) {
+        changes.push(`Description updated`);
+      }
+      
       if (editedDeal.value !== deal.value) {
         changes.push(`Value changed from ${deal.currencies?.symbol || '$'}${deal.value?.toLocaleString() || 0} to ${deal.currencies?.symbol || '$'}${editedDeal.value.toLocaleString()}`);
       }
@@ -497,6 +583,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
         .from('deals')
         .update({
           stage_id: editedDeal.stage_id || null,
+          description: editedDeal.description || null,
           value: editedDeal.value,
           expected_close_date: editedDeal.expected_close_date || null,
           site_id: editedDeal.site_id === 'no-site-selected' ? null : editedDeal.site_id || null,
@@ -556,6 +643,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
   const handleCancel = () => {
     setEditedDeal({
       stage_id: deal.stage_id || '',
+      description: deal.description || '',
       value: deal.value || 0,
       expected_close_date: deal.expected_close_date || '',
       site_id: deal.site_id || 'no-site-selected',
@@ -566,6 +654,144 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
       contact_ids: linkedContacts.map(c => c.id),
     });
     setEditMode(false);
+  };
+
+  const addPaymentTerm = () => {
+    const newTerm: PaymentTerm = {
+      installment_number: paymentTerms.length + 1,
+      amount_type: 'percentage',
+      amount_value: 0,
+      due_date: '',
+      notes: '',
+    };
+    setPaymentTerms([...paymentTerms, newTerm]);
+  };
+
+  const updatePaymentTerm = (index: number, field: keyof PaymentTerm, value: any) => {
+    const updatedTerms = [...paymentTerms];
+    updatedTerms[index] = { ...updatedTerms[index], [field]: value };
+    
+    // Recalculate amounts
+    if (field === 'amount_value' || field === 'amount_type') {
+      updatedTerms[index].calculated_amount = 
+        updatedTerms[index].amount_type === 'percentage' 
+          ? (deal.value || 0) * updatedTerms[index].amount_value / 100
+          : updatedTerms[index].amount_value;
+    }
+    
+    setPaymentTerms(updatedTerms);
+  };
+
+  const removePaymentTerm = (index: number) => {
+    const updatedTerms = paymentTerms.filter((_, i) => i !== index);
+    // Renumber installments
+    updatedTerms.forEach((term, i) => {
+      term.installment_number = i + 1;
+    });
+    setPaymentTerms(updatedTerms);
+  };
+
+  const savePaymentTerms = async () => {
+    if (!currentTenant) return;
+
+    try {
+      // Delete existing payment terms
+      await supabase
+        .from('deal_payment_terms')
+        .delete()
+        .eq('deal_id', deal.id);
+
+      // Insert new payment terms
+      if (paymentTerms.length > 0) {
+        const termsData = paymentTerms.map(term => ({
+          deal_id: deal.id,
+          tenant_id: currentTenant.id,
+          installment_number: term.installment_number,
+          amount_type: term.amount_type,
+          amount_value: term.amount_value,
+          calculated_amount: term.calculated_amount,
+          due_date: term.due_date || null,
+          notes: term.notes || null,
+        }));
+
+        const { error } = await supabase
+          .from('deal_payment_terms')
+          .insert(termsData);
+
+        if (error) throw error;
+      }
+
+      toast({
+        title: 'Success',
+        description: 'Payment terms updated successfully',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const addNote = async () => {
+    if (!newNote.trim() || !currentTenant) return;
+
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) return;
+
+      const { error } = await supabase
+        .from('activities')
+        .insert({
+          tenant_id: currentTenant.id,
+          deal_id: deal.id,
+          type: 'note',
+          title: 'Deal Note',
+          description: newNote.trim(),
+          created_by: user.user.id,
+        });
+
+      if (error) throw error;
+
+      setNewNote('');
+      await fetchDealNotes();
+      
+      toast({
+        title: 'Success',
+        description: 'Note added successfully',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const deleteNote = async (noteId: string) => {
+    try {
+      const { error } = await supabase
+        .from('activities')
+        .delete()
+        .eq('id', noteId);
+
+      if (error) throw error;
+
+      await fetchDealNotes();
+      
+      toast({
+        title: 'Success',
+        description: 'Note deleted successfully',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
   };
 
   const currentStage = stages.find(stage => stage.id === deal.stage_id);
@@ -707,7 +933,136 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
                 </span>
               )}
             </div>
+
+            {/* Description */}
+            <div className="space-y-2">
+              <span className="text-sm font-medium">Description</span>
+              {editMode ? (
+                <Textarea
+                  value={editedDeal.description}
+                  onChange={(e) => setEditedDeal(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Deal description..."
+                  rows={3}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {deal.description || 'No description'}
+                </p>
+              )}
+            </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Payment Terms / Installments */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5" />
+                Payment Terms
+              </CardTitle>
+              <CardDescription>Manage installments and payment schedule</CardDescription>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={addPaymentTerm}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Term
+              </Button>
+              {paymentTerms.length > 0 && (
+                <Button size="sm" onClick={savePaymentTerms}>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Terms
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {paymentTerms.length === 0 ? (
+            <p className="text-center py-4 text-muted-foreground">
+              No payment terms defined. Click "Add Term" to create installments.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {paymentTerms.map((term, index) => (
+                <div key={index} className="border rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium">Installment #{term.installment_number}</h4>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => removePaymentTerm(index)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm">Amount Type</Label>
+                      <Select
+                        value={term.amount_type}
+                        onValueChange={(value: 'fixed' | 'percentage') => 
+                          updatePaymentTerm(index, 'amount_type', value)
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="percentage">Percentage</SelectItem>
+                          <SelectItem value="fixed">Fixed Amount</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <Label className="text-sm">
+                        {term.amount_type === 'percentage' ? 'Percentage (%)' : 'Amount'}
+                      </Label>
+                      <Input
+                        type="number"
+                        value={term.amount_value}
+                        onChange={(e) => updatePaymentTerm(index, 'amount_value', parseFloat(e.target.value) || 0)}
+                        placeholder={term.amount_type === 'percentage' ? '0' : '0.00'}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm">Due Date</Label>
+                      <Input
+                        type="date"
+                        value={term.due_date || ''}
+                        onChange={(e) => updatePaymentTerm(index, 'due_date', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label className="text-sm">Calculated Amount</Label>
+                      <Input
+                        value={`${deal.currencies?.symbol || '$'}${(term.calculated_amount || 0).toLocaleString()}`}
+                        disabled
+                        className="bg-muted"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label className="text-sm">Notes</Label>
+                    <Input
+                      value={term.notes || ''}
+                      onChange={(e) => updatePaymentTerm(index, 'notes', e.target.value)}
+                      placeholder="Optional notes for this installment..."
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -973,27 +1328,64 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
         </CardContent>
       </Card>
 
-      {deal.description && (
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle>Description</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">{deal.description}</p>
-          </CardContent>
-        </Card>
-      )}
+      {/* Notes Section */}
+      <Card className="col-span-full">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Notes</CardTitle>
+              <CardDescription>Add and manage deal notes</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Add new note */}
+          <div className="flex gap-2">
+            <Textarea
+              value={newNote}
+              onChange={(e) => setNewNote(e.target.value)}
+              placeholder="Add a new note..."
+              rows={3}
+              className="flex-1"
+            />
+            <Button onClick={addNote} disabled={!newNote.trim()}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Note
+            </Button>
+          </div>
 
-      {deal.notes && (
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle>Notes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{deal.notes}</p>
-          </CardContent>
-        </Card>
-      )}
+          {/* Existing notes */}
+          <div className="space-y-3">
+            {dealNotes.map((note) => (
+              <div key={note.id} className="border rounded-lg p-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <p className="text-sm">{note.content}</p>
+                    <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                      <span>{note.author_name}</span>
+                      <span>•</span>
+                      <span>{note.created_at ? new Date(note.created_at).toLocaleString() : ''}</span>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => note.id && deleteNote(note.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+            
+            {dealNotes.length === 0 && (
+              <p className="text-center py-8 text-muted-foreground">
+                No notes yet. Add the first note above.
+              </p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
       
       {/* Modals */}
       <QuickAddSiteModal
