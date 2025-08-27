@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, Save } from 'lucide-react';
 
 interface Currency {
   id: string;
@@ -32,7 +32,9 @@ export const CurrencySettings = () => {
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [currencySettings, setCurrencySettings] = useState<CurrencySetting[]>([]);
   const [defaultCurrency, setDefaultCurrency] = useState<string>('');
+  const [selectedCurrency, setSelectedCurrency] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [newFromCurrency, setNewFromCurrency] = useState<string>('');
   const [newToCurrency, setNewToCurrency] = useState<string>('');
   const [newRate, setNewRate] = useState<string>('');
@@ -41,7 +43,9 @@ export const CurrencySettings = () => {
     if (currentTenant) {
       fetchCurrencies();
       fetchCurrencySettings();
-      setDefaultCurrency(currentTenant.default_currency_id || '');
+      const currentCurrencyId = currentTenant.default_currency_id || '';
+      setDefaultCurrency(currentCurrencyId);
+      setSelectedCurrency(currentCurrencyId);
     }
   }, [currentTenant]);
 
@@ -101,13 +105,13 @@ export const CurrencySettings = () => {
     setCurrencySettings(mappedSettings);
   };
 
-  const updateDefaultCurrency = async (currencyId: string) => {
-    if (!currentTenant) return;
+  const saveDefaultCurrency = async () => {
+    if (!currentTenant || !selectedCurrency) return;
 
-    setLoading(true);
+    setSaving(true);
     const { error } = await supabase
       .from('tenants')
-      .update({ default_currency_id: currencyId })
+      .update({ default_currency_id: selectedCurrency })
       .eq('id', currentTenant.id);
 
     if (error) {
@@ -117,7 +121,7 @@ export const CurrencySettings = () => {
         variant: 'destructive',
       });
     } else {
-      setDefaultCurrency(currencyId);
+      setDefaultCurrency(selectedCurrency);
       // Refresh tenant data to update the context
       refreshTenants();
       toast({
@@ -125,7 +129,7 @@ export const CurrencySettings = () => {
         description: 'Default currency updated successfully',
       });
     }
-    setLoading(false);
+    setSaving(false);
   };
 
   const addConversionRate = async () => {
@@ -245,22 +249,39 @@ export const CurrencySettings = () => {
           <div className="space-y-4">
             <div>
               <Label htmlFor="default-currency">Default Currency</Label>
-              <Select
-                value={defaultCurrency}
-                onValueChange={updateDefaultCurrency}
-                disabled={loading}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select default currency" />
-                </SelectTrigger>
-                <SelectContent>
-                  {currencies.map((currency) => (
-                    <SelectItem key={currency.id} value={currency.id}>
-                      {currency.code} - {currency.name} ({currency.symbol})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2 items-end">
+                <div className="flex-1">
+                  <Select
+                    value={selectedCurrency}
+                    onValueChange={setSelectedCurrency}
+                    disabled={loading || saving}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select default currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {currencies.map((currency) => (
+                        <SelectItem key={currency.id} value={currency.id}>
+                          {currency.code} - {currency.name} ({currency.symbol})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  onClick={saveDefaultCurrency}
+                  disabled={loading || saving || selectedCurrency === defaultCurrency || !selectedCurrency}
+                  className="flex items-center gap-2"
+                >
+                  <Save className="h-4 w-4" />
+                  {saving ? 'Saving...' : 'Save'}
+                </Button>
+              </div>
+              {selectedCurrency !== defaultCurrency && selectedCurrency && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  You have unsaved changes. Click Save to apply the new default currency.
+                </p>
+              )}
             </div>
           </div>
         </CardContent>
