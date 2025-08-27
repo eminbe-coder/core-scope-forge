@@ -9,7 +9,6 @@ import { useTenant } from '@/hooks/use-tenant';
 import { toast } from 'sonner';
 import { Responsive, WidthProvider, Layout, Layouts } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
-import 'react-grid-layout/css/resizable.css';
 import './dashboard-grid.css';
 
 // Widget components
