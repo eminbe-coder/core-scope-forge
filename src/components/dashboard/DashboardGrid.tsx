@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Settings, Plus, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Plus, X, Lock, Unlock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { useTenant } from '@/hooks/use-tenant';
 import { toast } from 'sonner';
+import { Responsive, WidthProvider, Layout, Layouts } from 'react-grid-layout';
+import 'react-grid-layout/css/styles.css';
+import 'react-grid-layout/css/resizable.css';
+import './dashboard-grid.css';
 
 // Widget components
 import { CompaniesWidget } from './widgets/CompaniesWidget';
@@ -19,18 +23,18 @@ import { IncomingPaymentsWidget } from './widgets/IncomingPaymentsWidget';
 
 export interface WidgetConfig {
   id: string;
+  user_id: string;
   widget_id: string;
   position_x: number;
   position_y: number;
   width: number;
   height: number;
-  filters: any;
-  settings: any;
-  active?: boolean;
-  created_at?: string;
-  updated_at?: string;
-  user_id?: string;
+  active: boolean;
+  filters?: any;
+  settings?: any;
 }
+
+const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const availableWidgets = [
   { id: 'companies', name: 'Companies', component: CompaniesWidget },
@@ -48,6 +52,8 @@ export function DashboardGrid() {
   const [widgets, setWidgets] = useState<WidgetConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [customizeMode, setCustomizeMode] = useState(false);
+  const [layouts, setLayouts] = useState<Layouts>({});
+  const [isLayoutLocked, setIsLayoutLocked] = useState(false);
 
   useEffect(() => {
     if (user && currentTenant) {
@@ -68,7 +74,6 @@ export function DashboardGrid() {
       if (error) throw error;
 
       if (data.length === 0) {
-        // Initialize with default widgets
         await initializeDefaultWidgets();
       } else {
         setWidgets(data.map(item => ({
@@ -87,12 +92,12 @@ export function DashboardGrid() {
 
   const initializeDefaultWidgets = async () => {
     const defaultWidgets = [
-      { widget_id: 'companies', position_x: 0, position_y: 0, width: 1, height: 1 },
-      { widget_id: 'sites', position_x: 1, position_y: 0, width: 1, height: 1 },
-      { widget_id: 'contacts', position_x: 2, position_y: 0, width: 1, height: 1 },
-      { widget_id: 'deals', position_x: 3, position_y: 0, width: 1, height: 1 },
-      { widget_id: 'activities', position_x: 0, position_y: 1, width: 2, height: 1 },
-      { widget_id: 'projects', position_x: 2, position_y: 1, width: 2, height: 1 },
+      { widget_id: 'companies', position_x: 0, position_y: 0, width: 3, height: 2 },
+      { widget_id: 'sites', position_x: 3, position_y: 0, width: 3, height: 2 },
+      { widget_id: 'contacts', position_x: 6, position_y: 0, width: 3, height: 2 },
+      { widget_id: 'deals', position_x: 9, position_y: 0, width: 3, height: 2 },
+      { widget_id: 'activities', position_x: 0, position_y: 2, width: 6, height: 3 },
+      { widget_id: 'projects', position_x: 6, position_y: 2, width: 6, height: 3 },
     ];
 
     try {
@@ -101,6 +106,7 @@ export function DashboardGrid() {
         ...widget,
         filters: {},
         settings: {},
+        active: true,
       }));
 
       const { data, error } = await supabase
@@ -124,26 +130,29 @@ export function DashboardGrid() {
     try {
       const maxY = Math.max(...widgets.map(w => w.position_y), -1);
       
+      const newWidgetData = {
+        user_id: user?.id,
+        widget_id: widgetId,
+        position_x: 0,
+        position_y: maxY + 1,
+        width: 3,
+        height: 2,
+        active: true,
+        filters: {},
+        settings: {}
+      };
+
       const { data, error } = await supabase
         .from('user_dashboard_configs')
-        .insert({
-          user_id: user?.id,
-          widget_id: widgetId,
-          position_x: 0,
-          position_y: maxY + 1,
-          width: 1,
-          height: 1,
-          filters: {},
-          settings: {},
-        })
+        .insert([newWidgetData])
         .select()
         .single();
 
       if (error) throw error;
+
       const newWidget = {
         ...data,
-        filters: data.filters || {},
-        settings: data.settings || {}
+        id: data.id,
       };
       setWidgets([...widgets, newWidget]);
       toast.success('Widget added successfully');
@@ -177,7 +186,7 @@ export function DashboardGrid() {
         .eq('id', widgetConfigId);
 
       if (error) throw error;
-      
+
       setWidgets(widgets.map(w => 
         w.id === widgetConfigId ? { ...w, ...updates } : w
       ));
@@ -187,20 +196,77 @@ export function DashboardGrid() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 animate-pulse">
-        {[...Array(4)].map((_, i) => (
-          <Card key={i} className="h-32">
-            <CardContent className="p-6">
-              <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
-              <div className="h-8 bg-muted rounded w-1/2"></div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    );
-  }
+  const convertWidgetsToLayout = (widgets: WidgetConfig[]): Layout[] => {
+    return widgets.map(widget => ({
+      i: widget.id,
+      x: widget.position_x,
+      y: widget.position_y,
+      w: widget.width,
+      h: widget.height,
+      minW: 2,
+      minH: 2,
+      maxW: 12,
+      maxH: 6,
+    }));
+  };
+
+  const handleLayoutChange = async (layout: Layout[], layouts: Layouts) => {
+    if (isLayoutLocked) return;
+    
+    setLayouts(layouts);
+    
+    // Update widgets with new positions and sizes
+    const updatedWidgets = widgets.map(widget => {
+      const layoutItem = layout.find(item => item.i === widget.id);
+      if (layoutItem) {
+        return {
+          ...widget,
+          position_x: layoutItem.x,
+          position_y: layoutItem.y,
+          width: layoutItem.w,
+          height: layoutItem.h,
+        };
+      }
+      return widget;
+    });
+
+    setWidgets(updatedWidgets);
+
+    // Save to database
+    try {
+      for (const widget of updatedWidgets) {
+        const layoutItem = layout.find(item => item.i === widget.id);
+        if (layoutItem) {
+          await supabase
+            .from('user_dashboard_configs')
+            .update({
+              position_x: layoutItem.x,
+              position_y: layoutItem.y,
+              width: layoutItem.w,
+              height: layoutItem.h,
+            })
+            .eq('id', widget.id);
+        }
+      }
+    } catch (error) {
+      console.error('Error saving layout:', error);
+      toast.error('Failed to save layout changes');
+    }
+  };
+
+  // Update layouts when widgets change
+  useEffect(() => {
+    if (widgets.length > 0) {
+      const newLayout = convertWidgetsToLayout(widgets);
+      setLayouts({
+        lg: newLayout,
+        md: newLayout,
+        sm: newLayout,
+        xs: newLayout,
+        xxs: newLayout,
+      });
+    }
+  }, [widgets.length]);
 
   const getWidgetComponent = (widgetId: string) => {
     const widget = availableWidgets.find(w => w.id === widgetId);
@@ -215,17 +281,28 @@ export function DashboardGrid() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">
-            Welcome to your personalized CRM dashboard
-          </p>
-        </div>
+        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
         
         <div className="flex items-center gap-2">
+          <Button
+            variant={isLayoutLocked ? "outline" : "default"}
+            onClick={() => setIsLayoutLocked(!isLayoutLocked)}
+            className="flex items-center gap-2"
+          >
+            {isLayoutLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+            {isLayoutLocked ? "Locked" : "Unlocked"}
+          </Button>
+          
+          <Button
+            variant={customizeMode ? "default" : "outline"}
+            onClick={() => setCustomizeMode(!customizeMode)}
+          >
+            {customizeMode ? "Done" : "Customize"}
+          </Button>
+          
           <Dialog>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
+              <Button>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Widget
               </Button>
@@ -233,8 +310,9 @@ export function DashboardGrid() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Add Widget</DialogTitle>
+                <DialogDescription>Choose a widget to add to your dashboard.</DialogDescription>
               </DialogHeader>
-              <div className="grid gap-2">
+              <div className="grid grid-cols-1 gap-2 mt-4">
                 {getAvailableWidgetsToAdd().map(widget => (
                   <Button
                     key={widget.id}
@@ -246,59 +324,78 @@ export function DashboardGrid() {
                   </Button>
                 ))}
                 {getAvailableWidgetsToAdd().length === 0 && (
-                  <p className="text-sm text-muted-foreground p-4 text-center">
+                  <p className="text-sm text-muted-foreground text-center py-4">
                     All available widgets are already added to your dashboard.
                   </p>
                 )}
               </div>
             </DialogContent>
           </Dialog>
-          
-          <Button
-            variant={customizeMode ? "default" : "outline"}
-            size="sm"
-            onClick={() => setCustomizeMode(!customizeMode)}
-          >
-            <Settings className="h-4 w-4 mr-2" />
-            {customizeMode ? 'Done' : 'Customize'}
-          </Button>
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 auto-rows-min">
-        {widgets.map((widgetConfig) => {
-          const WidgetComponent = getWidgetComponent(widgetConfig.widget_id);
-          
-          if (!WidgetComponent) return null;
-
-          const gridColumnSpan = widgetConfig.width === 2 ? 'md:col-span-2' : '';
-          const gridRowSpan = widgetConfig.height === 2 ? 'row-span-2' : '';
-
-          return (
-            <div
-              key={widgetConfig.id}
-              className={`relative group ${gridColumnSpan} ${gridRowSpan}`}
-            >
-              {customizeMode && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => removeWidget(widgetConfig.id)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
+      {loading ? (
+        <div className="grid grid-cols-12 gap-4">
+          {[...Array(6)].map((_, i) => (
+            <Card key={i} className="col-span-3 h-64">
+              <CardContent className="p-6">
+                <div className="animate-pulse space-y-4">
+                  <div className="h-4 bg-muted rounded w-3/4"></div>
+                  <div className="h-8 bg-muted rounded w-1/2"></div>
+                  <div className="space-y-2">
+                    <div className="h-3 bg-muted rounded"></div>
+                    <div className="h-3 bg-muted rounded w-5/6"></div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className={`min-h-96 ${isLayoutLocked ? 'layout-locked' : ''}`}>
+          <ResponsiveGridLayout
+            className="layout"
+            layouts={layouts}
+            onLayoutChange={handleLayoutChange}
+            breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+            cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+            rowHeight={60}
+            isDraggable={!isLayoutLocked}
+            isResizable={!isLayoutLocked}
+            margin={[16, 16]}
+            containerPadding={[0, 0]}
+            useCSSTransforms={true}
+            preventCollision={false}
+            compactType="vertical"
+          >
+            {widgets.map((widgetConfig) => {
+              const WidgetComponent = getWidgetComponent(widgetConfig.widget_id);
               
-              <WidgetComponent
-                config={widgetConfig}
-                onUpdateConfig={(updates) => updateWidgetConfig(widgetConfig.id, updates)}
-                customizeMode={customizeMode}
-              />
-            </div>
-          );
-        })}
-      </div>
+              if (!WidgetComponent) return null;
+
+              return (
+                <div key={widgetConfig.id} className="relative">
+                  {customizeMode && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="absolute -top-2 -right-2 z-50 h-6 w-6 p-0 rounded-full shadow-md"
+                      onClick={() => removeWidget(widgetConfig.id)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                  <WidgetComponent
+                    config={widgetConfig}
+                    onUpdateConfig={(updates) => updateWidgetConfig(widgetConfig.id, updates)}
+                    customizeMode={customizeMode}
+                  />
+                </div>
+              );
+            })}
+          </ResponsiveGridLayout>
+        </div>
+      )}
     </div>
   );
 }
