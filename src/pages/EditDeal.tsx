@@ -10,10 +10,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
 import { CreateActivityModal } from '@/components/modals/CreateActivityModal';
-import { CreateTodoModal } from '@/components/modals/CreateTodoModal';
 import { DealFiles } from '@/components/deals/DealFiles';
 import { DealActivities } from '@/components/deals/DealActivities';
 import { DealInfo } from '@/components/deals/DealInfo';
+import { DealTodos } from '@/components/deals/DealTodos';
 
 interface Deal {
   id: string;
@@ -61,7 +61,6 @@ const EditDeal = () => {
   const [deal, setDeal] = useState<Deal | null>(null);
   const [loading, setLoading] = useState(true);
   const [showActivityModal, setShowActivityModal] = useState(false);
-  const [showTodoModal, setShowTodoModal] = useState(false);
 
   const fetchDeal = async () => {
     if (!id || !currentTenant) return;
@@ -168,31 +167,7 @@ const EditDeal = () => {
           </TabsContent>
 
           <TabsContent value="todos">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <CheckSquare className="h-5 w-5" />
-                      To-Do Tasks
-                    </CardTitle>
-                    <CardDescription>
-                      Manage tasks and follow-ups for this deal
-                    </CardDescription>
-                  </div>
-                  <Button onClick={() => setShowTodoModal(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Task
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {/* Todos will be loaded here */}
-                <div className="text-center py-8 text-muted-foreground">
-                  No tasks created yet. Click "Add Task" to get started.
-                </div>
-              </CardContent>
-            </Card>
+            <DealTodos dealId={deal.id} dealName={deal.name} />
           </TabsContent>
 
           <TabsContent value="files">
@@ -209,21 +184,6 @@ const EditDeal = () => {
           toast({
             title: 'Success',
             description: 'Activity logged successfully',
-          });
-        }}
-        entityId={deal.id}
-        entityType="deal"
-        entityName={deal.name}
-      />
-
-      <CreateTodoModal
-        open={showTodoModal}
-        onClose={() => setShowTodoModal(false)}
-        onSuccess={() => {
-          setShowTodoModal(false);
-          toast({
-            title: 'Success',
-            description: 'Task created successfully',
           });
         }}
         entityId={deal.id}

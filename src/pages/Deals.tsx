@@ -42,6 +42,10 @@ interface Deal {
     last_name: string;
     email: string;
   } | null;
+  next_step: {
+    title: string;
+    due_date: string;
+  } | null;
   created_at: string;
   updated_at: string;
 }
@@ -80,12 +84,30 @@ const Deals = () => {
           sites(name),
           currencies(symbol),
           deal_stages(name, win_percentage),
-          assigned_user:profiles!deals_assigned_to_fkey(first_name, last_name, email)
+          assigned_user:profiles!deals_assigned_to_fkey(first_name, last_name, email),
+          next_todo:activities!deals_deal_id_fkey(title, due_date, type, completed)
         `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setDeals(data || []);
+      
+      // Process deals to get next step
+      const processedDeals = (data || []).map(deal => {
+        const todos = Array.isArray(deal.next_todo) ? deal.next_todo : [];
+        const nextTodo = todos
+          .filter(todo => todo.type === 'task' && !todo.completed && todo.due_date)
+          .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())[0];
+        
+        return {
+          ...deal,
+          next_step: nextTodo ? {
+            title: nextTodo.title,
+            due_date: nextTodo.due_date
+          } : null
+        };
+      });
+      
+      setDeals(processedDeals);
     } catch (error) {
       console.error('Error fetching deals:', error);
     } finally {
@@ -190,6 +212,11 @@ const Deals = () => {
               value: new Date(deal.expected_close_date).toLocaleDateString(),
               isSecondary: true,
             }] : []),
+            ...(deal.next_step ? [{
+              label: 'Next step',
+              value: `${deal.next_step.title} (${new Date(deal.next_step.due_date).toLocaleDateString()})`,
+              isSecondary: true,
+            }] : []),
             {
               value: `Created ${new Date(deal.created_at).toLocaleDateString()}`,
               isSecondary: true,
@@ -249,6 +276,13 @@ const Deals = () => {
             key: 'expected_close_date',
             label: 'Expected Close',
             render: (value) => value ? new Date(value).toLocaleDateString() : '-',
+          },
+          {
+            key: 'next_step',
+            label: 'Next Step',
+            render: (_, deal) => deal.next_step ? 
+              `${deal.next_step.title} (${new Date(deal.next_step.due_date).toLocaleDateString()})` : 
+              '-',
           },
         ]}
         onEdit={handleEdit}
