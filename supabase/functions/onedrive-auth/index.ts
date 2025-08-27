@@ -102,8 +102,8 @@ async function makeGraphRequest(supabase: any, tenant_id: string, url: string, o
 
   // Prepare headers with authorization
   const headers = {
-    'Authorization': `Bearer ${accessToken}`,
-    ...options.headers
+    ...(options.headers || {}),
+    'Authorization': `Bearer ${accessToken}`
   };
 
   console.log(`Making Graph API request to: ${url}`);
@@ -127,8 +127,8 @@ async function makeGraphRequest(supabase: any, tenant_id: string, url: string, o
 
       // Retry the request with new token
       const retryHeaders = {
-        'Authorization': `Bearer ${accessToken}`,
-        ...options.headers
+        ...(options.headers || {}),
+        'Authorization': `Bearer ${accessToken}`
       };
 
       console.log(`Retrying Graph API request to: ${url}`);
