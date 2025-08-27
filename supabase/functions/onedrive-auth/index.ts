@@ -157,6 +157,173 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // Handle GET requests (OAuth callback from Microsoft)
+    if (req.method === 'GET') {
+      const url = new URL(req.url);
+      const authCode = url.searchParams.get('code');
+      const state = url.searchParams.get('state');
+      const error = url.searchParams.get('error');
+
+      console.log(`OneDrive Auth - OAuth callback received - Code: ${authCode ? 'present' : 'missing'}, State: ${state ? 'present' : 'missing'}, Error: ${error || 'none'}`);
+
+      if (error) {
+        console.error('OAuth error:', error);
+        return new Response(
+          `<html><body><script>window.close();</script><p>Authentication failed: ${error}</p></body></html>`,
+          { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
+        );
+      }
+
+      if (!authCode || !state) {
+        return new Response(
+          '<html><body><script>window.close();</script><p>Missing authorization code or state</p></body></html>',
+          { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
+        );
+      }
+
+      try {
+        const { tenant_id } = JSON.parse(atob(state));
+        console.log(`Processing callback for tenant: ${tenant_id}`);
+
+        // Get tenant's OneDrive settings
+        const { data: settings, error: settingsError } = await supabase
+          .from('tenant_onedrive_settings')
+          .select('client_id, client_secret')
+          .eq('tenant_id', tenant_id)
+          .single();
+
+        if (settingsError || !settings) {
+          console.error('Settings error:', settingsError);
+          return new Response(
+            '<html><body><script>window.close();</script><p>Tenant settings not found</p></body></html>',
+            { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
+          );
+        }
+
+        // Exchange code for tokens
+        const tokenUrl = 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
+        const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/onedrive-auth`;
+
+        console.log(`Exchanging authorization code for access token...`);
+        const tokenResponse = await fetch(tokenUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            client_id: settings.client_id,
+            client_secret: settings.client_secret,
+            code: authCode,
+            grant_type: 'authorization_code',
+            redirect_uri: redirectUri,
+          }),
+        });
+
+        const tokenData = await tokenResponse.json();
+
+        if (!tokenResponse.ok) {
+          console.error('Token exchange error:', tokenData);
+          return new Response(
+            '<html><body><script>window.close();</script><p>Failed to get access token</p></body></html>',
+            { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
+          );
+        }
+
+        console.log('Token exchange successful, getting OneDrive root folder...');
+
+        // Get OneDrive root folder ID
+        const driveResponse = await fetch('https://graph.microsoft.com/v1.0/me/drive/root', {
+          headers: {
+            'Authorization': `Bearer ${tokenData.access_token}`,
+          },
+        });
+
+        if (!driveResponse.ok) {
+          const errorData = await driveResponse.json();
+          console.error('Failed to get drive root:', errorData);
+          throw new Error('Failed to access OneDrive');
+        }
+
+        const driveData = await driveResponse.json();
+        const rootFolderId = driveData.id;
+
+        // Create base folder structure
+        const folderStructure = {
+          customers: 'Customers',
+          sites: 'Sites', 
+          deals: 'Deals'
+        };
+
+        // Create folders
+        for (const [key, folderName] of Object.entries(folderStructure)) {
+          try {
+            console.log(`Creating folder: ${folderName}`);
+            const folderResponse = await fetch('https://graph.microsoft.com/v1.0/me/drive/root/children', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${tokenData.access_token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                name: folderName,
+                folder: {},
+                '@microsoft.graph.conflictBehavior': 'rename'
+              }),
+            });
+
+            if (!folderResponse.ok) {
+              const folderError = await folderResponse.json();
+              console.log(`Folder creation response for ${folderName}:`, folderError);
+              // Continue if folder already exists
+              if (folderError.error?.code !== 'nameAlreadyExists') {
+                console.error(`Failed to create folder ${folderName}:`, folderError);
+              }
+            } else {
+              console.log(`Successfully created folder: ${folderName}`);
+            }
+          } catch (error) {
+            console.log(`Error creating folder ${folderName}:`, error);
+          }
+        }
+
+        // Save tokens to database
+        const expiresAt = new Date(Date.now() + (tokenData.expires_in * 1000));
+
+        const { error: updateError } = await supabase
+          .from('tenant_onedrive_settings')
+          .update({
+            access_token: tokenData.access_token,
+            refresh_token: tokenData.refresh_token,
+            token_expires_at: expiresAt.toISOString(),
+            root_folder_id: rootFolderId,
+            folder_structure: folderStructure,
+          })
+          .eq('tenant_id', tenant_id);
+
+        if (updateError) {
+          console.error('Database update error:', updateError);
+          return new Response(
+            '<html><body><script>window.close();</script><p>Failed to save tokens</p></body></html>',
+            { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
+          );
+        }
+
+        console.log('OneDrive connection completed successfully');
+        return new Response(
+          '<html><body><script>window.close();</script><p>OneDrive connected successfully!</p></body></html>',
+          { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
+        );
+
+      } catch (error) {
+        console.error('Callback processing error:', error);
+        return new Response(
+          '<html><body><script>window.close();</script><p>Processing failed</p></body></html>',
+          { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
+        );
+      }
+    }
+
+    // Handle POST requests (API actions)
     const { action, tenant_id, client_id, client_secret, code, library_id, library_name } = await req.json() as OneDriveAuthRequest;
 
     console.log(`OneDrive Auth - Action: ${action}, Tenant: ${tenant_id}`);
@@ -187,164 +354,6 @@ serve(async (req) => {
           JSON.stringify({ auth_url: authUrl }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
-      }
-
-      case 'callback': {
-        const url = new URL(req.url);
-        const authCode = url.searchParams.get('code');
-        const state = url.searchParams.get('state');
-        const error = url.searchParams.get('error');
-
-        if (error) {
-          console.error('OAuth error:', error);
-          return new Response(
-            `<html><body><script>window.close();</script><p>Authentication failed: ${error}</p></body></html>`,
-            { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
-          );
-        }
-
-        if (!authCode || !state) {
-          return new Response(
-            '<html><body><script>window.close();</script><p>Missing authorization code or state</p></body></html>',
-            { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
-          );
-        }
-
-        try {
-          const { tenant_id } = JSON.parse(atob(state));
-
-          // Get tenant's OneDrive settings
-          const { data: settings, error: settingsError } = await supabase
-            .from('tenant_onedrive_settings')
-            .select('client_id, client_secret')
-            .eq('tenant_id', tenant_id)
-            .single();
-
-          if (settingsError || !settings) {
-            console.error('Settings error:', settingsError);
-            return new Response(
-              '<html><body><script>window.close();</script><p>Tenant settings not found</p></body></html>',
-              { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
-            );
-          }
-
-          // Exchange code for tokens
-          const tokenUrl = 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
-          const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/onedrive-auth`;
-
-          const tokenResponse = await fetch(tokenUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-              client_id: settings.client_id,
-              client_secret: settings.client_secret,
-              code: authCode,
-              grant_type: 'authorization_code',
-              redirect_uri: redirectUri,
-            }),
-          });
-
-          const tokenData = await tokenResponse.json();
-
-          if (!tokenResponse.ok) {
-            console.error('Token error:', tokenData);
-            return new Response(
-              '<html><body><script>window.close();</script><p>Failed to get access token</p></body></html>',
-              { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
-            );
-          }
-
-          // Get OneDrive root folder ID using helper function
-          const driveResponse = await fetch('https://graph.microsoft.com/v1.0/me/drive/root', {
-            headers: {
-              'Authorization': `Bearer ${tokenData.access_token}`,
-            },
-          });
-
-          if (!driveResponse.ok) {
-            const errorData = await driveResponse.json();
-            console.error('Failed to get drive root:', errorData);
-            throw new Error('Failed to access OneDrive');
-          }
-
-          const driveData = await driveResponse.json();
-          const rootFolderId = driveData.id;
-
-          // Create base folder structure
-          const folderStructure = {
-            customers: 'Customers',
-            sites: 'Sites', 
-            deals: 'Deals'
-          };
-
-          // Create folders
-          for (const [key, folderName] of Object.entries(folderStructure)) {
-            try {
-              console.log(`Creating folder: ${folderName}`);
-              const folderResponse = await fetch('https://graph.microsoft.com/v1.0/me/drive/root/children', {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${tokenData.access_token}`,
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  name: folderName,
-                  folder: {},
-                  '@microsoft.graph.conflictBehavior': 'rename'
-                }),
-              });
-
-              if (!folderResponse.ok) {
-                const folderError = await folderResponse.json();
-                console.log(`Folder creation response for ${folderName}:`, folderError);
-                // Continue if folder already exists
-                if (folderError.error?.code !== 'nameAlreadyExists') {
-                  console.error(`Failed to create folder ${folderName}:`, folderError);
-                }
-              } else {
-                console.log(`Successfully created folder: ${folderName}`);
-              }
-            } catch (error) {
-              console.log(`Error creating folder ${folderName}:`, error);
-            }
-          }
-
-          // Save tokens to database
-          const expiresAt = new Date(Date.now() + (tokenData.expires_in * 1000));
-
-          const { error: updateError } = await supabase
-            .from('tenant_onedrive_settings')
-            .update({
-              access_token: tokenData.access_token,
-              refresh_token: tokenData.refresh_token,
-              token_expires_at: expiresAt.toISOString(),
-              root_folder_id: rootFolderId,
-              folder_structure: folderStructure,
-            })
-            .eq('tenant_id', tenant_id);
-
-          if (updateError) {
-            console.error('Update error:', updateError);
-            return new Response(
-              '<html><body><script>window.close();</script><p>Failed to save tokens</p></body></html>',
-              { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
-            );
-          }
-
-          return new Response(
-            '<html><body><script>window.close();</script><p>OneDrive connected successfully!</p></body></html>',
-            { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
-          );
-
-        } catch (error) {
-          console.error('Callback processing error:', error);
-          return new Response(
-            '<html><body><script>window.close();</script><p>Processing failed</p></body></html>',
-            { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
-          );
-        }
       }
 
       case 'test': {
