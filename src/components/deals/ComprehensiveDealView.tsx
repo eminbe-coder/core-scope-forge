@@ -44,6 +44,7 @@ interface Deal {
   stage_id?: string;
   site_id?: string;
   customer_id?: string;
+  currency_id?: string;
   customer_reference_number?: string;
   probability?: number;
   expected_close_date?: string;
@@ -140,6 +141,13 @@ interface OneDriveSettingsRaw {
   folder_structure: any;
 }
 
+interface Currency {
+  id: string;
+  code: string;
+  name: string;
+  symbol: string;
+}
+
 interface ComprehensiveDealViewProps {
   deal: Deal;
   onUpdate: () => void;
@@ -155,6 +163,7 @@ export const ComprehensiveDealView = ({ deal, onUpdate }: ComprehensiveDealViewP
   const [companies, setCompanies] = useState<Company[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [availableCurrencies, setAvailableCurrencies] = useState<Currency[]>([]);
   const [linkedCompanies, setLinkedCompanies] = useState<Company[]>([]);
   const [linkedContacts, setLinkedContacts] = useState<Contact[]>([]);
   const [tenantUsers, setTenantUsers] = useState<{ id: string; name: string; email: string }[]>([]);
@@ -250,19 +259,17 @@ export const ComprehensiveDealView = ({ deal, onUpdate }: ComprehensiveDealViewP
     if (error) throw error;
     setCompanies(data || []);
   };
-
-  const fetchContacts = async () => {
+  
+  const fetchCurrencies = async () => {
     const { data, error } = await supabase
-      .from('contacts')
-      .select('id, first_name, last_name, email')
-      .eq('tenant_id', currentTenant!.id)
+      .from('currencies')
+      .select('id, code, name, symbol')
       .eq('active', true)
-      .order('first_name');
+      .order('code');
 
     if (error) throw error;
-    setContacts(data || []);
+    setAvailableCurrencies(data || []);
   };
-
   const fetchCustomers = async () => {
     const { data, error } = await supabase
       .from('customers')

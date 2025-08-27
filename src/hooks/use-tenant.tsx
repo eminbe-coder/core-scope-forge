@@ -117,7 +117,8 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
             slug: tenant.slug,
             domain: tenant.domain,
             active: tenant.active,
-            settings: tenant.settings
+            settings: tenant.settings,
+            default_currency_id: tenant.default_currency_id
           }
         })) || [];
         

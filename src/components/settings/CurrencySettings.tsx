@@ -28,7 +28,7 @@ interface CurrencySetting {
 
 export const CurrencySettings = () => {
   const { toast } = useToast();
-  const { currentTenant, refreshTenants } = useTenant();
+  const { currentTenant, refreshTenants, setCurrentTenant } = useTenant();
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [currencySettings, setCurrencySettings] = useState<CurrencySetting[]>([]);
   const [defaultCurrency, setDefaultCurrency] = useState<string>('');
