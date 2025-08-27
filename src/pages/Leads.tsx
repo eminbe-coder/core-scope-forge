@@ -435,6 +435,16 @@ const Leads = () => {
                             </Button>
                             <Button
                               size="sm"
+                              variant="default"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/deals/add?leadType=${lead.type}&leadId=${lead.id}`);
+                              }}
+                            >
+                              Convert to Deal
+                            </Button>
+                            <Button
+                              size="sm"
                               variant="outline"
                               onClick={(e) => {
                                 e.stopPropagation();

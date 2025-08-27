@@ -137,7 +137,7 @@ const Deals = () => {
         loading={loading}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
-        onAdd={() => navigate('/add-deal')}
+        onAdd={() => navigate('/deals/add')}
         addButtonText="Add Deal"
         getEntityCardProps={(deal) => ({
           id: deal.id,
