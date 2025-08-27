@@ -593,6 +593,39 @@ export type Database = {
           },
         ]
       }
+      custom_roles: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          permissions: Json
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          permissions?: Json
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          permissions?: Json
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           active: boolean
@@ -1210,6 +1243,44 @@ export type Database = {
           },
         ]
       }
+      tenant_pricing_settings: {
+        Row: {
+          created_at: string
+          custom_conversion_rates: Json | null
+          default_currency_id: string | null
+          id: string
+          pricing_tiers: Json | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          custom_conversion_rates?: Json | null
+          default_currency_id?: string | null
+          id?: string
+          pricing_tiers?: Json | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          custom_conversion_rates?: Json | null
+          default_currency_id?: string | null
+          id?: string
+          pricing_tiers?: Json | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_pricing_settings_default_currency_id_fkey"
+            columns: ["default_currency_id"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenants: {
         Row: {
           active: boolean
@@ -1330,6 +1401,7 @@ export type Database = {
         Row: {
           active: boolean
           created_at: string
+          custom_role_id: string | null
           id: string
           role: Database["public"]["Enums"]["app_role"]
           tenant_id: string
@@ -1339,6 +1411,7 @@ export type Database = {
         Insert: {
           active?: boolean
           created_at?: string
+          custom_role_id?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           tenant_id: string
@@ -1348,6 +1421,7 @@ export type Database = {
         Update: {
           active?: boolean
           created_at?: string
+          custom_role_id?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           tenant_id?: string
@@ -1355,6 +1429,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "user_tenant_memberships_custom_role_id_fkey"
+            columns: ["custom_role_id"]
+            isOneToOne: false
+            referencedRelation: "custom_roles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "user_tenant_memberships_tenant_id_fkey"
             columns: ["tenant_id"]

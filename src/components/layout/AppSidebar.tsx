@@ -23,7 +23,8 @@ import {
   Smartphone,
   Shield,
   Target,
-  CheckSquare
+  CheckSquare,
+  DollarSign
 } from 'lucide-react';
 
 interface NavigationItem {
@@ -120,12 +121,24 @@ const navigationModules: NavigationModule[] = [
     ]
   },
   {
-    title: 'Admin Panel',
+    title: 'Administration',
     items: [
       {
-        title: 'Admin',
-        url: '/admin',
+        title: 'Global Admin',
+        url: '/global-admin',
         icon: Shield,
+        permission: 'super_admin.access',
+      },
+      {
+        title: 'Users & Roles',
+        url: '/users-roles',
+        icon: Users,
+        permission: 'admin.access',
+      },
+      {
+        title: 'Pricing',
+        url: '/pricing',
+        icon: DollarSign,
         permission: 'admin.access',
       },
     ]
@@ -153,7 +166,12 @@ export function AppSidebar() {
 
   const filterModuleItems = (items: NavigationItem[]) => {
     return items.filter(item => {
-      // Show all items for now, can add permission checks later
+      if (item.permission === 'super_admin.access') {
+        return isAdmin && hasPermission && hasPermission('super_admin.access');
+      }
+      if (item.permission === 'admin.access') {
+        return isAdmin;
+      }
       return true;
     });
   };

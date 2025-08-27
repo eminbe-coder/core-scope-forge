@@ -23,6 +23,9 @@ import Activities from "./pages/Activities";
 import Todos from "./pages/Todos";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
+import GlobalAdmin from "./pages/GlobalAdmin";
+import UsersRoles from "./pages/UsersRoles";
+import Pricing from "./pages/Pricing";
 import Devices from "./pages/Devices";
 import NotFound from "./pages/NotFound";
 
@@ -108,6 +111,21 @@ const App = () => (
                 <Route path="/admin" element={
                   <ProtectedRoute>
                     <Admin />
+                  </ProtectedRoute>
+                } />
+                <Route path="/global-admin" element={
+                  <ProtectedRoute>
+                    <GlobalAdmin />
+                  </ProtectedRoute>
+                } />
+                <Route path="/users-roles" element={
+                  <ProtectedRoute>
+                    <UsersRoles />
+                  </ProtectedRoute>
+                } />
+                <Route path="/pricing" element={
+                  <ProtectedRoute>
+                    <Pricing />
                   </ProtectedRoute>
                 } />
                 <Route path="/settings" element={
