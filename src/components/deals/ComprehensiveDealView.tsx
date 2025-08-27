@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -35,6 +35,7 @@ import { DealTodos } from './DealTodos';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 interface Deal {
   id: string;
@@ -158,10 +159,18 @@ interface DealTodosRef {
   refresh: () => void;
 }
 
-export const ComprehensiveDealView = ({ deal, onUpdate }: ComprehensiveDealViewProps) => {
+export interface ComprehensiveDealViewRef {
+  refreshTodos: () => void;
+}
+
+export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, ComprehensiveDealViewProps>(({ deal, onUpdate }, ref) => {
   const dealTodosRef = useRef<DealTodosRef>(null);
+  useImperativeHandle(ref, () => ({
+    refreshTodos: () => dealTodosRef.current?.refresh(),
+  }));
   const { currentTenant } = useTenant();
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   // State for all data
   const [stages, setStages] = useState<DealStage[]>([]);
@@ -725,29 +734,61 @@ export const ComprehensiveDealView = ({ deal, onUpdate }: ComprehensiveDealViewP
     fetchSites(); // Refresh full list
   };
 
-  const handleUnlinkCompany = (companyId: string) => {
-    setLinkedCompanies(prev => prev.filter(c => c.id !== companyId));
-    setEditedDeal(prev => ({ ...prev, company_ids: prev.company_ids.filter(id => id !== companyId) }));
-  };
+  const handleUnlinkCompany = async (companyId: string) => {
+    try {
+      await supabase
+        .from('deal_companies')
+        .delete()
+        .eq('deal_id', deal.id)
+        .eq('company_id', companyId);
 
-  const handleUnlinkContact = (contactId: string) => {
-    setLinkedContacts(prev => prev.filter(c => c.id !== contactId));
-    setEditedDeal(prev => ({ ...prev, contact_ids: prev.contact_ids.filter(id => id !== contactId) }));
-  };
-
-  const handleLinkCompany = (companyId: string) => {
-    const company = companies.find(c => c.id === companyId);
-    if (company && !linkedCompanies.find(c => c.id === companyId)) {
-      setLinkedCompanies(prev => [...prev, company]);
-      setEditedDeal(prev => ({ ...prev, company_ids: [...prev.company_ids, companyId] }));
+      setLinkedCompanies(prev => prev.filter(c => c.id !== companyId));
+      setEditedDeal(prev => ({ ...prev, company_ids: prev.company_ids.filter(id => id !== companyId) }));
+      toast({ title: 'Success', description: 'Company unlinked' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
     }
   };
+  
+  const handleUnlinkContact = async (contactId: string) => {
+    try {
+      await supabase
+        .from('deal_contacts')
+        .delete()
+        .eq('deal_id', deal.id)
+        .eq('contact_id', contactId);
 
-  const handleLinkContact = (contactId: string) => {
+      setLinkedContacts(prev => prev.filter(c => c.id !== contactId));
+      setEditedDeal(prev => ({ ...prev, contact_ids: prev.contact_ids.filter(id => id !== contactId) }));
+      toast({ title: 'Success', description: 'Contact unlinked' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  };
+  
+  const handleLinkCompany = async (companyId: string) => {
+    const company = companies.find(c => c.id === companyId);
+    if (!company || linkedCompanies.find(c => c.id === companyId)) return;
+    try {
+      await supabase.from('deal_companies').insert({ deal_id: deal.id, company_id: companyId });
+      setLinkedCompanies(prev => [...prev, company]);
+      setEditedDeal(prev => ({ ...prev, company_ids: [...prev.company_ids, companyId] }));
+      toast({ title: 'Success', description: 'Company linked' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  };
+  
+  const handleLinkContact = async (contactId: string) => {
     const contact = contacts.find(c => c.id === contactId);
-    if (contact && !linkedContacts.find(c => c.id === contactId)) {
+    if (!contact || linkedContacts.find(c => c.id === contactId)) return;
+    try {
+      await supabase.from('deal_contacts').insert({ deal_id: deal.id, contact_id: contactId });
       setLinkedContacts(prev => [...prev, contact]);
       setEditedDeal(prev => ({ ...prev, contact_ids: [...prev.contact_ids, contactId] }));
+      toast({ title: 'Success', description: 'Contact linked' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -943,9 +984,16 @@ export const ComprehensiveDealView = ({ deal, onUpdate }: ComprehensiveDealViewP
                     </Button>
                   </div>
                 ) : (
-                  <div className="text-sm font-medium">
-                    {deal.sites?.name || 'Not assigned'}
-                  </div>
+                  {deal.sites?.name ? (
+                    <button
+                      className="text-sm font-medium underline hover:opacity-80"
+                      onClick={() => navigate('/sites', { state: { highlightSiteId: deal.site_id } })}
+                    >
+                      {deal.sites.name}
+                    </button>
+                  ) : (
+                    <div className="text-sm font-medium">Not assigned</div>
+                  )}
                 )}
               </div>
             </CardContent>
@@ -1663,4 +1711,4 @@ export const ComprehensiveDealView = ({ deal, onUpdate }: ComprehensiveDealViewP
       </Dialog>
     </div>
   );
-};
+});

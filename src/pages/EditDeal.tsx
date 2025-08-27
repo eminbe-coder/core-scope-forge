@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { CreateActivityModal } from '@/components/modals/CreateActivityModal';
 import { CreateTodoModal } from '@/components/modals/CreateTodoModal';
 import { ComprehensiveDealView } from '@/components/deals/ComprehensiveDealView';
+import type { ComprehensiveDealViewRef } from '@/components/deals/ComprehensiveDealView';
 
 interface Deal {
   id: string;
@@ -57,6 +58,7 @@ const EditDeal = () => {
   const [loading, setLoading] = useState(true);
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [showTodoModal, setShowTodoModal] = useState(false);
+  const dealViewRef = useRef<ComprehensiveDealViewRef>(null);
 
   const fetchDeal = async () => {
     if (!id || !currentTenant) return;
@@ -140,7 +142,7 @@ const EditDeal = () => {
           </div>
         </div>
 
-        <ComprehensiveDealView deal={deal} onUpdate={fetchDeal} />
+        <ComprehensiveDealView ref={dealViewRef} deal={deal} onUpdate={fetchDeal} />
       </div>
 
       <CreateActivityModal
@@ -164,8 +166,9 @@ const EditDeal = () => {
         onClose={() => setShowTodoModal(false)}
         onSuccess={() => {
           setShowTodoModal(false);
-          // This will trigger the onUpdate callback which refreshes the DealTodos component
+          // Refresh both deal and the todos list in the left panel
           fetchDeal();
+          dealViewRef.current?.refreshTodos();
         }}
         entityId={deal.id}
         entityType="deal"
