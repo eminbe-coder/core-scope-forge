@@ -28,7 +28,7 @@ interface CurrencySetting {
 
 export const CurrencySettings = () => {
   const { toast } = useToast();
-  const { currentTenant } = useTenant();
+  const { currentTenant, refreshTenants } = useTenant();
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [currencySettings, setCurrencySettings] = useState<CurrencySetting[]>([]);
   const [defaultCurrency, setDefaultCurrency] = useState<string>('');
@@ -118,6 +118,8 @@ export const CurrencySettings = () => {
       });
     } else {
       setDefaultCurrency(currencyId);
+      // Refresh tenant data to update the context
+      refreshTenants();
       toast({
         title: 'Success',
         description: 'Default currency updated successfully',

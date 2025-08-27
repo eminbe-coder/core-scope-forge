@@ -122,13 +122,21 @@ const SettingsPage = () => {
                     User Management
                   </CardTitle>
                   <CardDescription>
-                    Manage users in your tenant
+                    Manage users in your tenant - redirecting to Administration section
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    User management for this tenant will be available here.
-                  </p>
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      User management is available in the Administration section.
+                    </p>
+                    <Button 
+                      onClick={() => window.location.href = '/users-roles'}
+                      className="w-full"
+                    >
+                      Go to Users & Roles
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -141,13 +149,21 @@ const SettingsPage = () => {
                     Roles & Permissions
                   </CardTitle>
                   <CardDescription>
-                    Manage roles and permissions for your tenant
+                    Manage roles and permissions - redirecting to Administration section
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    Role and permission management will be available here.
-                  </p>
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Role and permission management is available in the Administration section.
+                    </p>
+                    <Button 
+                      onClick={() => window.location.href = '/users-roles'}
+                      className="w-full"
+                    >
+                      Go to Users & Roles
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             )}

@@ -132,12 +132,6 @@ const navigationModules: NavigationModule[] = [
         permission: 'admin.access',
       },
       {
-        title: 'Pricing',
-        url: '/settings?tab=currency',
-        icon: DollarSign,
-        permission: 'admin.access',
-      },
-      {
         title: 'CRM Settings',
         url: '/settings?tab=crm',
         icon: Settings,
@@ -158,14 +152,6 @@ export function AppSidebar() {
   const { hasPermission, isAdmin } = usePermissions();
   const { isSuperAdmin, userRole } = useTenant();
   const currentPath = location.pathname;
-
-  // Debug logging
-  console.log('AppSidebar Debug:', {
-    isAdmin,
-    isSuperAdmin,
-    userRole,
-    hasAdminPermission: hasPermission('admin.access')
-  });
 
   const isActive = (path: string) => {
     if (path === '/') {

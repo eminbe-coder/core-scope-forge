@@ -46,13 +46,6 @@ export const PermissionsProvider = ({ children }: { children: React.ReactNode })
   // Check if user is admin (admin or super_admin)
   const isAdmin = userRole === 'admin' || userRole === 'super_admin';
 
-  console.log('usePermissions Debug:', {
-    user: user?.email,
-    userRole,
-    isAdmin,
-    currentTenant: currentTenant?.name
-  });
-
   const fetchPermissions = async () => {
     if (!user || !currentTenant || !userRole) {
       setLoading(false);

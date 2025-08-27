@@ -87,8 +87,6 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
     if (!user) return;
 
     try {
-      console.log('refreshTenants called for user:', user.email);
-      
       // Check if user is a super admin by querying their memberships
       const { data: superAdminCheck, error: superAdminError } = await supabase
         .from('user_tenant_memberships')
@@ -100,12 +98,8 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (superAdminError) throw superAdminError;
 
-      console.log('Super admin check result:', superAdminCheck);
-
       // If user is super admin, load all tenants
       if (superAdminCheck && superAdminCheck.length > 0) {
-        console.log('User is super admin, loading all tenants');
-        
         const { data: allTenants, error: allTenantsError } = await supabase
           .rpc('get_all_tenants_for_super_admin');
         
@@ -127,7 +121,6 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
           }
         })) || [];
         
-        console.log('Setting user role to super_admin and tenants:', mappedTenants);
         setUserTenants(mappedTenants);
         setUserRole('super_admin');
         
@@ -162,11 +155,6 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
         const savedTenantId = localStorage.getItem('currentTenantId');
         const savedTenant = data.find(m => m.tenant_id === savedTenantId);
         const tenantToSet = savedTenant || data[0];
-        console.log('useTenant Debug - Setting initial tenant:', {
-          tenantToSet: tenantToSet.tenant.name,
-          role: tenantToSet.role,
-          userEmail: user?.email
-        });
         setUserRole(tenantToSet.role); // Set user role for this tenant
         await setCurrentTenant(tenantToSet.tenant);
       }
