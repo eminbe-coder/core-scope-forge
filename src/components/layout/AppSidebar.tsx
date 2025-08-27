@@ -11,6 +11,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { usePermissions } from '@/hooks/use-permissions';
+import { useTenant } from '@/hooks/use-tenant';
 import { 
   LayoutDashboard, 
   Users, 
@@ -148,6 +149,7 @@ const navigationModules: NavigationModule[] = [
 export function AppSidebar() {
   const location = useLocation();
   const { hasPermission, isAdmin } = usePermissions();
+  const { isSuperAdmin } = useTenant();
   const currentPath = location.pathname;
 
   const isActive = (path: string) => {
@@ -167,7 +169,8 @@ export function AppSidebar() {
   const filterModuleItems = (items: NavigationItem[]) => {
     return items.filter(item => {
       if (item.permission === 'super_admin.access') {
-        return isAdmin && hasPermission && hasPermission('super_admin.access');
+        // Show Global Admin only for super admins
+        return isSuperAdmin;
       }
       if (item.permission === 'admin.access') {
         return isAdmin;

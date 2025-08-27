@@ -89,6 +89,7 @@ const AddContact = () => {
       const { data, error } = await supabase
         .from('customers')
         .select('id, name')
+        .eq('tenant_id', currentTenant.id)
         .eq('active', true)
         .order('name');
 
@@ -106,6 +107,7 @@ const AddContact = () => {
       const { data, error } = await supabase
         .from('sites')
         .select('id, name')
+        .eq('tenant_id', currentTenant.id)
         .eq('active', true)
         .order('name');
 

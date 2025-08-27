@@ -49,6 +49,7 @@ const Customers = () => {
       const { data, error } = await supabase
         .from('customers')
         .select('*')
+        .eq('tenant_id', currentTenant.id)
         .eq('active', true)
         .order('created_at', { ascending: false });
 

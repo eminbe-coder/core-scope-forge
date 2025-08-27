@@ -53,6 +53,7 @@ const Sites = () => {
           *,
           customers(name)
         `)
+        .eq('tenant_id', currentTenant.id)
         .eq('active', true)
         .order('created_at', { ascending: false });
 

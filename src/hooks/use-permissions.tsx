@@ -43,8 +43,8 @@ export const PermissionsProvider = ({ children }: { children: React.ReactNode })
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Check if user is admin
-  const isAdmin = userRole === 'admin';
+  // Check if user is admin (admin or super_admin)
+  const isAdmin = userRole === 'admin' || userRole === 'super_admin';
 
   const fetchPermissions = async () => {
     if (!user || !currentTenant || !userRole) {
@@ -53,7 +53,7 @@ export const PermissionsProvider = ({ children }: { children: React.ReactNode })
     }
 
     try {
-      // If user is admin, they have all permissions
+      // If user is admin or super_admin, they have all permissions
       if (isAdmin) {
         const { data: allPermissions, error: permError } = await supabase
           .from('permissions')
