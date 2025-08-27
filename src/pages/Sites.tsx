@@ -171,14 +171,15 @@ const Sites = () => {
               isSecondary: true,
             },
           ],
+          onClick: () => navigate(`/sites/${site.id}`),
         })}
         columns={[
           {
             key: 'name',
             label: 'Name',
             render: (_, site) => (
-              <div className="space-y-1">
-                <div className="font-medium">{site.name}</div>
+              <div className="space-y-1 cursor-pointer" onClick={() => navigate(`/sites/${site.id}`)}>
+                <div className="font-medium hover:text-primary">{site.name}</div>
                 <div className="text-sm text-muted-foreground">{site.address}</div>
               </div>
             ),
