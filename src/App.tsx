@@ -114,9 +114,9 @@ const App = () => (
                     <Devices />
                   </ProtectedRoute>
                 } />
-                <Route path="/admin" element={
+                <Route path="/settings" element={
                   <ProtectedRoute>
-                    <Admin />
+                    <Settings />
                   </ProtectedRoute>
                 } />
                 <Route path="/global-admin" element={
@@ -132,11 +132,6 @@ const App = () => (
                 <Route path="/pricing" element={
                   <ProtectedRoute>
                     <Pricing />
-                  </ProtectedRoute>
-                } />
-                <Route path="/settings" element={
-                  <ProtectedRoute>
-                    <Settings />
                   </ProtectedRoute>
                 } />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

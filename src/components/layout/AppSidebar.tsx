@@ -126,8 +126,20 @@ const navigationModules: NavigationModule[] = [
     title: 'Administration',
     items: [
       {
-        title: 'Admin Panel',
-        url: '/admin',
+        title: 'Users & Roles',
+        url: '/users-roles',
+        icon: Users,
+        permission: 'admin.access',
+      },
+      {
+        title: 'Pricing',
+        url: '/settings?tab=currency',
+        icon: DollarSign,
+        permission: 'admin.access',
+      },
+      {
+        title: 'CRM Settings',
+        url: '/settings?tab=crm',
         icon: Settings,
         permission: 'admin.access',
       },
@@ -136,18 +148,6 @@ const navigationModules: NavigationModule[] = [
         url: '/global-admin',
         icon: Shield,
         permission: 'super_admin.access',
-      },
-      {
-        title: 'Users & Roles',
-        url: '/users-roles',
-        icon: Users,
-        permission: 'admin.access',
-      },
-      {
-        title: 'Pricing',
-        url: '/pricing',
-        icon: DollarSign,
-        permission: 'admin.access',
       },
     ]
   },
