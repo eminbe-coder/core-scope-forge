@@ -44,6 +44,15 @@ interface Contact {
   last_name: string;
   email?: string;
   created_at: string;
+  notes?: string;
+}
+
+interface Company {
+  id: string;
+  name: string;
+  email?: string;
+  created_at: string;
+  notes?: string;
 }
 
 const SiteDetail = () => {
@@ -54,6 +63,7 @@ const SiteDetail = () => {
   const [site, setSite] = useState<Site | null>(null);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -88,8 +98,48 @@ const SiteDetail = () => {
       if (dealsQuery.error) throw dealsQuery.error;
       setDeals(dealsQuery.data || []);
 
-      // Skip contacts for now to avoid type issues
-      setContacts([]);
+      // Fetch linked contacts with notes
+      const { data: contactLinksData, error: contactLinksError } = await supabase
+        .from('contact_sites')
+        .select(`
+          notes,
+          contacts(id, first_name, last_name, email, created_at)
+        `)
+        .eq('site_id', id);
+
+      if (contactLinksError) throw contactLinksError;
+      
+      const linkedContacts = contactLinksData?.map(link => ({
+        id: (link.contacts as any)?.id,
+        first_name: (link.contacts as any)?.first_name,
+        last_name: (link.contacts as any)?.last_name,
+        email: (link.contacts as any)?.email,
+        created_at: (link.contacts as any)?.created_at,
+        notes: link.notes,
+      })).filter(contact => contact.id) || [];
+      
+      setContacts(linkedContacts);
+
+      // Fetch linked companies with notes
+      const { data: companyLinksData, error: companyLinksError } = await supabase
+        .from('company_sites')
+        .select(`
+          notes,
+          companies(id, name, email, created_at)
+        `)
+        .eq('site_id', id);
+
+      if (companyLinksError) throw companyLinksError;
+      
+      const linkedCompanies = companyLinksData?.map(link => ({
+        id: (link.companies as any)?.id,
+        name: (link.companies as any)?.name,
+        email: (link.companies as any)?.email,
+        created_at: (link.companies as any)?.created_at,
+        notes: link.notes,
+      })).filter(company => company.id) || [];
+      
+      setCompanies(linkedCompanies);
 
     } catch (error: any) {
       console.error('Error fetching site data:', error);
@@ -237,7 +287,7 @@ const SiteDetail = () => {
           </Card>
         </div>
 
-        {/* Deals and Contacts Tabs */}
+        {/* Deals, Contacts, and Companies Tabs */}
         <Tabs defaultValue="deals" className="space-y-4">
           <TabsList>
             <TabsTrigger value="deals" className="flex items-center gap-2">
@@ -247,6 +297,10 @@ const SiteDetail = () => {
             <TabsTrigger value="contacts" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               Contacts ({contacts.length})
+            </TabsTrigger>
+            <TabsTrigger value="companies" className="flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              Companies ({companies.length})
             </TabsTrigger>
           </TabsList>
 
@@ -307,11 +361,13 @@ const SiteDetail = () => {
                           <p className="text-sm text-muted-foreground">
                             {contact.email || 'No email'}
                           </p>
+                          {contact.notes && (
+                            <p className="text-xs text-muted-foreground font-medium mt-1">
+                              {contact.notes}
+                            </p>
+                          )}
                         </div>
                         <div className="text-right">
-                          <p className="text-sm text-muted-foreground">
-                            Contact
-                          </p>
                           <p className="text-xs text-muted-foreground">
                             {new Date(contact.created_at).toLocaleDateString()}
                           </p>
@@ -322,6 +378,48 @@ const SiteDetail = () => {
                 ) : (
                   <p className="text-muted-foreground text-center py-8">
                     No contacts connected to this site yet.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="companies" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Linked Companies</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {companies.length > 0 ? (
+                  <div className="space-y-4">
+                    {companies.map((company) => (
+                      <div
+                        key={company.id}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent cursor-pointer"
+                        onClick={() => navigate(`/companies`)}
+                      >
+                        <div>
+                          <h4 className="font-medium">{company.name}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {company.email || 'No email'}
+                          </p>
+                          {company.notes && (
+                            <p className="text-xs text-muted-foreground font-medium mt-1">
+                              {company.notes}
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(company.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-center py-8">
+                    No companies linked to this site yet.
                   </p>
                 )}
               </CardContent>

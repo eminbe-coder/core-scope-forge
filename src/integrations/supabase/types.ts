@@ -442,6 +442,30 @@ export type Database = {
         }
         Relationships: []
       }
+      company_sites: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          site_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          site_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          site_id?: string
+        }
+        Relationships: []
+      }
       company_types: {
         Row: {
           active: boolean
@@ -477,18 +501,21 @@ export type Database = {
           contact_id: string
           created_at: string
           id: string
+          notes: string | null
           site_id: string
         }
         Insert: {
           contact_id: string
           created_at?: string
           id?: string
+          notes?: string | null
           site_id: string
         }
         Update: {
           contact_id?: string
           created_at?: string
           id?: string
+          notes?: string | null
           site_id?: string
         }
         Relationships: [
