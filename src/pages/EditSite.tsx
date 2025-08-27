@@ -84,7 +84,7 @@ const EditSite = () => {
           latitude: data.latitude?.toString() || '',
           longitude: data.longitude?.toString() || '',
           notes: data.notes || '',
-          customer_id: data.customer_id || '',
+          customer_id: data.customer_id || 'none',
         });
       }
     } catch (error: any) {
@@ -131,7 +131,7 @@ const EditSite = () => {
           latitude: data.latitude ? parseFloat(data.latitude) : null,
           longitude: data.longitude ? parseFloat(data.longitude) : null,
           notes: data.notes || null,
-          customer_id: data.customer_id || null,
+          customer_id: data.customer_id === 'none' ? null : data.customer_id || null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', id);
@@ -233,7 +233,7 @@ const EditSite = () => {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="">No customer</SelectItem>
+                            <SelectItem value="none">No customer</SelectItem>
                             {customers.map((customer) => (
                               <SelectItem key={customer.id} value={customer.id}>
                                 {customer.name}
