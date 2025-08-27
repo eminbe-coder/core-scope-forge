@@ -16,6 +16,135 @@ interface OneDriveAuthRequest {
   library_name?: string;
 }
 
+// Helper function to refresh access token
+async function refreshAccessToken(supabase: any, tenant_id: string, refresh_token: string, client_id: string, client_secret: string) {
+  console.log(`Refreshing access token for tenant: ${tenant_id}`);
+  
+  const tokenUrl = 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
+  
+  const response = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      client_id: client_id,
+      client_secret: client_secret,
+      grant_type: 'refresh_token',
+      refresh_token: refresh_token,
+    }),
+  });
+
+  const tokenData = await response.json();
+
+  if (!response.ok) {
+    console.error('Token refresh error:', tokenData);
+    throw new Error(`Token refresh failed: ${tokenData.error_description || tokenData.error}`);
+  }
+
+  // Update stored tokens
+  const expiresAt = new Date(Date.now() + (tokenData.expires_in * 1000));
+  
+  const { error: updateError } = await supabase
+    .from('tenant_onedrive_settings')
+    .update({
+      access_token: tokenData.access_token,
+      refresh_token: tokenData.refresh_token || refresh_token, // Keep old refresh token if new one not provided
+      token_expires_at: expiresAt.toISOString(),
+    })
+    .eq('tenant_id', tenant_id);
+
+  if (updateError) {
+    console.error('Failed to update refreshed tokens:', updateError);
+    throw new Error('Failed to save refreshed tokens');
+  }
+
+  console.log('Access token refreshed successfully');
+  return tokenData.access_token;
+}
+
+// Helper function to make authenticated Graph API requests with automatic token refresh
+async function makeGraphRequest(supabase: any, tenant_id: string, url: string, options: any = {}) {
+  // Get current token settings
+  const { data: settings, error: settingsError } = await supabase
+    .from('tenant_onedrive_settings')
+    .select('access_token, refresh_token, client_id, client_secret, token_expires_at')
+    .eq('tenant_id', tenant_id)
+    .single();
+
+  if (settingsError || !settings) {
+    throw new Error('Tenant OneDrive settings not found');
+  }
+
+  let accessToken = settings.access_token;
+
+  // Check if token is expired or about to expire (within 5 minutes)
+  if (settings.token_expires_at) {
+    const expiresAt = new Date(settings.token_expires_at);
+    const now = new Date();
+    const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000);
+
+    if (expiresAt <= fiveMinutesFromNow) {
+      console.log('Access token expired or expiring soon, refreshing...');
+      if (!settings.refresh_token) {
+        throw new Error('No refresh token available');
+      }
+      
+      accessToken = await refreshAccessToken(
+        supabase, 
+        tenant_id, 
+        settings.refresh_token, 
+        settings.client_id, 
+        settings.client_secret
+      );
+    }
+  }
+
+  // Prepare headers with authorization
+  const headers = {
+    'Authorization': `Bearer ${accessToken}`,
+    ...options.headers
+  };
+
+  console.log(`Making Graph API request to: ${url}`);
+  
+  const response = await fetch(url, {
+    ...options,
+    headers
+  });
+
+  // If we get 401, try refreshing token once
+  if (response.status === 401 && settings.refresh_token) {
+    console.log('Received 401, attempting token refresh...');
+    try {
+      accessToken = await refreshAccessToken(
+        supabase, 
+        tenant_id, 
+        settings.refresh_token, 
+        settings.client_id, 
+        settings.client_secret
+      );
+
+      // Retry the request with new token
+      const retryHeaders = {
+        'Authorization': `Bearer ${accessToken}`,
+        ...options.headers
+      };
+
+      console.log(`Retrying Graph API request to: ${url}`);
+      return await fetch(url, {
+        ...options,
+        headers: retryHeaders
+      });
+    } catch (refreshError) {
+      console.error('Token refresh failed during retry:', refreshError);
+      throw new Error('Authentication failed and token refresh unsuccessful');
+    }
+  }
+
+  return response;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -127,12 +256,18 @@ serve(async (req) => {
             );
           }
 
-          // Get OneDrive root folder ID
+          // Get OneDrive root folder ID using helper function
           const driveResponse = await fetch('https://graph.microsoft.com/v1.0/me/drive/root', {
             headers: {
               'Authorization': `Bearer ${tokenData.access_token}`,
             },
           });
+
+          if (!driveResponse.ok) {
+            const errorData = await driveResponse.json();
+            console.error('Failed to get drive root:', errorData);
+            throw new Error('Failed to access OneDrive');
+          }
 
           const driveData = await driveResponse.json();
           const rootFolderId = driveData.id;
@@ -147,7 +282,8 @@ serve(async (req) => {
           // Create folders
           for (const [key, folderName] of Object.entries(folderStructure)) {
             try {
-              await fetch('https://graph.microsoft.com/v1.0/me/drive/root/children', {
+              console.log(`Creating folder: ${folderName}`);
+              const folderResponse = await fetch('https://graph.microsoft.com/v1.0/me/drive/root/children', {
                 method: 'POST',
                 headers: {
                   'Authorization': `Bearer ${tokenData.access_token}`,
@@ -159,8 +295,19 @@ serve(async (req) => {
                   '@microsoft.graph.conflictBehavior': 'rename'
                 }),
               });
+
+              if (!folderResponse.ok) {
+                const folderError = await folderResponse.json();
+                console.log(`Folder creation response for ${folderName}:`, folderError);
+                // Continue if folder already exists
+                if (folderError.error?.code !== 'nameAlreadyExists') {
+                  console.error(`Failed to create folder ${folderName}:`, folderError);
+                }
+              } else {
+                console.log(`Successfully created folder: ${folderName}`);
+              }
             } catch (error) {
-              console.log(`Folder ${folderName} might already exist:`, error);
+              console.log(`Error creating folder ${folderName}:`, error);
             }
           }
 
@@ -222,16 +369,14 @@ serve(async (req) => {
           );
         }
 
-        // Test connection by getting user's drive info
+        // Test connection by getting user's drive info using helper function
         try {
-          const driveResponse = await fetch('https://graph.microsoft.com/v1.0/me/drive', {
-            headers: {
-              'Authorization': `Bearer ${settings.access_token}`,
-            },
-          });
+          console.log('Testing OneDrive connection...');
+          const driveResponse = await makeGraphRequest(supabase, tenant_id, 'https://graph.microsoft.com/v1.0/me/drive');
 
           if (driveResponse.ok) {
             const driveInfo = await driveResponse.json();
+            console.log('Connection test successful');
             return new Response(
               JSON.stringify({ 
                 success: true, 
@@ -241,15 +386,23 @@ serve(async (req) => {
               { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
           } else {
+            const errorData = await driveResponse.json();
+            console.error('Connection test failed:', errorData);
             return new Response(
-              JSON.stringify({ success: false, error: 'Failed to access OneDrive' }),
+              JSON.stringify({ 
+                success: false, 
+                error: `Failed to access OneDrive: ${errorData.error?.message || 'Unknown error'}` 
+              }),
               { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
           }
         } catch (error) {
           console.error('Test connection error:', error);
           return new Response(
-            JSON.stringify({ success: false, error: 'Connection test failed' }),
+            JSON.stringify({ 
+              success: false, 
+              error: `Connection test failed: ${error.message}` 
+            }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
@@ -278,26 +431,22 @@ serve(async (req) => {
         }
 
         try {
-          // Get available sites with document libraries
-          const sitesResponse = await fetch('https://graph.microsoft.com/v1.0/sites?search=*', {
-            headers: {
-              'Authorization': `Bearer ${settings.access_token}`,
-            },
-          });
+          // Get available sites with document libraries using helper function
+          console.log('Fetching SharePoint sites...');
+          const sitesResponse = await makeGraphRequest(supabase, tenant_id, 'https://graph.microsoft.com/v1.0/sites?search=*');
 
           if (!sitesResponse.ok) {
-            throw new Error('Failed to fetch sites');
+            const sitesError = await sitesResponse.json();
+            console.error('Failed to fetch sites:', sitesError);
+            throw new Error(`Failed to fetch sites: ${sitesError.error?.message || 'Unknown error'}`);
           }
 
           const sitesData = await sitesResponse.json();
           const libraries = [];
 
           // Add the personal OneDrive as default option
-          const driveResponse = await fetch('https://graph.microsoft.com/v1.0/me/drive', {
-            headers: {
-              'Authorization': `Bearer ${settings.access_token}`,
-            },
-          });
+          console.log('Fetching personal OneDrive...');
+          const driveResponse = await makeGraphRequest(supabase, tenant_id, 'https://graph.microsoft.com/v1.0/me/drive');
 
           if (driveResponse.ok) {
             const driveData = await driveResponse.json();
@@ -307,16 +456,18 @@ serve(async (req) => {
               type: 'personal',
               webUrl: driveData.webUrl
             });
+            console.log('Successfully fetched personal OneDrive');
+          } else {
+            const driveError = await driveResponse.json();
+            console.error('Failed to fetch personal OneDrive:', driveError);
           }
 
           // Add site document libraries
+          console.log(`Processing ${sitesData.value?.length || 0} SharePoint sites...`);
           for (const site of sitesData.value || []) {
             try {
-              const drivesResponse = await fetch(`https://graph.microsoft.com/v1.0/sites/${site.id}/drives`, {
-                headers: {
-                  'Authorization': `Bearer ${settings.access_token}`,
-                },
-              });
+              console.log(`Fetching drives for site: ${site.displayName}`);
+              const drivesResponse = await makeGraphRequest(supabase, tenant_id, `https://graph.microsoft.com/v1.0/sites/${site.id}/drives`);
 
               if (drivesResponse.ok) {
                 const drivesData = await drivesResponse.json();
@@ -331,6 +482,10 @@ serve(async (req) => {
                     });
                   }
                 }
+                console.log(`Found ${drivesData.value?.length || 0} drives for site: ${site.displayName}`);
+              } else {
+                const drivesError = await drivesResponse.json();
+                console.log(`Failed to fetch drives for site ${site.displayName}:`, drivesError);
               }
             } catch (error) {
               console.log(`Error fetching drives for site ${site.id}:`, error);

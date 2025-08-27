@@ -158,16 +158,43 @@ export const OneDriveSettings = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Library fetch error:', error);
+        throw error;
+      }
 
       if (data.libraries) {
         setLibraries(data.libraries);
+        
+        // Show success message if libraries were found
+        if (data.libraries.length > 0) {
+          toast({
+            title: "Libraries loaded",
+            description: `Found ${data.libraries.length} available document libraries.`
+          });
+        } else {
+          toast({
+            title: "No libraries found",
+            description: "No accessible document libraries were found in your OneDrive or SharePoint sites.",
+            variant: "destructive"
+          });
+        }
       }
     } catch (error) {
       console.error('Error fetching libraries:', error);
+      
+      // Provide specific error messaging
+      let errorMessage = "Failed to fetch available document libraries.";
+      
+      if (error.message && error.message.includes('401')) {
+        errorMessage = "Authentication expired. Please reconnect to OneDrive.";
+      } else if (error.message && error.message.includes('403')) {
+        errorMessage = "Access denied. Please check your OneDrive permissions.";
+      }
+      
       toast({
-        title: "Error",
-        description: "Failed to fetch available document libraries.",
+        title: "Error loading libraries",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -224,6 +251,9 @@ export const OneDriveSettings = () => {
       return;
     }
 
+    // Save settings first to ensure they're stored
+    await handleSave();
+
     try {
       const { data, error } = await supabase.functions.invoke('onedrive-auth', {
         body: {
@@ -234,21 +264,24 @@ export const OneDriveSettings = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('OneDrive connection error:', error);
+        throw error;
+      }
 
-        if (data.auth_url) {
-          window.open(data.auth_url, '_blank', 'width=600,height=700');
-          
-          toast({
-            title: "Authentication started",
-            description: "Please complete the authentication in the popup window. After authentication, refresh this page to see available libraries."
-          });
-        }
+      if (data.auth_url) {
+        window.open(data.auth_url, '_blank', 'width=600,height=700');
+        
+        toast({
+          title: "Authentication started",
+          description: "Please complete the authentication in the popup window. After authentication, refresh this page to see available libraries."
+        });
+      }
     } catch (error) {
       console.error('Error initiating OneDrive connection:', error);
       toast({
         title: "Connection error",
-        description: "Failed to initiate OneDrive connection. Please check your credentials.",
+        description: "Failed to initiate OneDrive connection. Please check your credentials and try again.",
         variant: "destructive"
       });
     }
@@ -273,12 +306,15 @@ export const OneDriveSettings = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Test connection error:', error);
+        throw error;
+      }
 
       if (data.success) {
         toast({
           title: "Connection successful",
-          description: "OneDrive connection is working properly."
+          description: `Connected to ${data.drive_name} (${data.owner || 'Unknown user'}).`
         });
       } else {
         toast({
@@ -289,9 +325,18 @@ export const OneDriveSettings = () => {
       }
     } catch (error) {
       console.error('Error testing OneDrive connection:', error);
+      
+      let errorMessage = "Failed to test OneDrive connection.";
+      
+      if (error.message && error.message.includes('401')) {
+        errorMessage = "Authentication expired. Please reconnect to OneDrive.";
+      } else if (error.message && error.message.includes('403')) {
+        errorMessage = "Access denied. Please check your OneDrive permissions.";
+      }
+      
       toast({
         title: "Test failed",
-        description: "Failed to test OneDrive connection.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
