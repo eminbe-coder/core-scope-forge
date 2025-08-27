@@ -24,7 +24,7 @@ const dealSchema = z.object({
   site_id: z.string().optional(),
   value: z.string().optional(),
   currency_id: z.string().optional(),
-  status: z.enum(['lead', 'proposal', 'negotiation', 'won', 'lost']),
+  stage_id: z.string().min(1, 'Stage is required'),
   probability: z.string().optional(),
   expected_close_date: z.string().optional(),
   notes: z.string().optional(),
@@ -71,6 +71,15 @@ interface Currency {
   symbol: string;
 }
 
+interface DealStage {
+  id: string;
+  name: string;
+  description?: string;
+  win_percentage: number;
+  sort_order: number;
+  active: boolean;
+}
+
 export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormProps) {
   const { currentTenant } = useTenant();
   const { toast } = useToast();
@@ -80,6 +89,7 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
   const [sites, setSites] = useState<Site[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [currencies, setCurrencies] = useState<Currency[]>([]);
+  const [stages, setStages] = useState<DealStage[]>([]);
   const [selectedCustomerType, setSelectedCustomerType] = useState<'existing' | 'company' | 'contact'>('existing');
   const [showCompanyModal, setShowCompanyModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
@@ -94,7 +104,7 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
       site_id: '',
       value: '',
       currency_id: '',
-      status: 'lead',
+      stage_id: '',
       probability: '10',
       expected_close_date: '',
       notes: '',
@@ -169,9 +179,25 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
       if (currencyError) throw currencyError;
       setCurrencies(currencyData || []);
 
+      // Load deal stages
+      const { data: stageData, error: stageError } = await supabase
+        .from('deal_stages')
+        .select('*')
+        .eq('tenant_id', currentTenant?.id)
+        .eq('active', true)
+        .order('sort_order');
+
+      if (stageError) throw stageError;
+      setStages(stageData || []);
+
       // Set default currency to tenant's default
       if (currentTenant?.default_currency_id) {
         form.setValue('currency_id', currentTenant.default_currency_id);
+      }
+
+      // Set default stage to first stage
+      if (stageData && stageData.length > 0) {
+        form.setValue('stage_id', stageData[0].id);
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -297,7 +323,7 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
         site_id: data.site_id || null,
         value: data.value ? parseFloat(data.value) : null,
         currency_id: data.currency_id || null,
-        status: data.status,
+        stage_id: data.stage_id,
         probability: data.probability ? parseInt(data.probability) : null,
         expected_close_date: data.expected_close_date || null,
         notes: data.notes || null,
@@ -383,22 +409,22 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
 
                 <FormField
                   control={form.control}
-                  name="status"
+                  name="stage_id"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Status</FormLabel>
+                      <FormLabel>Stage *</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select status" />
+                            <SelectValue placeholder="Select stage" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="lead">Lead</SelectItem>
-                          <SelectItem value="proposal">Proposal</SelectItem>
-                          <SelectItem value="negotiation">Negotiation</SelectItem>
-                          <SelectItem value="won">Won</SelectItem>
-                          <SelectItem value="lost">Lost</SelectItem>
+                          {stages.map((stage) => (
+                            <SelectItem key={stage.id} value={stage.id}>
+                              {stage.name} ({stage.win_percentage}%)
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />

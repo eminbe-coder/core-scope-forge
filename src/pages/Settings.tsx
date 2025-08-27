@@ -3,10 +3,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Settings, Users, Building2, Key, DollarSign } from 'lucide-react';
 import { CurrencySettings } from '@/components/settings/CurrencySettings';
-import { useState } from 'react';
+import { CRMSettings } from '@/components/settings/CRMSettings';
+import { useState, useEffect } from 'react';
 
 const SettingsPage = () => {
   const [activeSection, setActiveSection] = useState<string>('general');
+
+  // Check URL params for tab
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tab = urlParams.get('tab');
+    if (tab) {
+      setActiveSection(tab);
+    }
+  }, []);
 
   return (
     <DashboardLayout>
@@ -53,6 +63,14 @@ const SettingsPage = () => {
               <Key className="mr-2 h-4 w-4" />
               Roles & Permissions
             </Button>
+            <Button
+              variant={activeSection === 'crm' ? 'default' : 'ghost'}
+              className="w-full justify-start"
+              onClick={() => setActiveSection('crm')}
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              CRM Settings
+            </Button>
           </div>
 
           {/* Main Content */}
@@ -93,6 +111,8 @@ const SettingsPage = () => {
             )}
 
             {activeSection === 'currency' && <CurrencySettings />}
+
+            {activeSection === 'crm' && <CRMSettings />}
 
             {activeSection === 'users' && (
               <Card>

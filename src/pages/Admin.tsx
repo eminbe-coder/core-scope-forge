@@ -264,6 +264,33 @@ export default function Admin() {
           </Badge>
         </div>
 
+        {/* CRM Settings for both Admin and Super Admin */}
+        {(isAdmin || isSuperAdmin) && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                CRM Settings
+              </CardTitle>
+              <CardDescription>
+                Configure CRM settings for your tenant
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <Button
+                  onClick={() => window.location.href = '/settings?tab=crm'}
+                  variant="outline"
+                  className="w-full justify-start"
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  Manage Deal Stages
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {isSuperAdmin && (
           <>
             {/* Tenant Management */}

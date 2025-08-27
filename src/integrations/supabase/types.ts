@@ -701,6 +701,42 @@ export type Database = {
           },
         ]
       }
+      deal_stages: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          sort_order: number
+          tenant_id: string
+          updated_at: string
+          win_percentage: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          sort_order?: number
+          tenant_id: string
+          updated_at?: string
+          win_percentage?: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          sort_order?: number
+          tenant_id?: string
+          updated_at?: string
+          win_percentage?: number
+        }
+        Relationships: []
+      }
       deals: {
         Row: {
           assigned_to: string | null
@@ -714,6 +750,7 @@ export type Database = {
           notes: string | null
           probability: number | null
           site_id: string | null
+          stage_id: string | null
           status: Database["public"]["Enums"]["deal_status"]
           tenant_id: string
           updated_at: string
@@ -731,6 +768,7 @@ export type Database = {
           notes?: string | null
           probability?: number | null
           site_id?: string | null
+          stage_id?: string | null
           status?: Database["public"]["Enums"]["deal_status"]
           tenant_id: string
           updated_at?: string
@@ -748,6 +786,7 @@ export type Database = {
           notes?: string | null
           probability?: number | null
           site_id?: string | null
+          stage_id?: string | null
           status?: Database["public"]["Enums"]["deal_status"]
           tenant_id?: string
           updated_at?: string
@@ -780,6 +819,13 @@ export type Database = {
             columns: ["site_id"]
             isOneToOne: false
             referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "deal_stages"
             referencedColumns: ["id"]
           },
           {
