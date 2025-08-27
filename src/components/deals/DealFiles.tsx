@@ -20,10 +20,6 @@ interface DealFile {
   notes?: string;
   created_at: string;
   created_by: string;
-  profiles?: {
-    first_name: string;
-    last_name: string;
-  };
 }
 
 interface DealFilesProps {
@@ -41,22 +37,26 @@ export const DealFiles = ({ dealId }: DealFilesProps) => {
   const [uploadNotes, setUploadNotes] = useState('');
 
   const fetchFiles = async () => {
-    if (!dealId) return;
+    if (!dealId || !currentTenant) return;
 
     try {
-      // First, let's check if we need to create the deal_files table
       const { data, error } = await supabase
         .from('deal_files')
         .select(`
-          *,
-          profiles(first_name, last_name)
+          id,
+          name,
+          file_path,
+          file_size,
+          mime_type,
+          notes,
+          created_at,
+          created_by
         `)
         .eq('deal_id', dealId)
         .order('created_at', { ascending: false });
 
       if (error) {
-        // If table doesn't exist, we'll show empty state
-        console.log('Deal files table not found, showing empty state');
+        console.error('Error fetching files:', error);
         setFiles([]);
       } else {
         setFiles(data || []);
@@ -94,7 +94,20 @@ export const DealFiles = ({ dealId }: DealFilesProps) => {
 
       if (uploadError) throw uploadError;
 
-      // Create deal_files record (this will show an error if table doesn't exist)
+      // Get current user for created_by
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      // Get tenant_id from deal
+      const { data: dealData, error: dealError } = await supabase
+        .from('deals')
+        .select('tenant_id')
+        .eq('id', dealId)
+        .single();
+
+      if (dealError) throw dealError;
+
+      // Create deal_files record
       const { error: dbError } = await supabase
         .from('deal_files')
         .insert({
@@ -104,30 +117,20 @@ export const DealFiles = ({ dealId }: DealFilesProps) => {
           file_size: selectedFile.size,
           mime_type: selectedFile.type,
           notes: uploadNotes,
-          created_by: (await supabase.auth.getUser()).data.user?.id,
+          created_by: user.id,
+          tenant_id: dealData.tenant_id,
         });
 
-      if (dbError) {
-        // If table doesn't exist, show helpful message
-        if (dbError.message.includes('relation "deal_files" does not exist')) {
-          toast({
-            title: 'Database Setup Required',
-            description: 'The deal files feature needs to be set up. Please contact your administrator.',
-            variant: 'destructive',
-          });
-        } else {
-          throw dbError;
-        }
-      } else {
-        toast({
-          title: 'Success',
-          description: 'File uploaded successfully',
-        });
-        fetchFiles();
-        setShowUploadModal(false);
-        setSelectedFile(null);
-        setUploadNotes('');
-      }
+      if (dbError) throw dbError;
+
+      toast({
+        title: 'Success',
+        description: 'File uploaded successfully',
+      });
+      fetchFiles();
+      setShowUploadModal(false);
+      setSelectedFile(null);
+      setUploadNotes('');
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -240,12 +243,6 @@ export const DealFiles = ({ dealId }: DealFilesProps) => {
                         {new Date(file.created_at).toLocaleDateString()}
                       </span>
                       <span>{formatFileSize(file.file_size)}</span>
-                      {file.profiles && (
-                        <span className="flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          {file.profiles.first_name} {file.profiles.last_name}
-                        </span>
-                      )}
                     </div>
                     {file.notes && (
                       <div className="text-xs text-muted-foreground mt-1 bg-accent/50 p-2 rounded">
