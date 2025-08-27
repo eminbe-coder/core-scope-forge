@@ -1584,6 +1584,59 @@ export type Database = {
           },
         ]
       }
+      tenant_onedrive_settings: {
+        Row: {
+          access_token: string | null
+          client_id: string | null
+          client_secret: string | null
+          created_at: string
+          enabled: boolean
+          folder_structure: Json | null
+          id: string
+          refresh_token: string | null
+          root_folder_id: string | null
+          tenant_id: string
+          token_expires_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token?: string | null
+          client_id?: string | null
+          client_secret?: string | null
+          created_at?: string
+          enabled?: boolean
+          folder_structure?: Json | null
+          id?: string
+          refresh_token?: string | null
+          root_folder_id?: string | null
+          tenant_id: string
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string | null
+          client_id?: string | null
+          client_secret?: string | null
+          created_at?: string
+          enabled?: boolean
+          folder_structure?: Json | null
+          id?: string
+          refresh_token?: string | null
+          root_folder_id?: string | null
+          tenant_id?: string
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_tenant_onedrive_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenant_pricing_settings: {
         Row: {
           created_at: string
