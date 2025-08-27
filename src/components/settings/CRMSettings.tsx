@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
@@ -30,6 +31,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { CompanyIndustriesManager } from './CompanyIndustriesManager';
+import { CompanyTypesManager } from './CompanyTypesManager';
 
 const stageSchema = z.object({
   name: z.string().min(1, 'Stage name is required'),
@@ -324,123 +327,141 @@ export function CRMSettings() {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Deal Stages</CardTitle>
-            <CardDescription>
-              Manage deal stages and their winning percentages
-            </CardDescription>
-          </div>
-          <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-            <DialogTrigger asChild>
-              <Button onClick={openCreateModal}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Stage
-              </Button>
-            </DialogTrigger>
+      <Tabs defaultValue="stages" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="stages">Deal Stages</TabsTrigger>
+          <TabsTrigger value="industries">Company Industries</TabsTrigger>
+          <TabsTrigger value="types">Company Types</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="stages" className="space-y-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Deal Stages</CardTitle>
+                <CardDescription>
+                  Manage deal stages and their winning percentages
+                </CardDescription>
+              </div>
+              <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
+                <DialogTrigger asChild>
+                  <Button onClick={openCreateModal}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Stage
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Create New Deal Stage</DialogTitle>
+                    <DialogDescription>
+                      Add a new stage to your deal pipeline
+                    </DialogDescription>
+                  </DialogHeader>
+                  <StageForm />
+                </DialogContent>
+              </Dialog>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Order</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Win %</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {stages.map((stage) => (
+                    <TableRow key={stage.id}>
+                      <TableCell>
+                        <div className="flex items-center">
+                          <GripVertical className="h-4 w-4 text-muted-foreground mr-2" />
+                          {stage.sort_order}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">{stage.name}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm text-muted-foreground">
+                          {stage.description || '-'}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {stage.win_percentage}%
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <Switch
+                            checked={stage.active}
+                            onCheckedChange={() => toggleStageStatus(stage.id, stage.active)}
+                          />
+                          <span className="text-sm">
+                            {stage.active ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEditModal(stage)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDelete(stage.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {stages.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8">
+                        <div className="text-muted-foreground">
+                          No deal stages configured. Create your first stage to get started.
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* Edit Modal */}
+          <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Create New Deal Stage</DialogTitle>
+                <DialogTitle>Edit Deal Stage</DialogTitle>
                 <DialogDescription>
-                  Add a new stage to your deal pipeline
+                  Update the deal stage configuration
                 </DialogDescription>
               </DialogHeader>
               <StageForm />
             </DialogContent>
           </Dialog>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Order</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Win %</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {stages.map((stage) => (
-                <TableRow key={stage.id}>
-                  <TableCell>
-                    <div className="flex items-center">
-                      <GripVertical className="h-4 w-4 text-muted-foreground mr-2" />
-                      {stage.sort_order}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-medium">{stage.name}</div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm text-muted-foreground">
-                      {stage.description || '-'}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {stage.win_percentage}%
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        checked={stage.active}
-                        onCheckedChange={() => toggleStageStatus(stage.id, stage.active)}
-                      />
-                      <span className="text-sm">
-                        {stage.active ? 'Active' : 'Inactive'}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openEditModal(stage)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(stage.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {stages.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
-                    <div className="text-muted-foreground">
-                      No deal stages configured. Create your first stage to get started.
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+        </TabsContent>
 
-      {/* Edit Modal */}
-      <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Deal Stage</DialogTitle>
-            <DialogDescription>
-              Update the deal stage configuration
-            </DialogDescription>
-          </DialogHeader>
-          <StageForm />
-        </DialogContent>
-      </Dialog>
+        <TabsContent value="industries">
+          <CompanyIndustriesManager />
+        </TabsContent>
+
+        <TabsContent value="types">
+          <CompanyTypesManager />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
