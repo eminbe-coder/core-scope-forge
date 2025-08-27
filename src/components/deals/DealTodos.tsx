@@ -154,9 +154,7 @@ export const DealTodos = forwardRef<DealTodosRef, DealTodosProps>(({
                 <CheckSquare className="h-5 w-5" />
                 To-Do Tasks
               </CardTitle>
-              <CardDescription>
-                Manage tasks and follow-ups for this deal
-              </CardDescription>
+              <CardDescription></CardDescription>
             </div>
             <Button onClick={() => setShowCreateModal(true)}>
               <Plus className="h-4 w-4 mr-2" />
