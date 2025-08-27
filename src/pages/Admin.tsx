@@ -47,14 +47,14 @@ interface TenantData {
 export default function Admin() {
   const [tenants, setTenants] = useState<TenantData[]>([]);
   const [memberships, setMemberships] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
   const [showCreateTenant, setShowCreateTenant] = useState(false);
   const [showEditTenant, setShowEditTenant] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState<TenantData | null>(null);
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [selectedTenantId, setSelectedTenantId] = useState('');
   const { toast } = useToast();
-  const { isSuperAdmin, userRole, isAdmin } = useTenant();
+  const { isSuperAdmin, userRole, isAdmin, loading: tenantLoading } = useTenant();
 
   const fetchTenants = async () => {
     try {
@@ -94,15 +94,17 @@ export default function Admin() {
 
   useEffect(() => {
     const loadData = async () => {
-      setLoading(true);
+      setDataLoading(true);
       if (isSuperAdmin) {
         await Promise.all([fetchTenants(), fetchMemberships()]);
       }
-      setLoading(false);
+      setDataLoading(false);
     };
 
-    loadData();
-  }, [isSuperAdmin]);
+    if (!tenantLoading) {
+      loadData();
+    }
+  }, [isSuperAdmin, tenantLoading]);
 
   const handleCreateSuccess = () => {
     setShowCreateTenant(false);
@@ -157,12 +159,28 @@ export default function Admin() {
     }
   };
 
-  console.log('Admin Panel Debug:', {
-    isAdmin,
-    isSuperAdmin,
-    userRole,
-    user: 'moaath@bukaai.com' // just for debugging
-  });
+  // Debug logging
+  useEffect(() => {
+    console.log('Admin Panel Debug:', {
+      isAdmin,
+      isSuperAdmin,
+      userRole,
+      tenantLoading,
+      dataLoading,
+      user: 'moaath@bukaai.com'
+    });
+  }, [isAdmin, isSuperAdmin, userRole, tenantLoading, dataLoading]);
+
+  // Wait for tenant loading to complete before checking access
+  if (tenantLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <p>Loading admin panel...</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   if (!isAdmin) {
     return (
@@ -180,15 +198,6 @@ export default function Admin() {
     );
   }
 
-  if (loading) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <p>Loading...</p>
-        </div>
-      </DashboardLayout>
-    );
-  }
 
   return (
     <DashboardLayout>

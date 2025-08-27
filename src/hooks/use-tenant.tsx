@@ -73,9 +73,11 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
     setCurrentTenantState(tenant);
     localStorage.setItem('currentTenantId', tenant.id);
     
-    // Find user role in this tenant
-    const membership = userTenants.find(m => m.tenant_id === tenant.id);
-    setUserRole(membership?.role || null);
+    // Find user role in this tenant - but if we're already super admin, keep that role
+    if (userRole !== 'super_admin') {
+      const membership = userTenants.find(m => m.tenant_id === tenant.id);
+      setUserRole(membership?.role || null);
+    }
   };
 
   const refreshTenants = async () => {
@@ -125,8 +127,11 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
         console.log('Setting user role to super_admin and tenants:', mappedTenants);
         setUserTenants(mappedTenants);
         setUserRole('super_admin');
+        
+        // Set current tenant if not already set
         if (mappedTenants.length > 0 && !currentTenant) {
-          await setCurrentTenant(mappedTenants[0].tenant);
+          setCurrentTenantState(mappedTenants[0].tenant);
+          localStorage.setItem('currentTenantId', mappedTenants[0].tenant.id);
         }
         return;
       }
