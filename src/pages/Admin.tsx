@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Users, Building, Settings, UserPlus, Edit, Search, Filter } from 'lucide-react';
+import { Plus, Users, Building, Settings, UserPlus, Edit, Search, Filter, DollarSign } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useTenant } from '@/hooks/use-tenant';
@@ -209,18 +209,6 @@ export default function Admin() {
     }
   };
 
-  // Debug logging
-  useEffect(() => {
-    console.log('Admin Panel Debug:', {
-      isAdmin,
-      isSuperAdmin,
-      userRole,
-      tenantLoading,
-      dataLoading,
-      user: 'moaath@bukaai.com'
-    });
-  }, [isAdmin, isSuperAdmin, userRole, tenantLoading, dataLoading]);
-
   // Wait for tenant loading to complete before checking access
   if (tenantLoading) {
     return (
@@ -240,7 +228,6 @@ export default function Admin() {
             <CardTitle>Access Denied</CardTitle>
             <CardDescription>
               You don't have permission to access the admin panel.
-              Debug: isAdmin={String(isAdmin)}, isSuperAdmin={String(isSuperAdmin)}, userRole={userRole}
             </CardDescription>
           </CardHeader>
         </Card>
@@ -248,24 +235,29 @@ export default function Admin() {
     );
   }
 
-
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Admin Panel</h1>
+            <h1 className="text-3xl font-bold text-foreground">
+              {isSuperAdmin ? 'Global Admin Panel' : 'Tenant Administration'}
+            </h1>
             <p className="text-muted-foreground">
-              {isSuperAdmin ? 'Manage tenants and users across the platform' : 'System administration and management'}
+              {isSuperAdmin 
+                ? 'Manage tenants and users across the platform' 
+                : 'Manage your tenant settings and users'
+              }
             </p>
           </div>
           <Badge variant={isSuperAdmin ? "destructive" : "secondary"} className="text-lg px-3 py-1">
-            {userRole === 'super_admin' ? 'Super Admin' : 'Admin'}
+            {userRole === 'super_admin' ? 'Super Admin' : 'Tenant Admin'}
           </Badge>
         </div>
 
-        {/* CRM Settings for both Admin and Super Admin */}
-        {(isAdmin || isSuperAdmin) && (
+        {/* Tenant Admin Features - Always visible to both admin types */}
+        <div className="grid gap-6">
+          {/* CRM Settings */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -273,331 +265,331 @@ export default function Admin() {
                 CRM Settings
               </CardTitle>
               <CardDescription>
-                Configure CRM settings for your tenant
+                Configure CRM settings for {isSuperAdmin ? 'any tenant' : 'your tenant'}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <Button
-                  onClick={() => window.location.href = '/settings?tab=crm'}
-                  variant="outline"
-                  className="w-full justify-start"
-                >
-                  <Settings className="h-4 w-4 mr-2" />
-                  Manage Deal Stages
-                </Button>
-              </div>
+              <Button
+                onClick={() => window.location.href = '/settings?tab=crm'}
+                variant="outline"
+                className="w-full justify-start"
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Manage Deal Stages
+              </Button>
             </CardContent>
           </Card>
-        )}
 
+          {/* User Management for Current Tenant */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                User Management
+              </CardTitle>
+              <CardDescription>
+                Manage users in {isSuperAdmin ? 'all tenants' : 'your tenant'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                User management for your tenant will be available here.
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Pricing Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5" />
+                Pricing Settings
+              </CardTitle>
+              <CardDescription>
+                Configure pricing and currency settings
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                onClick={() => window.location.href = '/settings?tab=currency'}
+                variant="outline"
+                className="w-full justify-start"
+              >
+                <DollarSign className="h-4 w-4 mr-2" />
+                Manage Currency Settings
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Super Admin Only Features */}
         {isSuperAdmin && (
-          <>
-            {/* Tenant Management */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
+          <div className="border-t pt-6">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-foreground">Global Administration</h2>
+              <p className="text-muted-foreground">
+                Super admin features for managing the entire platform
+              </p>
+            </div>
+
+            <div className="space-y-6">
+              {/* Global Tenant Management */}
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Building className="h-5 w-5" />
+                      Global Tenant Management
+                    </CardTitle>
+                    <CardDescription>
+                      Create and manage all tenants across the platform
+                    </CardDescription>
+                  </div>
+                  <Dialog open={showCreateTenant} onOpenChange={setShowCreateTenant}>
+                    <DialogTrigger asChild>
+                      <Button>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Tenant
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Create New Tenant</DialogTitle>
+                        <DialogDescription>
+                          Add a new tenant to the platform
+                        </DialogDescription>
+                      </DialogHeader>
+                      <TenantForm 
+                        onSuccess={handleCreateSuccess}
+                        onCancel={() => setShowCreateTenant(false)}
+                      />
+                    </DialogContent>
+                  </Dialog>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Slug</TableHead>
+                        <TableHead>Location</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {tenants.map((tenant) => (
+                        <TableRow key={tenant.id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{tenant.name}</div>
+                              {tenant.domain && (
+                                <div className="text-sm text-muted-foreground">{tenant.domain}</div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>{tenant.slug}</TableCell>
+                          <TableCell>{tenant.company_location || '-'}</TableCell>
+                          <TableCell>
+                            <Badge variant={tenant.active ? 'default' : 'secondary'}>
+                              {tenant.active ? 'Active' : 'Inactive'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => openEditTenant(tenant)}
+                                title="Edit Tenant"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => openCreateUserModal(tenant.id)}
+                                title="Add User"
+                              >
+                                <UserPlus className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => toggleTenantStatus(tenant.id, tenant.active)}
+                              >
+                                {tenant.active ? 'Deactivate' : 'Activate'}
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+
+              {/* Global User Management */}
+              <Card>
+                <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Building className="h-5 w-5" />
-                    Tenant Management
+                    <Users className="h-5 w-5" />
+                    Global User Management
                   </CardTitle>
                   <CardDescription>
-                    Create and manage tenants across the platform
+                    Manage user access and roles across all tenants ({filteredMemberships.length} users)
                   </CardDescription>
-                </div>
-                <Dialog open={showCreateTenant} onOpenChange={setShowCreateTenant}>
-                  <DialogTrigger asChild>
-                    <Button>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create Tenant
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle>Create New Tenant</DialogTitle>
-                      <DialogDescription>
-                        Add a new tenant to the platform
-                      </DialogDescription>
-                    </DialogHeader>
-                    <TenantForm 
-                      onSuccess={handleCreateSuccess}
-                      onCancel={() => setShowCreateTenant(false)}
-                    />
-                  </DialogContent>
-                </Dialog>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Slug</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {tenants.map((tenant) => (
-                      <TableRow key={tenant.id}>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{tenant.name}</div>
-                            {tenant.domain && (
-                              <div className="text-sm text-muted-foreground">{tenant.domain}</div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>{tenant.slug}</TableCell>
-                        <TableCell>{tenant.company_location || '-'}</TableCell>
-                        <TableCell>
-                          <Badge variant={tenant.active ? 'default' : 'secondary'}>
-                            {tenant.active ? 'Active' : 'Inactive'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => openEditTenant(tenant)}
-                              title="Edit Tenant"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => openCreateUserModal(tenant.id)}
-                              title="Add User"
-                            >
-                              <UserPlus className="h-4 w-4" />
-                            </Button>
+                </CardHeader>
+                <CardContent>
+                  {/* Filters */}
+                  <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                    <div className="flex-1">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search by name or email..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="pl-10"
+                        />
+                      </div>
+                    </div>
+                    <Select value={filterTenant} onValueChange={setFilterTenant}>
+                      <SelectTrigger className="w-[200px]">
+                        <Filter className="h-4 w-4 mr-2" />
+                        <SelectValue placeholder="Filter by tenant" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Tenants</SelectItem>
+                        {tenants.map((tenant) => (
+                          <SelectItem key={tenant.id} value={tenant.id}>
+                            {tenant.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={filterRole} onValueChange={setFilterRole}>
+                      <SelectTrigger className="w-[150px]">
+                        <SelectValue placeholder="Filter by role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Roles</SelectItem>
+                        <SelectItem value="super_admin">Super Admin</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="member">Member</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>User</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Tenant</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Joined</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredMemberships.map((membership) => (
+                        <TableRow key={membership.id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">
+                                {membership.user_profile?.first_name} {membership.user_profile?.last_name}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm">{membership.user_profile?.email}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{membership.tenant?.name}</div>
+                              <div className="text-sm text-muted-foreground">{membership.tenant?.slug}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={membership.role === 'super_admin' ? 'destructive' : membership.role === 'admin' ? 'default' : 'secondary'}>
+                              {membership.role.replace('_', ' ')}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={membership.active ? 'default' : 'secondary'}>
+                              {membership.active ? 'Active' : 'Inactive'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm">
+                              {new Date(membership.created_at).toLocaleDateString()}
+                            </div>
+                          </TableCell>
+                          <TableCell>
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => toggleTenantStatus(tenant.id, tenant.active)}
+                              onClick={() => openEditUserModal(membership)}
+                              title="Edit User"
                             >
-                              {tenant.active ? 'Deactivate' : 'Activate'}
+                              <Edit className="h-4 w-4" />
                             </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-
-            {/* User Management */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  User Management
-                </CardTitle>
-                <CardDescription>
-                  Manage user access and roles across all tenants ({filteredMemberships.length} users)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {/* Filters */}
-                <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                  <div className="flex-1">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search by name or email..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
-                  </div>
-                  <Select value={filterTenant} onValueChange={setFilterTenant}>
-                    <SelectTrigger className="w-[200px]">
-                      <Filter className="h-4 w-4 mr-2" />
-                      <SelectValue placeholder="Filter by tenant" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Tenants</SelectItem>
-                      {tenants.map((tenant) => (
-                        <SelectItem key={tenant.id} value={tenant.id}>
-                          {tenant.name}
-                        </SelectItem>
+                          </TableCell>
+                        </TableRow>
                       ))}
-                    </SelectContent>
-                  </Select>
-                  <Select value={filterRole} onValueChange={setFilterRole}>
-                    <SelectTrigger className="w-[150px]">
-                      <SelectValue placeholder="Filter by role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Roles</SelectItem>
-                      <SelectItem value="super_admin">Super Admin</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="member">Member</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>User</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Tenant</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Joined</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredMemberships.map((membership) => (
-                      <TableRow key={membership.id}>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">
-                              {membership.user_profile?.first_name} {membership.user_profile?.last_name}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">{membership.user_profile?.email}</div>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{membership.tenant?.name}</div>
-                            <div className="text-sm text-muted-foreground">{membership.tenant?.slug}</div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={membership.role === 'super_admin' ? 'destructive' : membership.role === 'admin' ? 'default' : 'secondary'}>
-                            {membership.role.replace('_', ' ')}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={membership.active ? 'default' : 'secondary'}>
-                            {membership.active ? 'Active' : 'Inactive'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            {new Date(membership.created_at).toLocaleDateString()}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openEditUserModal(membership)}
-                            title="Edit User"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {filteredMemberships.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                          {searchTerm || filterTenant !== 'all' || filterRole !== 'all' 
-                            ? 'No users found matching your filters.' 
-                            : 'No users found.'}
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </>
-        )}
-
-        {!isSuperAdmin && (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  User Management
-                </CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">12</div>
-                <p className="text-xs text-muted-foreground">
-                  Total active users
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  System Settings
-                </CardTitle>
-                <Settings className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">5</div>
-                <p className="text-xs text-muted-foreground">
-                  Configuration items
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Permissions
-                </CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">24</div>
-                <p className="text-xs text-muted-foreground">
-                  Role permissions
-                </p>
-              </CardContent>
-            </Card>
+                      {filteredMemberships.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                            {searchTerm || filterTenant !== 'all' || filterRole !== 'all' 
+                              ? 'No users found matching your filters.' 
+                              : 'No users found.'}
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         )}
+
+        {/* Edit Tenant Dialog */}
+        <Dialog open={showEditTenant} onOpenChange={setShowEditTenant}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Tenant</DialogTitle>
+              <DialogDescription>
+                Update tenant information and settings
+              </DialogDescription>
+            </DialogHeader>
+            <TenantForm 
+              tenant={selectedTenant || undefined}
+              onSuccess={handleCreateSuccess}
+              onCancel={() => {
+                setShowEditTenant(false);
+                setSelectedTenant(null);
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+
+        <CreateUserModal
+          open={showCreateUser}
+          onClose={() => setShowCreateUser(false)}
+          tenantId={selectedTenantId}
+          onSuccess={handleUserCreateSuccess}
+        />
+
+        <EditUserModal
+          open={showEditUser}
+          onClose={() => setShowEditUser(false)}
+          membership={selectedMembership}
+          onSuccess={handleUserEditSuccess}
+        />
       </div>
-
-      {/* Edit Tenant Dialog */}
-      <Dialog open={showEditTenant} onOpenChange={setShowEditTenant}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Tenant</DialogTitle>
-            <DialogDescription>
-              Update tenant information and settings
-            </DialogDescription>
-          </DialogHeader>
-          <TenantForm 
-            tenant={selectedTenant || undefined}
-            onSuccess={handleCreateSuccess}
-            onCancel={() => {
-              setShowEditTenant(false);
-              setSelectedTenant(null);
-            }}
-          />
-        </DialogContent>
-      </Dialog>
-
-      <CreateUserModal
-        open={showCreateUser}
-        onClose={() => setShowCreateUser(false)}
-        tenantId={selectedTenantId}
-        onSuccess={handleUserCreateSuccess}
-      />
-
-      <EditUserModal
-        open={showEditUser}
-        onClose={() => setShowEditUser(false)}
-        membership={selectedMembership}
-        onSuccess={handleUserEditSuccess}
-      />
     </DashboardLayout>
   );
 }
