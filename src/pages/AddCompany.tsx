@@ -531,7 +531,7 @@ const AddCompany = () => {
                                   </SelectItem>
                                 ))
                               ) : (
-                                <SelectItem value="" disabled>
+                                <SelectItem value="no-industries-configured" disabled>
                                   No industries configured. Add industries in CRM Settings.
                                 </SelectItem>
                               )}
