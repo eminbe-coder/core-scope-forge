@@ -170,12 +170,27 @@ const SiteDetail = () => {
 
   const loadAvailableContacts = async () => {
     try {
-      const { data, error } = await supabase
+      // Get already linked contact IDs
+      const { data: linkedContacts } = await supabase
+        .from('contact_sites')
+        .select('contact_id')
+        .eq('site_id', id);
+
+      const linkedContactIds = linkedContacts?.map(link => link.contact_id) || [];
+
+      // Get available contacts excluding already linked ones
+      let query = supabase
         .from('contacts')
         .select('id, first_name, last_name, email')
         .eq('tenant_id', currentTenant?.id)
         .eq('active', true)
         .order('first_name');
+
+      if (linkedContactIds.length > 0) {
+        query = query.not('id', 'in', `(${linkedContactIds.join(',')})`);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setAvailableContacts(data || []);
@@ -186,12 +201,27 @@ const SiteDetail = () => {
 
   const loadAvailableCompanies = async () => {
     try {
-      const { data, error } = await supabase
+      // Get already linked company IDs
+      const { data: linkedCompanies } = await supabase
+        .from('company_sites')
+        .select('company_id')
+        .eq('site_id', id);
+
+      const linkedCompanyIds = linkedCompanies?.map(link => link.company_id) || [];
+
+      // Get available companies excluding already linked ones
+      let query = supabase
         .from('companies')
         .select('id, name, email')
         .eq('tenant_id', currentTenant?.id)
         .eq('active', true)
         .order('name');
+
+      if (linkedCompanyIds.length > 0) {
+        query = query.not('id', 'in', `(${linkedCompanyIds.join(',')})`);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setAvailableCompanies(data || []);
@@ -212,15 +242,26 @@ const SiteDetail = () => {
           notes: contactNote || null,
         });
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505') {
+          toast({
+            title: 'Error',
+            description: 'This contact is already linked to this site',
+            variant: 'destructive',
+          });
+          return;
+        }
+        throw error;
+      }
 
       toast({
         title: 'Success',
         description: 'Contact linked to site successfully',
       });
 
-      // Refresh the contacts list
+      // Refresh the data
       fetchSiteData();
+      loadAvailableContacts();
       setLinkContactDialog(false);
       setSelectedContact('');
       setContactNote('');
@@ -245,15 +286,26 @@ const SiteDetail = () => {
           notes: companyNote || null,
         });
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505') {
+          toast({
+            title: 'Error',
+            description: 'This company is already linked to this site',
+            variant: 'destructive',
+          });
+          return;
+        }
+        throw error;
+      }
 
       toast({
         title: 'Success',
         description: 'Company linked to site successfully',
       });
 
-      // Refresh the companies list
+      // Refresh the data
       fetchSiteData();
+      loadAvailableCompanies();
       setLinkCompanyDialog(false);
       setSelectedCompany('');
       setCompanyNote('');
@@ -307,6 +359,8 @@ const SiteDetail = () => {
       });
 
       fetchSiteData();
+      loadAvailableCompanies();
+      loadAvailableContacts();
     } catch (error: any) {
       toast({
         title: 'Error',
