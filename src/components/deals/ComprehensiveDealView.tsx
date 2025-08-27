@@ -194,6 +194,7 @@ export const ComprehensiveDealView = ({ deal, onUpdate }: ComprehensiveDealViewP
     expected_close_date: deal.expected_close_date || '',
     site_id: deal.site_id || 'no-site-selected',
     customer_id: deal.customer_id || '',
+    currency_id: deal.currency_id || currentTenant?.default_currency_id || '',
     customer_reference_number: deal.customer_reference_number || '',
     assigned_to: deal.assigned_to || 'unassigned',
     company_ids: [] as string[],
@@ -211,6 +212,7 @@ export const ComprehensiveDealView = ({ deal, onUpdate }: ComprehensiveDealViewP
         fetchCompanies(),
         fetchContacts(),
         fetchCustomers(),
+        fetchCurrencies(),
         fetchTenantUsers(),
         fetchLinkedEntities(),
         fetchPaymentTerms(),
@@ -269,6 +271,18 @@ export const ComprehensiveDealView = ({ deal, onUpdate }: ComprehensiveDealViewP
 
     if (error) throw error;
     setAvailableCurrencies(data || []);
+  };
+
+  const fetchContacts = async () => {
+    const { data, error } = await supabase
+      .from('contacts')
+      .select('id, first_name, last_name, email')
+      .eq('tenant_id', currentTenant!.id)
+      .eq('active', true)
+      .order('first_name');
+
+    if (error) throw error;
+    setContacts(data || []);
   };
   const fetchCustomers = async () => {
     const { data, error } = await supabase
@@ -508,6 +522,12 @@ export const ComprehensiveDealView = ({ deal, onUpdate }: ComprehensiveDealViewP
       if (editedDeal.customer_reference_number !== deal.customer_reference_number) {
         updateData.customer_reference_number = editedDeal.customer_reference_number;
         changes.push('Customer reference updated');
+      }
+      
+      if (editedDeal.currency_id !== deal.currency_id) {
+        updateData.currency_id = editedDeal.currency_id || null;
+        const currencyName = availableCurrencies.find(c => c.id === editedDeal.currency_id)?.name || 'Default';
+        changes.push(`Currency updated to ${currencyName}`);
       }
       
       if (editedDeal.assigned_to !== deal.assigned_to) {
@@ -1162,6 +1182,37 @@ export const ComprehensiveDealView = ({ deal, onUpdate }: ComprehensiveDealViewP
                     <div className="flex items-center gap-2">
                       <DollarSign className="h-4 w-4 text-muted-foreground" />
                       <span>{deal.value ? formatCurrency(deal.value) : 'Not set'}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <Label>Currency</Label>
+                  {editMode ? (
+                    <Select
+                      value={editedDeal.currency_id}
+                      onValueChange={(value) => setEditedDeal(prev => ({ ...prev, currency_id: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select currency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableCurrencies.map((currency) => (
+                          <SelectItem key={currency.id} value={currency.id}>
+                            {currency.code} - {currency.name} ({currency.symbol})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                      <span>
+                        {deal.currencies?.symbol || currentTenant?.default_currency_id ? 
+                          `${availableCurrencies.find(c => c.id === (deal.currency_id || currentTenant?.default_currency_id))?.code || 'USD'} (${deal.currencies?.symbol || '$'})` :
+                          'Not set'
+                        }
+                      </span>
                     </div>
                   )}
                 </div>

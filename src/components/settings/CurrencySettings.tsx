@@ -122,8 +122,17 @@ export const CurrencySettings = () => {
       });
     } else {
       setDefaultCurrency(selectedCurrency);
-      // Refresh tenant data to update the context
-      refreshTenants();
+      
+      // Update the current tenant in context with new default currency
+      const updatedTenant = {
+        ...currentTenant,
+        default_currency_id: selectedCurrency
+      };
+      setCurrentTenant(updatedTenant);
+      
+      // Also refresh tenant data to ensure consistency
+      await refreshTenants();
+      
       toast({
         title: 'Success',
         description: 'Default currency updated successfully',
