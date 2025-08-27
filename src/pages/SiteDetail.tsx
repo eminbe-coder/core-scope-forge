@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MapPin, Calendar, FileText, CheckSquare, Building2, Users } from 'lucide-react';
+import { MapPin, Calendar, FileText, CheckSquare, Building2, Users, Plus, Search, X } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
@@ -65,10 +70,20 @@ const SiteDetail = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
+  const [linkContactDialog, setLinkContactDialog] = useState(false);
+  const [linkCompanyDialog, setLinkCompanyDialog] = useState(false);
+  const [selectedContact, setSelectedContact] = useState<string>('');
+  const [selectedCompany, setSelectedCompany] = useState<string>('');
+  const [contactNote, setContactNote] = useState('');
+  const [companyNote, setCompanyNote] = useState('');
+  const [availableContacts, setAvailableContacts] = useState<any[]>([]);
+  const [availableCompanies, setAvailableCompanies] = useState<any[]>([]);
 
   useEffect(() => {
     if (currentTenant && id) {
       fetchSiteData();
+      loadAvailableContacts();
+      loadAvailableCompanies();
     }
   }, [currentTenant, id]);
 
@@ -83,7 +98,7 @@ const SiteDetail = () => {
         `)
         .eq('id', id)
         .eq('tenant_id', currentTenant?.id)
-        .single();
+        .maybeSingle();
 
       if (siteError) throw siteError;
       setSite(siteData);
@@ -150,6 +165,154 @@ const SiteDetail = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAvailableContacts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('contacts')
+        .select('id, first_name, last_name, email')
+        .eq('tenant_id', currentTenant?.id)
+        .eq('active', true)
+        .order('first_name');
+
+      if (error) throw error;
+      setAvailableContacts(data || []);
+    } catch (error) {
+      console.error('Error loading contacts:', error);
+    }
+  };
+
+  const loadAvailableCompanies = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('id, name, email')
+        .eq('tenant_id', currentTenant?.id)
+        .eq('active', true)
+        .order('name');
+
+      if (error) throw error;
+      setAvailableCompanies(data || []);
+    } catch (error) {
+      console.error('Error loading companies:', error);
+    }
+  };
+
+  const linkContactToSite = async () => {
+    if (!selectedContact || !id) return;
+
+    try {
+      const { error } = await supabase
+        .from('contact_sites')
+        .insert({
+          contact_id: selectedContact,
+          site_id: id,
+          notes: contactNote || null,
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Contact linked to site successfully',
+      });
+
+      // Refresh the contacts list
+      fetchSiteData();
+      setLinkContactDialog(false);
+      setSelectedContact('');
+      setContactNote('');
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const linkCompanyToSite = async () => {
+    if (!selectedCompany || !id) return;
+
+    try {
+      const { error } = await supabase
+        .from('company_sites')
+        .insert({
+          company_id: selectedCompany,
+          site_id: id,
+          notes: companyNote || null,
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Company linked to site successfully',
+      });
+
+      // Refresh the companies list
+      fetchSiteData();
+      setLinkCompanyDialog(false);
+      setSelectedCompany('');
+      setCompanyNote('');
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const unlinkContact = async (contactId: string) => {
+    try {
+      const { error } = await supabase
+        .from('contact_sites')
+        .delete()
+        .eq('contact_id', contactId)
+        .eq('site_id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Contact unlinked from site',
+      });
+
+      fetchSiteData();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const unlinkCompany = async (companyId: string) => {
+    try {
+      const { error } = await supabase
+        .from('company_sites')
+        .delete()
+        .eq('company_id', companyId)
+        .eq('site_id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Company unlinked from site',
+      });
+
+      fetchSiteData();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
     }
   };
 
@@ -344,8 +507,66 @@ const SiteDetail = () => {
 
           <TabsContent value="contacts" className="space-y-4">
             <Card>
-              <CardHeader>
-                <CardTitle>Connected Contacts</CardTitle>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <CardTitle>Linked Contacts</CardTitle>
+                <div className="flex gap-2">
+                  <Dialog open={linkContactDialog} onOpenChange={setLinkContactDialog}>
+                    <DialogTrigger asChild>
+                      <Button size="sm">
+                        <Search className="h-4 w-4 mr-2" />
+                        Link Contact
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Link Contact to Site</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="contact-select">Select Contact</Label>
+                          <SearchableSelect
+                            value={selectedContact}
+                            onValueChange={setSelectedContact}
+                            placeholder="Search contacts..."
+                            searchPlaceholder="Type to search contacts..."
+                            emptyText="No contacts found"
+                            options={availableContacts.map(contact => ({
+                              id: contact.id,
+                              first_name: contact.first_name,
+                              last_name: contact.last_name,
+                              email: contact.email,
+                            }))}
+                            renderOption={(contact) => 
+                              `${contact.first_name} ${contact.last_name} ${contact.email ? `(${contact.email})` : ''}`.trim()
+                            }
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="contact-note">Relationship Note</Label>
+                          <Textarea
+                            id="contact-note"
+                            placeholder="e.g., Project Manager, Site Supervisor..."
+                            value={contactNote}
+                            onChange={(e) => setContactNote(e.target.value)}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <Button variant="outline" onClick={() => setLinkContactDialog(false)}>
+                            Cancel
+                          </Button>
+                          <Button onClick={linkContactToSite} disabled={!selectedContact}>
+                            Link Contact
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                  <Button size="sm" variant="outline" onClick={() => navigate('/contacts/add')}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Contact
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {contacts.length > 0 ? (
@@ -353,8 +574,7 @@ const SiteDetail = () => {
                     {contacts.map((contact) => (
                       <div
                         key={contact.id}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent cursor-pointer"
-                        onClick={() => navigate(`/contacts`)}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent"
                       >
                         <div>
                           <h4 className="font-medium">{contact.first_name} {contact.last_name}</h4>
@@ -367,17 +587,25 @@ const SiteDetail = () => {
                             </p>
                           )}
                         </div>
-                        <div className="text-right">
+                        <div className="flex items-center gap-2">
                           <p className="text-xs text-muted-foreground">
                             {new Date(contact.created_at).toLocaleDateString()}
                           </p>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => unlinkContact(contact.id)}
+                            className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <p className="text-muted-foreground text-center py-8">
-                    No contacts connected to this site yet.
+                    No contacts linked to this site yet.
                   </p>
                 )}
               </CardContent>
@@ -386,8 +614,65 @@ const SiteDetail = () => {
 
           <TabsContent value="companies" className="space-y-4">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
                 <CardTitle>Linked Companies</CardTitle>
+                <div className="flex gap-2">
+                  <Dialog open={linkCompanyDialog} onOpenChange={setLinkCompanyDialog}>
+                    <DialogTrigger asChild>
+                      <Button size="sm">
+                        <Search className="h-4 w-4 mr-2" />
+                        Link Company
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Link Company to Site</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="company-select">Select Company</Label>
+                          <SearchableSelect
+                            value={selectedCompany}
+                            onValueChange={setSelectedCompany}
+                            placeholder="Search companies..."
+                            searchPlaceholder="Type to search companies..."
+                            emptyText="No companies found"
+                            options={availableCompanies.map(company => ({
+                              id: company.id,
+                              name: company.name,
+                              email: company.email,
+                            }))}
+                            renderOption={(company) => 
+                              `${company.name} ${company.email ? `(${company.email})` : ''}`.trim()
+                            }
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="company-note">Relationship Note</Label>
+                          <Textarea
+                            id="company-note"
+                            placeholder="e.g., Site Interior, Construction Partner..."
+                            value={companyNote}
+                            onChange={(e) => setCompanyNote(e.target.value)}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <Button variant="outline" onClick={() => setLinkCompanyDialog(false)}>
+                            Cancel
+                          </Button>
+                          <Button onClick={linkCompanyToSite} disabled={!selectedCompany}>
+                            Link Company
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                  <Button size="sm" variant="outline" onClick={() => navigate('/companies/add')}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Company
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {companies.length > 0 ? (
@@ -395,8 +680,7 @@ const SiteDetail = () => {
                     {companies.map((company) => (
                       <div
                         key={company.id}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent cursor-pointer"
-                        onClick={() => navigate(`/companies`)}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent"
                       >
                         <div>
                           <h4 className="font-medium">{company.name}</h4>
@@ -409,10 +693,18 @@ const SiteDetail = () => {
                             </p>
                           )}
                         </div>
-                        <div className="text-right">
+                        <div className="flex items-center gap-2">
                           <p className="text-xs text-muted-foreground">
                             {new Date(company.created_at).toLocaleDateString()}
                           </p>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => unlinkCompany(company.id)}
+                            className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
                     ))}
