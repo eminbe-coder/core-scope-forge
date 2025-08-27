@@ -15,6 +15,7 @@ import { ContactsWidget } from './widgets/ContactsWidget';
 import { DealsWidget } from './widgets/DealsWidget';
 import { ProjectsWidget } from './widgets/ProjectsWidget';
 import { ActivitiesWidget } from './widgets/ActivitiesWidget';
+import { IncomingPaymentsWidget } from './widgets/IncomingPaymentsWidget';
 
 export interface WidgetConfig {
   id: string;
@@ -38,6 +39,7 @@ const availableWidgets = [
   { id: 'deals', name: 'Deals', component: DealsWidget },
   { id: 'projects', name: 'Projects', component: ProjectsWidget },
   { id: 'activities', name: 'Recent Activities', component: ActivitiesWidget },
+  { id: 'incoming-payments', name: 'Expected Incoming Payments', component: IncomingPaymentsWidget },
 ];
 
 export function DashboardGrid() {
