@@ -53,6 +53,7 @@ interface EntityListingProps {
       className?: string;
     };
     fields: EntityField[];
+    onClick?: () => void;
   };
   
   // List view configuration

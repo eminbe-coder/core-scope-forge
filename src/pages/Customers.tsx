@@ -128,6 +128,7 @@ const Customers = () => {
             text: customer.type,
             variant: customer.type === 'company' ? 'default' : 'secondary',
           },
+          onClick: () => navigate(`/customers/${customer.id}`),
           fields: [
             ...(customer.email ? [{
               value: customer.email,

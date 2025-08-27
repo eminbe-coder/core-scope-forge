@@ -13,6 +13,7 @@ import Companies from "./pages/Companies";
 import AddCompany from "./pages/AddCompany";
 import EditCompany from "./pages/EditCompany";
 import Customers from "./pages/Customers";
+import CustomerDetail from "./pages/CustomerDetail";
 import Sites from "./pages/Sites";
 import AddSite from "./pages/AddSite";
 import Contacts from "./pages/Contacts";
@@ -66,6 +67,11 @@ const App = () => (
                 <Route path="/customers" element={
                   <ProtectedRoute>
                     <Customers />
+                  </ProtectedRoute>
+                } />
+                <Route path="/customers/:id" element={
+                  <ProtectedRoute>
+                    <CustomerDetail />
                   </ProtectedRoute>
                 } />
                 <Route path="/sites" element={

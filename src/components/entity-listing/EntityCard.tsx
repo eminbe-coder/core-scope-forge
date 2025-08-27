@@ -34,6 +34,7 @@ interface EntityCardProps {
   onEdit?: () => void;
   onDelete?: () => void;
   onToggleLead?: () => void;
+  onClick?: () => void;
   isLead?: boolean;
   editPermission?: string;
   deletePermission?: string;
@@ -50,6 +51,7 @@ export const EntityCard = ({
   onEdit,
   onDelete,
   onToggleLead,
+  onClick,
   isLead = false,
   editPermission,
   deletePermission,
@@ -80,7 +82,11 @@ export const EntityCard = ({
   ];
 
   return (
-    <Card key={id} className="hover:shadow-md transition-shadow cursor-pointer group">
+    <Card 
+      key={id} 
+      className="hover:shadow-md transition-shadow cursor-pointer group"
+      onClick={onClick}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
