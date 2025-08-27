@@ -73,12 +73,8 @@ export function AppHeader({
         <div className="flex-1 flex justify-center">
           {title ? (
             <h1 className="text-lg font-semibold text-foreground">{title}</h1>
-          ) : (isSuperAdmin && currentTenant) ? (
-            <TenantSwitcher />
           ) : currentTenant ? (
-            <h1 className="text-lg font-semibold text-foreground">
-              {currentTenant.name}
-            </h1>
+            <TenantSwitcher />
           ) : null}
         </div>
 

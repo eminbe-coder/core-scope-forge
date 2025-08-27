@@ -2,13 +2,16 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Users, Building, Settings, UserPlus, Edit } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Plus, Users, Building, Settings, UserPlus, Edit, Search, Filter } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useTenant } from '@/hooks/use-tenant';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { TenantForm } from '@/components/forms/TenantForm';
 import { CreateUserModal } from '@/components/forms/CreateUserModal';
+import { EditUserModal } from '@/components/forms/EditUserModal';
 import {
   Dialog,
   DialogContent,
@@ -47,12 +50,18 @@ interface TenantData {
 export default function Admin() {
   const [tenants, setTenants] = useState<TenantData[]>([]);
   const [memberships, setMemberships] = useState<any[]>([]);
+  const [filteredMemberships, setFilteredMemberships] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [showCreateTenant, setShowCreateTenant] = useState(false);
   const [showEditTenant, setShowEditTenant] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState<TenantData | null>(null);
   const [showCreateUser, setShowCreateUser] = useState(false);
+  const [showEditUser, setShowEditUser] = useState(false);
   const [selectedTenantId, setSelectedTenantId] = useState('');
+  const [selectedMembership, setSelectedMembership] = useState<any>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterTenant, setFilterTenant] = useState('all');
+  const [filterRole, setFilterRole] = useState('all');
   const { toast } = useToast();
   const { isSuperAdmin, userRole, isAdmin, loading: tenantLoading } = useTenant();
 
@@ -91,6 +100,32 @@ export default function Admin() {
       });
     }
   };
+
+  // Filter memberships based on search and filters
+  useEffect(() => {
+    let filtered = memberships;
+
+    // Search filter
+    if (searchTerm) {
+      filtered = filtered.filter(membership => 
+        membership.user_profile?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        membership.user_profile?.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        membership.user_profile?.last_name?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Tenant filter
+    if (filterTenant !== 'all') {
+      filtered = filtered.filter(membership => membership.tenant_id === filterTenant);
+    }
+
+    // Role filter
+    if (filterRole !== 'all') {
+      filtered = filtered.filter(membership => membership.role === filterRole);
+    }
+
+    setFilteredMemberships(filtered);
+  }, [memberships, searchTerm, filterTenant, filterRole]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -133,6 +168,21 @@ export default function Admin() {
     toast({
       title: 'Success',
       description: 'User created successfully',
+    });
+  };
+
+  const openEditUserModal = (membership: any) => {
+    setSelectedMembership(membership);
+    setShowEditUser(true);
+  };
+
+  const handleUserEditSuccess = () => {
+    setShowEditUser(false);
+    setSelectedMembership(null);
+    fetchMemberships();
+    toast({
+      title: 'Success',
+      description: 'User updated successfully',
     });
   };
 
@@ -320,10 +370,50 @@ export default function Admin() {
                   User Management
                 </CardTitle>
                 <CardDescription>
-                  Manage user access and roles across all tenants
+                  Manage user access and roles across all tenants ({filteredMemberships.length} users)
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                {/* Filters */}
+                <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search by name or email..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+                  <Select value={filterTenant} onValueChange={setFilterTenant}>
+                    <SelectTrigger className="w-[200px]">
+                      <Filter className="h-4 w-4 mr-2" />
+                      <SelectValue placeholder="Filter by tenant" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Tenants</SelectItem>
+                      {tenants.map((tenant) => (
+                        <SelectItem key={tenant.id} value={tenant.id}>
+                          {tenant.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={filterRole} onValueChange={setFilterRole}>
+                    <SelectTrigger className="w-[150px]">
+                      <SelectValue placeholder="Filter by role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Roles</SelectItem>
+                      <SelectItem value="super_admin">Super Admin</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="member">Member</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -333,19 +423,31 @@ export default function Admin() {
                       <TableHead>Role</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Joined</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {memberships.map((membership) => (
+                    {filteredMemberships.map((membership) => (
                       <TableRow key={membership.id}>
                         <TableCell>
-                          {membership.user_profile?.first_name} {membership.user_profile?.last_name}
+                          <div>
+                            <div className="font-medium">
+                              {membership.user_profile?.first_name} {membership.user_profile?.last_name}
+                            </div>
+                          </div>
                         </TableCell>
-                        <TableCell>{membership.user_profile?.email}</TableCell>
-                        <TableCell>{membership.tenant?.name}</TableCell>
+                        <TableCell>
+                          <div className="text-sm">{membership.user_profile?.email}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{membership.tenant?.name}</div>
+                            <div className="text-sm text-muted-foreground">{membership.tenant?.slug}</div>
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <Badge variant={membership.role === 'super_admin' ? 'destructive' : membership.role === 'admin' ? 'default' : 'secondary'}>
-                            {membership.role}
+                            {membership.role.replace('_', ' ')}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -354,10 +456,31 @@ export default function Admin() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {new Date(membership.created_at).toLocaleDateString()}
+                          <div className="text-sm">
+                            {new Date(membership.created_at).toLocaleDateString()}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEditUserModal(membership)}
+                            title="Edit User"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
+                    {filteredMemberships.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                          {searchTerm || filterTenant !== 'all' || filterRole !== 'all' 
+                            ? 'No users found matching your filters.' 
+                            : 'No users found.'}
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -440,6 +563,13 @@ export default function Admin() {
         onClose={() => setShowCreateUser(false)}
         tenantId={selectedTenantId}
         onSuccess={handleUserCreateSuccess}
+      />
+
+      <EditUserModal
+        open={showEditUser}
+        onClose={() => setShowEditUser(false)}
+        membership={selectedMembership}
+        onSuccess={handleUserEditSuccess}
       />
     </DashboardLayout>
   );
