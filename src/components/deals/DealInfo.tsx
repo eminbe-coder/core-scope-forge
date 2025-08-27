@@ -78,7 +78,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
     stage_id: deal.stage_id || '',
     value: deal.value || 0,
     expected_close_date: deal.expected_close_date || '',
-    site_id: deal.site_id || '',
+    site_id: deal.site_id || 'no-site-selected',
     company_ids: [] as string[],
     contact_ids: [] as string[],
   });
@@ -249,9 +249,9 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
         changes.push(`Expected close date changed from ${oldDate} to ${newDate}`);
       }
 
-      if (editedDeal.site_id !== deal.site_id) {
+      if ((editedDeal.site_id === 'no-site-selected' ? null : editedDeal.site_id) !== deal.site_id) {
         const oldSite = sites.find(s => s.id === deal.site_id);
-        const newSite = sites.find(s => s.id === editedDeal.site_id);
+        const newSite = editedDeal.site_id === 'no-site-selected' ? null : sites.find(s => s.id === editedDeal.site_id);
         changes.push(`Site changed from "${oldSite?.name || 'None'}" to "${newSite?.name || 'None'}"`);
       }
 
@@ -262,7 +262,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
           stage_id: editedDeal.stage_id || null,
           value: editedDeal.value,
           expected_close_date: editedDeal.expected_close_date || null,
-          site_id: editedDeal.site_id || null,
+          site_id: editedDeal.site_id === 'no-site-selected' ? null : editedDeal.site_id || null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', deal.id);
@@ -318,7 +318,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
       stage_id: deal.stage_id || '',
       value: deal.value || 0,
       expected_close_date: deal.expected_close_date || '',
-      site_id: deal.site_id || '',
+      site_id: deal.site_id || 'no-site-selected',
       company_ids: linkedCompanies.map(c => c.id),
       contact_ids: linkedContacts.map(c => c.id),
     });
@@ -466,7 +466,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
                   <SelectValue placeholder="Select site" />
                 </SelectTrigger>
                 <SelectContent className="bg-background border border-border">
-                  <SelectItem value="">No Site</SelectItem>
+                  <SelectItem value="no-site-selected">No Site</SelectItem>
                   {sites.map((site) => (
                     <SelectItem key={site.id} value={site.id}>
                       {site.name} - {site.address}
