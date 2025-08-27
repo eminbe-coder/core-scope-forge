@@ -698,6 +698,22 @@ export const ComprehensiveDealView = ({ deal, onUpdate }: ComprehensiveDealViewP
     setEditedDeal(prev => ({ ...prev, contact_ids: prev.contact_ids.filter(id => id !== contactId) }));
   };
 
+  const handleLinkCompany = (companyId: string) => {
+    const company = companies.find(c => c.id === companyId);
+    if (company && !linkedCompanies.find(c => c.id === companyId)) {
+      setLinkedCompanies(prev => [...prev, company]);
+      setEditedDeal(prev => ({ ...prev, company_ids: [...prev.company_ids, companyId] }));
+    }
+  };
+
+  const handleLinkContact = (contactId: string) => {
+    const contact = contacts.find(c => c.id === contactId);
+    if (contact && !linkedContacts.find(c => c.id === contactId)) {
+      setLinkedContacts(prev => [...prev, contact]);
+      setEditedDeal(prev => ({ ...prev, contact_ids: [...prev.contact_ids, contactId] }));
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header Section */}
@@ -851,6 +867,18 @@ export const ComprehensiveDealView = ({ deal, onUpdate }: ComprehensiveDealViewP
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
+                {/* Search and Select Companies */}
+                <div className="mb-3">
+                  <SearchableSelect
+                    value=""
+                    onValueChange={handleLinkCompany}
+                    options={companies.filter(company => !linkedCompanies.find(lc => lc.id === company.id))}
+                    placeholder="Link company..."
+                    searchPlaceholder="Search companies..."
+                    emptyText="No companies found"
+                  />
+                </div>
+
                 {linkedCompanies.length > 0 ? (
                   linkedCompanies.map((company) => (
                     <div key={company.id} className="flex items-center gap-2 p-2 bg-muted rounded text-sm">
@@ -897,6 +925,19 @@ export const ComprehensiveDealView = ({ deal, onUpdate }: ComprehensiveDealViewP
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
+                {/* Search and Select Contacts */}
+                <div className="mb-3">
+                  <SearchableSelect
+                    value=""
+                    onValueChange={handleLinkContact}
+                    options={contacts.filter(contact => !linkedContacts.find(lc => lc.id === contact.id))}
+                    placeholder="Link contact..."
+                    searchPlaceholder="Search contacts..."
+                    emptyText="No contacts found"
+                    renderOption={(contact) => `${contact.first_name} ${contact.last_name || ''} ${contact.email ? `(${contact.email})` : ''}`.trim()}
+                  />
+                </div>
+
                 {linkedContacts.length > 0 ? (
                   linkedContacts.map((contact) => (
                     <div key={contact.id} className="flex items-center gap-2 p-2 bg-muted rounded text-sm">
