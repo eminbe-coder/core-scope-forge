@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -29,7 +29,11 @@ interface DealTodosProps {
   dealName: string;
 }
 
-export const DealTodos = ({ dealId, dealName }: DealTodosProps) => {
+export interface DealTodosRef {
+  refresh: () => void;
+}
+
+export const DealTodos = forwardRef<DealTodosRef, DealTodosProps>(({ dealId, dealName }, ref) => {
   const { currentTenant } = useTenant();
   const { toast } = useToast();
   const [todos, setTodos] = useState<Todo[]>([]);
@@ -70,6 +74,10 @@ export const DealTodos = ({ dealId, dealName }: DealTodosProps) => {
   useEffect(() => {
     fetchTodos();
   }, [currentTenant, dealId]);
+
+  useImperativeHandle(ref, () => ({
+    refresh: fetchTodos
+  }));
 
   const toggleTodoCompletion = async (todoId: string, completed: boolean) => {
     try {
@@ -271,4 +279,4 @@ export const DealTodos = ({ dealId, dealName }: DealTodosProps) => {
       />
     </>
   );
-};
+});

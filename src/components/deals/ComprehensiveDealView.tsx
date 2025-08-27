@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,7 @@ import {
 import { QuickAddCompanyModal } from '@/components/modals/QuickAddCompanyModal';
 import { QuickAddContactModal } from '@/components/modals/QuickAddContactModal';
 import { QuickAddSiteModal } from '@/components/modals/QuickAddSiteModal';
+import { DealTodos } from './DealTodos';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
@@ -153,7 +154,12 @@ interface ComprehensiveDealViewProps {
   onUpdate: () => void;
 }
 
+interface DealTodosRef {
+  refresh: () => void;
+}
+
 export const ComprehensiveDealView = ({ deal, onUpdate }: ComprehensiveDealViewProps) => {
+  const dealTodosRef = useRef<DealTodosRef>(null);
   const { currentTenant } = useTenant();
   const { toast } = useToast();
   
@@ -555,6 +561,9 @@ export const ComprehensiveDealView = ({ deal, onUpdate }: ComprehensiveDealViewP
 
       setEditMode(false);
       onUpdate();
+      fetchLinkedEntities();
+      fetchPaymentTerms();
+      dealTodosRef.current?.refresh();
       
       toast({
         title: 'Success',
@@ -1066,50 +1075,7 @@ export const ComprehensiveDealView = ({ deal, onUpdate }: ComprehensiveDealViewP
             </CardContent>
           </Card>
 
-          {/* To-Do List */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <CheckSquare className="h-4 w-4" />
-                To-Do List
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {todos.map((todo) => (
-                  <div key={todo.id} className="p-2 bg-muted rounded text-xs">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-medium">
-                        {todo.title?.toLowerCase().includes('email') ? 'Email' :
-                         todo.title?.toLowerCase().includes('call') ? 'Call' :
-                         todo.title?.toLowerCase().includes('follow') ? 'Follow-up' :
-                         todo.title?.toLowerCase().includes('payment') ? 'Payment' :
-                         'Task'}
-                      </span>
-                    </div>
-                    <div className="font-medium text-xs mb-1 truncate">{todo.title}</div>
-                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                      <Calendar className="h-2.5 w-2.5" />
-                      {todo.due_date ? 
-                        new Date(todo.due_date).toLocaleDateString('en-US', { 
-                          month: 'short', 
-                          day: 'numeric' 
-                        }) : 
-                        'No date'
-                      }
-                    </div>
-                  </div>
-                ))}
-                
-                {todos.length === 0 && (
-                  <div className="text-center py-3 text-muted-foreground">
-                    <CheckSquare className="h-6 w-6 mx-auto mb-1 opacity-50" />
-                    <p className="text-xs">No pending todos</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <DealTodos ref={dealTodosRef} dealId={deal.id} dealName={deal.name} />
 
           {/* Quick Stats */}
           <Card>

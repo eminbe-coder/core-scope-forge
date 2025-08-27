@@ -164,11 +164,8 @@ const EditDeal = () => {
         onClose={() => setShowTodoModal(false)}
         onSuccess={() => {
           setShowTodoModal(false);
+          // This will trigger the onUpdate callback which refreshes the DealTodos component
           fetchDeal();
-          toast({
-            title: 'Success',
-            description: 'Todo created successfully',
-          });
         }}
         entityId={deal.id}
         entityType="deal"
