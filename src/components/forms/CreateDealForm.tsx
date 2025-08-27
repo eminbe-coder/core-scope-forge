@@ -15,7 +15,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Building2, User, MapPin } from 'lucide-react';
+import { Plus, Building2, User, MapPin, Calendar, Trash2 } from 'lucide-react';
 
 const dealSchema = z.object({
   name: z.string().min(1, 'Deal name is required'),
@@ -25,6 +25,7 @@ const dealSchema = z.object({
   value: z.string().optional(),
   currency_id: z.string().optional(),
   stage_id: z.string().min(1, 'Stage is required'),
+  priority: z.enum(['low', 'medium', 'high']),
   probability: z.string().optional(),
   expected_close_date: z.string().optional(),
   notes: z.string().optional(),
@@ -80,6 +81,16 @@ interface DealStage {
   active: boolean;
 }
 
+interface PaymentTerm {
+  id?: string;
+  installment_number: number;
+  amount_type: 'fixed' | 'percentage';
+  amount_value: number;
+  calculated_amount?: number;
+  due_date?: string;
+  notes?: string;
+}
+
 export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormProps) {
   const { currentTenant } = useTenant();
   const { toast } = useToast();
@@ -90,6 +101,7 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [stages, setStages] = useState<DealStage[]>([]);
+  const [paymentTerms, setPaymentTerms] = useState<PaymentTerm[]>([]);
   const [selectedCustomerType, setSelectedCustomerType] = useState<'existing' | 'company' | 'contact'>('existing');
   const [showCompanyModal, setShowCompanyModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
@@ -105,6 +117,7 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
       value: '',
       currency_id: '',
       stage_id: '',
+      priority: 'medium',
       probability: '10',
       expected_close_date: '',
       notes: '',
@@ -307,6 +320,10 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
     try {
       let customerId = data.customer_id;
 
+      // Calculate payment terms totals
+      const dealValue = data.value ? parseFloat(data.value) : 0;
+      const updatedPaymentTerms = calculatePaymentTerms(paymentTerms, dealValue);
+
       // If creating customer from company or contact
       if (selectedCustomerType === 'company' && data.customer_id) {
         const customer = await createCustomerFromCompany(data.customer_id);
@@ -324,6 +341,7 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
         value: data.value ? parseFloat(data.value) : null,
         currency_id: data.currency_id || null,
         stage_id: data.stage_id,
+        priority: data.priority,
         probability: data.probability ? parseInt(data.probability) : null,
         expected_close_date: data.expected_close_date || null,
         notes: data.notes || null,
@@ -337,6 +355,26 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
         .single();
 
       if (error) throw error;
+
+      // Save payment terms if any
+      if (updatedPaymentTerms.length > 0) {
+        const paymentTermsData = updatedPaymentTerms.map(term => ({
+          deal_id: deal.id,
+          installment_number: term.installment_number,
+          amount_type: term.amount_type,
+          amount_value: term.amount_value,
+          calculated_amount: term.calculated_amount,
+          due_date: term.due_date || null,
+          notes: term.notes || null,
+          tenant_id: currentTenant.id,
+        }));
+
+        const { error: paymentError } = await supabase
+          .from('deal_payment_terms')
+          .insert(paymentTermsData);
+
+        if (paymentError) throw paymentError;
+      }
 
       // If converting from a lead, remove lead status
       if (leadType && leadId) {
@@ -383,6 +421,62 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
     form.setValue('customer_id', contact.id);
   };
 
+  const calculatePaymentTerms = (terms: PaymentTerm[], totalValue: number): PaymentTerm[] => {
+    if (terms.length === 0 || totalValue === 0) return terms;
+
+    const updatedTerms = [...terms];
+    let totalAllocated = 0;
+
+    // Calculate amounts for all but the last installment
+    for (let i = 0; i < updatedTerms.length - 1; i++) {
+      const term = updatedTerms[i];
+      if (term.amount_type === 'percentage') {
+        term.calculated_amount = (totalValue * term.amount_value) / 100;
+      } else {
+        term.calculated_amount = term.amount_value;
+      }
+      totalAllocated += term.calculated_amount;
+    }
+
+    // Calculate the final installment to balance the total
+    if (updatedTerms.length > 0) {
+      const lastTerm = updatedTerms[updatedTerms.length - 1];
+      lastTerm.calculated_amount = totalValue - totalAllocated;
+    }
+
+    return updatedTerms;
+  };
+
+  const addPaymentTerm = () => {
+    const newTerm: PaymentTerm = {
+      installment_number: paymentTerms.length + 1,
+      amount_type: 'percentage',
+      amount_value: 0,
+      due_date: '',
+      notes: '',
+    };
+    setPaymentTerms([...paymentTerms, newTerm]);
+  };
+
+  const removePaymentTerm = (index: number) => {
+    const updatedTerms = paymentTerms.filter((_, i) => i !== index);
+    // Renumber installments
+    const renumberedTerms = updatedTerms.map((term, i) => ({
+      ...term,
+      installment_number: i + 1,
+    }));
+    setPaymentTerms(renumberedTerms);
+  };
+
+  const updatePaymentTerm = (index: number, field: keyof PaymentTerm, value: any) => {
+    const updatedTerms = [...paymentTerms];
+    updatedTerms[index] = { ...updatedTerms[index], [field]: value };
+    setPaymentTerms(updatedTerms);
+  };
+
+  const dealValue = form.watch('value') ? parseFloat(form.watch('value') || '0') : 0;
+  const calculatedTerms = calculatePaymentTerms(paymentTerms, dealValue);
+
   return (
     <>
       <Card>
@@ -425,6 +519,29 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
                               {stage.name} ({stage.win_percentage}%)
                             </SelectItem>
                           ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="priority"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Priority</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select priority" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="low">Low</SelectItem>
+                          <SelectItem value="medium">Medium</SelectItem>
+                          <SelectItem value="high">High</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -672,6 +789,153 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
                   </FormItem>
                 )}
               />
+
+              {/* Payment Terms Section */}
+              <Card className="p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold">Payment Terms</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Configure installment payments for this deal
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addPaymentTerm}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Installment
+                  </Button>
+                </div>
+
+                {paymentTerms.length > 0 && (
+                  <div className="space-y-4">
+                    {paymentTerms.map((term, index) => (
+                      <div key={index} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="font-medium">Installment #{term.installment_number}</h4>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => removePaymentTerm(index)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <Label>Amount Type</Label>
+                            <Select
+                              value={term.amount_type}
+                              onValueChange={(value: 'fixed' | 'percentage') => 
+                                updatePaymentTerm(index, 'amount_type', value)
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="percentage">Percentage</SelectItem>
+                                <SelectItem value="fixed">Fixed Amount</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div>
+                            <Label>
+                              {term.amount_type === 'percentage' ? 'Percentage (%)' : 'Amount'}
+                            </Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              step={term.amount_type === 'percentage' ? '0.1' : '0.01'}
+                              max={term.amount_type === 'percentage' ? '100' : undefined}
+                              value={term.amount_value}
+                              onChange={(e) => 
+                                updatePaymentTerm(index, 'amount_value', parseFloat(e.target.value) || 0)
+                              }
+                              placeholder={term.amount_type === 'percentage' ? '0.0' : '0.00'}
+                            />
+                          </div>
+
+                          <div>
+                            <Label>Due Date (Optional)</Label>
+                            <Input
+                              type="date"
+                              value={term.due_date || ''}
+                              onChange={(e) => 
+                                updatePaymentTerm(index, 'due_date', e.target.value)
+                              }
+                            />
+                          </div>
+
+                          <div>
+                            <Label>Calculated Amount</Label>
+                            <Input
+                              value={
+                                calculatedTerms[index]?.calculated_amount?.toFixed(2) || '0.00'
+                              }
+                              disabled
+                              className="bg-muted"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="mt-4">
+                          <Label>Notes (Optional)</Label>
+                          <Textarea
+                            value={term.notes || ''}
+                            onChange={(e) => 
+                              updatePaymentTerm(index, 'notes', e.target.value)
+                            }
+                            placeholder="Additional notes for this installment"
+                            rows={2}
+                          />
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Payment Summary */}
+                    {dealValue > 0 && (
+                      <div className="bg-muted p-4 rounded-lg">
+                        <h4 className="font-medium mb-2">Payment Summary</h4>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span>Total Deal Value:</span>
+                            <span className="font-medium">{dealValue.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Total Allocated:</span>
+                            <span className="font-medium">
+                              {calculatedTerms.reduce((sum, term) => sum + (term.calculated_amount || 0), 0).toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between border-t pt-2">
+                            <span>Balance:</span>
+                            <span className={`font-medium ${
+                              Math.abs(dealValue - calculatedTerms.reduce((sum, term) => sum + (term.calculated_amount || 0), 0)) < 0.01
+                                ? 'text-green-600' 
+                                : 'text-orange-600'
+                            }`}>
+                              {(dealValue - calculatedTerms.reduce((sum, term) => sum + (term.calculated_amount || 0), 0)).toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {paymentTerms.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No payment terms configured. Add installments to set up payment schedule.
+                  </div>
+                )}
+              </Card>
 
               <div className="flex justify-end gap-4">
                 <Button type="submit" disabled={loading}>

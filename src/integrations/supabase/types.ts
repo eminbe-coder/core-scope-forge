@@ -701,6 +701,56 @@ export type Database = {
           },
         ]
       }
+      deal_payment_terms: {
+        Row: {
+          amount_type: string
+          amount_value: number
+          calculated_amount: number | null
+          created_at: string
+          deal_id: string
+          due_date: string | null
+          id: string
+          installment_number: number
+          notes: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount_type: string
+          amount_value: number
+          calculated_amount?: number | null
+          created_at?: string
+          deal_id: string
+          due_date?: string | null
+          id?: string
+          installment_number: number
+          notes?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount_type?: string
+          amount_value?: number
+          calculated_amount?: number | null
+          created_at?: string
+          deal_id?: string
+          due_date?: string | null
+          id?: string
+          installment_number?: number
+          notes?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_payment_terms_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deal_stages: {
         Row: {
           active: boolean
@@ -748,6 +798,7 @@ export type Database = {
           id: string
           name: string
           notes: string | null
+          priority: Database["public"]["Enums"]["deal_priority"] | null
           probability: number | null
           site_id: string | null
           stage_id: string | null
@@ -766,6 +817,7 @@ export type Database = {
           id?: string
           name: string
           notes?: string | null
+          priority?: Database["public"]["Enums"]["deal_priority"] | null
           probability?: number | null
           site_id?: string | null
           stage_id?: string | null
@@ -784,6 +836,7 @@ export type Database = {
           id?: string
           name?: string
           notes?: string | null
+          priority?: Database["public"]["Enums"]["deal_priority"] | null
           probability?: number | null
           site_id?: string | null
           stage_id?: string | null
@@ -1632,6 +1685,7 @@ export type Database = {
         | "follow_up"
       app_role: "owner" | "admin" | "member" | "super_admin"
       customer_type: "individual" | "company"
+      deal_priority: "low" | "medium" | "high"
       deal_status:
         | "lead"
         | "qualified"
@@ -1793,6 +1847,7 @@ export const Constants = {
       ],
       app_role: ["owner", "admin", "member", "super_admin"],
       customer_type: ["individual", "company"],
+      deal_priority: ["low", "medium", "high"],
       deal_status: [
         "lead",
         "qualified",
