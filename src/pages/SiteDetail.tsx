@@ -89,6 +89,8 @@ const SiteDetail = () => {
 
   const fetchSiteData = async () => {
     try {
+      console.log('Fetching site data for ID:', id, 'Tenant:', currentTenant?.id);
+      
       // Fetch site details
       const { data: siteData, error: siteError } = await supabase
         .from('sites')
@@ -100,8 +102,19 @@ const SiteDetail = () => {
         .eq('tenant_id', currentTenant?.id)
         .maybeSingle();
 
+      console.log('Site data result:', siteData, 'Error:', siteError);
+
       if (siteError) throw siteError;
       setSite(siteData);
+
+      if (!siteData) {
+        toast({
+          title: 'Error',
+          description: 'Site not found',
+          variant: 'destructive',
+        });
+        return;
+      }
 
       // Fetch deals connected to this site
       const dealsQuery = await supabase
@@ -110,21 +123,29 @@ const SiteDetail = () => {
         .eq('site_id', id)
         .eq('tenant_id', currentTenant?.id);
 
+      console.log('Deals query result:', dealsQuery);
+
       if (dealsQuery.error) throw dealsQuery.error;
       setDeals(dealsQuery.data || []);
 
       // Fetch linked contacts with notes
-      const { data: contactLinksData, error: contactLinksError } = await supabase
+      console.log('Fetching contact links for site ID:', id);
+      const contactLinksQuery = await supabase
         .from('contact_sites')
         .select(`
           notes,
-          contacts(id, first_name, last_name, email, created_at)
+          contacts(id, first_name, last_name, email, created_at, tenant_id)
         `)
         .eq('site_id', id);
 
-      if (contactLinksError) throw contactLinksError;
+      console.log('Contact links result:', contactLinksQuery);
+
+      if (contactLinksQuery.error) {
+        console.error('Contact links error:', contactLinksQuery.error);
+        throw contactLinksQuery.error;
+      }
       
-      const linkedContacts = contactLinksData?.map(link => ({
+      const linkedContacts = contactLinksQuery.data?.map(link => ({
         id: (link.contacts as any)?.id,
         first_name: (link.contacts as any)?.first_name,
         last_name: (link.contacts as any)?.last_name,
@@ -136,17 +157,23 @@ const SiteDetail = () => {
       setContacts(linkedContacts);
 
       // Fetch linked companies with notes
-      const { data: companyLinksData, error: companyLinksError } = await supabase
+      console.log('Fetching company links for site ID:', id);
+      const companyLinksQuery = await supabase
         .from('company_sites')
         .select(`
           notes,
-          companies(id, name, email, created_at)
+          companies(id, name, email, created_at, tenant_id)
         `)
         .eq('site_id', id);
 
-      if (companyLinksError) throw companyLinksError;
+      console.log('Company links result:', companyLinksQuery);
+
+      if (companyLinksQuery.error) {
+        console.error('Company links error:', companyLinksQuery.error);
+        throw companyLinksQuery.error;
+      }
       
-      const linkedCompanies = companyLinksData?.map(link => ({
+      const linkedCompanies = companyLinksQuery.data?.map(link => ({
         id: (link.companies as any)?.id,
         name: (link.companies as any)?.name,
         email: (link.companies as any)?.email,
@@ -160,7 +187,7 @@ const SiteDetail = () => {
       console.error('Error fetching site data:', error);
       toast({
         title: 'Error',
-        description: 'Failed to load site details',
+        description: `Failed to load site details: ${error.message}`,
         variant: 'destructive',
       });
     } finally {
