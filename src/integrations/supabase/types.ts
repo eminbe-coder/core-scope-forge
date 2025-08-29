@@ -1506,6 +1506,48 @@ export type Database = {
           },
         ]
       }
+      reports: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string
+          data_source: string
+          description: string | null
+          id: string
+          name: string
+          query_config: Json
+          tenant_id: string
+          updated_at: string
+          visibility: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by: string
+          data_source: string
+          description?: string | null
+          id?: string
+          name: string
+          query_config?: Json
+          tenant_id: string
+          updated_at?: string
+          visibility?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string
+          data_source?: string
+          description?: string | null
+          id?: string
+          name?: string
+          query_config?: Json
+          tenant_id?: string
+          updated_at?: string
+          visibility?: string
+        }
+        Relationships: []
+      }
       role_permissions: {
         Row: {
           created_at: string
@@ -1541,6 +1583,47 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      saved_reports: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          parameters: Json | null
+          report_id: string
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          parameters?: Json | null
+          report_id: string
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          parameters?: Json | null
+          report_id?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_reports_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
             referencedColumns: ["id"]
           },
         ]

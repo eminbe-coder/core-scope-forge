@@ -33,6 +33,8 @@ import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
 import GlobalAdmin from "./pages/GlobalAdmin";
 import UsersRoles from "./pages/UsersRoles";
+import Reports from "./pages/Reports";
+import ReportBuilder from "./pages/ReportBuilder";
 import Pricing from "./pages/Pricing";
 import Devices from "./pages/Devices";
 import NotFound from "./pages/NotFound";
@@ -174,6 +176,26 @@ const App = () => (
                 <Route path="/pricing" element={
                   <ProtectedRoute>
                     <Pricing />
+                  </ProtectedRoute>
+                } />
+                <Route path="/reports" element={
+                  <ProtectedRoute>
+                    <Reports />
+                  </ProtectedRoute>
+                } />
+                <Route path="/reports/new" element={
+                  <ProtectedRoute>
+                    <ReportBuilder />
+                  </ProtectedRoute>
+                } />
+                <Route path="/reports/:id/edit" element={
+                  <ProtectedRoute>
+                    <ReportBuilder />
+                  </ProtectedRoute>
+                } />
+                <Route path="/reports/:id/run" element={
+                  <ProtectedRoute>
+                    <ReportBuilder />
                   </ProtectedRoute>
                 } />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

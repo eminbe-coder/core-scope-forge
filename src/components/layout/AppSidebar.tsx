@@ -26,7 +26,8 @@ import {
   Target,
   CheckSquare,
   DollarSign,
-  Settings
+  Settings,
+  BarChart3
 } from 'lucide-react';
 
 interface NavigationItem {
@@ -102,6 +103,12 @@ const navigationModules: NavigationModule[] = [
         url: '/todos',
         icon: CheckSquare,
         permission: 'activities.read',
+      },
+      {
+        title: 'Report Engine',
+        url: '/reports',
+        icon: BarChart3,
+        permission: 'reports.read',
       },
     ]
   },
