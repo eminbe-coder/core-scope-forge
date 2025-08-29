@@ -1506,6 +1506,50 @@ export type Database = {
           },
         ]
       }
+      report_exports: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          export_type: string
+          file_path: string | null
+          id: string
+          report_id: string
+          status: string
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          export_type: string
+          file_path?: string | null
+          id?: string
+          report_id: string
+          status?: string
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          export_type?: string
+          file_path?: string | null
+          id?: string
+          report_id?: string
+          status?: string
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_exports_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reports: {
         Row: {
           active: boolean
@@ -1519,6 +1563,7 @@ export type Database = {
           tenant_id: string
           updated_at: string
           visibility: string
+          visualization_type: string
         }
         Insert: {
           active?: boolean
@@ -1532,6 +1577,7 @@ export type Database = {
           tenant_id: string
           updated_at?: string
           visibility?: string
+          visualization_type?: string
         }
         Update: {
           active?: boolean
@@ -1545,6 +1591,7 @@ export type Database = {
           tenant_id?: string
           updated_at?: string
           visibility?: string
+          visualization_type?: string
         }
         Relationships: []
       }
@@ -1621,6 +1668,62 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "saved_reports_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scheduled_reports: {
+        Row: {
+          created_at: string
+          email_recipients: Json
+          id: string
+          is_active: boolean
+          last_run_at: string | null
+          name: string
+          next_run_at: string | null
+          report_id: string
+          schedule_config: Json
+          schedule_type: string
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_recipients?: Json
+          id?: string
+          is_active?: boolean
+          last_run_at?: string | null
+          name: string
+          next_run_at?: string | null
+          report_id: string
+          schedule_config?: Json
+          schedule_type: string
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email_recipients?: Json
+          id?: string
+          is_active?: boolean
+          last_run_at?: string | null
+          name?: string
+          next_run_at?: string | null
+          report_id?: string
+          schedule_config?: Json
+          schedule_type?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_reports_report_id_fkey"
             columns: ["report_id"]
             isOneToOne: false
             referencedRelation: "reports"

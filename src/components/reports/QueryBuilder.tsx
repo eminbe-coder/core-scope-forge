@@ -19,6 +19,7 @@ interface QueryConfig {
     direction: 'asc' | 'desc';
   }>;
   grouping: string[];
+  visualization_type: 'table' | 'bar_chart' | 'pie_chart' | 'kpi_cards';
 }
 
 interface QueryBuilderProps {
@@ -26,6 +27,8 @@ interface QueryBuilderProps {
   onDataSourceChange: (source: string) => void;
   queryConfig: QueryConfig;
   onQueryConfigChange: (config: QueryConfig) => void;
+  visualizationType: string;
+  onVisualizationTypeChange: (type: string) => void;
 }
 
 const DATA_SOURCES = [
@@ -89,7 +92,14 @@ const OPERATORS = [
   { value: 'less_than', label: 'Less Than' },
 ];
 
-export function QueryBuilder({ dataSource, onDataSourceChange, queryConfig, onQueryConfigChange }: QueryBuilderProps) {
+const VISUALIZATION_TYPES = [
+  { value: 'table', label: 'Table' },
+  { value: 'bar_chart', label: 'Bar Chart' },
+  { value: 'pie_chart', label: 'Pie Chart' },
+  { value: 'kpi_cards', label: 'KPI Cards' },
+];
+
+export function QueryBuilder({ dataSource, onDataSourceChange, queryConfig, onQueryConfigChange, visualizationType, onVisualizationTypeChange }: QueryBuilderProps) {
   const availableFields = dataSource ? FIELD_DEFINITIONS[dataSource as keyof typeof FIELD_DEFINITIONS] || [] : [];
 
   const updateQueryConfig = (updates: Partial<QueryConfig>) => {
@@ -158,6 +168,28 @@ export function QueryBuilder({ dataSource, onDataSourceChange, queryConfig, onQu
           </Select>
         </CardContent>
       </Card>
+
+      {dataSource && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Visualization</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Select value={visualizationType} onValueChange={onVisualizationTypeChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select visualization type" />
+              </SelectTrigger>
+              <SelectContent>
+                {VISUALIZATION_TYPES.map((type) => (
+                  <SelectItem key={type.value} value={type.value}>
+                    {type.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+      )}
 
       {dataSource && (
         <>

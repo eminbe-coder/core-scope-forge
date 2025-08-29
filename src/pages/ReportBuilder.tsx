@@ -9,7 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { QueryBuilder } from '@/components/reports/QueryBuilder';
-import { ReportPreview } from '@/components/reports/ReportPreview';
+import { ReportVisualization } from '@/components/reports/ReportVisualization';
+import { ReportExport } from '@/components/reports/ReportExport';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useAuth } from '@/hooks/use-auth';
@@ -27,6 +28,7 @@ interface QueryConfig {
     direction: 'asc' | 'desc';
   }>;
   grouping: string[];
+  visualization_type: 'table' | 'bar_chart' | 'pie_chart' | 'kpi_cards';
   [key: string]: any;
 }
 
@@ -40,12 +42,14 @@ export default function ReportBuilder() {
   const [reportName, setReportName] = useState('');
   const [reportDescription, setReportDescription] = useState('');
   const [dataSource, setDataSource] = useState<string>('');
+  const [visualizationType, setVisualizationType] = useState<'table' | 'bar_chart' | 'pie_chart' | 'kpi_cards'>('table');
   const [visibility, setVisibility] = useState<'private' | 'tenant'>('private');
   const [queryConfig, setQueryConfig] = useState<QueryConfig>({
     fields: [],
     filters: [],
     sorting: [],
     grouping: [],
+    visualization_type: 'table',
   });
   const [previewData, setPreviewData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -72,6 +76,7 @@ export default function ReportBuilder() {
       setReportName(data.name);
       setReportDescription(data.description || '');
       setDataSource(data.data_source);
+      setVisualizationType(data.visualization_type as any);
       setVisibility(data.visibility as 'private' | 'tenant');
       setQueryConfig(data.query_config as QueryConfig);
     } catch (error) {
@@ -166,7 +171,8 @@ export default function ReportBuilder() {
         name: reportName,
         description: reportDescription,
         data_source: dataSource,
-        query_config: queryConfig as any,
+        visualization_type: visualizationType,
+        query_config: { ...queryConfig, visualization_type: visualizationType } as any,
         visibility,
         tenant_id: currentTenant?.id,
         created_by: user?.id,
@@ -225,8 +231,8 @@ export default function ReportBuilder() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Report Details</CardTitle>
@@ -271,6 +277,8 @@ export default function ReportBuilder() {
               onDataSourceChange={setDataSource}
               queryConfig={queryConfig}
               onQueryConfigChange={setQueryConfig}
+              visualizationType={visualizationType}
+              onVisualizationTypeChange={(type: any) => setVisualizationType(type)}
             />
 
             <div className="flex gap-2">
@@ -285,11 +293,19 @@ export default function ReportBuilder() {
             </div>
           </div>
 
-          <div>
-            <ReportPreview
+          <div className="space-y-6">
+            <ReportVisualization
               data={previewData}
               fields={queryConfig.fields}
+              visualizationType={visualizationType}
               loading={loading}
+            />
+            
+            <ReportExport
+              reportId={id !== 'new' ? id : undefined}
+              reportName={reportName}
+              data={previewData}
+              fields={queryConfig.fields}
             />
           </div>
         </div>
