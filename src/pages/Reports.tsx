@@ -131,6 +131,7 @@ export default function Reports() {
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Data Source</TableHead>
+                    <TableHead>Visualization</TableHead>
                     <TableHead>Visibility</TableHead>
                     <TableHead>Created By</TableHead>
                     <TableHead>Created</TableHead>
@@ -151,6 +152,15 @@ export default function Reports() {
                         </div>
                       </TableCell>
                       <TableCell>{getDataSourceLabel(report.data_source)}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {report.visualization_type ? 
+                            report.visualization_type.split('_').map((word: string) => 
+                              word.charAt(0).toUpperCase() + word.slice(1)
+                            ).join(' ') : 'Table'
+                          }
+                        </Badge>
+                      </TableCell>
                       <TableCell>{getVisibilityBadge(report.visibility)}</TableCell>
                       <TableCell>
                         Unknown User

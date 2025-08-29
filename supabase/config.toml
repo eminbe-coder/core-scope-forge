@@ -1,1 +1,7 @@
 project_id = "wyslzrnmnqzntmuwzkwn"
+
+[functions.export-report-pdf]
+verify_jwt = false
+
+[functions.run-scheduled-reports]
+verify_jwt = false

@@ -27,7 +27,8 @@ import {
   CheckSquare,
   DollarSign,
   Settings,
-  BarChart3
+  BarChart3,
+  Calendar
 } from 'lucide-react';
 
 interface NavigationItem {
@@ -108,6 +109,12 @@ const navigationModules: NavigationModule[] = [
         title: 'Report Engine',
         url: '/reports',
         icon: BarChart3,
+        permission: 'reports.read',
+      },
+      {
+        title: 'Scheduled Reports',
+        url: '/scheduled-reports',
+        icon: Calendar,
         permission: 'reports.read',
       },
     ]
