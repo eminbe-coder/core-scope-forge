@@ -28,7 +28,8 @@ import {
   DollarSign,
   Settings,
   BarChart3,
-  Calendar
+  Calendar,
+  FileText
 } from 'lucide-react';
 
 interface NavigationItem {
@@ -85,6 +86,12 @@ const navigationModules: NavigationModule[] = [
         title: 'Deals',
         url: '/deals',
         icon: Handshake,
+        permission: 'deals.read',
+      },
+      {
+        title: 'Contracts',
+        url: '/contracts',
+        icon: FileText,
         permission: 'deals.read',
       },
       {

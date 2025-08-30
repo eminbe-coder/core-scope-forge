@@ -616,6 +616,246 @@ export type Database = {
           },
         ]
       }
+      contract_companies: {
+        Row: {
+          company_id: string
+          contract_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          relationship_type: string | null
+        }
+        Insert: {
+          company_id: string
+          contract_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          relationship_type?: string | null
+        }
+        Update: {
+          company_id?: string
+          contract_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          relationship_type?: string | null
+        }
+        Relationships: []
+      }
+      contract_contacts: {
+        Row: {
+          contact_id: string
+          contract_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          role: string | null
+        }
+        Insert: {
+          contact_id: string
+          contract_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          role?: string | null
+        }
+        Update: {
+          contact_id?: string
+          contract_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          role?: string | null
+        }
+        Relationships: []
+      }
+      contract_payment_attachments: {
+        Row: {
+          attachment_type: string
+          created_at: string
+          created_by: string
+          file_path: string
+          file_size: number
+          id: string
+          mime_type: string
+          name: string
+          notes: string | null
+          payment_term_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          attachment_type: string
+          created_at?: string
+          created_by: string
+          file_path: string
+          file_size: number
+          id?: string
+          mime_type: string
+          name: string
+          notes?: string | null
+          payment_term_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          attachment_type?: string
+          created_at?: string
+          created_by?: string
+          file_path?: string
+          file_size?: number
+          id?: string
+          mime_type?: string
+          name?: string
+          notes?: string | null
+          payment_term_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      contract_payment_stages: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          sort_order: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          sort_order?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          sort_order?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      contract_payment_terms: {
+        Row: {
+          amount_type: string
+          amount_value: number
+          calculated_amount: number | null
+          contract_id: string
+          created_at: string
+          due_date: string | null
+          id: string
+          installment_number: number
+          notes: string | null
+          stage_id: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount_type: string
+          amount_value: number
+          calculated_amount?: number | null
+          contract_id: string
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          installment_number: number
+          notes?: string | null
+          stage_id?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount_type?: string
+          amount_value?: number
+          calculated_amount?: number | null
+          contract_id?: string
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          installment_number?: number
+          notes?: string | null
+          stage_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      contracts: {
+        Row: {
+          assigned_to: string | null
+          created_at: string
+          currency_id: string | null
+          customer_id: string | null
+          customer_reference_number: string | null
+          deal_id: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          name: string
+          notes: string | null
+          signed_date: string | null
+          site_id: string | null
+          start_date: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+          value: number | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          created_at?: string
+          currency_id?: string | null
+          customer_id?: string | null
+          customer_reference_number?: string | null
+          deal_id?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          signed_date?: string | null
+          site_id?: string | null
+          start_date?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+          value?: number | null
+        }
+        Update: {
+          assigned_to?: string | null
+          created_at?: string
+          currency_id?: string | null
+          customer_id?: string | null
+          customer_reference_number?: string | null
+          deal_id?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          signed_date?: string | null
+          site_id?: string | null
+          start_date?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+          value?: number | null
+        }
+        Relationships: []
+      }
       currencies: {
         Row: {
           active: boolean
