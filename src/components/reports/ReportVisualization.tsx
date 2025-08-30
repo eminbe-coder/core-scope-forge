@@ -1,66 +1,97 @@
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, Users, DollarSign, Target } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import { TrendingUp, Users, DollarSign, Target } from 'lucide-react';
 
 interface ReportVisualizationProps {
   data: any[];
   fields: string[];
   visualizationType: string;
-  loading: boolean;
+  dataSource: string;
+  loading?: boolean;
 }
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', '#8884d8', '#82ca9d', '#ffc658'];
 
-export function ReportVisualization({ data, fields, visualizationType, loading }: ReportVisualizationProps) {
+export function ReportVisualization({ data, fields, visualizationType, dataSource, loading = false }: ReportVisualizationProps) {
   if (loading) {
     return <div className="flex items-center justify-center py-8">Loading...</div>;
   }
 
   if (data.length === 0 || fields.length === 0) {
     return (
-      <div className="text-center py-8">
-        <p className="text-muted-foreground">No data available for visualization</p>
-      </div>
+      <Card>
+        <CardContent className="flex items-center justify-center py-8">
+          <div className="text-center">
+            <h3 className="text-lg font-medium">No Data</h3>
+            <p className="text-muted-foreground">No data available for the selected criteria</p>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
-  const formatValue = (value: any, field: string) => {
-    if (value === null || value === undefined) return '-';
-    
-    if (field.includes('date') || field.includes('created_at') || field.includes('updated_at')) {
-      return new Date(value).toLocaleDateString();
-    }
-    
-    if (field === 'value' && typeof value === 'number') {
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-      }).format(value);
-    }
-    
-    if (typeof value === 'boolean') {
-      return value ? 'Yes' : 'No';
-    }
-    
-    return String(value);
-  };
-
-  const getFieldLabel = (field: string) => {
+  const formatFieldName = (field: string) => {
     return field.split('_').map(word => 
       word.charAt(0).toUpperCase() + word.slice(1)
     ).join(' ');
   };
 
-  const renderTable = () => (
-    <div className="overflow-x-auto max-h-96 overflow-y-auto">
+  const formatValue = (value: any, field: string) => {
+    if (value === null || value === undefined) return '-';
+    
+    // Format currency values
+    if (field.includes('value') || field.includes('amount')) {
+      if (typeof value === 'number') {
+        return new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: 'USD'
+        }).format(value);
+      }
+    }
+    
+    // Format dates
+    if (field.includes('date') || field.includes('_at')) {
+      if (typeof value === 'string') {
+        return new Date(value).toLocaleDateString();
+      }
+    }
+    
+    return String(value);
+  };
+
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'active':
+      case 'won':
+      case 'completed':
+      case 'paid':
+        return 'default';
+      case 'pending':
+      case 'in_progress':
+      case 'due':
+        return 'secondary';
+      case 'cancelled':
+      case 'lost':
+      case 'overdue':
+        return 'destructive';
+      case 'draft':
+      case 'proposal':
+        return 'outline';
+      default:
+        return 'outline';
+    }
+  };
+
+  const renderTableVisualization = () => (
+    <div className="overflow-auto max-h-96">
       <Table>
         <TableHeader>
           <TableRow>
             {fields.map((field) => (
-              <TableHead key={field} className="min-w-24">
-                {getFieldLabel(field)}
+              <TableHead key={field} className="whitespace-nowrap">
+                {formatFieldName(field)}
               </TableHead>
             ))}
           </TableRow>
@@ -69,8 +100,14 @@ export function ReportVisualization({ data, fields, visualizationType, loading }
           {data.map((row, index) => (
             <TableRow key={index}>
               {fields.map((field) => (
-                <TableCell key={field} className="max-w-48 truncate">
-                  {formatValue(row[field], field)}
+                <TableCell key={field} className="whitespace-nowrap">
+                  {field.includes('status') || field.includes('stage') ? (
+                    <Badge variant={getStatusBadgeVariant(row[field]) as any}>
+                      {formatValue(row[field], field)}
+                    </Badge>
+                  ) : (
+                    formatValue(row[field], field)
+                  )}
                 </TableCell>
               ))}
             </TableRow>
@@ -80,45 +117,138 @@ export function ReportVisualization({ data, fields, visualizationType, loading }
     </div>
   );
 
-  const renderBarChart = () => {
-    // Use first field as X-axis and second field as Y-axis
-    const xField = fields[0];
-    const yField = fields[1] || fields[0];
-    
-    const chartData = data.slice(0, 10).map(item => ({
-      name: String(item[xField]).slice(0, 20),
-      value: typeof item[yField] === 'number' ? item[yField] : 1,
-    }));
+  const renderKPICards = () => {
+    // Calculate KPIs based on data source
+    const kpis = [];
+
+    if (dataSource === 'contracts') {
+      const totalValue = data.reduce((sum, item) => sum + (item.value || 0), 0);
+      const activeContracts = data.filter(item => item.status === 'active').length;
+      const completedContracts = data.filter(item => item.status === 'completed').length;
+      
+      kpis.push(
+        { label: 'Total Contract Value', value: formatValue(totalValue, 'value'), icon: DollarSign },
+        { label: 'Total Contracts', value: data.length, icon: Target },
+        { label: 'Active Contracts', value: activeContracts, icon: TrendingUp },
+        { label: 'Completed Contracts', value: completedContracts, icon: Users }
+      );
+    } else if (dataSource === 'contract_payments') {
+      const totalAmount = data.reduce((sum, item) => sum + (item.calculated_amount || item.amount_value || 0), 0);
+      const duePayments = data.filter(item => item.stage_name === 'Due').length;
+      const pendingTodos = data.reduce((sum, item) => sum + (item.todos_count || 0), 0);
+      
+      kpis.push(
+        { label: 'Total Payment Amount', value: formatValue(totalAmount, 'amount'), icon: DollarSign },
+        { label: 'Total Payments', value: data.length, icon: Target },
+        { label: 'Due Payments', value: duePayments, icon: TrendingUp },
+        { label: 'Pending To-Dos', value: pendingTodos, icon: Users }
+      );
+    } else if (dataSource === 'deals') {
+      const totalValue = data.reduce((sum, item) => sum + (item.value || 0), 0);
+      const avgProbability = data.reduce((sum, item) => sum + (item.probability || 0), 0) / data.length;
+      const wonDeals = data.filter(item => item.status === 'won').length;
+      
+      kpis.push(
+        { label: 'Total Deal Value', value: formatValue(totalValue, 'value'), icon: DollarSign },
+        { label: 'Total Deals', value: data.length, icon: Target },
+        { label: 'Won Deals', value: wonDeals, icon: TrendingUp },
+        { label: 'Avg Probability', value: `${Math.round(avgProbability)}%`, icon: Users }
+      );
+    } else {
+      kpis.push(
+        { label: 'Total Records', value: data.length, icon: Target },
+        { label: 'Data Source', value: formatFieldName(dataSource), icon: Users }
+      );
+    }
 
     return (
-      <ResponsiveContainer width="100%" height={400}>
-        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {kpis.map((kpi, index) => {
+          const IconComponent = kpi.icon;
+          return (
+            <Card key={index}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{kpi.label}</CardTitle>
+                <IconComponent className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{kpi.value}</div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderBarChart = () => {
+    // Prepare data for bar chart based on first numeric field found
+    const numericField = fields.find(field => 
+      field.includes('value') || field.includes('amount') || field.includes('count')
+    );
+    const labelField = fields.find(field => 
+      field.includes('name') || field.includes('status') || field.includes('stage')
+    ) || fields[0];
+
+    if (!numericField || !labelField) {
+      return <div className="text-center py-8 text-muted-foreground">No suitable fields for bar chart</div>;
+    }
+
+    // Group data by label field and sum numeric values
+    const chartData = data.reduce((acc: any[], item) => {
+      const label = item[labelField] || 'Unknown';
+      const value = parseFloat(item[numericField]) || 0;
+      
+      const existing = acc.find(entry => entry.label === label);
+      if (existing) {
+        existing.value += value;
+      } else {
+        acc.push({ label, value });
+      }
+      
+      return acc;
+    }, []);
+
+    return (
+      <ResponsiveContainer width="100%" height={300}>
+        <BarChart data={chartData}>
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="name" />
+          <XAxis dataKey="label" />
           <YAxis />
           <Tooltip />
           <Legend />
-          <Bar dataKey="value" fill="hsl(var(--primary))" />
+          <Bar dataKey="value" fill="hsl(var(--primary))" name={formatFieldName(numericField)} />
         </BarChart>
       </ResponsiveContainer>
     );
   };
 
   const renderPieChart = () => {
-    // Group data by first field and count occurrences
-    const groupField = fields[0];
-    const groupedData = data.reduce((acc, item) => {
-      const key = String(item[groupField]);
-      acc[key] = (acc[key] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    // Use status or stage field for pie chart
+    const categoryField = fields.find(field => 
+      field.includes('status') || field.includes('stage') || field.includes('type')
+    ) || fields[0];
 
-    const chartData = Object.entries(groupedData)
-      .slice(0, 6)
-      .map(([name, value]) => ({ name: name.slice(0, 15), value }));
+    if (!categoryField) {
+      return <div className="text-center py-8 text-muted-foreground">No suitable fields for pie chart</div>;
+    }
+
+    // Count occurrences of each category
+    const chartData = data.reduce((acc: any[], item) => {
+      const category = item[categoryField] || 'Unknown';
+      
+      const existing = acc.find(entry => entry.name === category);
+      if (existing) {
+        existing.value += 1;
+      } else {
+        acc.push({ name: category, value: 1 });
+      }
+      
+      return acc;
+    }, []);
 
     return (
-      <ResponsiveContainer width="100%" height={400}>
+      <ResponsiveContainer width="100%" height={300}>
         <PieChart>
           <Pie
             data={chartData}
@@ -140,69 +270,19 @@ export function ReportVisualization({ data, fields, visualizationType, loading }
     );
   };
 
-  const renderKPICards = () => {
-    const numericFields = fields.filter(field => 
-      data.some(row => typeof row[field] === 'number' && !isNaN(row[field]))
-    );
-
-    const getKPIIcon = (index: number) => {
-      const icons = [TrendingUp, Users, DollarSign, Target];
-      const IconComponent = icons[index % icons.length];
-      return <IconComponent className="h-6 w-6" />;
-    };
-
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {numericFields.slice(0, 4).map((field, index) => {
-          const values = data.map(row => row[field]).filter(val => typeof val === 'number' && !isNaN(val));
-          const total = values.reduce((sum, val) => sum + val, 0);
-          const average = values.length > 0 ? total / values.length : 0;
-          const max = values.length > 0 ? Math.max(...values) : 0;
-
-          return (
-            <Card key={field}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {getFieldLabel(field)}
-                </CardTitle>
-                {getKPIIcon(index)}
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {field === 'value' ? formatValue(total, field) : total.toLocaleString()}
-                </div>
-                <div className="text-xs text-muted-foreground space-y-1">
-                  <div>Avg: {field === 'value' ? formatValue(average, field) : average.toFixed(1)}</div>
-                  <div>Max: {field === 'value' ? formatValue(max, field) : max.toLocaleString()}</div>
-                  <div>Count: {values.length}</div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-        {numericFields.length === 0 && (
-          <Card className="col-span-full">
-            <CardContent className="pt-6">
-              <p className="text-muted-foreground text-center">
-                No numeric fields available for KPI cards
-              </p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-    );
-  };
-
   return (
-    <div className="space-y-4">
-      <div className="text-sm text-muted-foreground">
-        Showing {data.length} rows • {getFieldLabel(visualizationType)} view
-      </div>
-      
-      {visualizationType === 'table' && renderTable()}
-      {visualizationType === 'bar_chart' && renderBarChart()}
-      {visualizationType === 'pie_chart' && renderPieChart()}
-      {visualizationType === 'kpi_cards' && renderKPICards()}
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>
+          {formatFieldName(dataSource)} Report - {data.length} records
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {visualizationType === 'table' && renderTableVisualization()}
+        {visualizationType === 'kpi_cards' && renderKPICards()}
+        {visualizationType === 'bar_chart' && renderBarChart()}
+        {visualizationType === 'pie_chart' && renderPieChart()}
+      </CardContent>
+    </Card>
   );
 }

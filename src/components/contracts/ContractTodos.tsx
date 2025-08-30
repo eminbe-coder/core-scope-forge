@@ -64,6 +64,7 @@ export const ContractTodos = ({ contractId, canEdit, onUpdate, compact = false }
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [filter, setFilter] = useState<'all' | 'completed' | 'pending'>('all');
+  const [canUserEdit, setCanUserEdit] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(todoSchema),
@@ -85,6 +86,17 @@ export const ContractTodos = ({ contractId, canEdit, onUpdate, compact = false }
 
   const fetchData = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Check if user can modify this contract
+      const { data: canModify } = await supabase.rpc('user_can_modify_contract', {
+        _contract_id: contractId,
+        _user_id: user.id
+      });
+
+      setCanUserEdit(canModify || false);
+
       const [todosRes, paymentTermsRes, profilesRes] = await Promise.all([
         supabase
           .from('contract_todos')
@@ -265,7 +277,7 @@ export const ContractTodos = ({ contractId, canEdit, onUpdate, compact = false }
                 <span>Completed: {todosStats.completed}</span>
                 <span>Pending: {todosStats.pending}</span>
               </div>
-              {canEdit && (
+              {canUserEdit && canEdit && (
                 <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                   <DialogTrigger asChild>
                     <Button size="sm">
@@ -454,7 +466,7 @@ export const ContractTodos = ({ contractId, canEdit, onUpdate, compact = false }
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3 flex-1">
-                      {canEdit && (
+                      {canUserEdit && canEdit && (
                         <Checkbox
                           checked={todo.completed}
                           onCheckedChange={() => toggleTodoCompletion(todo.id, todo.completed)}

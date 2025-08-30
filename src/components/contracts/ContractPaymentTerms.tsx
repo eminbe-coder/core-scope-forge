@@ -34,6 +34,7 @@ export const ContractPaymentTerms = ({ contractId, canEdit, onUpdate }: Contract
   const [todos, setTodos] = useState<any[]>([]);
   const [attachments, setAttachments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [canUserEdit, setCanUserEdit] = useState(false);
 
   useEffect(() => {
     if (contractId && currentTenant?.id) {
@@ -43,6 +44,17 @@ export const ContractPaymentTerms = ({ contractId, canEdit, onUpdate }: Contract
 
   const fetchData = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Check if user can modify this contract
+      const { data: canModify } = await supabase.rpc('user_can_modify_contract', {
+        _contract_id: contractId,
+        _user_id: user.id
+      });
+
+      setCanUserEdit(canModify || false);
+
       const [paymentTermsRes, paymentStagesRes, todosRes, attachmentsRes] = await Promise.all([
         supabase
           .from('contract_payment_terms')
@@ -88,7 +100,7 @@ export const ContractPaymentTerms = ({ contractId, canEdit, onUpdate }: Contract
   };
 
   const updatePaymentStage = async (paymentTermId: string, newStageId: string) => {
-    if (!canEdit) return;
+    if (!canUserEdit || !canEdit) return;
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -203,7 +215,7 @@ export const ContractPaymentTerms = ({ contractId, canEdit, onUpdate }: Contract
                     <Badge variant={getStageColor(paymentTerm.contract_payment_stages?.name)}>
                       {paymentTerm.contract_payment_stages?.name || 'No Stage'}
                     </Badge>
-                    {canEdit && (
+                    {canUserEdit && canEdit && (
                       <Select
                         value={paymentTerm.stage_id || ''}
                         onValueChange={(value) => updatePaymentStage(paymentTerm.id, value)}

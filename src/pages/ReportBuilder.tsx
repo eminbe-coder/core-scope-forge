@@ -298,6 +298,7 @@ export default function ReportBuilder() {
               data={previewData}
               fields={queryConfig.fields}
               visualizationType={visualizationType}
+              dataSource={dataSource}
               loading={loading}
             />
             

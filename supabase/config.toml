@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.run-scheduled-reports]
 verify_jwt = false
+
+[functions.generate-report-data]
+verify_jwt = true
