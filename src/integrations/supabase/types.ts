@@ -2490,6 +2490,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_dashboard_settings: {
+        Row: {
+          created_at: string
+          id: string
+          layout_locked: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          layout_locked?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          layout_locked?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_tenant_memberships: {
         Row: {
           active: boolean

@@ -66,9 +66,9 @@ export function DashboardGrid() {
       // Load dashboard settings including lock state
       const { data: settingsData } = await supabase
         .from('user_dashboard_settings')
-        .select('*')
+        .select('layout_locked')
         .eq('user_id', user?.id)
-        .single();
+        .maybeSingle();
       
       if (settingsData) {
         setIsLayoutLocked(settingsData.layout_locked || false);
@@ -146,6 +146,22 @@ export function DashboardGrid() {
         filters: item.filters || {},
         settings: item.settings || {}
       })));
+      
+      // Set layout from default widgets
+      const loadedLayout = convertWidgetsToLayout(data.map(item => ({
+        ...item,
+        filters: item.filters || {},
+        settings: item.settings || {}
+      })));
+      
+      setLayouts({
+        lg: loadedLayout,
+        md: loadedLayout,
+        sm: loadedLayout,
+        xs: loadedLayout,
+        xxs: loadedLayout,
+      });
+      setLayoutInitialized(true);
     } catch (error) {
       console.error('Error initializing default widgets:', error);
       toast.error('Failed to initialize dashboard');
@@ -415,8 +431,8 @@ export function DashboardGrid() {
             breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
             cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
             rowHeight={60}
-            isDraggable={!isLayoutLocked}
-            isResizable={!isLayoutLocked}
+            isDraggable={!isLayoutLocked && customizeMode}
+            isResizable={!isLayoutLocked && customizeMode}
             margin={[16, 16]}
             containerPadding={[0, 0]}
             useCSSTransforms={true}

@@ -82,6 +82,11 @@
 /* Lock mode styles */
 .layout-locked .react-grid-item {
   cursor: default !important;
+  pointer-events: none !important;
+}
+
+.layout-locked .react-grid-item > .card {
+  pointer-events: all !important;
 }
 
 .layout-locked .react-grid-item > .react-resizable-handle {
@@ -98,4 +103,10 @@
 
 .layout-locked .react-grid-item > .react-resizable-handle:hover {
   opacity: 0.4 !important;
+}
+
+.layout-locked .react-grid-item.react-draggable-dragging {
+  opacity: 1 !important;
+  transform: none !important;
+  z-index: 1 !important;
 }
