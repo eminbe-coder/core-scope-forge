@@ -35,6 +35,8 @@ const DATA_SOURCES = [
   { value: 'contacts', label: 'Contacts' },
   { value: 'companies', label: 'Companies' },
   { value: 'deals', label: 'Deals' },
+  { value: 'contracts', label: 'Contracts' },
+  { value: 'contract_payments', label: 'Contract Payments' },
   { value: 'sites', label: 'Sites' },
   { value: 'customers', label: 'Customers' },
 ];
@@ -82,6 +84,35 @@ const FIELD_DEFINITIONS = {
     { value: 'country', label: 'Country' },
     { value: 'created_at', label: 'Created Date' },
   ],
+  contracts: [
+    { value: 'name', label: 'Contract Name' },
+    { value: 'status', label: 'Status' },
+    { value: 'value', label: 'Contract Value' },
+    { value: 'signed_date', label: 'Signed Date' },
+    { value: 'start_date', label: 'Start Date' },
+    { value: 'end_date', label: 'End Date' },
+    { value: 'customer_reference_number', label: 'Customer Reference' },
+    { value: 'assigned_to', label: 'Assigned Salesperson' },
+    { value: 'customer_name', label: 'Customer Name' },
+    { value: 'site_name', label: 'Site Name' },
+    { value: 'currency_code', label: 'Currency' },
+    { value: 'created_at', label: 'Created Date' },
+  ],
+  contract_payments: [
+    { value: 'contract_name', label: 'Contract Name' },
+    { value: 'installment_number', label: 'Installment #' },
+    { value: 'amount_type', label: 'Amount Type' },
+    { value: 'amount_value', label: 'Amount Value' },
+    { value: 'calculated_amount', label: 'Calculated Amount' },
+    { value: 'due_date', label: 'Due Date' },
+    { value: 'stage_name', label: 'Payment Stage' },
+    { value: 'customer_name', label: 'Customer Name' },
+    { value: 'assigned_salesperson', label: 'Assigned Salesperson' },
+    { value: 'todos_count', label: 'Pending To-Dos' },
+    { value: 'todos_completed_count', label: 'Completed To-Dos' },
+    { value: 'currency_code', label: 'Currency' },
+    { value: 'created_at', label: 'Created Date' },
+  ],
 };
 
 const OPERATORS = [
@@ -90,6 +121,13 @@ const OPERATORS = [
   { value: 'contains', label: 'Contains' },
   { value: 'greater_than', label: 'Greater Than' },
   { value: 'less_than', label: 'Less Than' },
+  { value: 'greater_than_or_equal', label: 'Greater Than or Equal' },
+  { value: 'less_than_or_equal', label: 'Less Than or Equal' },
+  { value: 'is_null', label: 'Is Empty' },
+  { value: 'is_not_null', label: 'Is Not Empty' },
+  { value: 'in_last_days', label: 'In Last N Days' },
+  { value: 'before_date', label: 'Before Date' },
+  { value: 'after_date', label: 'After Date' },
 ];
 
 const VISUALIZATION_TYPES = [
