@@ -22,6 +22,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useTenant } from '@/hooks/use-tenant';
 import { usePermissions } from '@/hooks/use-permissions';
 import { TenantSwitcher } from './TenantSwitcher';
+import { NotificationDropdown } from '@/components/notifications/NotificationDropdown';
 import { LogOut, User, Palette, Home } from 'lucide-react';
 
 interface AppHeaderProps {
@@ -85,6 +86,10 @@ export function AppHeader({
               {customActions}
             </div>
           )}
+          
+          {/* Notification Center */}
+          <NotificationDropdown />
+          
           {/* Theme Switcher */}
           <Select value={theme} onValueChange={setTheme}>
             <SelectTrigger className="w-32 bg-glass-bg border-glass-border">

@@ -53,9 +53,10 @@ interface ContractTodosProps {
   contractId: string;
   canEdit: boolean;
   onUpdate: () => void;
+  compact?: boolean;
 }
 
-export const ContractTodos = ({ contractId, canEdit, onUpdate }: ContractTodosProps) => {
+export const ContractTodos = ({ contractId, canEdit, onUpdate, compact = false }: ContractTodosProps) => {
   const { currentTenant } = useTenant();
   const [todos, setTodos] = useState<Todo[]>([]);
   const [paymentTerms, setPaymentTerms] = useState<PaymentTerm[]>([]);

@@ -1576,6 +1576,81 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_preferences: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          id: string
+          notification_type: string
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          notification_type: string
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          notification_type?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+          message: string | null
+          notes: string | null
+          notification_type: string
+          read_at: string | null
+          tenant_id: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          message?: string | null
+          notes?: string | null
+          notification_type: string
+          read_at?: string | null
+          tenant_id: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          message?: string | null
+          notes?: string | null
+          notification_type?: string
+          read_at?: string | null
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       permissions: {
         Row: {
           created_at: string
@@ -2475,6 +2550,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_notification: {
+        Args: {
+          _entity_id: string
+          _entity_type: string
+          _message: string
+          _notification_type: string
+          _tenant_id: string
+          _title: string
+          _user_id: string
+        }
+        Returns: string
+      }
       get_all_tenant_memberships_for_super_admin: {
         Args: Record<PropertyKey, never>
         Returns: {

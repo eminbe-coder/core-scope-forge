@@ -137,7 +137,8 @@ const ContractDetail = () => {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-4">
+        {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button variant="outline" onClick={() => navigate('/contracts')}>
@@ -145,9 +146,9 @@ const ContractDetail = () => {
               Back to Contracts
             </Button>
             <div>
-              <h1 className="text-3xl font-bold">{contract.name}</h1>
-              <p className="text-muted-foreground">
-                Contract Details and Management
+              <h1 className="text-2xl font-bold text-foreground">{contract.name}</h1>
+              <p className="text-sm text-muted-foreground">
+                Customer: {contract.customers?.name || 'Not assigned'}
               </p>
             </div>
           </div>
@@ -164,121 +165,186 @@ const ContractDetail = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Contract Information</CardTitle>
+        {/* Main Layout - Mirror Deal Page */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+          {/* Left Sidebar */}
+          <div className="lg:col-span-1 space-y-4">
+            {/* Customer & Site */}
+            <Card className="bg-card border-border">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Building2 className="h-4 w-4" />
+                  Customer & Site
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Contract Value</label>
-                    <p className="text-lg font-semibold">
-                      {formatCurrency(contract.value, contract.currencies)}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Reference Number</label>
-                    <p>{contract.customer_reference_number || '-'}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Signed Date</label>
-                    <p>{formatDate(contract.signed_date)}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Start Date</label>
-                    <p>{formatDate(contract.start_date)}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">End Date</label>
-                    <p>{formatDate(contract.end_date)}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Assigned To</label>
-                    <p>
-                      {contract.profiles 
-                        ? `${contract.profiles.first_name} ${contract.profiles.last_name}`
-                        : '-'
-                      }
-                    </p>
-                  </div>
+              <CardContent className="space-y-3">
+                <div>
+                  <p className="text-xs text-muted-foreground">Customer</p>
+                  <p className="font-medium text-sm">
+                    {contract.customers?.name || 'Not assigned'}
+                  </p>
                 </div>
-                {contract.description && (
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Description</label>
-                    <p className="mt-1">{contract.description}</p>
-                  </div>
-                )}
-                {contract.notes && (
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Notes</label>
-                    <p className="mt-1">{contract.notes}</p>
-                  </div>
-                )}
+                <div>
+                  <p className="text-xs text-muted-foreground">Site</p>
+                  <p className="font-medium text-sm">
+                    {contract.sites?.name || 'Not assigned'}
+                  </p>
+                  {contract.sites?.address && (
+                    <p className="text-xs text-muted-foreground">{contract.sites.address}</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* To-Do Tasks */}
+            <Card className="bg-card border-border">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <FileText className="h-4 w-4" />
+                  To-Do Tasks
+                  {canEdit && (
+                    <Button size="sm" variant="outline" className="ml-auto h-6 px-2">
+                      <Plus className="h-3 w-3 mr-1" />
+                      Add Task
+                    </Button>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ContractTodos 
+                  contractId={contract.id} 
+                  canEdit={canEdit}
+                  onUpdate={fetchContract}
+                  compact={true}
+                />
+              </CardContent>
+            </Card>
+
+            {/* Quick Stats */}
+            <Card className="bg-card border-border">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Quick Stats</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Value</span>
+                  <span className="font-medium">
+                    {formatCurrency(contract.value, contract.currencies)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Start Date</span>
+                  <span className="font-medium">{formatDate(contract.start_date)}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">End Date</span>
+                  <span className="font-medium">{formatDate(contract.end_date)}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Created</span>
+                  <span className="font-medium">{formatDate(contract.created_at)}</span>
+                </div>
               </CardContent>
             </Card>
           </div>
 
-          <div className="space-y-4">
-            {contract.customers && (
-              <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-4 w-4" />
-                    Customer
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="font-medium">{contract.customers.name}</p>
-                </CardContent>
-              </Card>
-            )}
+          {/* Main Content */}
+          <div className="lg:col-span-3 space-y-4">
+            {/* Contract Information */}
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle>Contract Information</CardTitle>
+                <p className="text-sm text-muted-foreground">Basic contract details and status</p>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Stage</p>
+                    <p className="font-medium">{contract.status}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Contract Value</p>
+                    <p className="font-medium text-lg">
+                      {formatCurrency(contract.value, contract.currencies)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Signed Date</p>
+                    <p className="font-medium">{formatDate(contract.signed_date)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Currency</p>
+                    <p className="font-medium">
+                      {contract.currencies?.code || 'Not set'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Assigned Salesperson</p>
+                    <p className="font-medium">
+                      {contract.profiles 
+                        ? `${contract.profiles.first_name} ${contract.profiles.last_name}`
+                        : 'Not assigned'
+                      }
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Customer Reference Number</p>
+                    <p className="font-medium">{contract.customer_reference_number || 'Not set'}</p>
+                  </div>
+                </div>
 
-            {contract.sites && (
-              <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    Site
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="font-medium">{contract.sites.name}</p>
-                  <p className="text-sm text-muted-foreground">{contract.sites.address}</p>
-                </CardContent>
-              </Card>
-            )}
+                {contract.description && (
+                  <div className="mt-4">
+                    <p className="text-xs text-muted-foreground">Description</p>
+                    <p className="text-sm mt-1">{contract.description}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Payment Terms & Installments */}
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Payment Terms & Installments</CardTitle>
+                    <p className="text-sm text-muted-foreground">Manage payment schedule and installments for this contract</p>
+                  </div>
+                  {canEdit && (
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm">
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit Terms
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Installment
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <ContractPaymentTerms 
+                  contractId={contract.id} 
+                  canEdit={canEdit}
+                  onUpdate={fetchContract}
+                />
+              </CardContent>
+            </Card>
+
+            {/* Audit Trail */}
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle>Audit Trail</CardTitle>
+                <p className="text-sm text-muted-foreground">History of changes and activities</p>
+              </CardHeader>
+              <CardContent>
+                <ContractAuditTrail contractId={contract.id} />
+              </CardContent>
+            </Card>
           </div>
         </div>
-
-        <Tabs defaultValue="payments" className="w-full">
-          <TabsList>
-            <TabsTrigger value="payments">Payment Terms</TabsTrigger>
-            <TabsTrigger value="todos">To-Do Items</TabsTrigger>
-            <TabsTrigger value="audit">Audit Trail</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="payments" className="space-y-4">
-            <ContractPaymentTerms 
-              contractId={contract.id} 
-              canEdit={canEdit}
-              onUpdate={fetchContract}
-            />
-          </TabsContent>
-
-          <TabsContent value="todos" className="space-y-4">
-            <ContractTodos 
-              contractId={contract.id} 
-              canEdit={canEdit}
-              onUpdate={fetchContract}
-            />
-          </TabsContent>
-
-          <TabsContent value="audit" className="space-y-4">
-            <ContractAuditTrail contractId={contract.id} />
-          </TabsContent>
-        </Tabs>
       </div>
     </DashboardLayout>
   );

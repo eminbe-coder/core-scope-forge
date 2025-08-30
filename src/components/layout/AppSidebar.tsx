@@ -29,7 +29,8 @@ import {
   Settings,
   BarChart3,
   Calendar,
-  FileText
+  FileText,
+  Bell
 } from 'lucide-react';
 
 interface NavigationItem {
@@ -110,6 +111,12 @@ const navigationModules: NavigationModule[] = [
         title: 'My To-Dos',
         url: '/todos',
         icon: CheckSquare,
+        permission: 'activities.read',
+      },
+      {
+        title: 'Notification Center',
+        url: '/notification-center',
+        icon: Bell,
         permission: 'activities.read',
       },
       {

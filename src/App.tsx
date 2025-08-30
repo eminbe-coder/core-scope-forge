@@ -29,6 +29,7 @@ import EditDeal from "./pages/EditDeal";
 import Contracts from "./pages/Contracts";
 import AddContract from "./pages/AddContract";
 import ContractDetail from "./pages/ContractDetail";
+import NotificationCenter from "./pages/NotificationCenter";
 import Projects from "./pages/Projects";
 import Activities from "./pages/Activities";
 import Todos from "./pages/Todos";
@@ -156,6 +157,11 @@ const App = () => (
                  <Route path="/contracts/:id" element={
                    <ProtectedRoute>
                      <ContractDetail />
+                   </ProtectedRoute>
+                 } />
+                 <Route path="/notification-center" element={
+                   <ProtectedRoute>
+                     <NotificationCenter />
                    </ProtectedRoute>
                  } />
                 <Route path="/projects" element={
