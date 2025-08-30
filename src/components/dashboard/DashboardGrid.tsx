@@ -63,15 +63,10 @@ export function DashboardGrid() {
 
   const loadDashboardConfig = async () => {
     try {
-      // Load dashboard settings including lock state
-      const { data: settingsData } = await supabase
-        .from('user_dashboard_settings')
-        .select('layout_locked')
-        .eq('user_id', user?.id)
-        .maybeSingle();
-      
-      if (settingsData) {
-        setIsLayoutLocked(settingsData.layout_locked || false);
+      // Load lock state from localStorage
+      const savedLockState = localStorage.getItem(`dashboard_locked_${user?.id}`);
+      if (savedLockState) {
+        setIsLayoutLocked(savedLockState === 'true');
       }
 
       // Load widget configurations
@@ -299,29 +294,18 @@ export function DashboardGrid() {
     }
   };
 
-  const saveLockState = async (locked: boolean) => {
+  const saveLockState = (locked: boolean) => {
     try {
-      const { error } = await supabase
-        .from('user_dashboard_settings')
-        .upsert({
-          user_id: user?.id,
-          layout_locked: locked,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id'
-        });
-
-      if (error) throw error;
+      localStorage.setItem(`dashboard_locked_${user?.id}`, locked.toString());
     } catch (error) {
       console.error('Error saving lock state:', error);
-      toast.error('Failed to save lock state');
     }
   };
 
-  const toggleLockState = async () => {
+  const toggleLockState = () => {
     const newLockState = !isLayoutLocked;
     setIsLayoutLocked(newLockState);
-    await saveLockState(newLockState);
+    saveLockState(newLockState);
   };
 
   // Initialize layout only once after loading widgets, don't reset on every change
@@ -431,8 +415,8 @@ export function DashboardGrid() {
             breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
             cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
             rowHeight={60}
-            isDraggable={!isLayoutLocked && customizeMode}
-            isResizable={!isLayoutLocked && customizeMode}
+            isDraggable={!isLayoutLocked}
+            isResizable={!isLayoutLocked}
             margin={[16, 16]}
             containerPadding={[0, 0]}
             useCSSTransforms={true}
