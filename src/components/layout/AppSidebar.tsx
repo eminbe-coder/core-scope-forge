@@ -120,6 +120,12 @@ const navigationModules: NavigationModule[] = [
         permission: 'activities.read',
       },
       {
+        title: 'System Tests',
+        url: '/contract-tests',
+        icon: Settings,
+        permission: 'admin.access',
+      },
+      {
         title: 'Report Engine',
         url: '/reports',
         icon: BarChart3,

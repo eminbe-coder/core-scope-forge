@@ -30,6 +30,7 @@ import Contracts from "./pages/Contracts";
 import AddContract from "./pages/AddContract";
 import ContractDetail from "./pages/ContractDetail";
 import NotificationCenter from "./pages/NotificationCenter";
+import { ContractTestDashboard } from "./components/testing/ContractTestDashboard";
 import Projects from "./pages/Projects";
 import Activities from "./pages/Activities";
 import Todos from "./pages/Todos";
@@ -159,11 +160,16 @@ const App = () => (
                      <ContractDetail />
                    </ProtectedRoute>
                  } />
-                 <Route path="/notification-center" element={
-                   <ProtectedRoute>
-                     <NotificationCenter />
-                   </ProtectedRoute>
-                 } />
+                  <Route path="/notification-center" element={
+                    <ProtectedRoute>
+                      <NotificationCenter />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/contract-tests" element={
+                    <ProtectedRoute>
+                      <ContractTestDashboard />
+                    </ProtectedRoute>
+                  } />
                 <Route path="/projects" element={
                   <ProtectedRoute>
                     <Projects />
