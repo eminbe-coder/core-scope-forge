@@ -28,6 +28,7 @@ import AddDeal from "./pages/AddDeal";
 import EditDeal from "./pages/EditDeal";
 import Contracts from "./pages/Contracts";
 import AddContract from "./pages/AddContract";
+import ContractDetail from "./pages/ContractDetail";
 import Projects from "./pages/Projects";
 import Activities from "./pages/Activities";
 import Todos from "./pages/Todos";
@@ -150,6 +151,11 @@ const App = () => (
                  <Route path="/contracts/add" element={
                    <ProtectedRoute>
                      <AddContract />
+                   </ProtectedRoute>
+                 } />
+                 <Route path="/contracts/:id" element={
+                   <ProtectedRoute>
+                     <ContractDetail />
                    </ProtectedRoute>
                  } />
                 <Route path="/projects" element={

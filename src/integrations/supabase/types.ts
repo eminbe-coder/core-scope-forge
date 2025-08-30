@@ -616,6 +616,54 @@ export type Database = {
           },
         ]
       }
+      contract_audit_logs: {
+        Row: {
+          action: string
+          contract_id: string
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          field_name: string | null
+          id: string
+          new_value: Json | null
+          notes: string | null
+          old_value: Json | null
+          tenant_id: string
+          user_id: string
+          user_name: string | null
+        }
+        Insert: {
+          action: string
+          contract_id: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          field_name?: string | null
+          id?: string
+          new_value?: Json | null
+          notes?: string | null
+          old_value?: Json | null
+          tenant_id: string
+          user_id: string
+          user_name?: string | null
+        }
+        Update: {
+          action?: string
+          contract_id?: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          field_name?: string | null
+          id?: string
+          new_value?: Json | null
+          notes?: string | null
+          old_value?: Json | null
+          tenant_id?: string
+          user_id?: string
+          user_name?: string | null
+        }
+        Relationships: []
+      }
       contract_companies: {
         Row: {
           company_id: string
@@ -789,6 +837,60 @@ export type Database = {
           notes?: string | null
           stage_id?: string | null
           tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      contract_todos: {
+        Row: {
+          assigned_to: string | null
+          completed: boolean
+          completed_at: string | null
+          completed_by: string | null
+          contract_id: string
+          created_at: string
+          created_by: string
+          description: string | null
+          due_date: string | null
+          id: string
+          payment_term_id: string | null
+          priority: string | null
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          completed?: boolean
+          completed_at?: string | null
+          completed_by?: string | null
+          contract_id: string
+          created_at?: string
+          created_by: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          payment_term_id?: string | null
+          priority?: string | null
+          tenant_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          completed?: boolean
+          completed_at?: string | null
+          completed_by?: string | null
+          contract_id?: string
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          payment_term_id?: string | null
+          priority?: string | null
+          tenant_id?: string
+          title?: string
           updated_at?: string
         }
         Relationships: []
