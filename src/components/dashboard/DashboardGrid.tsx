@@ -53,6 +53,7 @@ export function DashboardGrid() {
   const [customizeMode, setCustomizeMode] = useState(false);
   const [layouts, setLayouts] = useState<Layouts>({});
   const [isLayoutLocked, setIsLayoutLocked] = useState(false);
+  const [layoutInitialized, setLayoutInitialized] = useState(false);
 
   useEffect(() => {
     if (user && currentTenant) {
@@ -62,6 +63,18 @@ export function DashboardGrid() {
 
   const loadDashboardConfig = async () => {
     try {
+      // Load dashboard settings including lock state
+      const { data: settingsData } = await supabase
+        .from('user_dashboard_settings')
+        .select('*')
+        .eq('user_id', user?.id)
+        .single();
+      
+      if (settingsData) {
+        setIsLayoutLocked(settingsData.layout_locked || false);
+      }
+
+      // Load widget configurations
       const { data, error } = await supabase
         .from('user_dashboard_configs')
         .select('*')
@@ -75,11 +88,25 @@ export function DashboardGrid() {
       if (data.length === 0) {
         await initializeDefaultWidgets();
       } else {
-        setWidgets(data.map(item => ({
+        const widgetConfigs = data.map(item => ({
           ...item,
           filters: item.filters || {},
           settings: item.settings || {}
-        })));
+        }));
+        
+        setWidgets(widgetConfigs);
+        
+        // Set layout immediately from loaded data
+        const loadedLayout = convertWidgetsToLayout(widgetConfigs);
+        const newLayouts = {
+          lg: loadedLayout,
+          md: loadedLayout,
+          sm: loadedLayout,
+          xs: loadedLayout,
+          xxs: loadedLayout,
+        };
+        setLayouts(newLayouts);
+        setLayoutInitialized(true);
       }
     } catch (error) {
       console.error('Error loading dashboard config:', error);
@@ -210,7 +237,7 @@ export function DashboardGrid() {
   };
 
   const handleLayoutChange = async (layout: Layout[], layouts: Layouts) => {
-    if (isLayoutLocked) return;
+    if (isLayoutLocked || !layoutInitialized) return;
     
     setLayouts(layouts);
     
@@ -231,12 +258,12 @@ export function DashboardGrid() {
 
     setWidgets(updatedWidgets);
 
-    // Save to database
+    // Save to database - batch update for better performance
     try {
-      for (const widget of updatedWidgets) {
+      const updatePromises = updatedWidgets.map(widget => {
         const layoutItem = layout.find(item => item.i === widget.id);
         if (layoutItem) {
-          await supabase
+          return supabase
             .from('user_dashboard_configs')
             .update({
               position_x: layoutItem.x,
@@ -246,16 +273,44 @@ export function DashboardGrid() {
             })
             .eq('id', widget.id);
         }
-      }
+        return Promise.resolve();
+      });
+
+      await Promise.all(updatePromises);
     } catch (error) {
       console.error('Error saving layout:', error);
       toast.error('Failed to save layout changes');
     }
   };
 
-  // Update layouts when widgets change
+  const saveLockState = async (locked: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('user_dashboard_settings')
+        .upsert({
+          user_id: user?.id,
+          layout_locked: locked,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id'
+        });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error saving lock state:', error);
+      toast.error('Failed to save lock state');
+    }
+  };
+
+  const toggleLockState = async () => {
+    const newLockState = !isLayoutLocked;
+    setIsLayoutLocked(newLockState);
+    await saveLockState(newLockState);
+  };
+
+  // Initialize layout only once after loading widgets, don't reset on every change
   useEffect(() => {
-    if (widgets.length > 0) {
+    if (widgets.length > 0 && !layoutInitialized) {
       const newLayout = convertWidgetsToLayout(widgets);
       setLayouts({
         lg: newLayout,
@@ -264,8 +319,9 @@ export function DashboardGrid() {
         xs: newLayout,
         xxs: newLayout,
       });
+      setLayoutInitialized(true);
     }
-  }, [widgets.length]);
+  }, [widgets, layoutInitialized]);
 
   const getWidgetComponent = (widgetId: string) => {
     const widget = availableWidgets.find(w => w.id === widgetId);
@@ -285,7 +341,7 @@ export function DashboardGrid() {
         <div className="flex items-center gap-2">
           <Button
             variant={isLayoutLocked ? "outline" : "default"}
-            onClick={() => setIsLayoutLocked(!isLayoutLocked)}
+            onClick={toggleLockState}
             className="flex items-center gap-2"
           >
             {isLayoutLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
