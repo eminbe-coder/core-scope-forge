@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { QuickAddCompanyModal } from '@/components/modals/QuickAddCompanyModal';
 import { QuickAddContactModal } from '@/components/modals/QuickAddContactModal';
+import { QuickAddSiteModal } from '@/components/modals/QuickAddSiteModal';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
@@ -106,6 +107,9 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
   const [selectedCustomerType, setSelectedCustomerType] = useState<'existing' | 'company' | 'contact'>('existing');
   const [showCompanyModal, setShowCompanyModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
+  const [showSiteModal, setShowSiteModal] = useState(false);
+  const [linkedCompanies, setLinkedCompanies] = useState<{ id: string; name: string }[]>([]);
+  const [linkedContacts, setLinkedContacts] = useState<{ id: string; name: string; first_name?: string; last_name?: string }[]>([]);
   const [leadData, setLeadData] = useState<any>(null);
 
   const form = useForm<DealFormData>({
@@ -393,6 +397,38 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
 
       if (error) throw error;
 
+      // Save linked companies
+      if (linkedCompanies.length > 0) {
+        const dealCompaniesData = linkedCompanies.map(company => ({
+          deal_id: deal.id,
+          company_id: company.id,
+          relationship_type: 'client',
+          notes: null,
+        }));
+
+        const { error: companiesError } = await supabase
+          .from('deal_companies')
+          .insert(dealCompaniesData);
+
+        if (companiesError) throw companiesError;
+      }
+
+      // Save linked contacts
+      if (linkedContacts.length > 0) {
+        const dealContactsData = linkedContacts.map(contact => ({
+          deal_id: deal.id,
+          contact_id: contact.id,
+          role: 'contact',
+          notes: null,
+        }));
+
+        const { error: contactsError } = await supabase
+          .from('deal_contacts')
+          .insert(dealContactsData);
+
+        if (contactsError) throw contactsError;
+      }
+
       // Save payment terms if any
       if (updatedPaymentTerms.length > 0) {
         const paymentTermsData = updatedPaymentTerms.map(term => ({
@@ -499,6 +535,17 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
     // Auto-select the newly created contact
     setSelectedCustomerType('contact');
     form.setValue('customer_id', contact.id);
+  };
+
+  const handleSiteCreated = (site: { id: string; name: string }) => {
+    // Add the new site to the list and select it
+    const newSite: Site = {
+      id: site.id,
+      name: site.name,
+      address: '', // Minimal required field
+    };
+    setSites(prev => [...prev, newSite]);
+    form.setValue('site_id', site.id);
   };
 
   const calculatePaymentTerms = (terms: PaymentTerm[], totalValue: number): PaymentTerm[] => {
@@ -770,20 +817,112 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Site (Optional)</FormLabel>
-                    <FormControl>
-                      <SearchableSelect
-                        options={sites}
-                        value={field.value || ''}
-                        onValueChange={field.onChange}
-                        placeholder="Select site"
-                        searchPlaceholder="Search sites..."
-                        emptyText="No sites found"
-                      />
-                    </FormControl>
+                    <div className="flex gap-2">
+                      <FormControl>
+                        <SearchableSelect
+                          options={sites}
+                          value={field.value || ''}
+                          onValueChange={field.onChange}
+                          placeholder="Select site"
+                          searchPlaceholder="Search sites..."
+                          emptyText="No sites found"
+                          onAddNew={() => setShowSiteModal(true)}
+                          addNewLabel="Add Site"
+                        />
+                      </FormControl>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {/* Linked Companies */}
+              <div className="space-y-4">
+                <Label>Linked Companies (Optional)</Label>
+                <div className="flex gap-2">
+                  <SearchableSelect
+                    options={companies}
+                    value=""
+                    onValueChange={(companyId) => {
+                      const company = companies.find(c => c.id === companyId);
+                      if (company && !linkedCompanies.find(c => c.id === company.id)) {
+                        setLinkedCompanies([...linkedCompanies, { id: company.id, name: company.name }]);
+                      }
+                    }}
+                    placeholder="Search and add companies"
+                    searchPlaceholder="Search companies..."
+                    emptyText="No companies found"
+                    onAddNew={() => setShowCompanyModal(true)}
+                    addNewLabel="Add Company"
+                  />
+                </div>
+                
+                {linkedCompanies.length > 0 && (
+                  <div className="space-y-2">
+                    {linkedCompanies.map((company) => (
+                      <div key={company.id} className="flex items-center justify-between bg-muted p-2 rounded">
+                        <span className="text-sm">{company.name}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setLinkedCompanies(linkedCompanies.filter(c => c.id !== company.id))}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Linked Contacts */}
+              <div className="space-y-4">
+                <Label>Linked Contacts (Optional)</Label>
+                <div className="flex gap-2">
+                  <SearchableSelect
+                    options={contacts}
+                    value=""
+                    onValueChange={(contactId) => {
+                      const contact = contacts.find(c => c.id === contactId);
+                      if (contact && !linkedContacts.find(c => c.id === contact.id)) {
+                        setLinkedContacts([...linkedContacts, { 
+                          id: contact.id, 
+                          name: `${contact.first_name} ${contact.last_name || ''}`.trim(),
+                          first_name: contact.first_name,
+                          last_name: contact.last_name
+                        }]);
+                      }
+                    }}
+                    placeholder="Search and add contacts"
+                    searchPlaceholder="Search contacts..."
+                    emptyText="No contacts found"
+                    renderOption={(contact) => 
+                      `${contact.first_name} ${contact.last_name || ''}`.trim()
+                    }
+                    onAddNew={() => setShowContactModal(true)}
+                    addNewLabel="Add Contact"
+                  />
+                </div>
+                
+                {linkedContacts.length > 0 && (
+                  <div className="space-y-2">
+                    {linkedContacts.map((contact) => (
+                      <div key={contact.id} className="flex items-center justify-between bg-muted p-2 rounded">
+                        <span className="text-sm">{contact.name}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setLinkedContacts(linkedContacts.filter(c => c.id !== contact.id))}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               <FormField
                 control={form.control}
@@ -1020,6 +1159,12 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
         open={showContactModal}
         onClose={() => setShowContactModal(false)}
         onContactCreated={handleContactCreated}
+      />
+
+      <QuickAddSiteModal
+        open={showSiteModal}
+        onClose={() => setShowSiteModal(false)}
+        onSiteCreated={handleSiteCreated}
       />
     </>
   );
