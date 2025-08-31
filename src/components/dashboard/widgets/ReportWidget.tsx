@@ -68,18 +68,29 @@ export function ReportWidget({ config }: ReportWidgetProps) {
         .eq('id', config.report_widget_id)
         .single();
 
-      if (widgetError) {
+      if (widgetError || !reportWidget) {
         console.error('Error loading report widget:', widgetError);
         setError('Failed to load report widget');
         return;
       }
 
-      if (!reportWidget || !reportWidget.reports) {
+      // Type assertion to handle the Supabase response properly
+      const typedReportWidget = reportWidget as {
+        reports: {
+          id: string;
+          name: string;
+          description: string;
+          data_source: string;
+          query_config: any;
+          visualization_type: string;
+        };
+      };
+
+      const report = typedReportWidget.reports;
+      if (!report) {
         setError('Report not found for this widget');
         return;
       }
-
-      const report = reportWidget.reports;
       setReportInfo(report);
 
       // Generate report data using the edge function
