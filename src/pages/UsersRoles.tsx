@@ -150,6 +150,7 @@ const UsersRoles = () => {
       });
     }
   };
+
   const deleteCustomRole = async (roleId: string) => {
     try {
       const { error } = await supabase
@@ -170,6 +171,32 @@ const UsersRoles = () => {
       toast({
         title: "Error",
         description: "Failed to delete custom role",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const deleteUser = async (userId: string) => {
+    try {
+      // Deactivate user membership instead of hard delete
+      const { error } = await supabase
+        .from('user_tenant_memberships')
+        .update({ active: false })
+        .eq('id', userId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: "User removed from tenant successfully",
+      });
+      
+      fetchTenantData();
+    } catch (error: any) {
+      console.error('Error removing user:', error);
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to remove user from tenant",
         variant: "destructive",
       });
     }
@@ -317,13 +344,23 @@ const UsersRoles = () => {
                               </Badge>
                             </TableCell>
                             <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setEditingUser(user)}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setEditingUser(user)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => deleteUser(user.id)}
+                                  className="text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))
@@ -474,6 +511,10 @@ const UsersRoles = () => {
             open={!!editingUser}
             onClose={() => setEditingUser(null)}
             onSuccess={() => {
+              setEditingUser(null);
+              fetchTenantData();
+            }}
+            onDelete={() => {
               setEditingUser(null);
               fetchTenantData();
             }}
