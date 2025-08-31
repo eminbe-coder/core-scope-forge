@@ -63,6 +63,7 @@ const UsersRoles = () => {
   const [showCreateRole, setShowCreateRole] = useState(false);
   const [editingRole, setEditingRole] = useState<CustomRole | null>(null);
   const [newRole, setNewRole] = useState({ name: '', description: '', permissions: {} });
+  const roleNameExists = newRole.name.trim() && customRoles.some(r => r.name.toLowerCase() === newRole.name.trim().toLowerCase());
 
   useEffect(() => {
     if (currentTenant && isAdmin) {
@@ -117,35 +118,38 @@ const UsersRoles = () => {
     if (!currentTenant || !newRole.name.trim()) return;
     
     try {
-      const { error } = await supabase
+      const payload = {
+        tenant_id: currentTenant.id,
+        name: newRole.name.trim(),
+        description: newRole.description?.trim() || null,
+        permissions: newRole.permissions || {}
+      } as const;
+
+      const { data, error } = await supabase
         .from('custom_roles')
-        .insert({
-          tenant_id: currentTenant.id,
-          name: newRole.name,
-          description: newRole.description,
-          permissions: newRole.permissions
-        });
+        .insert(payload)
+        .select('*')
+        .maybeSingle();
       
       if (error) throw error;
       
       toast({
         title: "Success",
-        description: "Custom role created successfully",
+        description: `Role "${data?.name}" created successfully`,
       });
       
       setShowCreateRole(false);
       setNewRole({ name: '', description: '', permissions: {} });
       fetchTenantData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating role:', error);
       toast({
         title: "Error",
-        description: "Failed to create custom role",
+        description: error?.message || "Failed to create custom role",
         variant: "destructive",
       });
     }
   };
-
   const deleteCustomRole = async (roleId: string) => {
     try {
       const { error } = await supabase
@@ -368,6 +372,9 @@ const UsersRoles = () => {
                                onChange={(e) => setNewRole({ ...newRole, name: e.target.value })}
                                placeholder="e.g., Project Manager"
                              />
+                             {roleNameExists && (
+                               <p className="mt-1 text-xs text-destructive">A role with this name already exists.</p>
+                             )}
                            </div>
                            <div>
                              <Label htmlFor="role-description">Description</Label>
@@ -390,9 +397,9 @@ const UsersRoles = () => {
                          <Button variant="outline" onClick={() => setShowCreateRole(false)}>
                            Cancel
                          </Button>
-                         <Button onClick={createCustomRole} disabled={!newRole.name.trim()}>
-                           Create Role
-                         </Button>
+                          <Button onClick={createCustomRole} disabled={!newRole.name.trim() || !!roleNameExists}>
+                            Create Role
+                          </Button>
                        </DialogFooter>
                      </DialogContent>
                   </Dialog>
