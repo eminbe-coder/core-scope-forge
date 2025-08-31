@@ -1976,6 +1976,45 @@ export type Database = {
           },
         ]
       }
+      report_widgets: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          is_global: boolean
+          name: string
+          report_id: string
+          tenant_id: string
+          updated_at: string
+          widget_type: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          is_global?: boolean
+          name: string
+          report_id: string
+          tenant_id: string
+          updated_at?: string
+          widget_type?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          is_global?: boolean
+          name?: string
+          report_id?: string
+          tenant_id?: string
+          updated_at?: string
+          widget_type?: string
+        }
+        Relationships: []
+      }
       reports: {
         Row: {
           active: boolean
@@ -2464,8 +2503,10 @@ export type Database = {
           filters: Json | null
           height: number
           id: string
+          is_global: boolean | null
           position_x: number
           position_y: number
+          report_widget_id: string | null
           settings: Json | null
           updated_at: string
           user_id: string
@@ -2478,8 +2519,10 @@ export type Database = {
           filters?: Json | null
           height?: number
           id?: string
+          is_global?: boolean | null
           position_x?: number
           position_y?: number
+          report_widget_id?: string | null
           settings?: Json | null
           updated_at?: string
           user_id: string
@@ -2492,15 +2535,25 @@ export type Database = {
           filters?: Json | null
           height?: number
           id?: string
+          is_global?: boolean | null
           position_x?: number
           position_y?: number
+          report_widget_id?: string | null
           settings?: Json | null
           updated_at?: string
           user_id?: string
           widget_id?: string
           width?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_dashboard_configs_report_widget_id_fkey"
+            columns: ["report_widget_id"]
+            isOneToOne: false
+            referencedRelation: "report_widgets"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_dashboard_settings: {
         Row: {

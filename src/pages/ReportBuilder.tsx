@@ -211,6 +211,62 @@ export default function ReportBuilder() {
     }
   };
 
+  const handleCreateWidget = async () => {
+    if (!id || id === 'new' || !reportName || !dataSource) {
+      toast({
+        title: 'Error',
+        description: 'Please save the report first before creating a widget',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      // Create a report widget
+      const { data: reportWidget, error: widgetError } = await supabase
+        .from('report_widgets')
+        .insert({
+          report_id: id,
+          tenant_id: currentTenant?.id,
+          name: `${reportName} Widget`,
+          description: reportDescription,
+          created_by: user?.id,
+        })
+        .select()
+        .single();
+
+      if (widgetError) throw widgetError;
+
+      // Add to user's dashboard
+      const { error: dashboardError } = await supabase
+        .from('user_dashboard_configs')
+        .insert({
+          user_id: user?.id,
+          widget_id: 'report',
+          report_widget_id: reportWidget.id,
+          position_x: 0,
+          position_y: 0,
+          width: 6,
+          height: 4,
+          active: true,
+        });
+
+      if (dashboardError) throw dashboardError;
+
+      toast({
+        title: 'Success',
+        description: 'Report widget created and added to dashboard',
+      });
+    } catch (error) {
+      console.error('Error creating widget:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to create widget',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="container mx-auto p-6 space-y-6">
@@ -290,6 +346,11 @@ export default function ReportBuilder() {
                 <Save className="h-4 w-4 mr-2" />
                 {saving ? 'Saving...' : 'Save Report'}
               </Button>
+              {id && id !== 'new' && (
+                <Button onClick={handleCreateWidget} variant="outline">
+                  Add to Dashboard
+                </Button>
+              )}
             </div>
           </div>
 

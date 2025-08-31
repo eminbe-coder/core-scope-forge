@@ -48,6 +48,7 @@ const FIELD_DEFINITIONS = {
     { value: 'email', label: 'Email' },
     { value: 'phone', label: 'Phone' },
     { value: 'position', label: 'Position' },
+    { value: 'high_value', label: 'High Value' },
     { value: 'created_at', label: 'Created Date' },
   ],
   companies: [
@@ -57,6 +58,7 @@ const FIELD_DEFINITIONS = {
     { value: 'website', label: 'Website' },
     { value: 'industry', label: 'Industry' },
     { value: 'size', label: 'Size' },
+    { value: 'high_value', label: 'High Value' },
     { value: 'created_at', label: 'Created Date' },
   ],
   deals: [
@@ -65,6 +67,7 @@ const FIELD_DEFINITIONS = {
     { value: 'status', label: 'Status' },
     { value: 'probability', label: 'Probability' },
     { value: 'expected_close_date', label: 'Expected Close Date' },
+    { value: 'high_value', label: 'High Value' },
     { value: 'created_at', label: 'Created Date' },
   ],
   sites: [

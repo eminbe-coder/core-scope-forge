@@ -19,6 +19,7 @@ import { DealsWidget } from './widgets/DealsWidget';
 import { ProjectsWidget } from './widgets/ProjectsWidget';
 import { ActivitiesWidget } from './widgets/ActivitiesWidget';
 import { IncomingPaymentsWidget } from './widgets/IncomingPaymentsWidget';
+import { ReportWidget } from './widgets/ReportWidget';
 
 export interface WidgetConfig {
   id: string;
@@ -31,6 +32,8 @@ export interface WidgetConfig {
   active: boolean;
   filters?: any;
   settings?: any;
+  report_widget_id?: string;
+  is_global?: boolean;
 }
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -69,8 +72,8 @@ export function DashboardGrid() {
         setIsLayoutLocked(savedLockState === 'true');
       }
 
-      // Load widget configurations
-      const { data, error } = await supabase
+      // Load user's personal widgets
+      const { data: userWidgets, error: userError } = await supabase
         .from('user_dashboard_configs')
         .select('*')
         .eq('user_id', user?.id)
@@ -78,12 +81,24 @@ export function DashboardGrid() {
         .order('position_y')
         .order('position_x');
 
-      if (error) throw error;
+      if (userError) throw userError;
 
-      if (data.length === 0) {
+      // Load global widgets available to all tenants (if super admin)
+      const { data: globalWidgets, error: globalError } = await supabase
+        .from('user_dashboard_configs')
+        .select('*')
+        .eq('is_global', true)
+        .eq('active', true);
+
+      if (globalError) console.warn('Could not load global widgets:', globalError);
+
+      const allWidgets = [...(userWidgets || []), ...(globalWidgets || [])];
+
+      if (allWidgets.length === 0) {
+
         await initializeDefaultWidgets();
       } else {
-        const widgetConfigs = data.map(item => ({
+        const widgetConfigs = allWidgets.map(item => ({
           ...item,
           filters: item.filters || {},
           settings: item.settings || {}
@@ -323,7 +338,12 @@ export function DashboardGrid() {
     }
   }, [widgets, layoutInitialized]);
 
-  const getWidgetComponent = (widgetId: string) => {
+  const getWidgetComponent = (widgetId: string, config: WidgetConfig) => {
+    // Handle report widgets separately
+    if (config.report_widget_id) {
+      return ReportWidget;
+    }
+    
     const widget = availableWidgets.find(w => w.id === widgetId);
     return widget?.component;
   };
@@ -424,13 +444,13 @@ export function DashboardGrid() {
             compactType="vertical"
           >
             {widgets.map((widgetConfig) => {
-              const WidgetComponent = getWidgetComponent(widgetConfig.widget_id);
+              const WidgetComponent = getWidgetComponent(widgetConfig.widget_id, widgetConfig);
               
               if (!WidgetComponent) return null;
 
               return (
                 <div key={widgetConfig.id} className="relative">
-                  {customizeMode && (
+                  {customizeMode && !widgetConfig.is_global && (
                     <Button
                       variant="destructive"
                       size="sm"
@@ -441,7 +461,7 @@ export function DashboardGrid() {
                     </Button>
                   )}
                   <WidgetComponent
-                    config={widgetConfig}
+                    config={widgetConfig as any}
                     onUpdateConfig={(updates) => updateWidgetConfig(widgetConfig.id, updates)}
                     customizeMode={customizeMode}
                   />
