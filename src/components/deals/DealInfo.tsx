@@ -232,27 +232,35 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
     if (!currentTenant) return;
 
     try {
-      const { data, error } = await supabase
-        .from('profiles')
+        const { data, error } = await supabase
+        .from('user_tenant_memberships')
         .select(`
-          id,
-          first_name,
-          last_name,
-          email,
-          user_tenant_memberships!inner(tenant_id, active)
+          user_id,
+          profiles:user_id (
+            id,
+            first_name,
+            last_name,
+            email
+          )
         `)
-        .eq('user_tenant_memberships.tenant_id', currentTenant.id)
-        .eq('user_tenant_memberships.active', true);
+        .eq('tenant_id', currentTenant.id)
+        .eq('active', true);
 
       if (error) throw error;
       
-      const users = data?.map(user => ({
-        id: user.id,
-        name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email,
-        email: user.email,
-      })) || [];
+      const users = data?.map(membership => ({
+        value: membership.profiles?.id || '',
+        label: `${membership.profiles?.first_name} ${membership.profiles?.last_name}`,
+        email: membership.profiles?.email || ''
+      })).filter(user => user.value) || [];
       
-      setTenantUsers(users);
+      const tenantUsersList = users.map(user => ({
+        id: user.value,
+        name: user.label.trim() || user.email,
+        email: user.email
+      }));
+      
+      setTenantUsers(tenantUsersList);
     } catch (error) {
       console.error('Error fetching tenant users:', error);
     }

@@ -215,27 +215,35 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
       }
 
       // Load tenant users for salesperson assignment
-      const { data: userData, error: userError } = await supabase
-        .from('profiles')
+        const { data: userData, error: userError } = await supabase
+        .from('user_tenant_memberships')
         .select(`
-          id,
-          first_name,
-          last_name,
-          email,
-          user_tenant_memberships!inner(tenant_id, active)
+          user_id,
+          profiles:user_id (
+            id,
+            first_name,
+            last_name,
+            email
+          )
         `)
-        .eq('user_tenant_memberships.tenant_id', currentTenant?.id)
-        .eq('user_tenant_memberships.active', true);
+        .eq('tenant_id', currentTenant?.id)
+        .eq('active', true);
 
       if (userError) throw userError;
       
-      const users = userData?.map(user => ({
-        id: user.id,
-        name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email,
-        email: user.email,
-      })) || [];
+      const users = userData?.map(membership => ({
+        value: membership.profiles?.id || '',
+        label: `${membership.profiles?.first_name} ${membership.profiles?.last_name}`,
+        email: membership.profiles?.email || ''
+      })).filter(user => user.value) || [];
       
-      setTenantUsers(users);
+      const tenantUsersList = users.map(user => ({
+        id: user.value,
+        name: user.label.trim() || user.email,
+        email: user.email
+      }));
+      
+      setTenantUsers(tenantUsersList);
     } catch (error) {
       console.error('Error loading data:', error);
       toast({

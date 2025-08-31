@@ -312,25 +312,27 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
   };
 
   const fetchTenantUsers = async () => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select(`
-        id,
-        first_name,
-        last_name,
-        email,
-        user_tenant_memberships!inner(tenant_id, active)
+      const { data, error } = await supabase
+        .from('user_tenant_memberships')
+        .select(`
+        user_id,
+        profiles:user_id (
+          id,
+          first_name,
+          last_name,
+          email
+        )
       `)
-      .eq('user_tenant_memberships.tenant_id', currentTenant!.id)
-      .eq('user_tenant_memberships.active', true);
+      .eq('tenant_id', currentTenant!.id)
+      .eq('active', true);
 
     if (error) throw error;
     
-    const users = data?.map(user => ({
-      id: user.id,
-      name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email,
-      email: user.email,
-    })) || [];
+    const users = data?.map(membership => ({
+      id: membership.profiles?.id || '',
+      name: `${membership.profiles?.first_name || ''} ${membership.profiles?.last_name || ''}`.trim() || membership.profiles?.email || '',
+      email: membership.profiles?.email || '',
+    })).filter(user => user.id) || [];
     
     setTenantUsers(users);
   };
