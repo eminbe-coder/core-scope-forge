@@ -38,22 +38,7 @@ serve(async (req) => {
       )
     }
 
-    // Check if user is super admin
-    const { data: superAdminCheck, error: roleError } = await supabaseAdmin
-      .from('user_tenant_memberships')
-      .select('role')
-      .eq('user_id', user.id)
-      .eq('role', 'super_admin')
-      .eq('active', true)
-
-    if (roleError || !superAdminCheck || superAdminCheck.length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'Insufficient permissions' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // Parse the request body
+    // Parse the request body to get tenant_id first
     const { email, password, first_name, last_name, role, tenant_id } = await req.json()
 
     // Validate required fields
@@ -63,6 +48,35 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    // Check if user is super admin OR admin for the specific tenant
+    const { data: userMemberships, error: roleError } = await supabaseAdmin
+      .from('user_tenant_memberships')
+      .select('role, tenant_id')
+      .eq('user_id', user.id)
+      .eq('active', true)
+      .in('role', ['super_admin', 'admin'])
+
+    if (roleError || !userMemberships || userMemberships.length === 0) {
+      return new Response(
+        JSON.stringify({ error: 'Insufficient permissions' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Check if user is super admin or admin for the target tenant
+    const isSuperAdmin = userMemberships.some(membership => membership.role === 'super_admin')
+    const isTenantAdmin = userMemberships.some(membership => 
+      membership.role === 'admin' && membership.tenant_id === tenant_id
+    )
+
+    if (!isSuperAdmin && !isTenantAdmin) {
+      return new Response(
+        JSON.stringify({ error: 'Insufficient permissions for this tenant' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
 
     // Create the user
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
