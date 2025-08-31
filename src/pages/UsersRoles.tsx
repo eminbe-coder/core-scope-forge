@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { PermissionsMatrix } from '@/components/forms/PermissionsMatrix';
 
 interface TenantUser {
   id: string;
@@ -350,42 +351,50 @@ const UsersRoles = () => {
                         Create Role
                       </Button>
                     </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Create Custom Role</DialogTitle>
-                        <DialogDescription>
-                          Define a new role with specific permissions for your tenant.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div>
-                          <Label htmlFor="role-name">Role Name</Label>
-                          <Input
-                            id="role-name"
-                            value={newRole.name}
-                            onChange={(e) => setNewRole({ ...newRole, name: e.target.value })}
-                            placeholder="e.g., Project Manager"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="role-description">Description</Label>
-                          <Textarea
-                            id="role-description"
-                            value={newRole.description}
-                            onChange={(e) => setNewRole({ ...newRole, description: e.target.value })}
-                            placeholder="Describe the role responsibilities..."
-                          />
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowCreateRole(false)}>
-                          Cancel
-                        </Button>
-                        <Button onClick={createCustomRole}>
-                          Create Role
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
+                     <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                       <DialogHeader>
+                         <DialogTitle>Create Custom Role</DialogTitle>
+                         <DialogDescription>
+                           Define a new role with specific permissions for your tenant.
+                         </DialogDescription>
+                       </DialogHeader>
+                       <div className="space-y-6">
+                         <div className="grid grid-cols-2 gap-4">
+                           <div>
+                             <Label htmlFor="role-name">Role Name</Label>
+                             <Input
+                               id="role-name"
+                               value={newRole.name}
+                               onChange={(e) => setNewRole({ ...newRole, name: e.target.value })}
+                               placeholder="e.g., Project Manager"
+                             />
+                           </div>
+                           <div>
+                             <Label htmlFor="role-description">Description</Label>
+                             <Textarea
+                               id="role-description"
+                               value={newRole.description}
+                               onChange={(e) => setNewRole({ ...newRole, description: e.target.value })}
+                               placeholder="Describe the role responsibilities..."
+                               rows={3}
+                             />
+                           </div>
+                         </div>
+                         
+                         <PermissionsMatrix
+                           permissions={newRole.permissions}
+                           onChange={(permissions) => setNewRole({ ...newRole, permissions })}
+                         />
+                       </div>
+                       <DialogFooter>
+                         <Button variant="outline" onClick={() => setShowCreateRole(false)}>
+                           Cancel
+                         </Button>
+                         <Button onClick={createCustomRole} disabled={!newRole.name.trim()}>
+                           Create Role
+                         </Button>
+                       </DialogFooter>
+                     </DialogContent>
                   </Dialog>
                 </div>
               </CardHeader>
