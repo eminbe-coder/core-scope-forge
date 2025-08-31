@@ -77,7 +77,7 @@ const UsersRoles = () => {
     try {
       setLoading(true);
       
-      // Fetch tenant users
+      // Fetch tenant users with custom roles
       const { data: users, error: usersError } = await supabase
         .from('user_tenant_memberships')
         .select(`

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -14,11 +14,19 @@ const userSchema = z.object({
   email: z.string().email('Valid email is required'),
   first_name: z.string().min(1, 'First name is required'),
   last_name: z.string().min(1, 'Last name is required'),
-  role: z.enum(['admin', 'member']),
+  role: z.string().min(1, 'Role is required'),
+  custom_role_id: z.string().optional(),
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
 type UserFormData = z.infer<typeof userSchema>;
+
+interface CustomRole {
+  id: string;
+  name: string;
+  description: string;
+  permissions: any;
+}
 
 interface CreateUserModalProps {
   open: boolean;
@@ -29,6 +37,7 @@ interface CreateUserModalProps {
 
 export function CreateUserModal({ open, onClose, tenantId, onSuccess }: CreateUserModalProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [customRoles, setCustomRoles] = useState<CustomRole[]>([]);
   const { toast } = useToast();
 
   const form = useForm<UserFormData>({
@@ -38,9 +47,35 @@ export function CreateUserModal({ open, onClose, tenantId, onSuccess }: CreateUs
       first_name: '',
       last_name: '',
       role: 'member',
+      custom_role_id: undefined,
       password: '',
     },
   });
+
+  // Fetch custom roles for this tenant
+  useEffect(() => {
+    const fetchCustomRoles = async () => {
+      if (!tenantId) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('custom_roles')
+          .select('*')
+          .eq('tenant_id', tenantId)
+          .eq('active', true)
+          .order('name');
+        
+        if (error) throw error;
+        setCustomRoles(data || []);
+      } catch (error) {
+        console.error('Error fetching custom roles:', error);
+      }
+    };
+
+    if (open) {
+      fetchCustomRoles();
+    }
+  }, [open, tenantId]);
 
   const onSubmit = async (data: UserFormData) => {
     setIsLoading(true);
@@ -50,6 +85,12 @@ export function CreateUserModal({ open, onClose, tenantId, onSuccess }: CreateUs
       if (!session) {
         throw new Error('Not authenticated');
       }
+
+      // Determine if this is a custom role or system role
+      const isCustomRole = customRoles.some(role => role.id === data.role);
+      const rolePayload = isCustomRole 
+        ? { role: 'member', custom_role_id: data.role }
+        : { role: data.role, custom_role_id: null };
 
       // Call the Edge Function to create user
       const response = await fetch(`https://wyslzrnmnqzntmuwzkwn.supabase.co/functions/v1/create-tenant-user`, {
@@ -63,7 +104,7 @@ export function CreateUserModal({ open, onClose, tenantId, onSuccess }: CreateUs
           password: data.password,
           first_name: data.first_name,
           last_name: data.last_name,
-          role: data.role,
+          ...rolePayload,
           tenant_id: tenantId,
         }),
       });
@@ -158,13 +199,18 @@ export function CreateUserModal({ open, onClose, tenantId, onSuccess }: CreateUs
                   <FormLabel>Role</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-background">
                         <SelectValue placeholder="Select role" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
+                    <SelectContent className="bg-background border shadow-lg z-50">
                       <SelectItem value="admin">Admin</SelectItem>
                       <SelectItem value="member">Member</SelectItem>
+                      {customRoles.map((role) => (
+                        <SelectItem key={role.id} value={role.id}>
+                          {role.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
