@@ -224,6 +224,7 @@ export type Database = {
           description: string | null
           email: string | null
           headquarters: string | null
+          high_value: boolean
           id: string
           industry: string | null
           instagram_page: string | null
@@ -244,6 +245,7 @@ export type Database = {
           description?: string | null
           email?: string | null
           headquarters?: string | null
+          high_value?: boolean
           id?: string
           industry?: string | null
           instagram_page?: string | null
@@ -264,6 +266,7 @@ export type Database = {
           description?: string | null
           email?: string | null
           headquarters?: string | null
+          high_value?: boolean
           id?: string
           industry?: string | null
           instagram_page?: string | null
@@ -558,6 +561,7 @@ export type Database = {
           customer_id: string | null
           email: string | null
           first_name: string
+          high_value: boolean
           id: string
           is_lead: boolean
           last_name: string | null
@@ -574,6 +578,7 @@ export type Database = {
           customer_id?: string | null
           email?: string | null
           first_name: string
+          high_value?: boolean
           id?: string
           is_lead?: boolean
           last_name?: string | null
@@ -590,6 +595,7 @@ export type Database = {
           customer_id?: string | null
           email?: string | null
           first_name?: string
+          high_value?: boolean
           id?: string
           is_lead?: boolean
           last_name?: string | null
@@ -1374,6 +1380,7 @@ export type Database = {
           customer_reference_number: string | null
           description: string | null
           expected_close_date: string | null
+          high_value: boolean
           id: string
           name: string
           notes: string | null
@@ -1394,6 +1401,7 @@ export type Database = {
           customer_reference_number?: string | null
           description?: string | null
           expected_close_date?: string | null
+          high_value?: boolean
           id?: string
           name: string
           notes?: string | null
@@ -1414,6 +1422,7 @@ export type Database = {
           customer_reference_number?: string | null
           description?: string | null
           expected_close_date?: string | null
+          high_value?: boolean
           id?: string
           name?: string
           notes?: string | null
@@ -2158,6 +2167,7 @@ export type Database = {
           country: string
           created_at: string
           customer_id: string | null
+          high_value: boolean
           id: string
           images: string[] | null
           is_lead: boolean | null
@@ -2179,6 +2189,7 @@ export type Database = {
           country: string
           created_at?: string
           customer_id?: string | null
+          high_value?: boolean
           id?: string
           images?: string[] | null
           is_lead?: boolean | null
@@ -2200,6 +2211,7 @@ export type Database = {
           country?: string
           created_at?: string
           customer_id?: string | null
+          high_value?: boolean
           id?: string
           images?: string[] | null
           is_lead?: boolean | null

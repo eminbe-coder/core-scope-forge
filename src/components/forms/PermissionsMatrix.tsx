@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface PermissionsMatrixProps {
   permissions: any;
@@ -29,6 +30,16 @@ const REPORT_PERMISSIONS = [
   { key: 'generate', label: 'Generate' },
 ];
 
+const VISIBILITY_MODULES = [
+  { key: 'deals', label: 'Deals' },
+  { key: 'leads', label: 'Leads' },
+];
+
+const VISIBILITY_OPTIONS = [
+  { value: 'all', label: 'All Records' },
+  { value: 'own', label: 'Only My Records' },
+];
+
 export const PermissionsMatrix = ({ permissions, onChange }: PermissionsMatrixProps) => {
   const [localPermissions, setLocalPermissions] = useState(permissions || {});
 
@@ -48,8 +59,24 @@ export const PermissionsMatrix = ({ permissions, onChange }: PermissionsMatrixPr
     onChange(updatedPermissions);
   };
 
+  const handleVisibilityChange = (module: string, value: string) => {
+    const updatedPermissions = {
+      ...localPermissions,
+      [module]: {
+        ...localPermissions[module],
+        visibility: value
+      }
+    };
+    setLocalPermissions(updatedPermissions);
+    onChange(updatedPermissions);
+  };
+
   const isChecked = (module: string, permission: string) => {
     return localPermissions[module]?.[permission] || false;
+  };
+
+  const getVisibility = (module: string) => {
+    return localPermissions[module]?.visibility || 'all';
   };
 
   return (
@@ -94,6 +121,40 @@ export const PermissionsMatrix = ({ permissions, onChange }: PermissionsMatrixPr
                 ))}
               </tbody>
             </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Visibility Permissions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Data Visibility Permissions</CardTitle>
+          <CardDescription>
+            Configure what data users can see within each module
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {VISIBILITY_MODULES.map(module => (
+              <div key={module.key} className="flex items-center justify-between p-3 border rounded-md">
+                <Label className="font-medium">{module.label}</Label>
+                <Select 
+                  value={getVisibility(module.key)} 
+                  onValueChange={(value) => handleVisibilityChange(module.key, value)}
+                >
+                  <SelectTrigger className="w-48">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {VISIBILITY_OPTIONS.map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>
