@@ -39,7 +39,7 @@ serve(async (req) => {
     }
 
     // Parse the request body to get tenant_id first
-    const { email, password, first_name, last_name, role, tenant_id } = await req.json()
+    const { email, password, first_name, last_name, role, custom_role_id, tenant_id } = await req.json()
 
     // Validate required fields
     if (!email || !password || !first_name || !last_name || !role || !tenant_id) {
@@ -110,6 +110,7 @@ serve(async (req) => {
         user_id: newUser.user.id,
         tenant_id,
         role,
+        custom_role_id: custom_role_id || null,
         active: true,
       }])
 
