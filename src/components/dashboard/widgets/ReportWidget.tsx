@@ -74,11 +74,12 @@ export function ReportWidget({ config }: ReportWidgetProps) {
         return;
       }
 
-      const report = reportWidget?.reports;
-      if (!report) {
+      if (!reportWidget || !reportWidget.reports) {
         setError('Report not found for this widget');
         return;
       }
+
+      const report = reportWidget.reports;
       setReportInfo(report);
 
       // Generate report data using the edge function
