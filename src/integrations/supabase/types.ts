@@ -2724,6 +2724,10 @@ export type Database = {
         Args: { _user_id: string }
         Returns: boolean
       }
+      is_tenant_admin_for: {
+        Args: { _tenant_id: string }
+        Returns: boolean
+      }
       user_can_modify_contract: {
         Args: { _contract_id: string; _user_id: string }
         Returns: boolean

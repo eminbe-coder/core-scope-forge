@@ -117,7 +117,15 @@ export const ContractTodos = ({ contractId, canEdit, onUpdate, compact = false }
           .eq('contract_id', contractId)
           .order('installment_number'),
         
-        supabase.from('profiles').select('*')
+        supabase.from('user_tenant_memberships').select(`
+          user_id,
+          profiles:user_id (
+            id,
+            first_name,
+            last_name,
+            email
+          )
+        `).eq('tenant_id', currentTenant?.id).eq('active', true)
       ]);
 
       if (todosRes.error) throw todosRes.error;
@@ -126,7 +134,7 @@ export const ContractTodos = ({ contractId, canEdit, onUpdate, compact = false }
 
       setTodos(todosRes.data as unknown as Todo[] || []);
       setPaymentTerms(paymentTermsRes.data as unknown as PaymentTerm[] || []);
-      setProfiles(profilesRes.data || []);
+      setProfiles((profilesRes.data || []).map((membership: any) => membership.profiles).filter(Boolean));
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to load to-do items');

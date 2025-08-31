@@ -113,7 +113,15 @@ export const CreateContractForm = ({ deal, onSuccess }: CreateContractFormProps)
         supabase.from('companies').select('*').eq('tenant_id', currentTenant?.id),
         supabase.from('contacts').select('*').eq('tenant_id', currentTenant?.id),
         supabase.from('sites').select('*').eq('tenant_id', currentTenant?.id),
-        supabase.from('profiles').select('*'),
+        supabase.from('user_tenant_memberships').select(`
+          user_id,
+          profiles:user_id (
+            id,
+            first_name,
+            last_name,
+            email
+          )
+        `).eq('tenant_id', currentTenant?.id).eq('active', true),
         supabase.from('contract_payment_stages').select('*').eq('tenant_id', currentTenant?.id).order('sort_order')
       ]);
 
@@ -122,7 +130,7 @@ export const CreateContractForm = ({ deal, onSuccess }: CreateContractFormProps)
       setCompanies(companiesRes.data || []);
       setContacts(contactsRes.data || []);
       setSites(sitesRes.data || []);
-      setProfiles(profilesRes.data || []);
+      setProfiles((profilesRes.data || []).map((membership: any) => membership.profiles).filter(Boolean));
       setPaymentStages(paymentStagesRes.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
