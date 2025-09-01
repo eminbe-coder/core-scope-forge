@@ -102,6 +102,10 @@ export const CreateContractForm = ({ deal, onSuccess }: CreateContractFormProps)
       if (deal?.id) {
         fetchDealPaymentTerms();
       }
+      // Set default currency to tenant's default
+      if (currentTenant?.default_currency_id && !deal?.currency_id) {
+        form.setValue('currency_id', currentTenant.default_currency_id);
+      }
     }
   }, [currentTenant?.id, deal?.id]);
 

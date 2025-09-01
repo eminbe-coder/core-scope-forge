@@ -64,7 +64,7 @@ const Devices = () => {
     brand: '',
     model: '',
     unit_price: '',
-    currency_id: '',
+    currency_id: currentTenant?.default_currency_id || '',
     specifications: '',
   });
 
@@ -114,6 +114,14 @@ const Devices = () => {
   useEffect(() => {
     fetchDevices();
     fetchCurrencies();
+    
+    // Update form currency when tenant changes
+    if (currentTenant?.default_currency_id) {
+      setFormData(prev => ({
+        ...prev,
+        currency_id: currentTenant.default_currency_id || ''
+      }));
+    }
   }, [currentTenant]);
 
   const handleCreate = async () => {
@@ -156,7 +164,7 @@ const Devices = () => {
         brand: '',
         model: '',
         unit_price: '',
-        currency_id: '',
+        currency_id: currentTenant?.default_currency_id || '',
         specifications: '',
       });
       fetchDevices();
