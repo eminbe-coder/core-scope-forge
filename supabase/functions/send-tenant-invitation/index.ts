@@ -101,6 +101,83 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Check if user already exists
+    const { data: existingUser, error: userLookupError } = await supabaseAdmin.auth.admin.listUsers();
+    const userExists = existingUser?.users?.find(u => u.email === email);
+
+    if (userExists) {
+      console.log('User already exists, adding to tenant directly:', email);
+      
+      // Check if user already has membership in this tenant
+      const { data: existingMembership, error: membershipCheckError } = await supabaseAdmin
+        .from('user_tenant_memberships')
+        .select('id, active')
+        .eq('user_id', userExists.id)
+        .eq('tenant_id', tenant_id)
+        .single();
+
+      if (existingMembership && existingMembership.active) {
+        return new Response(
+          JSON.stringify({ error: 'User is already a member of this tenant' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Create or reactivate membership
+      if (existingMembership && !existingMembership.active) {
+        // Reactivate existing membership
+        const { error: updateError } = await supabaseAdmin
+          .from('user_tenant_memberships')
+          .update({
+            role,
+            custom_role_id,
+            active: true,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingMembership.id);
+
+        if (updateError) {
+          console.error('Failed to reactivate membership:', updateError);
+          return new Response(
+            JSON.stringify({ error: 'Failed to add user to tenant' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      } else {
+        // Create new membership
+        const { error: membershipError } = await supabaseAdmin
+          .from('user_tenant_memberships')
+          .insert({
+            user_id: userExists.id,
+            tenant_id,
+            role,
+            custom_role_id,
+            active: true
+          });
+
+        if (membershipError) {
+          console.error('Failed to create membership:', membershipError);
+          return new Response(
+            JSON.stringify({ error: 'Failed to add user to tenant' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'Existing user added to tenant successfully',
+          user_id: userExists.id
+        }),
+        { 
+          status: 200, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    // User doesn't exist, proceed with invitation
     // Create invitation record first
     const { data: invitation, error: invitationError } = await supabaseAdmin
       .from('tenant_invitations')
@@ -122,8 +199,10 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Use Supabase Auth to invite user by email
-    const redirectUrl = `${req.headers.get('origin')}/accept-invitation?token=${invitation.invitation_token}`;
+    // Use production URL for redirect instead of origin header
+    // Get the current domain from the request or use a fallback
+    const origin = req.headers.get('origin') || 'https://711f9ef4-fcf3-4a93-9e36-e236d2f8e210.sandbox.lovable.dev';
+    const redirectUrl = `${origin}/accept-invitation?token=${invitation.invitation_token}`;
     
     const { data: authInvite, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       email,
