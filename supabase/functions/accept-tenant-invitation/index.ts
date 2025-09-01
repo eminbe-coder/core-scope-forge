@@ -10,7 +10,6 @@ interface AcceptInvitationRequest {
   invitation_token: string;
   first_name?: string;
   last_name?: string;
-  password?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -35,7 +34,7 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
     // Parse request body
-    const { invitation_token, first_name, last_name, password }: AcceptInvitationRequest = await req.json();
+    const { invitation_token, first_name, last_name }: AcceptInvitationRequest = await req.json();
 
     console.log('Accept invitation request:', { invitation_token, first_name, last_name });
 
@@ -68,44 +67,56 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Check if user already exists
+    // The user should already exist from the Supabase Auth invitation
+    // Look them up by email
     const { data: existingUser } = await supabaseAdmin.auth.admin.getUserByEmail(invitation.email);
     
-    let userId: string;
+    if (!existingUser.user) {
+      console.error('User not found after invitation:', invitation.email);
+      return new Response(
+        JSON.stringify({ error: 'User account not found. Please check your invitation email and try the signup link first.' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    if (existingUser.user) {
-      // User exists, use their ID
-      userId = existingUser.user.id;
-      console.log('User already exists:', userId);
-    } else {
-      // Create new user if they don't exist
-      if (!password) {
-        return new Response(
-          JSON.stringify({ error: 'Password is required for new users' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+    const userId = existingUser.user.id;
+    console.log('Found existing user from auth invitation:', userId);
+
+    // Ensure profile exists for the user
+    const { data: existingProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('id')
+      .eq('id', userId)
+      .single();
+
+    if (!existingProfile) {
+      console.log('Creating profile for user:', userId);
+      const { error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .insert({
+          id: userId,
+          email: invitation.email,
+          first_name: first_name || existingUser.user.user_metadata?.first_name || '',
+          last_name: last_name || existingUser.user.user_metadata?.last_name || ''
+        });
+
+      if (profileError) {
+        console.error('Failed to create profile:', profileError);
+        // Don't fail the request, but log the error
       }
+    } else if (first_name || last_name) {
+      // Update profile with provided names
+      const { error: updateProfileError } = await supabaseAdmin
+        .from('profiles')
+        .update({
+          first_name: first_name || existingProfile.first_name,
+          last_name: last_name || existingProfile.last_name
+        })
+        .eq('id', userId);
 
-      const { data: newUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
-        email: invitation.email,
-        password: password,
-        email_confirm: true,
-        user_metadata: {
-          first_name: first_name || '',
-          last_name: last_name || ''
-        }
-      });
-
-      if (createUserError || !newUser.user) {
-        console.error('Failed to create user:', createUserError);
-        return new Response(
-          JSON.stringify({ error: 'Failed to create user account' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      if (updateProfileError) {
+        console.error('Failed to update profile:', updateProfileError);
       }
-
-      userId = newUser.user.id;
-      console.log('Created new user:', userId);
     }
 
     // Check if user already has membership for this tenant

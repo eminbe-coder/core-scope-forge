@@ -9,9 +9,6 @@ verify_jwt = false
 [functions.generate-report-data]
 verify_jwt = true
 
-[functions.create-tenant-user]
-verify_jwt = true
-
 [functions.send-tenant-invitation]
 verify_jwt = true
 
