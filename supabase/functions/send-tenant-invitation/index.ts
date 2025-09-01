@@ -125,7 +125,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Use Supabase Auth to invite user by email
     const redirectUrl = `${req.headers.get('origin')}/accept-invitation?token=${invitation.invitation_token}`;
     
-    const { data: authInvite, error: authError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+    const { data: authInvite, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       email,
       {
         redirectTo: redirectUrl,
@@ -139,8 +139,8 @@ const handler = async (req: Request): Promise<Response> => {
       }
     );
 
-    if (authError) {
-      console.error('Failed to send auth invitation:', authError);
+    if (inviteError) {
+      console.error('Failed to send auth invitation:', inviteError);
       // Clean up the invitation record if auth invitation fails
       await supabaseAdmin
         .from('tenant_invitations')
