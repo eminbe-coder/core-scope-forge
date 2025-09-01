@@ -89,13 +89,8 @@ export const ContractTodos = ({ contractId, canEdit, onUpdate, compact = false }
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Check if user can modify this contract
-      const { data: canModify } = await supabase.rpc('user_can_modify_contract', {
-        _contract_id: contractId,
-        _user_id: user.id
-      });
-
-      setCanUserEdit(canModify || false);
+      // Allow all tenant users to create and assign todos
+      setCanUserEdit(true);
 
       const [todosRes, paymentTermsRes, profilesRes] = await Promise.all([
         supabase
