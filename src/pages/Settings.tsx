@@ -1,10 +1,11 @@
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Settings, Users, Building2, Key, DollarSign, Cloud } from 'lucide-react';
+import { Settings, Users, Building2, Key, DollarSign, Cloud, CheckSquare } from 'lucide-react';
 import { CurrencySettings } from '@/components/settings/CurrencySettings';
 import { CRMSettings } from '@/components/settings/CRMSettings';
 import { OneDriveSettings } from '@/components/settings/OneDriveSettings';
+import { TaskTypesSettings } from '@/components/settings/TaskTypesSettings';
 import { useState, useEffect } from 'react';
 
 const SettingsPage = () => {
@@ -80,6 +81,14 @@ const SettingsPage = () => {
               <Cloud className="mr-2 h-4 w-4" />
               Cloud Storage
             </Button>
+            <Button
+              variant={activeSection === 'task-types' ? 'default' : 'ghost'}
+              className="w-full justify-start"
+              onClick={() => setActiveSection('task-types')}
+            >
+              <CheckSquare className="mr-2 h-4 w-4" />
+              Task Types
+            </Button>
           </div>
 
           {/* Main Content */}
@@ -124,6 +133,8 @@ const SettingsPage = () => {
             {activeSection === 'crm' && <CRMSettings />}
 
             {activeSection === 'cloud' && <OneDriveSettings />}
+
+            {activeSection === 'task-types' && <TaskTypesSettings />}
 
             {activeSection === 'users' && (
               <Card>

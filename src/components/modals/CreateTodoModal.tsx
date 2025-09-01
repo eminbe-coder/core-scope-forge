@@ -43,7 +43,7 @@ const todoSchema = z.object({
   description: z.string().optional(),
   due_date: z.date().optional(),
   assigned_to: z.string().min(1, 'Assigned user is required'),
-  type: z.enum(['task', 'call', 'meeting', 'email']),
+  type: z.string().min(1, 'Task type is required'),
 });
 
 type TodoFormData = z.infer<typeof todoSchema>;
@@ -53,6 +53,13 @@ interface User {
   first_name: string;
   last_name: string;
   email: string;
+}
+
+interface TaskType {
+  id: string;
+  name: string;
+  description: string | null;
+  color: string;
 }
 
 interface CreateTodoModalProps {
@@ -73,6 +80,7 @@ export const CreateTodoModal = ({
   entityName,
 }: CreateTodoModalProps) => {
   const [users, setUsers] = useState<User[]>([]);
+  const [taskTypes, setTaskTypes] = useState<TaskType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { currentTenant } = useTenant();
   const { user } = useAuth();
@@ -82,7 +90,7 @@ export const CreateTodoModal = ({
     resolver: zodResolver(todoSchema),
     defaultValues: {
       assigned_to: user?.id || '',
-      type: 'task',
+      type: '',
     },
   });
 
@@ -116,13 +124,32 @@ export const CreateTodoModal = ({
     }
   };
 
+  const fetchTaskTypes = async () => {
+    if (!currentTenant) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('task_types')
+        .select('id, name, description, color')
+        .eq('tenant_id', currentTenant.id)
+        .eq('active', true)
+        .order('sort_order', { ascending: true });
+
+      if (error) throw error;
+      setTaskTypes(data || []);
+    } catch (error) {
+      console.error('Error fetching task types:', error);
+    }
+  };
+
   useEffect(() => {
     if (open) {
       fetchTenantUsers();
+      fetchTaskTypes();
       // Reset form when opening
       form.reset({
         assigned_to: user?.id || '',
-        type: 'task',
+        type: taskTypes.length > 0 ? taskTypes[0].id : '',
       });
     }
   }, [open, currentTenant, user, form]);
@@ -132,9 +159,23 @@ export const CreateTodoModal = ({
 
     setIsLoading(true);
     try {
+      // Find the selected task type to get the name
+      const selectedTaskType = taskTypes.find(t => t.id === data.type);
+      
+      // Map task type names to valid enum values
+      const mapTaskTypeToEnum = (taskTypeName: string): 'call' | 'email' | 'meeting' | 'task' => {
+        const name = taskTypeName.toLowerCase();
+        if (name.includes('call')) return 'call';
+        if (name.includes('email')) return 'email';
+        if (name.includes('meeting')) return 'meeting';
+        return 'task'; // default fallback
+      };
+      
+      const taskTypeName = selectedTaskType ? mapTaskTypeToEnum(selectedTaskType.name) : 'task';
+      
       const activityData = {
         tenant_id: currentTenant.id,
-        type: data.type,
+        type: taskTypeName,
         title: data.title,
         description: data.description || null,
         due_date: data.due_date?.toISOString() || null,
@@ -198,10 +239,17 @@ export const CreateTodoModal = ({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="task">Task</SelectItem>
-                      <SelectItem value="call">Call</SelectItem>
-                      <SelectItem value="meeting">Meeting</SelectItem>
-                      <SelectItem value="email">Email</SelectItem>
+                      {taskTypes.map((taskType) => (
+                        <SelectItem key={taskType.id} value={taskType.id}>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-3 h-3 rounded-full"
+                              style={{ backgroundColor: taskType.color }}
+                            />
+                            {taskType.name}
+                          </div>
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
