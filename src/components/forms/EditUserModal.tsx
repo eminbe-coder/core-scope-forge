@@ -191,19 +191,22 @@ export function EditUserModal({ open, onClose, membership, onSuccess, onDelete }
 
       if (membershipError) throw membershipError;
 
-      // Update password if provided
+      // Update password via secure edge function if provided
       if (data.password && data.password.length >= 6) {
-        const { error: passwordError } = await supabase.auth.admin.updateUserById(
-          membership.user_id,
-          { password: data.password }
-        );
+        const { data: fnData, error: fnError } = await supabase.functions.invoke('admin-reset-user-password', {
+          body: {
+            user_id: membership.user_id,
+            tenant_id: membership.tenant_id,
+            new_password: data.password,
+          },
+        });
         
-        if (passwordError) {
-          console.warn('Password update failed:', passwordError);
+        if (fnError) {
+          console.warn('Password update failed:', fnError);
           // Don't throw error for password update failure, just warn
           toast({
             title: 'Partial Success',
-            description: 'User details updated, but password update failed. You may need super admin privileges.',
+            description: 'User details updated, but password update failed.',
             variant: 'default',
           });
         }
