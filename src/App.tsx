@@ -9,6 +9,7 @@ import { PermissionsProvider } from "@/hooks/use-permissions";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import AcceptInvitation from "./pages/AcceptInvitation";
 import Companies from "./pages/Companies";
 import AddCompany from "./pages/AddCompany";
 import EditCompany from "./pages/EditCompany";
@@ -59,6 +60,7 @@ const App = () => (
             <BrowserRouter>
               <Routes>
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/accept-invitation" element={<AcceptInvitation />} />
                 <Route path="/" element={<Index />} />
                 <Route path="/companies" element={
                   <ProtectedRoute>

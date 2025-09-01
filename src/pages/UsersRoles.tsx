@@ -269,7 +269,7 @@ const UsersRoles = () => {
                   </div>
                   <Button onClick={() => setShowCreateUser(true)}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add User
+                    Invite User
                   </Button>
                 </div>
               </CardHeader>
