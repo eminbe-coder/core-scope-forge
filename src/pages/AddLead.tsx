@@ -15,8 +15,8 @@ const AddLead = () => {
   const leadType = searchParams.get('type') as 'contact' | 'company' | 'site' || 'contact';
   const [activeTab, setActiveTab] = useState(leadType);
 
-  const handleSuccess = (id: string, type: 'contact' | 'company' | 'site') => {
-    navigate(`/leads/${type}/${id}`);
+  const handleSuccess = (id: string) => {
+    navigate(`/leads/${activeTab}/${id}`);
   };
 
   return (
@@ -60,21 +60,21 @@ const AddLead = () => {
                 <TabsContent value="contact">
                   <CreateContactForm
                     isLead={true}
-                    onSuccess={() => handleSuccess('', 'contact')}
+                    onSuccess={handleSuccess}
                   />
                 </TabsContent>
 
                 <TabsContent value="company">
                   <CreateCompanyForm
                     isLead={true}
-                    onSuccess={() => handleSuccess('', 'company')}
+                    onSuccess={handleSuccess}
                   />
                 </TabsContent>
 
                 <TabsContent value="site">
                   <CreateSiteForm
                     isLead={true}
-                    onSuccess={() => handleSuccess('', 'site')}
+                    onSuccess={handleSuccess}
                   />
                 </TabsContent>
               </div>

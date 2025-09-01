@@ -29,7 +29,7 @@ type SiteFormData = z.infer<typeof siteSchema>;
 
 interface CreateSiteFormProps {
   isLead?: boolean;
-  onSuccess?: () => void;
+  onSuccess?: (id: string) => void;
 }
 
 export const CreateSiteForm = ({ isLead = false, onSuccess }: CreateSiteFormProps) => {
@@ -88,7 +88,7 @@ export const CreateSiteForm = ({ isLead = false, onSuccess }: CreateSiteFormProp
       });
 
       if (onSuccess) {
-        onSuccess();
+        onSuccess(site.id);
       } else {
         navigate(isLead ? `/leads/site/${site.id}` : '/sites');
       }

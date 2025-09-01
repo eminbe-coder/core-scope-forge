@@ -29,7 +29,7 @@ type CompanyFormData = z.infer<typeof companySchema>;
 
 interface CreateCompanyFormProps {
   isLead?: boolean;
-  onSuccess?: () => void;
+  onSuccess?: (id: string) => void;
 }
 
 export const CreateCompanyForm = ({ isLead = false, onSuccess }: CreateCompanyFormProps) => {
@@ -90,7 +90,7 @@ export const CreateCompanyForm = ({ isLead = false, onSuccess }: CreateCompanyFo
       });
 
       if (onSuccess) {
-        onSuccess();
+        onSuccess(company.id);
       } else {
         navigate(isLead ? `/leads/company/${company.id}` : '/companies');
       }

@@ -348,7 +348,11 @@ const Leads = () => {
                   {filteredLeads.map((lead) => {
                     const IconComponent = getLeadIcon(lead.type);
                     return (
-                      <Card key={`${lead.type}-${lead.id}`} className="hover:shadow-md transition-shadow cursor-pointer group">
+                      <Card 
+                        key={`${lead.type}-${lead.id}`} 
+                        className="hover:shadow-md transition-shadow cursor-pointer group"
+                        onClick={() => navigate(`/leads/${lead.type}/${lead.id}`)}
+                      >
                         <CardHeader className="pb-3">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">

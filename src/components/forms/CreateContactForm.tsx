@@ -27,7 +27,7 @@ type ContactFormData = z.infer<typeof contactSchema>;
 
 interface CreateContactFormProps {
   isLead?: boolean;
-  onSuccess?: () => void;
+  onSuccess?: (id: string) => void;
 }
 
 export const CreateContactForm = ({ isLead = false, onSuccess }: CreateContactFormProps) => {
@@ -86,7 +86,7 @@ export const CreateContactForm = ({ isLead = false, onSuccess }: CreateContactFo
       });
 
       if (onSuccess) {
-        onSuccess();
+        onSuccess(contact.id);
       } else {
         navigate(isLead ? `/leads/contact/${contact.id}` : '/contacts');
       }
