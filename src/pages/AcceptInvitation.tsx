@@ -14,11 +14,6 @@ import { Loader2 } from "lucide-react";
 const acceptInvitationSchema = z.object({
   first_name: z.string().min(1, "First name is required"),
   last_name: z.string().min(1, "Last name is required"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  confirm_password: z.string(),
-}).refine((data) => data.password === data.confirm_password, {
-  message: "Passwords don't match",
-  path: ["confirm_password"],
 });
 
 type AcceptInvitationFormData = z.infer<typeof acceptInvitationSchema>;
@@ -39,8 +34,6 @@ export default function AcceptInvitation() {
     defaultValues: {
       first_name: "",
       last_name: "",
-      password: "",
-      confirm_password: "",
     },
   });
 
@@ -116,7 +109,6 @@ export default function AcceptInvitation() {
           invitation_token: token,
           first_name: formData.first_name,
           last_name: formData.last_name,
-          password: userExists ? undefined : formData.password,
         }
       });
 
@@ -132,10 +124,10 @@ export default function AcceptInvitation() {
 
       toast({
         title: "Success",
-        description: `Welcome to ${result.tenant_name}! You can now sign in.`,
+        description: `Welcome to ${result.tenant_name}! You can now access the platform.`,
       });
 
-      navigate("/auth");
+      navigate("/");
     } catch (error) {
       console.error('Error accepting invitation:', error);
       toast({
@@ -213,6 +205,7 @@ export default function AcceptInvitation() {
           <CardTitle>Accept Invitation</CardTitle>
           <CardDescription>
             You've been invited to join <strong>{invitation.tenants.name}</strong> as a <strong>{invitation.role}</strong>.
+            {!userExists && " Please provide your details to complete your account setup."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -262,43 +255,15 @@ export default function AcceptInvitation() {
                     </FormItem>
                   )}
                 />
-                
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password</FormLabel>
-                      <FormControl>
-                        <Input type="password" placeholder="Enter your password" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="confirm_password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Confirm Password</FormLabel>
-                      <FormControl>
-                        <Input type="password" placeholder="Confirm your password" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
 
                 <Button type="submit" disabled={isLoading} className="w-full">
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating Account...
+                      Completing Setup...
                     </>
                   ) : (
-                    "Accept Invitation"
+                    "Complete Account Setup"
                   )}
                 </Button>
               </form>
