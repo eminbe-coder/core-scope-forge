@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { SiteRelationships } from '@/components/site-details/SiteRelationships';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
@@ -528,6 +529,10 @@ const SiteDetail = () => {
               <Building2 className="h-4 w-4" />
               Companies ({companies.length})
             </TabsTrigger>
+            <TabsTrigger value="relationships" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Relationships
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="deals" className="space-y-4">
@@ -779,6 +784,10 @@ const SiteDetail = () => {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="relationships" className="space-y-4">
+            <SiteRelationships siteId={site.id} />
           </TabsContent>
         </Tabs>
       </div>

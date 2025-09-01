@@ -29,6 +29,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { LeadActivities } from '@/components/lead-activities/LeadActivities';
 import { LeadFiles } from '@/components/lead-files/LeadFiles';
+import { EntityRelationships } from '@/components/entity-relationships/EntityRelationships';
 
 interface Lead {
   id: string;
@@ -408,7 +409,7 @@ export const ComprehensiveLeadView = ({ lead, onUpdate }: ComprehensiveLeadViewP
 
       {/* Tabs for Activities, Todos, and Files */}
       <Tabs defaultValue="activities" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="activities" className="flex items-center gap-2">
             <Activity className="h-4 w-4" />
             Activities
@@ -420,6 +421,10 @@ export const ComprehensiveLeadView = ({ lead, onUpdate }: ComprehensiveLeadViewP
           <TabsTrigger value="files" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
             Files
+          </TabsTrigger>
+          <TabsTrigger value="relationships" className="flex items-center gap-2">
+            <User className="h-4 w-4" />
+            Relationships
           </TabsTrigger>
         </TabsList>
 
@@ -444,6 +449,14 @@ export const ComprehensiveLeadView = ({ lead, onUpdate }: ComprehensiveLeadViewP
             leadId={lead.id}
             leadType={lead.type}
             leadName={lead.name}
+          />
+        </TabsContent>
+
+        <TabsContent value="relationships">
+          <EntityRelationships 
+            entityType={lead.type === 'contact' ? 'lead_contact' : 'lead_company'} 
+            entityId={lead.id} 
+            title="Linked Companies & Contacts"
           />
         </TabsContent>
       </Tabs>

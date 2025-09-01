@@ -33,6 +33,8 @@ import {
 } from '@/components/ui/table';
 import { CompanyIndustriesManager } from './CompanyIndustriesManager';
 import { CompanyTypesManager } from './CompanyTypesManager';
+import { TaskTypesSettings } from './TaskTypesSettings';
+import { RelationshipRolesSettings } from './RelationshipRolesSettings';
 
 const stageSchema = z.object({
   name: z.string().min(1, 'Stage name is required'),
@@ -328,10 +330,12 @@ export function CRMSettings() {
   return (
     <div className="space-y-6">
       <Tabs defaultValue="stages" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="stages">Deal Stages</TabsTrigger>
           <TabsTrigger value="industries">Company Industries</TabsTrigger>
           <TabsTrigger value="types">Company Types</TabsTrigger>
+          <TabsTrigger value="tasks">Task Types</TabsTrigger>
+          <TabsTrigger value="relationships">Relationship Roles</TabsTrigger>
         </TabsList>
         
         <TabsContent value="stages" className="space-y-6">
@@ -460,6 +464,14 @@ export function CRMSettings() {
 
         <TabsContent value="types">
           <CompanyTypesManager />
+        </TabsContent>
+
+        <TabsContent value="tasks">
+          <TaskTypesSettings />
+        </TabsContent>
+
+        <TabsContent value="relationships">
+          <RelationshipRolesSettings />
         </TabsContent>
       </Tabs>
     </div>

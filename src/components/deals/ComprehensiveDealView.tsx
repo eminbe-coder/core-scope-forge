@@ -32,6 +32,7 @@ import { QuickAddCompanyModal } from '@/components/modals/QuickAddCompanyModal';
 import { QuickAddContactModal } from '@/components/modals/QuickAddContactModal';
 import { QuickAddSiteModal } from '@/components/modals/QuickAddSiteModal';
 import { DealTodos } from './DealTodos';
+import { EntityRelationships } from '@/components/entity-relationships/EntityRelationships';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
@@ -1126,6 +1127,12 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
           </Card>
 
           <DealTodos ref={dealTodosRef} dealId={deal.id} dealName={deal.name} />
+
+          <EntityRelationships 
+            entityType="deal" 
+            entityId={deal.id} 
+            title="Linked Companies & Contacts"
+          />
 
           {/* Quick Stats */}
           <Card>

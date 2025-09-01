@@ -1540,6 +1540,67 @@ export type Database = {
           },
         ]
       }
+      entity_relationships: {
+        Row: {
+          company_id: string | null
+          contact_id: string | null
+          created_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+          notes: string | null
+          relationship_role_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          notes?: string | null
+          relationship_role_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          notes?: string | null
+          relationship_role_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entity_relationships_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entity_relationships_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entity_relationships_relationship_role_id_fkey"
+            columns: ["relationship_role_id"]
+            isOneToOne: false
+            referencedRelation: "relationship_roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_files: {
         Row: {
           created_at: string
@@ -1931,6 +1992,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      relationship_roles: {
+        Row: {
+          active: boolean
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       report_exports: {
         Row: {
