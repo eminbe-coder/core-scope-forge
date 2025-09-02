@@ -266,7 +266,7 @@ export function DepartmentsManager() {
                               <SelectValue placeholder="Select a branch" />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent>
+                          <SelectContent className="bg-background border shadow-lg z-50">
                             <SelectItem value="no-branch">No branch assigned</SelectItem>
                             {branches.map((branch) => (
                               <SelectItem key={branch.id} value={branch.id}>

@@ -268,7 +268,7 @@ export const CurrencySettings = () => {
                     <SelectTrigger>
                       <SelectValue placeholder="Select default currency" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-background border shadow-lg z-50">
                       {currencies.map((currency) => (
                         <SelectItem key={currency.id} value={currency.id}>
                           {currency.code} - {currency.name} ({currency.symbol})
@@ -286,8 +286,13 @@ export const CurrencySettings = () => {
                   {saving ? 'Saving...' : 'Save'}
                 </Button>
               </div>
-              {selectedCurrency !== defaultCurrency && selectedCurrency && (
+              {defaultCurrency && (
                 <p className="text-sm text-muted-foreground mt-2">
+                  Current default: {currencies.find(c => c.id === defaultCurrency)?.code} - {currencies.find(c => c.id === defaultCurrency)?.name}
+                </p>
+              )}
+              {selectedCurrency !== defaultCurrency && selectedCurrency && (
+                <p className="text-sm text-muted-foreground mt-1">
                   You have unsaved changes. Click Save to apply the new default currency.
                 </p>
               )}
@@ -312,7 +317,7 @@ export const CurrencySettings = () => {
                   <SelectTrigger>
                     <SelectValue placeholder="Select currency" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-background border shadow-lg z-50">
                     {currencies.map((currency) => (
                       <SelectItem key={currency.id} value={currency.id}>
                         {currency.code} - {currency.name}
@@ -327,7 +332,7 @@ export const CurrencySettings = () => {
                   <SelectTrigger>
                     <SelectValue placeholder="Select currency" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-background border shadow-lg z-50">
                     {currencies.map((currency) => (
                       <SelectItem key={currency.id} value={currency.id}>
                         {currency.code} - {currency.name}
