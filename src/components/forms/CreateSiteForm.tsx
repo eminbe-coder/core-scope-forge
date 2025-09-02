@@ -11,6 +11,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
+import { CompanyRelationshipSelector, CompanyRelationship } from '@/components/forms/CompanyRelationshipSelector';
+import { saveEntityRelationships } from '@/utils/entity-relationships';
 import { useNavigate } from 'react-router-dom';
 
 const siteSchema = z.object({
@@ -38,6 +40,7 @@ export const CreateSiteForm = ({ isLead = false, onSuccess }: CreateSiteFormProp
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [companyRelationships, setCompanyRelationships] = useState<CompanyRelationship[]>([]);
 
   const form = useForm<SiteFormData>({
     resolver: zodResolver(siteSchema),
@@ -68,6 +71,12 @@ export const CreateSiteForm = ({ isLead = false, onSuccess }: CreateSiteFormProp
         .single();
 
       if (error) throw error;
+
+      // Save company relationships
+      if (companyRelationships.length > 0) {
+        const entityType = isLead ? 'lead_site' : 'site';
+        await saveEntityRelationships(entityType, site.id, companyRelationships, currentTenant.id);
+      }
 
       // Log activity
       await supabase
@@ -215,29 +224,37 @@ export const CreateSiteForm = ({ isLead = false, onSuccess }: CreateSiteFormProp
                     <FormMessage />
                   </FormItem>
                 )}
-              />
+            />
 
-              <FormField
-                control={form.control}
-                name="longitude"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Longitude</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="any"
-                        {...field}
-                        onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+               <FormField
+                 control={form.control}
+                 name="longitude"
+                 render={({ field }) => (
+                   <FormItem>
+                     <FormLabel>Longitude</FormLabel>
+                     <FormControl>
+                       <Input
+                         type="number"
+                         step="any"
+                         {...field}
+                         onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                       />
+                     </FormControl>
+                     <FormMessage />
+                   </FormItem>
+                 )}
+               />
+             </div>
 
-            <FormField
+             {/* Company Relationships */}
+             <CompanyRelationshipSelector
+               relationships={companyRelationships}
+               onChange={setCompanyRelationships}
+               title="Company Relationships"
+               description="Link companies with specific roles (e.g., Consultant, Contractor, etc.)"
+             />
+
+             <FormField
               control={form.control}
               name="notes"
               render={({ field }) => (

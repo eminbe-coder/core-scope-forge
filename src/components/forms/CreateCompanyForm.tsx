@@ -11,6 +11,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
+import { CompanyRelationshipSelector, CompanyRelationship } from '@/components/forms/CompanyRelationshipSelector';
+import { saveEntityRelationships } from '@/utils/entity-relationships';
 import { useNavigate } from 'react-router-dom';
 
 const companySchema = z.object({
@@ -38,6 +40,7 @@ export const CreateCompanyForm = ({ isLead = false, onSuccess }: CreateCompanyFo
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [companyRelationships, setCompanyRelationships] = useState<CompanyRelationship[]>([]);
 
   const form = useForm<CompanyFormData>({
     resolver: zodResolver(companySchema),
@@ -70,6 +73,12 @@ export const CreateCompanyForm = ({ isLead = false, onSuccess }: CreateCompanyFo
         .single();
 
       if (error) throw error;
+
+      // Save company relationships
+      if (companyRelationships.length > 0) {
+        const entityType = isLead ? 'lead_company' : 'company';
+        await saveEntityRelationships(entityType, company.id, companyRelationships, currentTenant.id);
+      }
 
       // Log activity
       await supabase
@@ -239,6 +248,14 @@ export const CreateCompanyForm = ({ isLead = false, onSuccess }: CreateCompanyFo
                   <FormMessage />
                 </FormItem>
               )}
+            />
+
+            {/* Company Relationships */}
+            <CompanyRelationshipSelector
+              relationships={companyRelationships}
+              onChange={setCompanyRelationships}
+              title="Company Relationships"
+              description="Link other companies with specific roles (e.g., Parent Company, Partner, etc.)"
             />
 
             <div className="flex gap-2">

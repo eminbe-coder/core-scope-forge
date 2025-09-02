@@ -12,6 +12,8 @@ import { SearchableSelect } from '@/components/ui/searchable-select';
 import { QuickAddCompanyModal } from '@/components/modals/QuickAddCompanyModal';
 import { QuickAddContactModal } from '@/components/modals/QuickAddContactModal';
 import { QuickAddSiteModal } from '@/components/modals/QuickAddSiteModal';
+import { CompanyRelationshipSelector, CompanyRelationship } from '@/components/forms/CompanyRelationshipSelector';
+import { saveEntityRelationships } from '@/utils/entity-relationships';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
@@ -111,6 +113,7 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
   const [linkedCompanies, setLinkedCompanies] = useState<{ id: string; name: string }[]>([]);
   const [linkedContacts, setLinkedContacts] = useState<{ id: string; name: string; first_name?: string; last_name?: string }[]>([]);
   const [leadData, setLeadData] = useState<any>(null);
+  const [companyRelationships, setCompanyRelationships] = useState<CompanyRelationship[]>([]);
 
   const form = useForm<DealFormData>({
     resolver: zodResolver(dealSchema),
@@ -427,6 +430,11 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
           .insert(dealContactsData);
 
         if (contactsError) throw contactsError;
+      }
+
+      // Save company relationships
+      if (companyRelationships.length > 0) {
+        await saveEntityRelationships('deal', deal.id, companyRelationships, currentTenant.id);
       }
 
       // Save payment terms if any
@@ -923,6 +931,14 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
                   </div>
                 )}
               </div>
+
+              {/* Company Relationships */}
+              <CompanyRelationshipSelector
+                relationships={companyRelationships}
+                onChange={setCompanyRelationships}
+                title="Company Relationships"
+                description="Link companies with specific roles (e.g., Consultant, Contractor, etc.)"
+              />
 
               <FormField
                 control={form.control}
