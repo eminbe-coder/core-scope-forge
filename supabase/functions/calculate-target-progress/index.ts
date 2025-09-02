@@ -254,41 +254,29 @@ serve(async (req) => {
             actualValue = Math.max(createdResult.count || 0, updatedResult.count || 0);
             break;
 
-          case 'deals_value':
-            // Sum deal values for won deals created/updated in period
-            let createdDealsValueQuery = supabaseClient
+          case 'deals_value': {
+            // Sum deal values for deals created or updated within the period (any status)
+            // Use a single OR filter to avoid double-counting between created_at and updated_at
+            let dealsValueQuery = supabaseClient
               .from('deals')
-              .select('value')
+              .select('id, value')
               .eq('tenant_id', tenantId)
-              .eq('status', 'won')
-              .gte('created_at', period_start)
-              .lte('created_at', period_end);
-
-            let updatedDealsValueQuery = supabaseClient
-              .from('deals')
-              .select('value')
-              .eq('tenant_id', tenantId)
-              .eq('status', 'won')
-              .gte('updated_at', period_start)
-              .lte('updated_at', period_end);
+              .or(
+                `and(created_at.gte.${period_start},created_at.lte.${period_end}),` +
+                `and(updated_at.gte.${period_start},updated_at.lte.${period_end})`
+              );
 
             // Apply user-level filtering
             if (target_level === 'user' && entity_id) {
-              createdDealsValueQuery = createdDealsValueQuery.eq('assigned_to', entity_id);
-              updatedDealsValueQuery = updatedDealsValueQuery.eq('assigned_to', entity_id);
+              dealsValueQuery = dealsValueQuery.eq('assigned_to', entity_id);
             }
 
-            const [createdDealsResult, updatedDealsResult] = await Promise.all([
-              createdDealsValueQuery,
-              updatedDealsValueQuery
-            ]);
+            const { data: periodDeals, error: dealsValueError } = await dealsValueQuery;
+            if (dealsValueError) throw dealsValueError;
 
-            const createdValue = createdDealsResult.data?.reduce((sum, deal) => sum + (deal.value || 0), 0) || 0;
-            const updatedValue = updatedDealsResult.data?.reduce((sum, deal) => sum + (deal.value || 0), 0) || 0;
-            
-            // Use the higher value to ensure we capture all relevant deals
-            actualValue = Math.max(createdValue, updatedValue);
+            actualValue = periodDeals?.reduce((sum, deal) => sum + (deal.value || 0), 0) || 0;
             break;
+          }
 
           case 'payments_value':
             // Sum payments due in period (using due_date as the primary criterion)
