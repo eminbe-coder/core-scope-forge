@@ -37,6 +37,7 @@ import Projects from "./pages/Projects";
 import Activities from "./pages/Activities";
 import Todos from "./pages/Todos";
 import Settings from "./pages/Settings";
+import CRMSettings from "./pages/CRMSettings";
 import Admin from "./pages/Admin";
 import GlobalAdmin from "./pages/GlobalAdmin";
 import UsersRoles from "./pages/UsersRoles";
@@ -197,6 +198,11 @@ const App = () => (
                 <Route path="/settings" element={
                   <ProtectedRoute>
                     <Settings />
+                  </ProtectedRoute>
+                } />
+                <Route path="/crm-settings" element={
+                  <ProtectedRoute>
+                    <CRMSettings />
                   </ProtectedRoute>
                 } />
                 <Route path="/global-admin" element={

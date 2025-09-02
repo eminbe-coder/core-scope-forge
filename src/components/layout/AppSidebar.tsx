@@ -173,7 +173,7 @@ const navigationModules: NavigationModule[] = [
       },
       {
         title: 'CRM Settings',
-        url: '/settings?tab=crm',
+        url: '/crm-settings',
         icon: Settings,
         permission: 'admin.access',
       },

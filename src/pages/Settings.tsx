@@ -1,11 +1,9 @@
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Settings, Users, Building2, Key, DollarSign, Cloud, CheckSquare } from 'lucide-react';
+import { Settings, Users, Building2, Key, DollarSign, Cloud } from 'lucide-react';
 import { CurrencySettings } from '@/components/settings/CurrencySettings';
-import { CRMSettings } from '@/components/settings/CRMSettings';
 import { OneDriveSettings } from '@/components/settings/OneDriveSettings';
-import { TaskTypesSettings } from '@/components/settings/TaskTypesSettings';
 import { BranchesManager } from '@/components/settings/BranchesManager';
 import { DepartmentsManager } from '@/components/settings/DepartmentsManager';
 import { useState, useEffect } from 'react';
@@ -75,22 +73,6 @@ const SettingsPage = () => {
               <Cloud className="mr-2 h-4 w-4" />
               Cloud Storage
             </Button>
-            <Button
-              variant={activeSection === 'task-types' ? 'default' : 'ghost'}
-              className="w-full justify-start"
-              onClick={() => setActiveSection('task-types')}
-            >
-              <CheckSquare className="mr-2 h-4 w-4" />
-              Task Types
-            </Button>
-            <Button
-              variant={activeSection === 'crm' ? 'default' : 'ghost'}
-              className="w-full justify-start"
-              onClick={() => setActiveSection('crm')}
-            >
-              <Settings className="mr-2 h-4 w-4" />
-              CRM Settings
-            </Button>
           </div>
 
           {/* Main Content */}
@@ -136,11 +118,7 @@ const SettingsPage = () => {
 
             {activeSection === 'departments' && <DepartmentsManager />}
 
-            {activeSection === 'crm' && <CRMSettings />}
-
             {activeSection === 'cloud' && <OneDriveSettings />}
-
-            {activeSection === 'task-types' && <TaskTypesSettings />}
           </div>
         </div>
       </div>
