@@ -8,6 +8,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { DeleteConfirmationModal } from '@/components/modals/DeleteConfirmationModal';
@@ -29,6 +31,19 @@ interface CustomRole {
   name: string;
   description: string;
   permissions: any;
+}
+
+interface Branch {
+  id: string;
+  name: string;
+  city: string;
+  country: string;
+}
+
+interface Department {
+  id: string;
+  name: string;
+  description: string | null;
 }
 
 interface UserMembership {
@@ -71,6 +86,14 @@ export function EditUserModal({ open, onClose, membership, onSuccess, onDelete }
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [customRoles, setCustomRoles] = useState<CustomRole[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [selectedBranch, setSelectedBranch] = useState<string>('');
+  const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
+  const [currentAssignments, setCurrentAssignments] = useState({
+    branch: null as string | null,
+    departments: [] as string[]
+  });
   const { toast } = useToast();
 
   const form = useForm<EditUserFormData>({
@@ -85,46 +108,94 @@ export function EditUserModal({ open, onClose, membership, onSuccess, onDelete }
     },
   });
 
-  // Fetch custom roles for this tenant
+  // Fetch custom roles, branches, and departments for this tenant
   useEffect(() => {
-    const fetchCustomRoles = async () => {
+    const fetchData = async () => {
       if (!membership?.tenant_id) return;
       
       try {
-        const { data, error } = await supabase
-          .from('custom_roles')
-          .select('*')
-          .eq('tenant_id', membership.tenant_id)
-          .eq('active', true)
-          .order('name');
+        const [rolesResult, branchesResult, departmentsResult] = await Promise.all([
+          supabase
+            .from('custom_roles')
+            .select('*')
+            .eq('tenant_id', membership.tenant_id)
+            .eq('active', true)
+            .order('name'),
+          supabase
+            .from('branches')
+            .select('id, name, city, country')
+            .eq('tenant_id', membership.tenant_id)
+            .eq('active', true)
+            .order('name'),
+          supabase
+            .from('departments')
+            .select('id, name, description')
+            .eq('tenant_id', membership.tenant_id)
+            .eq('active', true)
+            .order('name')
+        ]);
         
-        if (error) throw error;
-        setCustomRoles(data || []);
+        setCustomRoles(rolesResult.data || []);
+        setBranches(branchesResult.data || []);
+        setDepartments(departmentsResult.data || []);
       } catch (error) {
-        console.error('Error fetching custom roles:', error);
+        console.error('Error fetching data:', error);
       }
     };
 
     if (open && membership) {
-      fetchCustomRoles();
+      fetchData();
     }
   }, [open, membership]);
 
   // Reset form when membership changes
   useEffect(() => {
-    if (membership?.user_profile) {
-      // Determine current role value (custom role ID or system role)
-      const currentRole = membership.custom_role_id || membership.role;
-      
-      form.reset({
-        first_name: membership.user_profile.first_name || '',
-        last_name: membership.user_profile.last_name || '',
-        role: currentRole,
-        custom_role_id: membership.custom_role_id,
-        active: membership.active,
-        password: '',
-      });
-    }
+    const loadUserAssignments = async () => {
+      if (membership?.user_profile && membership?.tenant_id) {
+        // Determine current role value (custom role ID or system role)
+        const currentRole = membership.custom_role_id || membership.role;
+        
+        form.reset({
+          first_name: membership.user_profile.first_name || '',
+          last_name: membership.user_profile.last_name || '',
+          role: currentRole,
+          custom_role_id: membership.custom_role_id,
+          active: membership.active,
+          password: '',
+        });
+
+        // Load current assignments
+        try {
+          const [branchResult, departmentResult] = await Promise.all([
+            supabase
+              .from('user_branch_assignments')
+              .select('branch_id')
+              .eq('user_id', membership.user_id)
+              .eq('tenant_id', membership.tenant_id)
+              .maybeSingle(),
+            supabase
+              .from('user_department_assignments')
+              .select('department_id')
+              .eq('user_id', membership.user_id)
+              .eq('tenant_id', membership.tenant_id)
+          ]);
+
+          const currentBranch = branchResult.data?.branch_id || null;
+          const currentDepartments = departmentResult.data?.map(d => d.department_id) || [];
+
+          setCurrentAssignments({
+            branch: currentBranch,
+            departments: currentDepartments
+          });
+          setSelectedBranch(currentBranch || '');
+          setSelectedDepartments(currentDepartments);
+        } catch (error) {
+          console.error('Error loading user assignments:', error);
+        }
+      }
+    };
+
+    loadUserAssignments();
   }, [membership, form]);
 
   const handleDelete = async () => {
@@ -190,6 +261,58 @@ export function EditUserModal({ open, onClose, membership, onSuccess, onDelete }
         .eq('id', membership.id);
 
       if (membershipError) throw membershipError;
+
+      // Update branch assignment
+      if (selectedBranch !== currentAssignments.branch) {
+        // Remove current assignment
+        if (currentAssignments.branch) {
+          await supabase
+            .from('user_branch_assignments')
+            .delete()
+            .eq('user_id', membership.user_id)
+            .eq('tenant_id', membership.tenant_id);
+        }
+
+        // Add new assignment
+        if (selectedBranch) {
+          const { error: branchError } = await supabase
+            .from('user_branch_assignments')
+            .insert({
+              user_id: membership.user_id,
+              branch_id: selectedBranch,
+              tenant_id: membership.tenant_id,
+            });
+
+          if (branchError) throw branchError;
+        }
+      }
+
+      // Update department assignments
+      const departmentsToAdd = selectedDepartments.filter(d => !currentAssignments.departments.includes(d));
+      const departmentsToRemove = currentAssignments.departments.filter(d => !selectedDepartments.includes(d));
+
+      if (departmentsToRemove.length > 0) {
+        await supabase
+          .from('user_department_assignments')
+          .delete()
+          .eq('user_id', membership.user_id)
+          .eq('tenant_id', membership.tenant_id)
+          .in('department_id', departmentsToRemove);
+      }
+
+      if (departmentsToAdd.length > 0) {
+        const { error: deptError } = await supabase
+          .from('user_department_assignments')
+          .insert(
+            departmentsToAdd.map(deptId => ({
+              user_id: membership.user_id,
+              department_id: deptId,
+              tenant_id: membership.tenant_id,
+            }))
+          );
+
+        if (deptError) throw deptError;
+      }
 
       // Update password via secure edge function if provided
       if (data.password && data.password.length >= 6) {
@@ -342,6 +465,60 @@ export function EditUserModal({ open, onClose, membership, onSuccess, onDelete }
                   </FormItem>
                 )}
               />
+
+              <div className="space-y-4 border-t pt-4">
+                <h4 className="text-sm font-medium">Branch & Department Assignments</h4>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="branch">Branch Assignment</Label>
+                  <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a branch" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">No branch assigned</SelectItem>
+                      {branches.map((branch) => (
+                        <SelectItem key={branch.id} value={branch.id}>
+                          {branch.name} ({branch.city}, {branch.country})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Department Assignments</Label>
+                  <div className="space-y-2 max-h-32 overflow-y-auto border rounded p-2">
+                    {departments.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No departments available</p>
+                    ) : (
+                      departments.map((department) => (
+                        <div key={department.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`dept-${department.id}`}
+                            checked={selectedDepartments.includes(department.id)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedDepartments([...selectedDepartments, department.id]);
+                              } else {
+                                setSelectedDepartments(selectedDepartments.filter(id => id !== department.id));
+                              }
+                            }}
+                          />
+                          <Label htmlFor={`dept-${department.id}`} className="text-sm">
+                            {department.name}
+                            {department.description && (
+                              <span className="text-muted-foreground ml-1">
+                                - {department.description}
+                              </span>
+                            )}
+                          </Label>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
 
               <div className="flex justify-between pt-4">
                 <Button 

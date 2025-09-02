@@ -35,6 +35,8 @@ import { CompanyIndustriesManager } from './CompanyIndustriesManager';
 import { CompanyTypesManager } from './CompanyTypesManager';
 import { TaskTypesSettings } from './TaskTypesSettings';
 import { RelationshipRolesSettings } from './RelationshipRolesSettings';
+import { BranchesManager } from './BranchesManager';
+import { DepartmentsManager } from './DepartmentsManager';
 
 const stageSchema = z.object({
   name: z.string().min(1, 'Stage name is required'),
@@ -329,14 +331,16 @@ export function CRMSettings() {
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="stages" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="stages">Deal Stages</TabsTrigger>
-          <TabsTrigger value="industries">Company Industries</TabsTrigger>
-          <TabsTrigger value="types">Company Types</TabsTrigger>
-          <TabsTrigger value="tasks">Task Types</TabsTrigger>
-          <TabsTrigger value="relationships">Relationship Roles</TabsTrigger>
-        </TabsList>
+        <Tabs defaultValue="stages" className="w-full">
+          <TabsList className="grid w-full grid-cols-7">
+            <TabsTrigger value="stages">Deal Stages</TabsTrigger>
+            <TabsTrigger value="branches">Branches</TabsTrigger>
+            <TabsTrigger value="departments">Departments</TabsTrigger>
+            <TabsTrigger value="industries">Company Industries</TabsTrigger>
+            <TabsTrigger value="types">Company Types</TabsTrigger>
+            <TabsTrigger value="tasks">Task Types</TabsTrigger>
+            <TabsTrigger value="relationships">Relationship Roles</TabsTrigger>
+          </TabsList>
         
         <TabsContent value="stages" className="space-y-6">
           <Card>
@@ -456,6 +460,14 @@ export function CRMSettings() {
               <StageForm />
             </DialogContent>
           </Dialog>
+        </TabsContent>
+
+        <TabsContent value="branches">
+          <BranchesManager />
+        </TabsContent>
+
+        <TabsContent value="departments">
+          <DepartmentsManager />
         </TabsContent>
 
         <TabsContent value="industries">
