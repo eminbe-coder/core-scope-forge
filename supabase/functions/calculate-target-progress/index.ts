@@ -121,6 +121,99 @@ serve(async (req) => {
             break;
           }
 
+          case 'leads_value': {
+            // Sum lead values (companies, contacts, sites) created within target period
+            let totalLeadValue = 0;
+            
+            // Sum company lead values
+            let companyLeadsValueQuery = supabaseClient
+              .from('companies')
+              .select('lead_value')
+              .eq('tenant_id', tenantId)
+              .eq('is_lead', true)
+              .eq('active', true)
+              .gte('created_at', period_start)
+              .lte('created_at', period_end);
+
+            // Sum contact lead values
+            let contactLeadsValueQuery = supabaseClient
+              .from('contacts')
+              .select('lead_value')
+              .eq('tenant_id', tenantId)
+              .eq('is_lead', true)
+              .eq('active', true)
+              .gte('created_at', period_start)
+              .lte('created_at', period_end);
+
+            // Sum site lead values
+            let siteLeadsValueQuery = supabaseClient
+              .from('sites')
+              .select('lead_value')
+              .eq('tenant_id', tenantId)
+              .eq('is_lead', true)
+              .eq('active', true)
+              .gte('created_at', period_start)
+              .lte('created_at', period_end);
+
+            // Apply user-level filtering
+            if (target_level === 'user' && entity_id) {
+              // For user-level targets, get leads created by specific user and sum their values
+              const { data: userLeadActivities } = await supabaseClient
+                .from('activity_logs')
+                .select('entity_id, entity_type')
+                .eq('tenant_id', tenantId)
+                .eq('activity_type', 'lead_created')
+                .eq('created_by', entity_id)
+                .gte('created_at', period_start)
+                .lte('created_at', period_end);
+
+              if (userLeadActivities && userLeadActivities.length > 0) {
+                // Get values for each lead entity
+                const entityIds = userLeadActivities.map(activity => activity.entity_id);
+                const entityTypes = [...new Set(userLeadActivities.map(activity => activity.entity_type))];
+
+                let userLeadValue = 0;
+                for (const entityType of entityTypes) {
+                  const relevantIds = userLeadActivities
+                    .filter(activity => activity.entity_type === entityType)
+                    .map(activity => activity.entity_id);
+
+                  if (relevantIds.length > 0) {
+                    const tableName = entityType === 'company' ? 'companies' : 
+                                     entityType === 'contact' ? 'contacts' : 'sites';
+                    
+                    const { data: entityValues } = await supabaseClient
+                      .from(tableName)
+                      .select('lead_value')
+                      .in('id', relevantIds);
+
+                    if (entityValues) {
+                      userLeadValue += entityValues.reduce((sum, entity) => sum + (entity.lead_value || 0), 0);
+                    }
+                  }
+                }
+                actualValue = userLeadValue;
+              } else {
+                actualValue = 0;
+              }
+            } else {
+              // For company/branch/department level, sum all lead values
+              const [companyResult, contactResult, siteResult] = await Promise.all([
+                companyLeadsValueQuery,
+                contactLeadsValueQuery, 
+                siteLeadsValueQuery
+              ]);
+              
+              const companyValue = companyResult.data?.reduce((sum, company) => sum + (company.lead_value || 0), 0) || 0;
+              const contactValue = contactResult.data?.reduce((sum, contact) => sum + (contact.lead_value || 0), 0) || 0;
+              const siteValue = siteResult.data?.reduce((sum, site) => sum + (site.lead_value || 0), 0) || 0;
+              
+              totalLeadValue = companyValue + contactValue + siteValue;
+              actualValue = totalLeadValue;
+            }
+            break;
+          }
+
           case 'deals_count':
             // Count deals with won status created/updated in period
             let dealsQuery = supabaseClient
