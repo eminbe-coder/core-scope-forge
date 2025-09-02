@@ -88,7 +88,7 @@ export function EditUserModal({ open, onClose, membership, onSuccess, onDelete }
   const [customRoles, setCustomRoles] = useState<CustomRole[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [selectedBranch, setSelectedBranch] = useState<string>('');
+  const [selectedBranch, setSelectedBranch] = useState<string>('no-branch');
   const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
   const [currentAssignments, setCurrentAssignments] = useState({
     branch: null as string | null,
@@ -187,7 +187,7 @@ export function EditUserModal({ open, onClose, membership, onSuccess, onDelete }
             branch: currentBranch,
             departments: currentDepartments
           });
-          setSelectedBranch(currentBranch || '');
+          setSelectedBranch(currentBranch || 'no-branch');
           setSelectedDepartments(currentDepartments);
         } catch (error) {
           console.error('Error loading user assignments:', error);
@@ -263,7 +263,8 @@ export function EditUserModal({ open, onClose, membership, onSuccess, onDelete }
       if (membershipError) throw membershipError;
 
       // Update branch assignment
-      if (selectedBranch !== currentAssignments.branch) {
+      const normalizedSelectedBranch = selectedBranch === 'no-branch' ? null : selectedBranch;
+      if (normalizedSelectedBranch !== currentAssignments.branch) {
         // Remove current assignment
         if (currentAssignments.branch) {
           await supabase
@@ -274,12 +275,12 @@ export function EditUserModal({ open, onClose, membership, onSuccess, onDelete }
         }
 
         // Add new assignment
-        if (selectedBranch) {
+        if (normalizedSelectedBranch) {
           const { error: branchError } = await supabase
             .from('user_branch_assignments')
             .insert({
               user_id: membership.user_id,
-              branch_id: selectedBranch,
+              branch_id: normalizedSelectedBranch,
               tenant_id: membership.tenant_id,
             });
 
@@ -476,7 +477,7 @@ export function EditUserModal({ open, onClose, membership, onSuccess, onDelete }
                       <SelectValue placeholder="Select a branch" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No branch assigned</SelectItem>
+                      <SelectItem value="no-branch">No branch assigned</SelectItem>
                       {branches.map((branch) => (
                         <SelectItem key={branch.id} value={branch.id}>
                           {branch.name} ({branch.city}, {branch.country})
