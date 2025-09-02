@@ -256,6 +256,98 @@ export type Database = {
           },
         ]
       }
+      commission_configurations: {
+        Row: {
+          active: boolean
+          calculation_method: string
+          created_at: string
+          description: string | null
+          earning_rules: Json
+          fixed_amount: number | null
+          id: string
+          name: string
+          percentage_rate: number | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          calculation_method: string
+          created_at?: string
+          description?: string | null
+          earning_rules?: Json
+          fixed_amount?: number | null
+          id?: string
+          name: string
+          percentage_rate?: number | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          calculation_method?: string
+          created_at?: string
+          description?: string | null
+          earning_rules?: Json
+          fixed_amount?: number | null
+          id?: string
+          name?: string
+          percentage_rate?: number | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      commission_stages: {
+        Row: {
+          commission_configuration_id: string
+          commission_rate: number
+          created_at: string
+          id: string
+          max_threshold: number | null
+          min_threshold: number
+          sort_order: number
+          stage_name: string
+          tenant_id: string
+          threshold_type: string
+          updated_at: string
+        }
+        Insert: {
+          commission_configuration_id: string
+          commission_rate: number
+          created_at?: string
+          id?: string
+          max_threshold?: number | null
+          min_threshold: number
+          sort_order?: number
+          stage_name: string
+          tenant_id: string
+          threshold_type: string
+          updated_at?: string
+        }
+        Update: {
+          commission_configuration_id?: string
+          commission_rate?: number
+          created_at?: string
+          id?: string
+          max_threshold?: number | null
+          min_threshold?: number
+          sort_order?: number
+          stage_name?: string
+          tenant_id?: string
+          threshold_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_stages_commission_configuration_id_fkey"
+            columns: ["commission_configuration_id"]
+            isOneToOne: false
+            referencedRelation: "commission_configurations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           active: boolean
