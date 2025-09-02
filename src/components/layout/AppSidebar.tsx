@@ -166,6 +166,12 @@ const navigationModules: NavigationModule[] = [
         permission: 'admin.access',
       },
       {
+        title: 'General Settings',
+        url: '/settings',
+        icon: Settings,
+        permission: 'admin.access',
+      },
+      {
         title: 'CRM Settings',
         url: '/settings?tab=crm',
         icon: Settings,

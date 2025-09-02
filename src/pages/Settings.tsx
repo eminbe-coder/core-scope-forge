@@ -6,6 +6,8 @@ import { CurrencySettings } from '@/components/settings/CurrencySettings';
 import { CRMSettings } from '@/components/settings/CRMSettings';
 import { OneDriveSettings } from '@/components/settings/OneDriveSettings';
 import { TaskTypesSettings } from '@/components/settings/TaskTypesSettings';
+import { BranchesManager } from '@/components/settings/BranchesManager';
+import { DepartmentsManager } from '@/components/settings/DepartmentsManager';
 import { useState, useEffect } from 'react';
 
 const SettingsPage = () => {
@@ -24,9 +26,9 @@ const SettingsPage = () => {
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Settings</h1>
+          <h1 className="text-3xl font-bold">General Settings</h1>
           <p className="text-muted-foreground">
-            Manage your account and tenant settings
+            Manage your organization settings, currency, branches, and departments
           </p>
         </div>
 
@@ -39,7 +41,7 @@ const SettingsPage = () => {
               onClick={() => setActiveSection('general')}
             >
               <Settings className="mr-2 h-4 w-4" />
-              General Settings
+              Tenant & Account
             </Button>
             <Button
               variant={activeSection === 'currency' ? 'default' : 'ghost'}
@@ -50,28 +52,20 @@ const SettingsPage = () => {
               Currency Settings
             </Button>
             <Button
-              variant={activeSection === 'users' ? 'default' : 'ghost'}
+              variant={activeSection === 'branches' ? 'default' : 'ghost'}
               className="w-full justify-start"
-              onClick={() => setActiveSection('users')}
+              onClick={() => setActiveSection('branches')}
+            >
+              <Building2 className="mr-2 h-4 w-4" />
+              Branches
+            </Button>
+            <Button
+              variant={activeSection === 'departments' ? 'default' : 'ghost'}
+              className="w-full justify-start"
+              onClick={() => setActiveSection('departments')}
             >
               <Users className="mr-2 h-4 w-4" />
-              User Management
-            </Button>
-            <Button
-              variant={activeSection === 'permissions' ? 'default' : 'ghost'}
-              className="w-full justify-start"
-              onClick={() => setActiveSection('permissions')}
-            >
-              <Key className="mr-2 h-4 w-4" />
-              Roles & Permissions
-            </Button>
-            <Button
-              variant={activeSection === 'crm' ? 'default' : 'ghost'}
-              className="w-full justify-start"
-              onClick={() => setActiveSection('crm')}
-            >
-              <Settings className="mr-2 h-4 w-4" />
-              CRM Settings
+              Departments
             </Button>
             <Button
               variant={activeSection === 'cloud' ? 'default' : 'ghost'}
@@ -130,65 +124,15 @@ const SettingsPage = () => {
 
             {activeSection === 'currency' && <CurrencySettings />}
 
+            {activeSection === 'branches' && <BranchesManager />}
+
+            {activeSection === 'departments' && <DepartmentsManager />}
+
             {activeSection === 'crm' && <CRMSettings />}
 
             {activeSection === 'cloud' && <OneDriveSettings />}
 
             {activeSection === 'task-types' && <TaskTypesSettings />}
-
-            {activeSection === 'users' && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    User Management
-                  </CardTitle>
-                  <CardDescription>
-                    Manage users in your tenant - redirecting to Administration section
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <p className="text-sm text-muted-foreground">
-                      User management is available in the Administration section.
-                    </p>
-                    <Button 
-                      onClick={() => window.location.href = '/users-roles'}
-                      className="w-full"
-                    >
-                      Go to Users & Roles
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {activeSection === 'permissions' && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Key className="h-5 w-5" />
-                    Roles & Permissions
-                  </CardTitle>
-                  <CardDescription>
-                    Manage roles and permissions - redirecting to Administration section
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <p className="text-sm text-muted-foreground">
-                      Role and permission management is available in the Administration section.
-                    </p>
-                    <Button 
-                      onClick={() => window.location.href = '/users-roles'}
-                      className="w-full"
-                    >
-                      Go to Users & Roles
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </div>
         </div>
       </div>

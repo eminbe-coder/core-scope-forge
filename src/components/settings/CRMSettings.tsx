@@ -333,11 +333,9 @@ export function CRMSettings() {
   return (
     <div className="space-y-6">
         <Tabs defaultValue="stages" className="w-full">
-          <TabsList className="grid w-full grid-cols-8">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="stages">Deal Stages</TabsTrigger>
             <TabsTrigger value="targets">Targets</TabsTrigger>
-            <TabsTrigger value="branches">Branches</TabsTrigger>
-            <TabsTrigger value="departments">Departments</TabsTrigger>
             <TabsTrigger value="industries">Company Industries</TabsTrigger>
             <TabsTrigger value="types">Company Types</TabsTrigger>
             <TabsTrigger value="tasks">Task Types</TabsTrigger>
@@ -466,14 +464,6 @@ export function CRMSettings() {
 
         <TabsContent value="targets">
           <TargetsManager />
-        </TabsContent>
-
-        <TabsContent value="branches">
-          <BranchesManager />
-        </TabsContent>
-
-        <TabsContent value="departments">
-          <DepartmentsManager />
         </TabsContent>
 
         <TabsContent value="industries">
