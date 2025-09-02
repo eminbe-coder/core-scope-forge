@@ -83,6 +83,14 @@ const SettingsPage = () => {
               <CheckSquare className="mr-2 h-4 w-4" />
               Task Types
             </Button>
+            <Button
+              variant={activeSection === 'crm' ? 'default' : 'ghost'}
+              className="w-full justify-start"
+              onClick={() => setActiveSection('crm')}
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              CRM Settings
+            </Button>
           </div>
 
           {/* Main Content */}
