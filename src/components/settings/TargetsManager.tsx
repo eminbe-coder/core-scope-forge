@@ -87,7 +87,7 @@ export function TargetsManager() {
     resolver: zodResolver(targetSchema),
     defaultValues: {
       target_level: 'company',
-      entity_id: '',
+      entity_id: 'NONE',
       target_type: 'leads_count',
       target_value: 0,
       period_type: 'monthly',
@@ -232,7 +232,7 @@ export function TargetsManager() {
       const payload = {
         tenant_id: currentTenant.id,
         target_level: data.target_level,
-        entity_id: data.target_level === 'company' ? null : data.entity_id || null,
+        entity_id: data.target_level === 'company' ? null : (data.entity_id === 'NONE' ? null : data.entity_id || null),
         target_type: data.target_type,
         target_value: data.target_value,
         period_type: data.period_type,
@@ -278,7 +278,7 @@ export function TargetsManager() {
     setEditingTarget(target);
     form.reset({
       target_level: target.target_level,
-      entity_id: target.entity_id || '',
+      entity_id: target.entity_id || 'NONE',
       target_type: target.target_type,
       target_value: target.target_value,
       period_type: target.period_type,
@@ -313,7 +313,14 @@ export function TargetsManager() {
 
   const openCreateModal = () => {
     setEditingTarget(null);
-    form.reset();
+    form.reset({
+      target_level: 'company',
+      entity_id: 'NONE',
+      target_type: 'leads_count',
+      target_value: 0,
+      period_type: 'monthly',
+      period_start: format(new Date(), 'yyyy-MM-dd'),
+    });
     setIsModalOpen(true);
   };
 
@@ -417,6 +424,7 @@ export function TargetsManager() {
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
+                                  <SelectItem value="NONE">No {TARGET_LEVEL_LABELS[watchedLevel].toLowerCase()} assigned</SelectItem>
                                   {getEntityOptions().map((entity) => (
                                     <SelectItem key={entity.id} value={entity.id}>
                                       {entity.name}

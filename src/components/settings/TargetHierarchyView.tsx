@@ -37,8 +37,8 @@ const TARGET_LEVEL_ICONS = {
 };
 
 export function TargetHierarchyView({ targets }: TargetHierarchyViewProps) {
-  const [selectedPeriod, setSelectedPeriod] = useState<string>('');
-  const [selectedTargetType, setSelectedTargetType] = useState<string>('');
+  const [selectedPeriod, setSelectedPeriod] = useState<string>('ALL_PERIODS');
+  const [selectedTargetType, setSelectedTargetType] = useState<string>('ALL_TYPES');
 
   // Get unique periods and target types
   const uniquePeriods = Array.from(
@@ -60,13 +60,13 @@ export function TargetHierarchyView({ targets }: TargetHierarchyViewProps) {
 
   // Filter targets based on selected period and type
   const filteredTargets = targets.filter(target => {
-    if (selectedPeriod) {
+    if (selectedPeriod && selectedPeriod !== 'ALL_PERIODS') {
       const [start, end, type] = selectedPeriod.split('_');
       if (target.period_start !== start || target.period_end !== end || target.period_type !== type) {
         return false;
       }
     }
-    if (selectedTargetType && target.target_type !== selectedTargetType) {
+    if (selectedTargetType && selectedTargetType !== 'ALL_TYPES' && target.target_type !== selectedTargetType) {
       return false;
     }
     return true;
@@ -187,7 +187,7 @@ export function TargetHierarchyView({ targets }: TargetHierarchyViewProps) {
               <SelectValue placeholder="All periods" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All periods</SelectItem>
+              <SelectItem value="ALL_PERIODS">All periods</SelectItem>
               {uniquePeriods.map((period) => (
                 <SelectItem key={period.key} value={period.key}>
                   {period.label}
@@ -204,7 +204,7 @@ export function TargetHierarchyView({ targets }: TargetHierarchyViewProps) {
               <SelectValue placeholder="All target types" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All target types</SelectItem>
+              <SelectItem value="ALL_TYPES">All target types</SelectItem>
               {uniqueTargetTypes.map((type) => (
                 <SelectItem key={type} value={type}>
                   {TARGET_TYPE_LABELS[type as keyof typeof TARGET_TYPE_LABELS]}
@@ -242,7 +242,7 @@ export function TargetHierarchyView({ targets }: TargetHierarchyViewProps) {
 
           {uniqueTargetTypes
             .filter(targetType => 
-              selectedTargetType === '' || selectedTargetType === targetType
+              selectedTargetType === 'ALL_TYPES' || selectedTargetType === targetType
             )
             .map(targetType => (
               <div key={targetType} className="space-y-4">
