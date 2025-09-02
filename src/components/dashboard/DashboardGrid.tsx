@@ -20,6 +20,8 @@ import { ProjectsWidget } from './widgets/ProjectsWidget';
 import { ActivitiesWidget } from './widgets/ActivitiesWidget';
 import { IncomingPaymentsWidget } from './widgets/IncomingPaymentsWidget';
 import { ReportWidget } from './widgets/ReportWidget';
+import { TargetProgressWidget } from './widgets/TargetProgressWidget';
+import { CommissionTrackingWidget } from './widgets/CommissionTrackingWidget';
 
 export interface WidgetConfig {
   id: string;
@@ -46,6 +48,8 @@ const availableWidgets = [
   { id: 'projects', name: 'Projects', component: ProjectsWidget },
   { id: 'activities', name: 'Recent Activities', component: ActivitiesWidget },
   { id: 'incoming-payments', name: 'Expected Incoming Payments', component: IncomingPaymentsWidget },
+  { id: 'target-progress', name: 'Target Progress', component: TargetProgressWidget },
+  { id: 'commission-tracking', name: 'Commission Tracking', component: CommissionTrackingWidget },
 ];
 
 export function DashboardGrid() {

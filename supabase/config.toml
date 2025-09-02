@@ -9,6 +9,12 @@ verify_jwt = false
 [functions.generate-report-data]
 verify_jwt = true
 
+[functions.calculate-target-progress]
+verify_jwt = true
+
+[functions.calculate-commission-data]
+verify_jwt = true
+
 [functions.send-tenant-invitation]
 verify_jwt = true
 
