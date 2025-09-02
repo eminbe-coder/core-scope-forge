@@ -59,24 +59,28 @@ serve(async (req) => {
 
         // Calculate actual achievements based on target type
         switch (target_type) {
-          case 'leads_count':
-            // Count leads created in period
-            let leadsQuery = supabaseClient
-              .from('companies')
+          case 'leads_count': {
+            // Count leads created in period using activity logs for reliability
+            let leadLogsQuery = supabaseClient
+              .from('activity_logs')
               .select('id', { count: 'exact' })
               .eq('tenant_id', tenantId)
-              .eq('is_lead', true)
+              .eq('entity_type', 'company')
+              .eq('activity_type', 'lead_created')
               .gte('created_at', period_start)
               .lte('created_at', period_end);
 
             if (target_level === 'user' && entity_id) {
-              // For user-level targets, we'd need to track who created the lead
-              // This would require an additional field in companies table
+              leadLogsQuery = leadLogsQuery.eq('created_by', entity_id);
             }
 
-            const { count: leadsCount } = await leadsQuery;
-            actualValue = leadsCount || 0;
+            const { count: leadLogCount, error: leadLogsError } = await leadLogsQuery;
+            if (leadLogsError) {
+              console.error('Error counting lead activity logs:', leadLogsError);
+            }
+            actualValue = leadLogCount || 0;
             break;
+          }
 
           case 'deals_count':
             // Count deals closed in period
