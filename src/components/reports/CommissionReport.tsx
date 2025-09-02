@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
+import { useCurrency } from '@/hooks/use-currency';
 import { DollarSign, Download, RefreshCw, Filter, TrendingUp, Users } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -36,6 +37,7 @@ const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accen
 
 export function CommissionReport() {
   const { currentTenant } = useTenant();
+  const { formatCurrency } = useCurrency();
   const [commissionData, setCommissionData] = useState<CommissionData | null>(null);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({
@@ -81,13 +83,6 @@ export function CommissionReport() {
     setFilters(prev => ({ ...prev, [key]: value }));
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2
-    }).format(amount);
-  };
 
   const exportData = () => {
     if (!commissionData) return;

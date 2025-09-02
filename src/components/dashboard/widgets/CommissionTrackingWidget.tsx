@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
+import { useCurrency } from '@/hooks/use-currency';
 import { DollarSign, TrendingUp, RefreshCw, Users } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 
@@ -30,6 +31,7 @@ interface CommissionData {
 
 export function CommissionTrackingWidget() {
   const { currentTenant } = useTenant();
+  const { formatCurrency } = useCurrency();
   const [commissionData, setCommissionData] = useState<CommissionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedLevel, setSelectedLevel] = useState<string>('user');
@@ -71,13 +73,6 @@ export function CommissionTrackingWidget() {
     loadCommissionData();
   }, [currentTenant, selectedLevel, currentPeriod]);
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0
-    }).format(amount);
-  };
 
   const getTopEarners = () => {
     if (!commissionData) return [];

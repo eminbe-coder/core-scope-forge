@@ -2,6 +2,7 @@ import { BarChart3, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { useCurrency } from '@/hooks/use-currency';
 
 interface ReportPreviewProps {
   data: any[];
@@ -10,6 +11,7 @@ interface ReportPreviewProps {
 }
 
 export function ReportPreview({ data, fields, loading }: ReportPreviewProps) {
+  const { formatCurrency } = useCurrency();
   const formatValue = (value: any, field: string) => {
     if (value === null || value === undefined) return '-';
     
@@ -18,10 +20,7 @@ export function ReportPreview({ data, fields, loading }: ReportPreviewProps) {
     }
     
     if (field === 'value' && typeof value === 'number') {
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-      }).format(value);
+      return formatCurrency(value);
     }
     
     if (typeof value === 'boolean') {

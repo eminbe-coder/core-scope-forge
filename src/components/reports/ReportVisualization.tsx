@@ -3,6 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { TrendingUp, Users, DollarSign, Target } from 'lucide-react';
+import { useCurrency } from '@/hooks/use-currency';
 
 interface ReportVisualizationProps {
   data: any[];
@@ -15,6 +16,7 @@ interface ReportVisualizationProps {
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', '#8884d8', '#82ca9d', '#ffc658'];
 
 export function ReportVisualization({ data, fields, visualizationType, dataSource, loading = false }: ReportVisualizationProps) {
+  const { formatCurrency } = useCurrency();
   if (loading) {
     return <div className="flex items-center justify-center py-8">Loading...</div>;
   }
@@ -44,10 +46,7 @@ export function ReportVisualization({ data, fields, visualizationType, dataSourc
     // Format currency values
     if (field.includes('value') || field.includes('amount')) {
       if (typeof value === 'number') {
-        return new Intl.NumberFormat('en-US', {
-          style: 'currency',
-          currency: 'USD'
-        }).format(value);
+        return formatCurrency(value);
       }
     }
     

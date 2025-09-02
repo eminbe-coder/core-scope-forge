@@ -256,25 +256,39 @@ serve(async (req) => {
 
           case 'deals_value': {
             // Sum deal values for deals created or updated within the period (any status)
-            // Use a single OR filter to avoid double-counting between created_at and updated_at
-            let dealsValueQuery = supabaseClient
+            // Avoid double-counting by de-duplicating deal IDs across created/updated filters
+            let createdDealsValueQuery = supabaseClient
               .from('deals')
               .select('id, value')
               .eq('tenant_id', tenantId)
-              .or(
-                `and(created_at.gte.${period_start},created_at.lte.${period_end}),` +
-                `and(updated_at.gte.${period_start},updated_at.lte.${period_end})`
-              );
+              .gte('created_at', period_start)
+              .lte('created_at', period_end);
+
+            let updatedDealsValueQuery = supabaseClient
+              .from('deals')
+              .select('id, value')
+              .eq('tenant_id', tenantId)
+              .gte('updated_at', period_start)
+              .lte('updated_at', period_end);
 
             // Apply user-level filtering
             if (target_level === 'user' && entity_id) {
-              dealsValueQuery = dealsValueQuery.eq('assigned_to', entity_id);
+              createdDealsValueQuery = createdDealsValueQuery.eq('assigned_to', entity_id);
+              updatedDealsValueQuery = updatedDealsValueQuery.eq('assigned_to', entity_id);
             }
 
-            const { data: periodDeals, error: dealsValueError } = await dealsValueQuery;
-            if (dealsValueError) throw dealsValueError;
+            const [createdDealsRes, updatedDealsRes] = await Promise.all([
+              createdDealsValueQuery,
+              updatedDealsValueQuery
+            ]);
 
-            actualValue = periodDeals?.reduce((sum, deal) => sum + (deal.value || 0), 0) || 0;
+            const uniqueDeals = new Map<string, number>();
+            (createdDealsRes.data || []).forEach((d: any) => uniqueDeals.set(d.id, d.value || 0));
+            (updatedDealsRes.data || []).forEach((d: any) => {
+              if (!uniqueDeals.has(d.id)) uniqueDeals.set(d.id, d.value || 0);
+            });
+
+            actualValue = Array.from(uniqueDeals.values()).reduce((sum, v) => sum + (v || 0), 0);
             break;
           }
 

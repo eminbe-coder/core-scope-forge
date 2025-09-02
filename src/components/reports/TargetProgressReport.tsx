@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
+import { useCurrency } from '@/hooks/use-currency';
 import { Target, Download, RefreshCw, Filter } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -30,6 +31,7 @@ const COLORS = ['#22c55e', '#3b82f6', '#ef4444', '#6b7280'];
 
 export function TargetProgressReport() {
   const { currentTenant } = useTenant();
+  const { formatCurrency } = useCurrency();
   const [targets, setTargets] = useState<TargetProgress[]>([]);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({
@@ -85,11 +87,7 @@ export function TargetProgressReport() {
 
   const formatValue = (value: number, type: string) => {
     if (type.includes('value')) {
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: 0
-      }).format(value);
+      return formatCurrency(value, 0);
     }
     return Math.round(value).toString();
   };

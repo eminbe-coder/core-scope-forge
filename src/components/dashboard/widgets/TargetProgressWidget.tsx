@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
+import { useCurrency } from '@/hooks/use-currency';
 import { Target, TrendingUp, RefreshCw } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 
@@ -24,6 +25,7 @@ interface TargetProgress {
 
 export function TargetProgressWidget() {
   const { currentTenant } = useTenant();
+  const { formatCurrency } = useCurrency();
   const [targets, setTargets] = useState<TargetProgress[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedLevel, setSelectedLevel] = useState<string>('all');
@@ -96,11 +98,7 @@ export function TargetProgressWidget() {
 
   const formatValue = (value: number, type: string) => {
     if (type.includes('value')) {
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: 0
-      }).format(value);
+      return formatCurrency(value, 0);
     }
     return Math.round(value).toString();
   };
