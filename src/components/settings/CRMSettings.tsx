@@ -37,6 +37,7 @@ import { TaskTypesSettings } from './TaskTypesSettings';
 import { RelationshipRolesSettings } from './RelationshipRolesSettings';
 import { BranchesManager } from './BranchesManager';
 import { DepartmentsManager } from './DepartmentsManager';
+import { TargetsManager } from './TargetsManager';
 
 const stageSchema = z.object({
   name: z.string().min(1, 'Stage name is required'),
@@ -332,8 +333,9 @@ export function CRMSettings() {
   return (
     <div className="space-y-6">
         <Tabs defaultValue="stages" className="w-full">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="stages">Deal Stages</TabsTrigger>
+            <TabsTrigger value="targets">Targets</TabsTrigger>
             <TabsTrigger value="branches">Branches</TabsTrigger>
             <TabsTrigger value="departments">Departments</TabsTrigger>
             <TabsTrigger value="industries">Company Industries</TabsTrigger>
@@ -460,6 +462,10 @@ export function CRMSettings() {
               <StageForm />
             </DialogContent>
           </Dialog>
+        </TabsContent>
+
+        <TabsContent value="targets">
+          <TargetsManager />
         </TabsContent>
 
         <TabsContent value="branches">

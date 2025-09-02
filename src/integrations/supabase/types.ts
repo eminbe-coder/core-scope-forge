@@ -2462,6 +2462,51 @@ export type Database = {
           },
         ]
       }
+      targets: {
+        Row: {
+          active: boolean
+          created_at: string
+          entity_id: string | null
+          id: string
+          period_end: string
+          period_start: string
+          period_type: Database["public"]["Enums"]["period_type"]
+          target_level: Database["public"]["Enums"]["target_level"]
+          target_type: Database["public"]["Enums"]["target_type"]
+          target_value: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          entity_id?: string | null
+          id?: string
+          period_end: string
+          period_start: string
+          period_type: Database["public"]["Enums"]["period_type"]
+          target_level: Database["public"]["Enums"]["target_level"]
+          target_type: Database["public"]["Enums"]["target_type"]
+          target_value: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          entity_id?: string | null
+          id?: string
+          period_end?: string
+          period_start?: string
+          period_type?: Database["public"]["Enums"]["period_type"]
+          target_level?: Database["public"]["Enums"]["target_level"]
+          target_type?: Database["public"]["Enums"]["target_type"]
+          target_value?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       task_types: {
         Row: {
           active: boolean
@@ -3097,6 +3142,7 @@ export type Database = {
         | "negotiation"
         | "won"
         | "lost"
+      period_type: "monthly" | "quarterly" | "yearly"
       project_status:
         | "planning"
         | "active"
@@ -3110,6 +3156,12 @@ export type Database = {
         | "lighting_control"
         | "elv"
         | "home_automation"
+      target_level: "company" | "branch" | "department" | "user"
+      target_type:
+        | "leads_count"
+        | "deals_count"
+        | "deals_value"
+        | "payments_value"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3260,6 +3312,7 @@ export const Constants = {
         "won",
         "lost",
       ],
+      period_type: ["monthly", "quarterly", "yearly"],
       project_status: [
         "planning",
         "active",
@@ -3274,6 +3327,13 @@ export const Constants = {
         "lighting_control",
         "elv",
         "home_automation",
+      ],
+      target_level: ["company", "branch", "department", "user"],
+      target_type: [
+        "leads_count",
+        "deals_count",
+        "deals_value",
+        "payments_value",
       ],
     },
   },
