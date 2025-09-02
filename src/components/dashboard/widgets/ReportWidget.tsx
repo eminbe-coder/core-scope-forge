@@ -177,6 +177,7 @@ export function ReportWidget({ config }: ReportWidgetProps) {
             visualizationType={reportInfo.visualization_type || 'table'}
             dataSource={reportInfo.data_source}
             loading={false}
+            queryConfig={reportInfo.query_config || {}}
           />
         </div>
       </CardContent>

@@ -19,7 +19,8 @@ interface QueryConfig {
     direction: 'asc' | 'desc';
   }>;
   grouping: string[];
-  visualization_type: 'table' | 'bar_chart' | 'pie_chart' | 'kpi_cards';
+  visualization_type: 'table' | 'bar_chart' | 'pie_chart' | 'kpi_cards' | 'comparison_chart';
+  comparison_fields?: string[];
 }
 
 interface QueryBuilderProps {
@@ -39,6 +40,7 @@ const DATA_SOURCES = [
   { value: 'contract_payments', label: 'Contract Payments' },
   { value: 'sites', label: 'Sites' },
   { value: 'customers', label: 'Customers' },
+  { value: 'targets', label: 'Targets' },
 ];
 
 const FIELD_DEFINITIONS = {
@@ -116,6 +118,18 @@ const FIELD_DEFINITIONS = {
     { value: 'currency_code', label: 'Currency' },
     { value: 'created_at', label: 'Created Date' },
   ],
+  targets: [
+    { value: 'target_level', label: 'Target Level' },
+    { value: 'entity_name', label: 'Entity Name' },
+    { value: 'target_type', label: 'Target Type' },
+    { value: 'target_value', label: 'Target Value' },
+    { value: 'period_type', label: 'Period Type' },
+    { value: 'period_start', label: 'Period Start' },
+    { value: 'period_end', label: 'Period End' },
+    { value: 'current_progress', label: 'Current Progress' },
+    { value: 'progress_percentage', label: 'Progress Percentage' },
+    { value: 'created_at', label: 'Created Date' },
+  ],
 };
 
 const OPERATORS = [
@@ -138,6 +152,7 @@ const VISUALIZATION_TYPES = [
   { value: 'bar_chart', label: 'Bar Chart' },
   { value: 'pie_chart', label: 'Pie Chart' },
   { value: 'kpi_cards', label: 'KPI Cards' },
+  { value: 'comparison_chart', label: 'Comparison Chart' },
 ];
 
 export function QueryBuilder({ dataSource, onDataSourceChange, queryConfig, onQueryConfigChange, visualizationType, onVisualizationTypeChange }: QueryBuilderProps) {
@@ -380,6 +395,58 @@ export function QueryBuilder({ dataSource, onDataSourceChange, queryConfig, onQu
               </Button>
             </CardContent>
           </Card>
+
+          {visualizationType === 'comparison_chart' && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Comparison Fields</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Select exactly two numeric fields to compare
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {availableFields
+                      .filter(field => 
+                        field.value.includes('value') || 
+                        field.value.includes('amount') || 
+                        field.value.includes('count') ||
+                        field.value.includes('progress') ||
+                        field.value.includes('percentage')
+                      )
+                      .map((field) => (
+                        <div key={field.value} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`comparison-${field.value}`}
+                            checked={(queryConfig.comparison_fields || []).includes(field.value)}
+                            onCheckedChange={(checked) => {
+                              const currentFields = queryConfig.comparison_fields || [];
+                              let newFields: string[];
+                              
+                              if (checked) {
+                                if (currentFields.length < 2) {
+                                  newFields = [...currentFields, field.value];
+                                } else {
+                                  newFields = [currentFields[1], field.value];
+                                }
+                              } else {
+                                newFields = currentFields.filter(f => f !== field.value);
+                              }
+                              
+                              updateQueryConfig({ comparison_fields: newFields });
+                            }}
+                          />
+                          <Label htmlFor={`comparison-${field.value}`} className="text-sm">
+                            {field.label}
+                          </Label>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </>
       )}
     </div>

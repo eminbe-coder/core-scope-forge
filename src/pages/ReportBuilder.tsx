@@ -28,8 +28,8 @@ interface QueryConfig {
     direction: 'asc' | 'desc';
   }>;
   grouping: string[];
-  visualization_type: 'table' | 'bar_chart' | 'pie_chart' | 'kpi_cards';
-  [key: string]: any;
+  visualization_type: 'table' | 'bar_chart' | 'pie_chart' | 'kpi_cards' | 'comparison_chart';
+  comparison_fields?: string[];
 }
 
 export default function ReportBuilder() {
@@ -42,7 +42,7 @@ export default function ReportBuilder() {
   const [reportName, setReportName] = useState('');
   const [reportDescription, setReportDescription] = useState('');
   const [dataSource, setDataSource] = useState<string>('');
-  const [visualizationType, setVisualizationType] = useState<'table' | 'bar_chart' | 'pie_chart' | 'kpi_cards'>('table');
+  const [visualizationType, setVisualizationType] = useState<'table' | 'bar_chart' | 'pie_chart' | 'kpi_cards' | 'comparison_chart'>('table');
   const [visibility, setVisibility] = useState<'private' | 'tenant'>('private');
   const [queryConfig, setQueryConfig] = useState<QueryConfig>({
     fields: [],
@@ -50,6 +50,7 @@ export default function ReportBuilder() {
     sorting: [],
     grouping: [],
     visualization_type: 'table',
+    comparison_fields: [],
   });
   const [previewData, setPreviewData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -78,7 +79,7 @@ export default function ReportBuilder() {
       setDataSource(data.data_source);
       setVisualizationType(data.visualization_type as any);
       setVisibility(data.visibility as 'private' | 'tenant');
-      setQueryConfig(data.query_config as QueryConfig);
+      setQueryConfig((data.query_config as any) as QueryConfig);
     } catch (error) {
       console.error('Error loading report:', error);
       toast({
@@ -361,6 +362,7 @@ export default function ReportBuilder() {
               visualizationType={visualizationType}
               dataSource={dataSource}
               loading={loading}
+              queryConfig={queryConfig}
             />
             
             <ReportExport

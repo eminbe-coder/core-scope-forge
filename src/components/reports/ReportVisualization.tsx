@@ -11,11 +11,14 @@ interface ReportVisualizationProps {
   visualizationType: string;
   dataSource: string;
   loading?: boolean;
+  queryConfig?: {
+    comparison_fields?: string[];
+  };
 }
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', '#8884d8', '#82ca9d', '#ffc658'];
 
-export function ReportVisualization({ data, fields, visualizationType, dataSource, loading = false }: ReportVisualizationProps) {
+export function ReportVisualization({ data, fields, visualizationType, dataSource, loading = false, queryConfig = {} }: ReportVisualizationProps) {
   const { formatCurrency } = useCurrency();
   if (loading) {
     return <div className="flex items-center justify-center py-8">Loading...</div>;
@@ -269,6 +272,39 @@ export function ReportVisualization({ data, fields, visualizationType, dataSourc
     );
   };
 
+  const renderComparisonChart = () => {
+    const comparisonFields = queryConfig?.comparison_fields || [];
+    
+    if (comparisonFields.length !== 2) {
+      return <div className="text-center py-8 text-muted-foreground">Please select exactly 2 fields to compare</div>;
+    }
+
+    const [field1, field2] = comparisonFields;
+    const field1Label = formatFieldName(field1);
+    const field2Label = formatFieldName(field2);
+
+    // Prepare data for comparison chart
+    const chartData = data.map((item, index) => ({
+      name: item.name || item.entity_name || `Item ${index + 1}`,
+      [field1]: parseFloat(item[field1]) || 0,
+      [field2]: parseFloat(item[field2]) || 0,
+    }));
+
+    return (
+      <ResponsiveContainer width="100%" height={400}>
+        <BarChart data={chartData}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="name" />
+          <YAxis />
+          <Tooltip />
+          <Legend />
+          <Bar dataKey={field1} fill="hsl(var(--primary))" name={field1Label} />
+          <Bar dataKey={field2} fill="hsl(var(--secondary))" name={field2Label} />
+        </BarChart>
+      </ResponsiveContainer>
+    );
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -281,6 +317,7 @@ export function ReportVisualization({ data, fields, visualizationType, dataSourc
         {visualizationType === 'kpi_cards' && renderKPICards()}
         {visualizationType === 'bar_chart' && renderBarChart()}
         {visualizationType === 'pie_chart' && renderPieChart()}
+        {visualizationType === 'comparison_chart' && renderComparisonChart()}
       </CardContent>
     </Card>
   );

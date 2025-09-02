@@ -22,6 +22,7 @@ interface QueryConfig {
   filters: FilterCondition[];
   sorting: SortCondition[];
   grouping: string[];
+  comparison_fields?: string[];
 }
 
 serve(async (req) => {
@@ -223,6 +224,98 @@ serve(async (req) => {
           assigned_salesperson: deal.profiles ? 
             `${deal.profiles.first_name} ${deal.profiles.last_name}` : ''
         }));
+        break;
+
+      case 'targets':
+        query = supabase
+          .from('targets')
+          .select(`
+            id,
+            target_level,
+            entity_id,
+            target_type,
+            target_value,
+            period_type,
+            period_start,
+            period_end,
+            created_at,
+            branches(name),
+            departments(name),
+            profiles(first_name, last_name)
+          `)
+          .eq('tenant_id', tenantId)
+          .eq('active', true);
+
+        // Apply filters
+        for (const filter of queryConfig.filters) {
+          query = applyFilter(query, filter, 'targets');
+        }
+
+        // Apply sorting
+        for (const sort of queryConfig.sorting) {
+          query = query.order(sort.field, { ascending: sort.direction === 'asc' });
+        }
+
+        const { data: targetsData, error: targetsError } = await query;
+        if (targetsError) throw targetsError;
+
+        // Calculate current progress for each target
+        const enrichedTargets = await Promise.all(
+          (targetsData || []).map(async (target: any) => {
+            let entity_name = 'Company-wide';
+            
+            if (target.entity_id) {
+              if (target.target_level === 'branch' && target.branches) {
+                entity_name = target.branches.name || 'Unknown Branch';
+              } else if (target.target_level === 'department' && target.departments) {
+                entity_name = target.departments.name || 'Unknown Department';
+              } else if (target.target_level === 'user' && target.profiles) {
+                entity_name = `${target.profiles.first_name} ${target.profiles.last_name}`;
+              }
+            }
+
+            // Calculate progress by calling the calculate-target-progress function
+            let current_progress = 0;
+            let progress_percentage = 0;
+
+            try {
+              const { data: progressData } = await supabase.functions.invoke('calculate-target-progress', {
+                body: {
+                  tenantId,
+                  level: target.target_level,
+                  entityId: target.entity_id,
+                  targetType: target.target_type,
+                  periodStart: target.period_start,
+                  periodEnd: target.period_end
+                }
+              });
+
+              if (progressData && !progressData.error) {
+                current_progress = progressData.progress || 0;
+                progress_percentage = target.target_value > 0 ? 
+                  Math.round((current_progress / target.target_value) * 100) : 0;
+              }
+            } catch (error) {
+              console.log('Progress calculation failed for target:', target.id);
+            }
+
+            return {
+              id: target.id,
+              target_level: target.target_level,
+              entity_name,
+              target_type: target.target_type,
+              target_value: target.target_value,
+              period_type: target.period_type,
+              period_start: target.period_start,
+              period_end: target.period_end,
+              current_progress,
+              progress_percentage,
+              created_at: target.created_at
+            };
+          })
+        );
+
+        data = enrichedTargets;
         break;
 
       case 'contacts':

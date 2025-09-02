@@ -206,6 +206,7 @@ export default function ReportRunner() {
                   visualizationType={report.visualization_type}
                   dataSource={report.data_source}
                   loading={loading}
+                  queryConfig={report.query_config || {}}
                 />
               </CardContent>
             </Card>
