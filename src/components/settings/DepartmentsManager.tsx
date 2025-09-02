@@ -60,7 +60,7 @@ export function DepartmentsManager() {
     defaultValues: {
       name: '',
       description: '',
-      branch_id: '',
+      branch_id: 'no-branch',
     },
   });
 
@@ -122,7 +122,7 @@ export function DepartmentsManager() {
       const payload = {
         name: data.name,
         description: data.description || null,
-        branch_id: data.branch_id || null,
+        branch_id: data.branch_id === 'no-branch' ? null : data.branch_id,
         tenant_id: currentTenant.id,
       };
 
@@ -161,7 +161,7 @@ export function DepartmentsManager() {
     form.reset({
       name: department.name,
       description: department.description || '',
-      branch_id: department.branch_id || '',
+      branch_id: department.branch_id || 'no-branch',
     });
     setIsModalOpen(true);
   };
@@ -267,7 +267,7 @@ export function DepartmentsManager() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="">No branch assigned</SelectItem>
+                            <SelectItem value="no-branch">No branch assigned</SelectItem>
                             {branches.map((branch) => (
                               <SelectItem key={branch.id} value={branch.id}>
                                 {branch.name} ({branch.city}, {branch.country})
