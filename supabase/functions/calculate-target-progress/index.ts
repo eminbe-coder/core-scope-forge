@@ -60,66 +60,145 @@ serve(async (req) => {
         // Calculate actual achievements based on target type
         switch (target_type) {
           case 'leads_count': {
-            // Count leads created in period using activity logs for reliability
-            let leadLogsQuery = supabaseClient
-              .from('activity_logs')
+            // Count all leads (companies, contacts, sites) created within target period
+            let totalLeads = 0;
+            
+            // Count company leads
+            let companyLeadsQuery = supabaseClient
+              .from('companies')
               .select('id', { count: 'exact' })
               .eq('tenant_id', tenantId)
-              .eq('entity_type', 'company')
-              .eq('activity_type', 'lead_created')
+              .eq('is_lead', true)
+              .eq('active', true)
               .gte('created_at', period_start)
               .lte('created_at', period_end);
 
-            if (target_level === 'user' && entity_id) {
-              leadLogsQuery = leadLogsQuery.eq('created_by', entity_id);
-            }
+            // Count contact leads
+            let contactLeadsQuery = supabaseClient
+              .from('contacts')
+              .select('id', { count: 'exact' })
+              .eq('tenant_id', tenantId)
+              .eq('is_lead', true)
+              .eq('active', true)
+              .gte('created_at', period_start)
+              .lte('created_at', period_end);
 
-            const { count: leadLogCount, error: leadLogsError } = await leadLogsQuery;
-            if (leadLogsError) {
-              console.error('Error counting lead activity logs:', leadLogsError);
+            // Count site leads
+            let siteLeadsQuery = supabaseClient
+              .from('sites')
+              .select('id', { count: 'exact' })
+              .eq('tenant_id', tenantId)
+              .eq('is_lead', true)
+              .eq('active', true)
+              .gte('created_at', period_start)
+              .lte('created_at', period_end);
+
+            // Apply user-level filtering by checking activity logs for lead creation
+            if (target_level === 'user' && entity_id) {
+              // For user-level targets, we need to count leads created by specific user
+              let userLeadsQuery = supabaseClient
+                .from('activity_logs')
+                .select('entity_id', { count: 'exact' })
+                .eq('tenant_id', tenantId)
+                .eq('activity_type', 'lead_created')
+                .eq('created_by', entity_id)
+                .gte('created_at', period_start)
+                .lte('created_at', period_end);
+              
+              const { count: userLeadsCount } = await userLeadsQuery;
+              actualValue = userLeadsCount || 0;
+            } else {
+              // For company/branch/department level, count all leads
+              const [companyResult, contactResult, siteResult] = await Promise.all([
+                companyLeadsQuery,
+                contactLeadsQuery, 
+                siteLeadsQuery
+              ]);
+              
+              totalLeads = (companyResult.count || 0) + (contactResult.count || 0) + (siteResult.count || 0);
+              actualValue = totalLeads;
             }
-            actualValue = leadLogCount || 0;
             break;
           }
 
           case 'deals_count':
-            // Count deals closed in period
+            // Count deals with won status created/updated in period
             let dealsQuery = supabaseClient
               .from('deals')
               .select('id', { count: 'exact' })
               .eq('tenant_id', tenantId)
-              .in('status', ['won', 'closed'])
+              .eq('status', 'won');
+
+            // Check both created_at and updated_at to capture all relevant deals
+            const createdDealsQuery = supabaseClient
+              .from('deals')
+              .select('id', { count: 'exact' })
+              .eq('tenant_id', tenantId)
+              .eq('status', 'won')
+              .gte('created_at', period_start)
+              .lte('created_at', period_end);
+
+            const updatedDealsQuery = supabaseClient
+              .from('deals')
+              .select('id', { count: 'exact' })
+              .eq('tenant_id', tenantId)
+              .eq('status', 'won')
               .gte('updated_at', period_start)
               .lte('updated_at', period_end);
 
+            // Apply user-level filtering
             if (target_level === 'user' && entity_id) {
-              dealsQuery = dealsQuery.eq('assigned_to', entity_id);
+              createdDealsQuery.eq('assigned_to', entity_id);
+              updatedDealsQuery.eq('assigned_to', entity_id);
             }
 
-            const { count: dealsCount } = await dealsQuery;
-            actualValue = dealsCount || 0;
+            const [createdResult, updatedResult] = await Promise.all([
+              createdDealsQuery,
+              updatedDealsQuery
+            ]);
+
+            // Use the higher count to ensure we capture all relevant deals
+            actualValue = Math.max(createdResult.count || 0, updatedResult.count || 0);
             break;
 
           case 'deals_value':
-            // Sum deal values closed in period
-            let dealsValueQuery = supabaseClient
+            // Sum deal values for won deals created/updated in period
+            let createdDealsValueQuery = supabaseClient
               .from('deals')
               .select('value')
               .eq('tenant_id', tenantId)
-              .in('status', ['won', 'closed'])
+              .eq('status', 'won')
+              .gte('created_at', period_start)
+              .lte('created_at', period_end);
+
+            let updatedDealsValueQuery = supabaseClient
+              .from('deals')
+              .select('value')
+              .eq('tenant_id', tenantId)
+              .eq('status', 'won')
               .gte('updated_at', period_start)
               .lte('updated_at', period_end);
 
+            // Apply user-level filtering
             if (target_level === 'user' && entity_id) {
-              dealsValueQuery = dealsValueQuery.eq('assigned_to', entity_id);
+              createdDealsValueQuery = createdDealsValueQuery.eq('assigned_to', entity_id);
+              updatedDealsValueQuery = updatedDealsValueQuery.eq('assigned_to', entity_id);
             }
 
-            const { data: dealValues } = await dealsValueQuery;
-            actualValue = dealValues?.reduce((sum, deal) => sum + (deal.value || 0), 0) || 0;
+            const [createdDealsResult, updatedDealsResult] = await Promise.all([
+              createdDealsValueQuery,
+              updatedDealsValueQuery
+            ]);
+
+            const createdValue = createdDealsResult.data?.reduce((sum, deal) => sum + (deal.value || 0), 0) || 0;
+            const updatedValue = updatedDealsResult.data?.reduce((sum, deal) => sum + (deal.value || 0), 0) || 0;
+            
+            // Use the higher value to ensure we capture all relevant deals
+            actualValue = Math.max(createdValue, updatedValue);
             break;
 
           case 'payments_value':
-            // Sum payments received in period
+            // Sum payments due in period (using due_date as the primary criterion)
             let paymentsQuery = supabaseClient
               .from('contract_payment_terms')
               .select(`
@@ -130,6 +209,7 @@ serve(async (req) => {
               .gte('due_date', period_start)
               .lte('due_date', period_end);
 
+            // Apply user-level filtering
             if (target_level === 'user' && entity_id) {
               paymentsQuery = paymentsQuery.eq('contracts.assigned_to', entity_id);
             }
