@@ -56,6 +56,7 @@ export const CreateSiteForm = ({ isLead = false, onSuccess }: CreateSiteFormProp
   const [companyRelationships, setCompanyRelationships] = useState<CompanyRelationship[]>([]);
   const [leadStages, setLeadStages] = useState<LeadStage[]>([]);
   const [leadQualities, setLeadQualities] = useState<LeadQuality[]>([]);
+  const [defaultQualityId, setDefaultQualityId] = useState<string | null>(null);
 
   const form = useForm<SiteFormData>({
     resolver: zodResolver(siteSchema),
@@ -82,7 +83,7 @@ export const CreateSiteForm = ({ isLead = false, onSuccess }: CreateSiteFormProp
     if (!currentTenant) return;
 
     try {
-      const [stagesResult, qualitiesResult] = await Promise.all([
+      const [stagesResult, qualitiesResult, tenantResult] = await Promise.all([
         supabase
           .from('lead_stages')
           .select('id, name')
@@ -94,11 +95,24 @@ export const CreateSiteForm = ({ isLead = false, onSuccess }: CreateSiteFormProp
           .select('id, name')
           .eq('tenant_id', currentTenant.id)
           .eq('active', true)
-          .order('sort_order')
+          .order('sort_order'),
+        supabase
+          .from('tenants')
+          .select('default_lead_quality_id')
+          .eq('id', currentTenant.id)
+          .single()
       ]);
 
       if (stagesResult.data) setLeadStages(stagesResult.data);
       if (qualitiesResult.data) setLeadQualities(qualitiesResult.data);
+      
+      if (tenantResult.data?.default_lead_quality_id) {
+        setDefaultQualityId(tenantResult.data.default_lead_quality_id);
+        // Set default quality if not already set
+        if (!form.getValues('quality_id')) {
+          form.setValue('quality_id', tenantResult.data.default_lead_quality_id);
+        }
+      }
     } catch (error) {
       console.error('Error loading lead options:', error);
     }

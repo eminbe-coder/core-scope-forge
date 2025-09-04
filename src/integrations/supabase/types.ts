@@ -2886,6 +2886,7 @@ export type Database = {
           cr_number: string | null
           created_at: string
           default_currency_id: string | null
+          default_lead_quality_id: string | null
           domain: string | null
           id: string
           name: string
@@ -2902,6 +2903,7 @@ export type Database = {
           cr_number?: string | null
           created_at?: string
           default_currency_id?: string | null
+          default_lead_quality_id?: string | null
           domain?: string | null
           id?: string
           name: string
@@ -2918,6 +2920,7 @@ export type Database = {
           cr_number?: string | null
           created_at?: string
           default_currency_id?: string | null
+          default_lead_quality_id?: string | null
           domain?: string | null
           id?: string
           name?: string
@@ -2932,6 +2935,13 @@ export type Database = {
             columns: ["default_currency_id"]
             isOneToOne: false
             referencedRelation: "currencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenants_default_lead_quality_id_fkey"
+            columns: ["default_lead_quality_id"]
+            isOneToOne: false
+            referencedRelation: "lead_quality"
             referencedColumns: ["id"]
           },
         ]

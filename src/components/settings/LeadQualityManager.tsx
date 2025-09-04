@@ -138,6 +138,24 @@ export const LeadQualityManager = () => {
     }
   };
 
+  const setDefaultQuality = async (id: string) => {
+    if (!currentTenant) return;
+    
+    try {
+      const { error } = await supabase
+        .from('tenants')
+        .update({ default_lead_quality_id: id })
+        .eq('id', currentTenant.id);
+
+      if (error) throw error;
+      toast.success('Default lead quality updated successfully');
+      // Trigger a refresh of tenant data if needed
+    } catch (error) {
+      console.error('Error setting default lead quality:', error);
+      toast.error('Failed to set default lead quality');
+    }
+  };
+
   const moveQuality = async (id: string, direction: 'up' | 'down') => {
     const currentIndex = qualities.findIndex(q => q.id === id);
     if (currentIndex === -1) return;
@@ -274,6 +292,7 @@ export const LeadQualityManager = () => {
               <TableHead>Description</TableHead>
               <TableHead>Order</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Default</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -316,6 +335,21 @@ export const LeadQualityManager = () => {
                       checked={quality.active}
                       onCheckedChange={(checked) => toggleQualityStatus(quality.id, checked)}
                     />
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center space-x-2">
+                    {(currentTenant as any)?.default_lead_quality_id === quality.id && (
+                      <Badge variant="outline">Default</Badge>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setDefaultQuality(quality.id)}
+                      disabled={(currentTenant as any)?.default_lead_quality_id === quality.id}
+                    >
+                      Set Default
+                    </Button>
                   </div>
                 </TableCell>
                 <TableCell>
