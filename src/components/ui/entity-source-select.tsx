@@ -86,7 +86,7 @@ export const EntitySourceSelect = ({ value, onValueChange, label = "Source Entit
   };
 
   const handleValueChange = (selectedValue: string) => {
-    if (!selectedValue) {
+    if (!selectedValue || selectedValue === 'none') {
       onValueChange(null);
       return;
     }
@@ -107,7 +107,7 @@ export const EntitySourceSelect = ({ value, onValueChange, label = "Source Entit
           <SelectValue placeholder="Select source entity" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">None</SelectItem>
+          <SelectItem value="none">None</SelectItem>
           {entities.map((entity) => (
             <SelectItem key={`${entity.type}:${entity.id}`} value={`${entity.type}:${entity.id}`}>
               {entity.name} ({entity.type})
