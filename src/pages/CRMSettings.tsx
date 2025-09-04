@@ -10,7 +10,8 @@ import {
   CheckSquare,
   Network,
   TrendingUp,
-  Star
+  Star,
+  Navigation
 } from 'lucide-react';
 
 // Import CRM components
@@ -23,6 +24,7 @@ import { TaskTypesSettings } from '@/components/settings/TaskTypesSettings';
 import { RelationshipRolesSettings } from '@/components/settings/RelationshipRolesSettings';
 import { LeadStagesManager } from '@/components/settings/LeadStagesManager';
 import { LeadQualityManager } from '@/components/settings/LeadQualityManager';
+import { DealSourcesManager } from '@/components/settings/DealSourcesManager';
 
 const CRMSettingsPage = () => {
   const [activeSection, setActiveSection] = useState<string>('deal-stages');
@@ -45,6 +47,12 @@ const CRMSettingsPage = () => {
       label: 'Lead Quality',
       icon: Star,
       component: LeadQualityManager
+    },
+    {
+      id: 'deal-sources',
+      label: 'Deal Sources',
+      icon: Navigation,
+      component: DealSourcesManager
     },
     {
       id: 'targets',

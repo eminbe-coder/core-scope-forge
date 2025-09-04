@@ -28,6 +28,7 @@ const dealSchema = z.object({
   value: z.string().optional(),
   currency_id: z.string().optional(),
   stage_id: z.string().min(1, 'Stage is required'),
+  source_id: z.string().optional(),
   priority: z.enum(['low', 'medium', 'high']),  
   expected_close_date: z.string().optional(),
   assigned_to: z.string().optional(),
@@ -84,6 +85,14 @@ interface DealStage {
   active: boolean;
 }
 
+interface DealSource {
+  id: string;
+  name: string;
+  description?: string;
+  sort_order: number;
+  active: boolean;
+}
+
 interface PaymentTerm {
   id?: string;
   installment_number: number;
@@ -104,6 +113,7 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [stages, setStages] = useState<DealStage[]>([]);
+  const [sources, setSources] = useState<DealSource[]>([]);
   const [paymentTerms, setPaymentTerms] = useState<PaymentTerm[]>([]);
   const [tenantUsers, setTenantUsers] = useState<{ id: string; name: string; email: string }[]>([]);
   const [selectedCustomerType, setSelectedCustomerType] = useState<'existing' | 'company' | 'contact'>('existing');
@@ -125,6 +135,7 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
       value: '',
       currency_id: '',
       stage_id: '',
+      source_id: '',
       priority: 'medium',
       expected_close_date: '',
       assigned_to: '',
@@ -210,6 +221,17 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
 
       if (stageError) throw stageError;
       setStages(stageData || []);
+
+      // Load deal sources
+      const { data: sourceData, error: sourceError } = await supabase
+        .from('deal_sources')
+        .select('*')
+        .eq('tenant_id', currentTenant?.id)
+        .eq('active', true)
+        .order('sort_order');
+
+      if (sourceError) throw sourceError;
+      setSources(sourceData || []);
 
       // Set default currency to tenant's default
       if (currentTenant?.default_currency_id) {
@@ -384,6 +406,7 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
         value: data.value ? parseFloat(data.value) : null,
         currency_id: data.currency_id || currentTenant.default_currency_id || null,
         stage_id: data.stage_id,
+        source_id: data.source_id || null,
         priority: data.priority,
         probability,
         expected_close_date: data.expected_close_date || null,
@@ -677,6 +700,31 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
                           <SelectItem value="low">Low</SelectItem>
                           <SelectItem value="medium">Medium</SelectItem>
                           <SelectItem value="high">High</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="source_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Source</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select source" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {sources.map((source) => (
+                            <SelectItem key={source.id} value={source.id}>
+                              {source.name}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
