@@ -367,6 +367,10 @@ export type Database = {
           phone: string | null
           quality_id: string | null
           size: string | null
+          source_company_id: string | null
+          source_contact_id: string | null
+          source_id: string | null
+          source_user_id: string | null
           stage_id: string | null
           tenant_id: string
           updated_at: string
@@ -390,6 +394,10 @@ export type Database = {
           phone?: string | null
           quality_id?: string | null
           size?: string | null
+          source_company_id?: string | null
+          source_contact_id?: string | null
+          source_id?: string | null
+          source_user_id?: string | null
           stage_id?: string | null
           tenant_id: string
           updated_at?: string
@@ -413,12 +421,45 @@ export type Database = {
           phone?: string | null
           quality_id?: string | null
           size?: string | null
+          source_company_id?: string | null
+          source_contact_id?: string | null
+          source_id?: string | null
+          source_user_id?: string | null
           stage_id?: string | null
           tenant_id?: string
           updated_at?: string
           website?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "companies_source_company_id_fkey"
+            columns: ["source_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "companies_source_contact_id_fkey"
+            columns: ["source_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "companies_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "deal_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "companies_source_user_id_fkey"
+            columns: ["source_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       company_contacts: {
         Row: {
@@ -706,6 +747,10 @@ export type Database = {
           phone: string | null
           position: string | null
           quality_id: string | null
+          source_company_id: string | null
+          source_contact_id: string | null
+          source_id: string | null
+          source_user_id: string | null
           stage_id: string | null
           tenant_id: string
           updated_at: string
@@ -725,6 +770,10 @@ export type Database = {
           phone?: string | null
           position?: string | null
           quality_id?: string | null
+          source_company_id?: string | null
+          source_contact_id?: string | null
+          source_id?: string | null
+          source_user_id?: string | null
           stage_id?: string | null
           tenant_id: string
           updated_at?: string
@@ -744,6 +793,10 @@ export type Database = {
           phone?: string | null
           position?: string | null
           quality_id?: string | null
+          source_company_id?: string | null
+          source_contact_id?: string | null
+          source_id?: string | null
+          source_user_id?: string | null
           stage_id?: string | null
           tenant_id?: string
           updated_at?: string
@@ -754,6 +807,34 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_source_company_id_fkey"
+            columns: ["source_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_source_contact_id_fkey"
+            columns: ["source_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "deal_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_source_user_id_fkey"
+            columns: ["source_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
@@ -1563,7 +1644,10 @@ export type Database = {
           priority: Database["public"]["Enums"]["deal_priority"] | null
           probability: number | null
           site_id: string | null
+          source_company_id: string | null
+          source_contact_id: string | null
           source_id: string | null
+          source_user_id: string | null
           stage_id: string | null
           status: Database["public"]["Enums"]["deal_status"]
           tenant_id: string
@@ -1585,7 +1669,10 @@ export type Database = {
           priority?: Database["public"]["Enums"]["deal_priority"] | null
           probability?: number | null
           site_id?: string | null
+          source_company_id?: string | null
+          source_contact_id?: string | null
           source_id?: string | null
+          source_user_id?: string | null
           stage_id?: string | null
           status?: Database["public"]["Enums"]["deal_status"]
           tenant_id: string
@@ -1607,7 +1694,10 @@ export type Database = {
           priority?: Database["public"]["Enums"]["deal_priority"] | null
           probability?: number | null
           site_id?: string | null
+          source_company_id?: string | null
+          source_contact_id?: string | null
           source_id?: string | null
+          source_user_id?: string | null
           stage_id?: string | null
           status?: Database["public"]["Enums"]["deal_status"]
           tenant_id?: string
@@ -1644,10 +1734,31 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "deals_source_company_id_fkey"
+            columns: ["source_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_source_contact_id_fkey"
+            columns: ["source_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "deals_source_id_fkey"
             columns: ["source_id"]
             isOneToOne: false
             referencedRelation: "deal_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_source_user_id_fkey"
+            columns: ["source_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {

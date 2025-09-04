@@ -9,10 +9,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { EntitySourceSelect } from '@/components/ui/entity-source-select';
 import { QuickAddCompanyModal } from '@/components/modals/QuickAddCompanyModal';
 import { QuickAddContactModal } from '@/components/modals/QuickAddContactModal';
 import { QuickAddSiteModal } from '@/components/modals/QuickAddSiteModal';
 import { CompanyRelationshipSelector, CompanyRelationship } from '@/components/forms/CompanyRelationshipSelector';
+import { convertLeadToDeal } from '@/utils/lead-conversion';
 import { saveEntityRelationships } from '@/utils/entity-relationships';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,6 +31,9 @@ const dealSchema = z.object({
   currency_id: z.string().optional(),
   stage_id: z.string().min(1, 'Stage is required'),
   source_id: z.string().optional(),
+  source_company_id: z.string().optional(),
+  source_contact_id: z.string().optional(),
+  source_user_id: z.string().optional(),
   priority: z.enum(['low', 'medium', 'high']),  
   expected_close_date: z.string().optional(),
   assigned_to: z.string().optional(),
@@ -124,6 +129,7 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
   const [linkedContacts, setLinkedContacts] = useState<{ id: string; name: string; first_name?: string; last_name?: string }[]>([]);
   const [leadData, setLeadData] = useState<any>(null);
   const [companyRelationships, setCompanyRelationships] = useState<CompanyRelationship[]>([]);
+  const [sourceEntity, setSourceEntity] = useState<{type: 'company' | 'contact' | 'user'; id: string} | null>(null);
 
   const form = useForm<DealFormData>({
     resolver: zodResolver(dealSchema),
@@ -136,6 +142,9 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
       currency_id: '',
       stage_id: '',
       source_id: '',
+      source_company_id: '',
+      source_contact_id: '',
+      source_user_id: '',
       priority: 'medium',
       expected_close_date: '',
       assigned_to: '',
@@ -407,6 +416,9 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
         currency_id: data.currency_id || currentTenant.default_currency_id || null,
         stage_id: data.stage_id,
         source_id: data.source_id || null,
+        source_company_id: sourceEntity?.type === 'company' ? sourceEntity.id : null,
+        source_contact_id: sourceEntity?.type === 'contact' ? sourceEntity.id : null,
+        source_user_id: sourceEntity?.type === 'user' ? sourceEntity.id : null,
         priority: data.priority,
         probability,
         expected_close_date: data.expected_close_date || null,
@@ -712,11 +724,11 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
                   name="source_id"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Source</FormLabel>
+                      <FormLabel>Source Category</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select source" />
+                            <SelectValue placeholder="Select source category" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -732,6 +744,12 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
                   )}
                 />
               </div>
+
+              <EntitySourceSelect
+                value={sourceEntity}
+                onValueChange={setSourceEntity}
+                label="Specific Source"
+              />
 
               <FormField
                 control={form.control}

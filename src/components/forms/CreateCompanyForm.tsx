@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { EntitySourceSelect } from '@/components/ui/entity-source-select';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useAuth } from '@/hooks/use-auth';
@@ -28,6 +29,10 @@ const companySchema = z.object({
   notes: z.string().optional(),
   stage_id: z.string().optional(),
   quality_id: z.string().optional(),
+  source_id: z.string().optional(),
+  source_company_id: z.string().optional(),
+  source_contact_id: z.string().optional(),
+  source_user_id: z.string().optional(),
 });
 
 type CompanyFormData = z.infer<typeof companySchema>;
@@ -56,7 +61,9 @@ export const CreateCompanyForm = ({ isLead = false, onSuccess }: CreateCompanyFo
   const [companyRelationships, setCompanyRelationships] = useState<CompanyRelationship[]>([]);
   const [leadStages, setLeadStages] = useState<LeadStage[]>([]);
   const [leadQualities, setLeadQualities] = useState<LeadQuality[]>([]);
+  const [dealSources, setDealSources] = useState<Array<{ id: string; name: string }>>([]);
   const [defaultQualityId, setDefaultQualityId] = useState<string | null>(null);
+  const [sourceEntity, setSourceEntity] = useState<{type: 'company' | 'contact' | 'user'; id: string} | null>(null);
 
   const form = useForm<CompanyFormData>({
     resolver: zodResolver(companySchema),
@@ -72,6 +79,10 @@ export const CreateCompanyForm = ({ isLead = false, onSuccess }: CreateCompanyFo
       notes: '',
       stage_id: '',
       quality_id: '',
+      source_id: '',
+      source_company_id: '',
+      source_contact_id: '',
+      source_user_id: '',
     },
   });
 
@@ -85,7 +96,7 @@ export const CreateCompanyForm = ({ isLead = false, onSuccess }: CreateCompanyFo
     if (!currentTenant) return;
 
     try {
-      const [stagesResult, qualitiesResult, tenantResult] = await Promise.all([
+      const [stagesResult, qualitiesResult, sourcesResult, tenantResult] = await Promise.all([
         supabase
           .from('lead_stages')
           .select('id, name')
@@ -99,6 +110,12 @@ export const CreateCompanyForm = ({ isLead = false, onSuccess }: CreateCompanyFo
           .eq('active', true)
           .order('sort_order'),
         supabase
+          .from('deal_sources')
+          .select('id, name')
+          .eq('tenant_id', currentTenant.id)
+          .eq('active', true)
+          .order('sort_order'),
+        supabase
           .from('tenants')
           .select('default_lead_quality_id')
           .eq('id', currentTenant.id)
@@ -107,6 +124,7 @@ export const CreateCompanyForm = ({ isLead = false, onSuccess }: CreateCompanyFo
 
       if (stagesResult.data) setLeadStages(stagesResult.data);
       if (qualitiesResult.data) setLeadQualities(qualitiesResult.data);
+      if (sourcesResult.data) setDealSources(sourcesResult.data);
       
       if (tenantResult.data?.default_lead_quality_id) {
         setDefaultQualityId(tenantResult.data.default_lead_quality_id);
@@ -133,6 +151,9 @@ export const CreateCompanyForm = ({ isLead = false, onSuccess }: CreateCompanyFo
           tenant_id: currentTenant.id,
           stage_id: data.stage_id || null,
           quality_id: data.quality_id || null,
+          source_company_id: sourceEntity?.type === 'company' ? sourceEntity.id : null,
+          source_contact_id: sourceEntity?.type === 'contact' ? sourceEntity.id : null,
+          source_user_id: sourceEntity?.type === 'user' ? sourceEntity.id : null,
         })
         .select()
         .single();
@@ -326,6 +347,41 @@ export const CreateCompanyForm = ({ isLead = false, onSuccess }: CreateCompanyFo
                 </>
               )}
             </div>
+
+            {isLead && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="source_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Source Category</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || ''}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select source category" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {dealSources.map((source) => (
+                            <SelectItem key={source.id} value={source.id}>
+                              {source.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <EntitySourceSelect
+                  value={sourceEntity}
+                  onValueChange={setSourceEntity}
+                  label="Specific Source"
+                />
+              </div>
+            )}
 
             <FormField
               control={form.control}
