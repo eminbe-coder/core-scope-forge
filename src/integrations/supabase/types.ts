@@ -365,7 +365,9 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
+          quality_id: string | null
           size: string | null
+          stage_id: string | null
           tenant_id: string
           updated_at: string
           website: string | null
@@ -386,7 +388,9 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
+          quality_id?: string | null
           size?: string | null
+          stage_id?: string | null
           tenant_id: string
           updated_at?: string
           website?: string | null
@@ -407,7 +411,9 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
+          quality_id?: string | null
           size?: string | null
+          stage_id?: string | null
           tenant_id?: string
           updated_at?: string
           website?: string | null
@@ -699,6 +705,8 @@ export type Database = {
           notes: string | null
           phone: string | null
           position: string | null
+          quality_id: string | null
+          stage_id: string | null
           tenant_id: string
           updated_at: string
         }
@@ -716,6 +724,8 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           position?: string | null
+          quality_id?: string | null
+          stage_id?: string | null
           tenant_id: string
           updated_at?: string
         }
@@ -733,6 +743,8 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           position?: string | null
+          quality_id?: string | null
+          stage_id?: string | null
           tenant_id?: string
           updated_at?: string
         }
@@ -1818,6 +1830,72 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_quality: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          sort_order: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          sort_order?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          sort_order?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      lead_stages: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          sort_order: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          sort_order?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          sort_order?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notification_preferences: {
         Row: {
           created_at: string
@@ -2489,6 +2567,8 @@ export type Database = {
           name: string
           notes: string | null
           postal_code: string | null
+          quality_id: string | null
+          stage_id: string | null
           state: string | null
           tenant_id: string
           updated_at: string
@@ -2511,6 +2591,8 @@ export type Database = {
           name: string
           notes?: string | null
           postal_code?: string | null
+          quality_id?: string | null
+          stage_id?: string | null
           state?: string | null
           tenant_id: string
           updated_at?: string
@@ -2533,6 +2615,8 @@ export type Database = {
           name?: string
           notes?: string | null
           postal_code?: string | null
+          quality_id?: string | null
+          stage_id?: string | null
           state?: string | null
           tenant_id?: string
           updated_at?: string

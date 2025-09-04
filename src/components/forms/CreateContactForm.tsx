@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useAuth } from '@/hooks/use-auth';
@@ -21,6 +22,8 @@ const contactSchema = z.object({
   position: z.string().optional(),
   address: z.string().optional(),
   notes: z.string().optional(),
+  stage_id: z.string().optional(),
+  quality_id: z.string().optional(),
 });
 
 type ContactFormData = z.infer<typeof contactSchema>;
@@ -30,12 +33,24 @@ interface CreateContactFormProps {
   onSuccess?: (id: string) => void;
 }
 
+interface LeadStage {
+  id: string;
+  name: string;
+}
+
+interface LeadQuality {
+  id: string;
+  name: string;
+}
+
 export const CreateContactForm = ({ isLead = false, onSuccess }: CreateContactFormProps) => {
   const { currentTenant } = useTenant();
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [leadStages, setLeadStages] = useState<LeadStage[]>([]);
+  const [leadQualities, setLeadQualities] = useState<LeadQuality[]>([]);
 
   const form = useForm<ContactFormData>({
     resolver: zodResolver(contactSchema),
@@ -47,8 +62,42 @@ export const CreateContactForm = ({ isLead = false, onSuccess }: CreateContactFo
       position: '',
       address: '',
       notes: '',
+      stage_id: '',
+      quality_id: '',
     },
   });
+
+  useEffect(() => {
+    if (isLead && currentTenant) {
+      loadLeadOptions();
+    }
+  }, [isLead, currentTenant]);
+
+  const loadLeadOptions = async () => {
+    if (!currentTenant) return;
+
+    try {
+      const [stagesResult, qualitiesResult] = await Promise.all([
+        supabase
+          .from('lead_stages')
+          .select('id, name')
+          .eq('tenant_id', currentTenant.id)
+          .eq('active', true)
+          .order('sort_order'),
+        supabase
+          .from('lead_quality')
+          .select('id, name')
+          .eq('tenant_id', currentTenant.id)
+          .eq('active', true)
+          .order('sort_order')
+      ]);
+
+      if (stagesResult.data) setLeadStages(stagesResult.data);
+      if (qualitiesResult.data) setLeadQualities(qualitiesResult.data);
+    } catch (error) {
+      console.error('Error loading lead options:', error);
+    }
+  };
 
   const onSubmit = async (data: ContactFormData) => {
     if (!currentTenant || !user) return;
@@ -61,6 +110,8 @@ export const CreateContactForm = ({ isLead = false, onSuccess }: CreateContactFo
           ...data,
           is_lead: isLead,
           tenant_id: currentTenant.id,
+          stage_id: data.stage_id || null,
+          quality_id: data.quality_id || null,
         })
         .select()
         .single();
@@ -179,6 +230,60 @@ export const CreateContactForm = ({ isLead = false, onSuccess }: CreateContactFo
                   </FormItem>
                 )}
               />
+
+              {isLead && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="stage_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Lead Stage</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select lead stage" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {leadStages.map((stage) => (
+                              <SelectItem key={stage.id} value={stage.id}>
+                                {stage.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="quality_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Lead Quality</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select lead quality" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {leadQualities.map((quality) => (
+                              <SelectItem key={quality.id} value={quality.id}>
+                                {quality.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
             </div>
 
             <FormField
