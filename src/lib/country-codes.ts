@@ -91,6 +91,10 @@ export const countryToPhoneCode: Record<string, string> = {
   'United Arab Emirates': '+971',
   'Saudi Arabia': '+966',
   'KSA': '+966',
+  'Kuwait': '+965',
+  'Qatar': '+974',
+  'Bahrain': '+973',
+  'Oman': '+968',
   'Singapore': '+65',
   'Malaysia': '+60',
   'Thailand': '+66',
@@ -102,6 +106,16 @@ export const countryToPhoneCode: Record<string, string> = {
 export const getDefaultCountryCode = (): string => {
   return '+1'; // Default to US/Canada
 };
+
+// GCC countries for tenant settings
+export const gccCountries: CountryCode[] = [
+  { code: '+966', country: 'Saudi Arabia', flag: '🇸🇦' },
+  { code: '+971', country: 'UAE', flag: '🇦🇪' },
+  { code: '+965', country: 'Kuwait', flag: '🇰🇼' },
+  { code: '+974', country: 'Qatar', flag: '🇶🇦' },
+  { code: '+973', country: 'Bahrain', flag: '🇧🇭' },
+  { code: '+968', country: 'Oman', flag: '🇴🇲' },
+];
 
 export const getCountryCodeForCountry = (country: string): string => {
   if (!country) return getDefaultCountryCode();

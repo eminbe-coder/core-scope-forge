@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PhoneInput } from '@/components/ui/phone-input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { countryCodes } from '@/lib/country-codes';
+import { gccCountries } from '@/lib/country-codes';
 
 const tenantSchema = z.object({
   name: z.string().min(1, 'Company name is required'),
@@ -210,7 +210,7 @@ export function TenantForm({ tenant, onSuccess, onCancel }: TenantFormProps) {
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent className="max-h-[200px]">
-                  {countryCodes.map((country) => (
+                  {gccCountries.map((country) => (
                     <SelectItem key={country.country} value={country.country}>
                       <span className="flex items-center gap-2">
                         <span>{country.flag}</span>
