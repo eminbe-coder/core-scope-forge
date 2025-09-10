@@ -23,8 +23,6 @@ const contractSchema = z.object({
   customer_id: z.string().optional(),
   site_id: z.string().optional(),
   signed_date: z.string().optional(),
-  sign_date: z.string().optional(),
-  start_date: z.string().optional(),
   end_date: z.string().optional(),
   customer_reference_number: z.string().optional(),
   assigned_to: z.string().optional(),
@@ -84,6 +82,7 @@ export const CreateContractForm = ({ deal, onSuccess }: CreateContractFormProps)
       customer_reference_number: deal.customer_reference_number || '',
       assigned_to: deal.assigned_to || '',
       notes: deal.notes || '',
+      signed_date: new Date().toISOString().split('T')[0],
     } : {
       name: '',
       description: '',
@@ -94,6 +93,7 @@ export const CreateContractForm = ({ deal, onSuccess }: CreateContractFormProps)
       customer_reference_number: '',
       assigned_to: '',
       notes: '',
+      signed_date: new Date().toISOString().split('T')[0],
     },
   });
 
@@ -220,12 +220,12 @@ export const CreateContractForm = ({ deal, onSuccess }: CreateContractFormProps)
           customer_id: values.customer_id || null,
           site_id: values.site_id || null,
           signed_date: values.signed_date || null,
-          start_date: values.start_date || null,
+          start_date: values.signed_date || null,
           end_date: values.end_date || null,
           assigned_to: values.assigned_to || null,
           customer_reference_number: values.customer_reference_number || null,
           notes: values.notes || null,
-          sign_date: values.sign_date || new Date().toISOString().split('T')[0],
+          sign_date: values.signed_date || null,
         })
         .select()
         .single();
@@ -419,45 +419,13 @@ export const CreateContractForm = ({ deal, onSuccess }: CreateContractFormProps)
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="signed_date"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Signed Date</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="sign_date"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Contact Sign Date</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="date" 
-                        {...field} 
-                        defaultValue={new Date().toISOString().split('T')[0]}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="start_date"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Start Date</FormLabel>
+                    <FormLabel>Contract Signed Date</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
