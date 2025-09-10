@@ -969,7 +969,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
             <div>
               <CardTitle className="flex items-center gap-2">
                 <DollarSign className="h-5 w-5" />
-                Payment Terms
+                Instalment Terms
               </CardTitle>
               <CardDescription>Manage installments and payment schedule</CardDescription>
             </div>
@@ -990,7 +990,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
         <CardContent>
           {paymentTerms.length === 0 ? (
             <p className="text-center py-4 text-muted-foreground">
-              No payment terms defined. Click "Add Term" to create installments.
+              No instalment terms defined. Click "Add Term" to create installments.
             </p>
           ) : (
             <div className="space-y-4">

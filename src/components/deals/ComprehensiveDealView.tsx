@@ -1327,7 +1327,7 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Payment Terms & Installments</CardTitle>
+                  <CardTitle>Instalment Terms & Installments</CardTitle>
                   <CardDescription>Manage payment schedule and installments for this deal</CardDescription>
                 </div>
                 <div className="flex gap-2">
@@ -1502,7 +1502,7 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
                     <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <h3 className="font-medium mb-2">No Payment Terms Set</h3>
+                    <h3 className="font-medium mb-2">No Instalment Terms Set</h3>
                     <p className="text-sm mb-4">Add installment terms to break down the deal value into manageable payments.</p>
                     <Button onClick={addPaymentTerm} size="sm">
                       <Plus className="h-4 w-4 mr-2" />

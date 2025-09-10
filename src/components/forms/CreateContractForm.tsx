@@ -564,7 +564,7 @@ export const CreateContractForm = ({ deal, onSuccess }: CreateContractFormProps)
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Payment Terms</CardTitle>
+              <CardTitle>Instalment Terms</CardTitle>
               <Button type="button" variant="outline" onClick={addPaymentTerm}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Payment Term
@@ -658,7 +658,7 @@ export const CreateContractForm = ({ deal, onSuccess }: CreateContractFormProps)
 
             {paymentTerms.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
-                No payment terms added yet. Click "Add Payment Term" to get started.
+                No instalment terms added yet. Click "Add Payment Term" to get started.
               </div>
             )}
           </CardContent>

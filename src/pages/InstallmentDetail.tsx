@@ -32,7 +32,7 @@ interface PaymentTerm {
   } | null;
 }
 
-export default function PaymentDetail() {
+export default function InstallmentDetail() {
   const { paymentId } = useParams<{ paymentId: string }>();
   const navigate = useNavigate();
   const { currentTenant } = useTenant();
@@ -408,7 +408,7 @@ export default function PaymentDetail() {
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <DollarSign className="h-5 w-5" />
-                Payment Details
+                Instalment Details
               </CardTitle>
               <div className="flex gap-2">
                 <Badge variant={getPaymentStatusColor((payment as any)?.payment_status)}>

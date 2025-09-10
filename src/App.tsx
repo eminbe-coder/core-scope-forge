@@ -52,7 +52,7 @@ import ReportBuilder from "./pages/ReportBuilder";
 import ReportRunner from "./pages/ReportRunner";
 import ScheduledReports from "./pages/ScheduledReports";
 import TargetsCommissionReports from "./pages/TargetsCommissionReports";
-import PaymentDetail from "./pages/PaymentDetail";
+import InstallmentDetail from "./pages/InstallmentDetail";
 import Pricing from "./pages/Pricing";
 import Devices from "./pages/Devices";
 import NotFound from "./pages/NotFound";
@@ -288,9 +288,9 @@ const App = () => (
                      <TargetsCommissionReports />
                    </ProtectedRoute>
                  } />
-                 <Route path="/payments/:paymentId" element={
+                 <Route path="/installments/:paymentId" element={
                    <ProtectedRoute>
-                     <PaymentDetail />
+                     <InstallmentDetail />
                    </ProtectedRoute>
                  } />
                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

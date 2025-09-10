@@ -406,9 +406,9 @@ export const ContractPaymentTerms = ({
       {paymentTerms.length === 0 ? <Card>
           <CardContent className="text-center py-12">
             <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No payment terms defined</h3>
+            <h3 className="text-lg font-semibold mb-2">No instalment terms defined</h3>
             <p className="text-muted-foreground">
-              Payment terms will be displayed here once they are added to the contract.
+              Instalment terms will be displayed here once they are added to the contract.
             </p>
           </CardContent>
         </Card> : paymentTerms.map(paymentTerm => {
@@ -416,12 +416,12 @@ export const ContractPaymentTerms = ({
       const paymentTodos = todos.filter(todo => todo.payment_term_id === paymentTerm.id);
       const completedTodos = paymentTodos.filter(todo => todo.status === 'completed');
       const paymentAttachments = getPaymentAttachments(paymentTerm.id);
-      return <Card key={paymentTerm.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate(`/payments/${paymentTerm.id}`)}>
+        return <Card key={paymentTerm.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate(`/installments/${paymentTerm.id}`)}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <DollarSign className="h-5 w-5" />
-                    <span>{paymentTerm.name || `Payment ${paymentTerm.installment_number}`}</span>
+                    <span>{paymentTerm.name || `Instalment ${paymentTerm.installment_number}`}</span>
                   </CardTitle>
                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                      {canUserEdit && canEdit ? (

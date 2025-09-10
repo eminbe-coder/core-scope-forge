@@ -301,7 +301,7 @@ const ContractDetail = () => {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Payment Terms & Installments</CardTitle>
+                    <CardTitle>Instalment Terms & Installments</CardTitle>
                     <p className="text-sm text-muted-foreground">Manage payment schedule and installments for this contract</p>
                   </div>
                   {canEdit && (
