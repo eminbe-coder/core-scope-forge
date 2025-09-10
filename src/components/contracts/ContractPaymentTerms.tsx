@@ -273,7 +273,7 @@ export const ContractPaymentTerms = ({ contractId, canEdit, onUpdate }: Contract
                     </Badge>
                     {canUserEdit && canEdit && (
                       <Select
-                        value={paymentTerm.stage_id || ''}
+                        value={paymentTerm.stage_id ?? undefined}
                         onValueChange={(value) => updatePaymentStage(paymentTerm.id, value)}
                       >
                         <SelectTrigger className="w-32">

@@ -29,7 +29,6 @@ interface Todo {
   assigned_profile?: { first_name: string; last_name: string } | null;
   completed_by_profile?: { first_name: string; last_name: string } | null;
   created_by_profile?: { first_name: string; last_name: string } | null;
-  contract_payment_terms?: { installment_number: number } | null;
   todo_types?: { name: string; color: string; icon: string } | null;
 }
 
@@ -113,7 +112,6 @@ export const TodoList = ({
           assigned_profile:profiles!todos_assigned_to_fkey (first_name, last_name),
           completed_by_profile:profiles!todos_completed_by_fkey (first_name, last_name),
           created_by_profile:profiles!todos_created_by_fkey (first_name, last_name),
-          contract_payment_terms (installment_number),
           todo_types (name, color, icon)
         `)
         .eq('tenant_id', currentTenant.id);
@@ -443,9 +441,9 @@ export const TodoList = ({
                     </Badge>
                     
                     {/* Payment term badge */}
-                    {todo.contract_payment_terms && (
+                    {todo.payment_term_id && (
                       <Badge variant="outline" className="text-xs">
-                        Payment {todo.contract_payment_terms.installment_number}
+                        Payment term linked
                       </Badge>
                     )}
                   </div>
