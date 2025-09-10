@@ -1019,6 +1019,42 @@ export type Database = {
           },
         ]
       }
+      contract_payment_records: {
+        Row: {
+          amount_received: number
+          created_at: string
+          id: string
+          notes: string | null
+          payment_term_id: string
+          received_date: string
+          registered_by: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount_received: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_term_id: string
+          received_date: string
+          registered_by?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount_received?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_term_id?: string
+          received_date?: string
+          registered_by?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       contract_payment_stages: {
         Row: {
           active: boolean
