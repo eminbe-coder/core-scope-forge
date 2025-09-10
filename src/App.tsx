@@ -43,6 +43,7 @@ import Todos from "./pages/Todos";
 import MyTodos from "./pages/MyTodos";
 import Settings from "./pages/Settings";
 import CRMSettings from "./pages/CRMSettings";
+import TodoEngineSettings from "./pages/TodoEngineSettings";
 import Admin from "./pages/Admin";
 import GlobalAdmin from "./pages/GlobalAdmin";
 import UsersRoles from "./pages/UsersRoles";
@@ -234,6 +235,11 @@ const App = () => (
                 <Route path="/crm-settings" element={
                   <ProtectedRoute>
                     <CRMSettings />
+                  </ProtectedRoute>
+                } />
+                <Route path="/todo-engine-settings" element={
+                  <ProtectedRoute>
+                    <TodoEngineSettings />
                   </ProtectedRoute>
                 } />
                 <Route path="/global-admin" element={

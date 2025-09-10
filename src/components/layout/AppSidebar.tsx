@@ -178,6 +178,12 @@ const navigationModules: NavigationModule[] = [
         permission: 'admin.access',
       },
       {
+        title: 'To-Do Engine Settings',
+        url: '/todo-engine-settings',
+        icon: CheckSquare,
+        permission: 'admin.access',
+      },
+      {
         title: 'Global Admin',
         url: '/global-admin',
         icon: Shield,

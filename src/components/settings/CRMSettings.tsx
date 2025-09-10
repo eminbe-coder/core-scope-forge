@@ -33,7 +33,6 @@ import {
 } from '@/components/ui/table';
 import { CompanyIndustriesManager } from './CompanyIndustriesManager';
 import { CompanyTypesManager } from './CompanyTypesManager';
-import { TaskTypesSettings } from './TaskTypesSettings';
 import { RelationshipRolesSettings } from './RelationshipRolesSettings';
 import { BranchesManager } from './BranchesManager';
 import { DepartmentsManager } from './DepartmentsManager';
@@ -334,13 +333,12 @@ export function CRMSettings() {
   return (
     <div className="space-y-6">
         <Tabs defaultValue="stages" className="w-full">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="stages">Deal Stages</TabsTrigger>
             <TabsTrigger value="targets">Targets</TabsTrigger>
             <TabsTrigger value="commission">Commission</TabsTrigger>
             <TabsTrigger value="industries">Company Industries</TabsTrigger>
             <TabsTrigger value="types">Company Types</TabsTrigger>
-            <TabsTrigger value="tasks">Task Types</TabsTrigger>
             <TabsTrigger value="relationships">Relationship Roles</TabsTrigger>
           </TabsList>
         
@@ -478,10 +476,6 @@ export function CRMSettings() {
 
         <TabsContent value="types">
           <CompanyTypesManager />
-        </TabsContent>
-
-        <TabsContent value="tasks">
-          <TaskTypesSettings />
         </TabsContent>
 
         <TabsContent value="relationships">

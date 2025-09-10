@@ -21,7 +21,6 @@ import { TargetsManager } from '@/components/settings/TargetsManager';
 import { CommissionSettings } from '@/components/settings/CommissionSettings';
 import { CompanyIndustriesManager } from '@/components/settings/CompanyIndustriesManager';
 import { CompanyTypesManager } from '@/components/settings/CompanyTypesManager';
-import { TaskTypesSettings } from '@/components/settings/TaskTypesSettings';
 import { RelationshipRolesSettings } from '@/components/settings/RelationshipRolesSettings';
 import { LeadStagesManager } from '@/components/settings/LeadStagesManager';
 import { LeadQualityManager } from '@/components/settings/LeadQualityManager';
@@ -85,12 +84,6 @@ const CRMSettingsPage = () => {
       label: 'Company Types',
       icon: Tag,
       component: CompanyTypesManager
-    },
-    {
-      id: 'task-types',
-      label: 'Task Types',
-      icon: CheckSquare,
-      component: TaskTypesSettings
     },
     {
       id: 'relationship-roles',
