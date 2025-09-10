@@ -34,6 +34,7 @@ import EditDeal from "./pages/EditDeal";
 import Contracts from "./pages/Contracts";
 import AddContract from "./pages/AddContract";
 import ContractDetail from "./pages/ContractDetail";
+import EditContract from "./pages/EditContract";
 import NotificationCenter from "./pages/NotificationCenter";
 import { ContractTestDashboard } from "./components/testing/ContractTestDashboard";
 import Projects from "./pages/Projects";
@@ -179,11 +180,16 @@ const App = () => (
                      <AddContract />
                    </ProtectedRoute>
                  } />
-                 <Route path="/contracts/:id" element={
-                   <ProtectedRoute>
-                     <ContractDetail />
-                   </ProtectedRoute>
-                 } />
+                <Route path="/contracts/:id" element={
+                    <ProtectedRoute>
+                      <ContractDetail />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/contracts/edit/:id" element={
+                    <ProtectedRoute>
+                      <EditContract />
+                    </ProtectedRoute>
+                  } />
                   <Route path="/notification-center" element={
                     <ProtectedRoute>
                       <NotificationCenter />

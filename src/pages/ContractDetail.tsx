@@ -157,7 +157,7 @@ const ContractDetail = () => {
               {contract.status}
             </Badge>
             {canEdit && (
-              <Button variant="outline" onClick={() => toast.info('Edit contract is coming soon') }>
+              <Button variant="outline" onClick={() => navigate(`/contracts/edit/${contract.id}`)}>
                 <Edit className="h-4 w-4 mr-2" />
                 Edit Contract
               </Button>

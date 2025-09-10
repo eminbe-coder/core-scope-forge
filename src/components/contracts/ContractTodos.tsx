@@ -37,7 +37,9 @@ interface Todo {
   completed_by?: string;
   payment_term_id?: string;
   created_at: string;
-  profiles?: { first_name: string; last_name: string } | null;
+  assigned_profile?: { first_name: string; last_name: string } | null;
+  completed_by_profile?: { first_name: string; last_name: string } | null;
+  created_by_profile?: { first_name: string; last_name: string } | null;
   contract_payment_terms?: { installment_number: number } | null;
 }
 
@@ -97,7 +99,9 @@ export const ContractTodos = ({ contractId, canEdit, onUpdate, compact = false }
           .from('contract_todos')
           .select(`
             *,
-            profiles (first_name, last_name),
+            assigned_profile:profiles!fk_contract_todos_assigned_to (first_name, last_name),
+            completed_by_profile:profiles!fk_contract_todos_completed_by (first_name, last_name),
+            created_by_profile:profiles!fk_contract_todos_created_by (first_name, last_name),
             contract_payment_terms (installment_number)
           `)
           .eq('contract_id', contractId)
@@ -503,10 +507,10 @@ export const ContractTodos = ({ contractId, canEdit, onUpdate, compact = false }
                               Due: {formatDate(todo.due_date)}
                             </div>
                           )}
-                          {todo.profiles && (
+                          {todo.assigned_profile && (
                             <div className="flex items-center gap-1">
                               <User className="h-3 w-3" />
-                              {todo.profiles.first_name} {todo.profiles.last_name}
+                              {todo.assigned_profile.first_name} {todo.assigned_profile.last_name}
                             </div>
                           )}
                           {todo.completed && todo.completed_at && (
