@@ -235,27 +235,54 @@ export default function PaymentDetail() {
       toast.error('Please enter a valid amount');
       return;
     }
-    
-    if (amount < (payment.calculated_amount || payment.amount_value)) {
-      toast.error('Received amount must be equal or greater than payment amount');
-      return;
-    }
 
     try {
       setIsRegisteringPayment(true);
       const { data: { user } } = await supabase.auth.getUser();
       
-      const { error } = await supabase
-        .from('contract_payment_terms')
-        .update({
-          received_amount: amount,
+      // Insert the new payment record
+      const { error: insertError } = await supabase
+        .from('contract_payment_records')
+        .insert({
+          payment_term_id: payment.id,
+          tenant_id: currentTenant?.id,
+          amount_received: amount,
           received_date: new Date().toISOString().split('T')[0],
-          payment_status: 'paid',
+          notes: null,
+          registered_by: user?.id
+        });
+
+      if (insertError) throw insertError;
+
+      // Calculate total payments for this installment
+      const { data: allPayments, error: paymentsError } = await supabase
+        .from('contract_payment_records')
+        .select('amount_received')
+        .eq('payment_term_id', payment.id);
+
+      if (paymentsError) throw paymentsError;
+
+      const totalPaid = allPayments?.reduce((sum, p) => sum + (p.amount_received || 0), 0) || 0;
+      const installmentAmount = payment.calculated_amount || payment.amount_value;
+
+      // Determine new status based on total payments vs installment amount
+      let newStatus = 'pending';
+      if (totalPaid >= installmentAmount) {
+        newStatus = 'paid';
+      } else if (totalPaid > 0) {
+        newStatus = 'partly paid';
+      }
+
+      // Update payment term status
+      const { error: updateError } = await supabase
+        .from('contract_payment_terms')
+        .update({ 
+          payment_status: newStatus,
           updated_at: new Date().toISOString()
         })
         .eq('id', payment.id);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
 
       // Log audit trail
       await supabase.from('contract_audit_logs').insert({
@@ -266,10 +293,10 @@ export default function PaymentDetail() {
         entity_id: payment.id,
         field_name: 'payment_status',
         old_value: (payment as any).payment_status,
-        new_value: 'paid',
+        new_value: newStatus,
         user_id: user?.id,
         user_name: `${user?.user_metadata?.first_name || ''} ${user?.user_metadata?.last_name || ''}`.trim(),
-        notes: `Payment registered: ${formatCurrency(amount)} received`
+        notes: `Payment registered: ${formatCurrency(amount)} received. Total paid: ${formatCurrency(totalPaid)}`
       });
 
       toast.success('Payment registered successfully');
@@ -659,7 +686,7 @@ export default function PaymentDetail() {
                 </Button>
                 <Button 
                   onClick={registerPayment} 
-                  disabled={!receivedAmount || isRegisteringPayment || parseFloat(receivedAmount || '0') < (payment.calculated_amount || payment.amount_value)}
+                  disabled={!receivedAmount || isRegisteringPayment || parseFloat(receivedAmount || '0') <= 0}
                 >
                   {isRegisteringPayment ? 'Registering...' : 'Register Payment'}
                 </Button>
