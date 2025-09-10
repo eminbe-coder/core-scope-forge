@@ -109,7 +109,7 @@ const navigationModules: NavigationModule[] = [
       },
       {
         title: 'My To-Dos',
-        url: '/todos',
+        url: '/my-todos',
         icon: CheckSquare,
         permission: 'activities.read',
       },

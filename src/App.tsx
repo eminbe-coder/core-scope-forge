@@ -40,6 +40,7 @@ import { ContractTestDashboard } from "./components/testing/ContractTestDashboar
 import Projects from "./pages/Projects";
 import Activities from "./pages/Activities";
 import Todos from "./pages/Todos";
+import MyTodos from "./pages/MyTodos";
 import Settings from "./pages/Settings";
 import CRMSettings from "./pages/CRMSettings";
 import Admin from "./pages/Admin";
@@ -210,11 +211,16 @@ const App = () => (
                     <Activities />
                   </ProtectedRoute>
                 } />
-                <Route path="/todos" element={
-                  <ProtectedRoute>
-                    <Todos />
-                  </ProtectedRoute>
-                } />
+                 <Route path="/todos" element={
+                   <ProtectedRoute>
+                     <Todos />
+                   </ProtectedRoute>
+                 } />
+                 <Route path="/my-todos" element={
+                   <ProtectedRoute>
+                     <MyTodos />
+                   </ProtectedRoute>
+                 } />
                 <Route path="/devices" element={
                   <ProtectedRoute>
                     <Devices />

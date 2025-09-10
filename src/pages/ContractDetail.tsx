@@ -10,7 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { usePermissions } from '@/hooks/use-permissions';
 import { toast } from 'sonner';
-import { ContractTodos } from '@/components/contracts/ContractTodos';
+import { TodoWidget } from '@/components/todos/TodoWidget';
 import { ContractAuditTrail } from '@/components/contracts/ContractAuditTrail';
 import { ContractPaymentTerms } from '@/components/contracts/ContractPaymentTerms';
 
@@ -205,10 +205,10 @@ const ContractDetail = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <ContractTodos 
-                  contractId={contract.id} 
+                <TodoWidget 
+                  entityType="contract" 
+                  entityId={contract.id}
                   canEdit={canEdit}
-                  onUpdate={fetchContract}
                   compact={true}
                 />
               </CardContent>

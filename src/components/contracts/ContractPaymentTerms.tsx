@@ -348,7 +348,7 @@ export const ContractPaymentTerms = ({ contractId, canEdit, onUpdate }: Contract
                         size="sm"
                         className="h-7 px-2"
                         onClick={() => {
-                          document.getElementById('contract-todos-section')?.scrollIntoView({ behavior: 'smooth' });
+                          document.getElementById('todos-section')?.scrollIntoView({ behavior: 'smooth' });
                         }}
                       >
                         View & Add
