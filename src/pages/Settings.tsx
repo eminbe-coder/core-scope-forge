@@ -6,10 +6,14 @@ import { CurrencySettings } from '@/components/settings/CurrencySettings';
 import { OneDriveSettings } from '@/components/settings/OneDriveSettings';
 import { BranchesManager } from '@/components/settings/BranchesManager';
 import { DepartmentsManager } from '@/components/settings/DepartmentsManager';
+import { TenantForm } from '@/components/forms/TenantForm';
+import { useTenant } from '@/hooks/use-tenant';
 import { useState, useEffect } from 'react';
 
 const SettingsPage = () => {
   const [activeSection, setActiveSection] = useState<string>('general');
+  const [isEditingTenant, setIsEditingTenant] = useState(false);
+  const { currentTenant, refreshTenants } = useTenant();
 
   // Check URL params for tab
   useEffect(() => {
@@ -19,6 +23,11 @@ const SettingsPage = () => {
       setActiveSection(tab);
     }
   }, []);
+
+  const handleTenantUpdateSuccess = () => {
+    setIsEditingTenant(false);
+    refreshTenants();
+  };
 
   return (
     <DashboardLayout>
@@ -86,13 +95,53 @@ const SettingsPage = () => {
                       Tenant Settings
                     </CardTitle>
                     <CardDescription>
-                      Manage your organization settings and preferences
+                      Manage your organization settings and company profile
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm text-muted-foreground">
-                      General tenant settings and company profile management will be available here.
-                    </p>
+                    {!isEditingTenant ? (
+                      <div className="space-y-4">
+                        {currentTenant && (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div>
+                                <span className="font-medium">Company Name:</span>
+                                <p className="text-muted-foreground">{currentTenant.name}</p>
+                              </div>
+                              <div>
+                                <span className="font-medium">Location:</span>
+                                <p className="text-muted-foreground">{currentTenant.company_location || 'Not set'}</p>
+                              </div>
+                              <div>
+                                <span className="font-medium">CR Number:</span>
+                                <p className="text-muted-foreground">{currentTenant.cr_number || 'Not set'}</p>
+                              </div>
+                              <div>
+                                <span className="font-medium">Tax Number:</span>
+                                <p className="text-muted-foreground">{currentTenant.tax_number || 'Not set'}</p>
+                              </div>
+                              <div>
+                                <span className="font-medium">Contact Email:</span>
+                                <p className="text-muted-foreground">{currentTenant.contact_email || 'Not set'}</p>
+                              </div>
+                              <div>
+                                <span className="font-medium">Contact Phone:</span>
+                                <p className="text-muted-foreground">{currentTenant.contact_phone || 'Not set'}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        <Button onClick={() => setIsEditingTenant(true)}>
+                          Edit Company Information
+                        </Button>
+                      </div>
+                    ) : (
+                      <TenantForm
+                        tenant={currentTenant}
+                        onSuccess={handleTenantUpdateSuccess}
+                        onCancel={() => setIsEditingTenant(false)}
+                      />
+                    )}
                   </CardContent>
                 </Card>
 
