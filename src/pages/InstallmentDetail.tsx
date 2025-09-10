@@ -231,8 +231,8 @@ export default function InstallmentDetail() {
     if (!payment || !receivedAmount || !canEdit) return;
 
     const amount = parseFloat(receivedAmount);
-    if (isNaN(amount) || amount <= 0) {
-      toast.error('Please enter a valid amount');
+    if (isNaN(amount)) {
+      toast.error('Please enter a valid number');
       return;
     }
 
@@ -663,7 +663,7 @@ export default function InstallmentDetail() {
                 </Button>
                 <Button 
                   onClick={registerPayment} 
-                  disabled={!receivedAmount || isRegisteringPayment || parseFloat(receivedAmount || '0') <= 0}
+                  disabled={!receivedAmount || isRegisteringPayment || isNaN(parseFloat(receivedAmount || '0'))}
                 >
                   {isRegisteringPayment ? 'Registering...' : 'Register Payment'}
                 </Button>
