@@ -1,14 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+
 import { Progress } from '@/components/ui/progress';
-import { Calendar, DollarSign, Clock, CheckCircle, FileText, Upload, Settings } from 'lucide-react';
+import { Calendar, DollarSign, Clock, CheckCircle, FileText, Upload } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { toast } from 'sonner';
 import { TodoWidget } from '@/components/todos/TodoWidget';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 interface PaymentTerm {
   id: string;
   installment_number: number;
@@ -42,6 +43,8 @@ export const ContractPaymentTerms = ({
   const [attachments, setAttachments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [canUserEdit, setCanUserEdit] = useState(false);
+  const autoUpdatingRef = useRef(false);
+  const autoUpdateNotifiedRef = useRef(false);
   useEffect(() => {
     if (contractId && currentTenant?.id) {
       fetchData();
@@ -89,18 +92,24 @@ export const ContractPaymentTerms = ({
     const today = new Date();
     const dueDate = paymentTerm.due_date ? new Date(paymentTerm.due_date) : null;
 
-    // If no due date set, return pending stage
+    // Do not auto-change if current stage is neither Pending nor Due (e.g., Paid)
+    const currentStageName = paymentTerm.contract_payment_stages?.name?.toLowerCase();
+    if (currentStageName && !['pending', 'due'].includes(currentStageName)) {
+      return null;
+    }
+
+    // If no due date set, return Pending
     if (!dueDate) {
-      return paymentStages.find(stage => stage.name === 'Pending');
+      return paymentStages.find(stage => stage.name === 'Pending') || null;
     }
 
     // If due date is today or past AND no incomplete tasks, set to Due
     if (dueDate <= today && incompleteTodos.length === 0) {
-      return paymentStages.find(stage => stage.name === 'Due');
+      return paymentStages.find(stage => stage.name === 'Due') || null;
     }
 
-    // Otherwise, set to Pending if there are incomplete tasks or due date is in future
-    return paymentStages.find(stage => stage.name === 'Pending');
+    // Otherwise Pending
+    return paymentStages.find(stage => stage.name === 'Pending') || null;
   };
   const updatePaymentStage = async (paymentTermId: string, newStageId: string, isAutomatic = false) => {
     if (!canUserEdit || !canEdit) return;
@@ -157,20 +166,21 @@ export const ContractPaymentTerms = ({
   const autoUpdatePaymentStages = async () => {
     if (!canUserEdit || !canEdit || paymentTerms.length === 0) return;
     try {
+      autoUpdatingRef.current = true;
       let hasUpdates = false;
       for (const paymentTerm of paymentTerms) {
         const recommendedStage = getAutomaticStage(paymentTerm);
-        if (recommendedStage && recommendedStage.id !== paymentTerm.stage_id) {
+        if (!recommendedStage) continue; // respect manual statuses like Paid
+        if (recommendedStage.id !== paymentTerm.stage_id) {
           await updatePaymentStage(paymentTerm.id, recommendedStage.id, true);
           hasUpdates = true;
         }
       }
-      if (hasUpdates) {
-        // Small toast to show automatic updates occurred
-        toast.info('Payment stages automatically updated based on due dates and task completion');
-      }
+      // No toast here to avoid notification loops
     } catch (error) {
       console.error('Error auto-updating payment stages:', error);
+    } finally {
+      autoUpdatingRef.current = false;
     }
   };
   const updatePaymentDueDate = async (paymentTermId: string, newDueDate: string) => {
@@ -221,6 +231,7 @@ export const ContractPaymentTerms = ({
 
   // Auto-update payment stages when data changes
   useEffect(() => {
+    if (autoUpdatingRef.current) return;
     if (paymentTerms.length > 0 && todos.length >= 0 && paymentStages.length > 0) {
       // Small delay to ensure all data is loaded
       const timeoutId = setTimeout(() => {
@@ -300,19 +311,28 @@ export const ContractPaymentTerms = ({
                     Payment {paymentTerm.installment_number}
                   </CardTitle>
                   <div className="flex items-center gap-2">
-                    <Badge variant={getStageColor(paymentTerm.contract_payment_stages?.name)}>
-                      {paymentTerm.contract_payment_stages?.name || 'No Stage'}
-                    </Badge>
-                    {canUserEdit && canEdit && <Select value={paymentTerm.stage_id ?? undefined} onValueChange={value => updatePaymentStage(paymentTerm.id, value)}>
-                        <SelectTrigger className="w-32">
-                          <Settings className="h-4 w-4" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {paymentStages.map(stage => <SelectItem key={stage.id} value={stage.id}>
+                    {canUserEdit && canEdit ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button aria-label="Change payment stage" className="outline-none">
+                            <Badge variant={getStageColor(paymentTerm.contract_payment_stages?.name)} className="cursor-pointer">
+                              {paymentTerm.contract_payment_stages?.name || 'No Stage'}
+                            </Badge>
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="z-50">
+                          {paymentStages.map(stage => (
+                            <DropdownMenuItem key={stage.id} onClick={() => updatePaymentStage(paymentTerm.id, stage.id)}>
                               {stage.name}
-                            </SelectItem>)}
-                        </SelectContent>
-                      </Select>}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : (
+                      <Badge variant={getStageColor(paymentTerm.contract_payment_stages?.name)}>
+                        {paymentTerm.contract_payment_stages?.name || 'No Stage'}
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </CardHeader>
