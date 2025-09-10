@@ -659,7 +659,7 @@ export default function PaymentDetail() {
                 </Button>
                 <Button 
                   onClick={registerPayment} 
-                  disabled={!receivedAmount || isRegisteringPayment || parseFloat(receivedAmount || '0') <= 0}
+                  disabled={!receivedAmount || isRegisteringPayment || parseFloat(receivedAmount || '0') < (payment.calculated_amount || payment.amount_value)}
                 >
                   {isRegisteringPayment ? 'Registering...' : 'Register Payment'}
                 </Button>
