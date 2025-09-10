@@ -1009,7 +1009,15 @@ export type Database = {
           tenant_id?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_contract_payment_attachments_payment_term"
+            columns: ["payment_term_id"]
+            isOneToOne: false
+            referencedRelation: "contract_payment_terms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contract_payment_stages: {
         Row: {
@@ -1087,7 +1095,22 @@ export type Database = {
           tenant_id?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_contract_payment_terms_contract"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_contract_payment_terms_stage"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "contract_payment_stages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contract_todos: {
         Row: {
@@ -1141,7 +1164,29 @@ export type Database = {
           title?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_contract_todos_assigned_to"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_contract_todos_completed_by"
+            columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_contract_todos_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contracts: {
         Row: {

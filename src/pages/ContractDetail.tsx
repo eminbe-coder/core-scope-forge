@@ -157,7 +157,7 @@ const ContractDetail = () => {
               {contract.status}
             </Badge>
             {canEdit && (
-              <Button variant="outline">
+              <Button variant="outline" onClick={() => navigate(`/contracts/${contract.id}/edit`)}>
                 <Edit className="h-4 w-4 mr-2" />
                 Edit Contract
               </Button>
@@ -312,11 +312,11 @@ const ContractDetail = () => {
                   </div>
                   {canEdit && (
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" onClick={() => navigate(`/contracts/${contract.id}/payment-terms/edit`)}>
                         <Edit className="h-4 w-4 mr-2" />
                         Edit Terms
                       </Button>
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" onClick={() => navigate(`/contracts/${contract.id}/payment-terms/add`)}>
                         <Plus className="h-4 w-4 mr-2" />
                         Add Installment
                       </Button>
