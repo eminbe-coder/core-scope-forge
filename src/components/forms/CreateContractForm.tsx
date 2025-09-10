@@ -201,10 +201,20 @@ export const CreateContractForm = ({ deal, onSuccess }: CreateContractFormProps)
       const { data: contract, error: contractError } = await supabase
         .from('contracts')
         .insert({
-          ...values,
           tenant_id: currentTenant.id,
           deal_id: deal?.id || null,
+          name: values.name,
+          description: values.description || null,
           value: values.value || null,
+          currency_id: values.currency_id || null,
+          customer_id: values.customer_id || null,
+          site_id: values.site_id || null,
+          signed_date: values.signed_date || null,
+          start_date: values.start_date || null,
+          end_date: values.end_date || null,
+          assigned_to: values.assigned_to || null,
+          customer_reference_number: values.customer_reference_number || null,
+          notes: values.notes || null,
         })
         .select()
         .single();
