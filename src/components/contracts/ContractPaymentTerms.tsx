@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
@@ -38,6 +39,7 @@ export const ContractPaymentTerms = ({
   const {
     currentTenant
   } = useTenant();
+  const navigate = useNavigate();
   const [paymentTerms, setPaymentTerms] = useState<PaymentTerm[]>([]);
   const [paymentStages, setPaymentStages] = useState<any[]>([]);
   const [todos, setTodos] = useState<any[]>([]);
@@ -412,55 +414,44 @@ export const ContractPaymentTerms = ({
       const paymentTodos = todos.filter(todo => todo.payment_term_id === paymentTerm.id);
       const completedTodos = paymentTodos.filter(todo => todo.status === 'completed');
       const paymentAttachments = getPaymentAttachments(paymentTerm.id);
-      return <Card key={paymentTerm.id}>
+      return <Card key={paymentTerm.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate(`/payments/${paymentTerm.id}`)}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <DollarSign className="h-5 w-5" />
-                    {canUserEdit && canEdit ? (
-                      <input
-                        type="text"
-                        value={paymentTerm.name || `Payment ${paymentTerm.installment_number}`}
-                        onChange={(e) => updatePaymentName(paymentTerm.id, e.target.value)}
-                        className="bg-transparent border-none outline-none text-lg font-semibold focus:bg-background focus:border focus:rounded px-1"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.currentTarget.blur();
-                          }
-                        }}
-                      />
-                    ) : (
-                      <span>{paymentTerm.name || `Payment ${paymentTerm.installment_number}`}</span>
-                    )}
+                    <span>{paymentTerm.name || `Payment ${paymentTerm.installment_number}`}</span>
                   </CardTitle>
-                  <div className="flex items-center gap-2">
-                    {canUserEdit && canEdit ? (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button aria-label="Change payment stage" className="outline-none">
-                            <Badge variant={getStageColor(paymentTerm.contract_payment_stages?.name)} className="cursor-pointer">
-                              {paymentTerm.contract_payment_stages?.name || 'No Stage'}
-                            </Badge>
-                          </button>
-                        </DropdownMenuTrigger>
-                         <DropdownMenuContent align="end" className="z-50 bg-background border shadow-md">
-                           {paymentStages.map(stage => (
-                             <DropdownMenuItem 
-                               key={stage.id} 
-                               onClick={() => updatePaymentStage(paymentTerm.id, stage.id)}
-                               className="cursor-pointer"
-                             >
-                               {stage.name}
-                             </DropdownMenuItem>
-                           ))}
-                         </DropdownMenuContent>
-                      </DropdownMenu>
-                    ) : (
-                      <Badge variant={getStageColor(paymentTerm.contract_payment_stages?.name)}>
-                        {paymentTerm.contract_payment_stages?.name || 'No Stage'}
-                      </Badge>
-                    )}
-                  </div>
+                   <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                     {canUserEdit && canEdit ? (
+                       <DropdownMenu>
+                         <DropdownMenuTrigger asChild>
+                           <button aria-label="Change payment stage" className="outline-none">
+                             <Badge variant={getStageColor(paymentTerm.contract_payment_stages?.name)} className="cursor-pointer">
+                               {paymentTerm.contract_payment_stages?.name || 'No Stage'}
+                             </Badge>
+                           </button>
+                         </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="z-50 bg-background border shadow-md">
+                            {paymentStages.map(stage => (
+                              <DropdownMenuItem 
+                                key={stage.id} 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  updatePaymentStage(paymentTerm.id, stage.id);
+                                }}
+                                className="cursor-pointer"
+                              >
+                                {stage.name}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                       </DropdownMenu>
+                     ) : (
+                       <Badge variant={getStageColor(paymentTerm.contract_payment_stages?.name)}>
+                         {paymentTerm.contract_payment_stages?.name || 'No Stage'}
+                       </Badge>
+                     )}
+                   </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">

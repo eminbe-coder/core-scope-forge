@@ -52,6 +52,7 @@ import ReportBuilder from "./pages/ReportBuilder";
 import ReportRunner from "./pages/ReportRunner";
 import ScheduledReports from "./pages/ScheduledReports";
 import TargetsCommissionReports from "./pages/TargetsCommissionReports";
+import PaymentDetail from "./pages/PaymentDetail";
 import Pricing from "./pages/Pricing";
 import Devices from "./pages/Devices";
 import NotFound from "./pages/NotFound";
@@ -282,13 +283,18 @@ const App = () => (
                     <ScheduledReports />
                   </ProtectedRoute>
                 } />
-                <Route path="/targets-commission-reports" element={
-                  <ProtectedRoute>
-                    <TargetsCommissionReports />
-                  </ProtectedRoute>
-                } />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="*" element={<NotFound />} />
+                 <Route path="/targets-commission-reports" element={
+                   <ProtectedRoute>
+                     <TargetsCommissionReports />
+                   </ProtectedRoute>
+                 } />
+                 <Route path="/payments/:paymentId" element={
+                   <ProtectedRoute>
+                     <PaymentDetail />
+                   </ProtectedRoute>
+                 } />
+                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
           </PermissionsProvider>
