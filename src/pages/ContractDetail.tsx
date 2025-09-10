@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Edit, Plus, FileText, Calendar, Users, Building2, MapPin } from 'lucide-react';
+import { ArrowLeft, Edit, Plus, FileText, Calendar, Users, Building2, MapPin, History } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { usePermissions } from '@/hooks/use-permissions';
@@ -41,6 +41,7 @@ const ContractDetail = () => {
   const [contract, setContract] = useState<Contract | null>(null);
   const [loading, setLoading] = useState(true);
   const [canEdit, setCanEdit] = useState(false);
+  const [showAuditTrail, setShowAuditTrail] = useState(false);
 
   useEffect(() => {
     if (id && currentTenant?.id) {
@@ -330,12 +331,26 @@ const ContractDetail = () => {
             {/* Audit Trail */}
             <Card className="bg-card border-border">
               <CardHeader>
-                <CardTitle>Audit Trail</CardTitle>
-                <p className="text-sm text-muted-foreground">History of changes and activities</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Audit Trail</CardTitle>
+                    <p className="text-sm text-muted-foreground">History of changes and activities</p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowAuditTrail(!showAuditTrail)}
+                  >
+                    <History className="h-4 w-4 mr-2" />
+                    {showAuditTrail ? 'Hide' : 'Show'} Audit Trail
+                  </Button>
+                </div>
               </CardHeader>
-              <CardContent>
-                <ContractAuditTrail contractId={contract.id} />
-              </CardContent>
+              {showAuditTrail && (
+                <CardContent>
+                  <ContractAuditTrail contractId={contract.id} />
+                </CardContent>
+              )}
             </Card>
           </div>
         </div>
