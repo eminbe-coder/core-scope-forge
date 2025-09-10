@@ -41,6 +41,7 @@ interface TodoListProps {
   compact?: boolean;
   title?: string;
   canEdit?: boolean;
+  onUpdate?: () => void;
 }
 
 export const TodoList = ({ 
@@ -50,7 +51,8 @@ export const TodoList = ({
   showStats = true,
   compact = false,
   title = "To-Do Items",
-  canEdit = true 
+  canEdit = true,
+  onUpdate 
 }: TodoListProps) => {
   const { currentTenant } = useTenant();
   const [todos, setTodos] = useState<Todo[]>([]);
@@ -160,6 +162,7 @@ export const TodoList = ({
 
       toast.success(`To-do item ${newStatus === 'completed' ? 'completed' : 'uncompleted'}`);
       fetchTodos();
+      onUpdate?.();
     } catch (error) {
       console.error('Error updating todo:', error);
       toast.error('Failed to update to-do item');
@@ -177,6 +180,7 @@ export const TodoList = ({
 
       toast.success('To-do item deleted successfully');
       fetchTodos();
+      onUpdate?.();
     } catch (error) {
       console.error('Error deleting todo:', error);
       toast.error('Failed to delete to-do item');

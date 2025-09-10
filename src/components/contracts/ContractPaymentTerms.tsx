@@ -8,6 +8,7 @@ import { Calendar, DollarSign, Clock, CheckCircle, FileText, Upload, Settings } 
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { toast } from 'sonner';
+import { TodoWidget } from '@/components/todos/TodoWidget';
 
 interface PaymentTerm {
   id: string;
@@ -72,9 +73,10 @@ export const ContractPaymentTerms = ({ contractId, canEdit, onUpdate }: Contract
           .order('sort_order'),
         
         supabase
-          .from('contract_todos')
+          .from('todos')
           .select('*')
-          .eq('contract_id', contractId),
+          .eq('entity_type', 'contract')
+          .eq('entity_id', contractId),
         
         supabase
           .from('contract_payment_attachments')
@@ -214,7 +216,7 @@ export const ContractPaymentTerms = ({ contractId, canEdit, onUpdate }: Contract
     const paymentTodos = todos.filter(todo => todo.payment_term_id === paymentTermId);
     if (paymentTodos.length === 0) return 100; // No todos means ready for due
     
-    const completedTodos = paymentTodos.filter(todo => todo.completed);
+    const completedTodos = paymentTodos.filter(todo => todo.status === 'completed');
     return Math.round((completedTodos.length / paymentTodos.length) * 100);
   };
 
@@ -254,7 +256,7 @@ export const ContractPaymentTerms = ({ contractId, canEdit, onUpdate }: Contract
         paymentTerms.map((paymentTerm) => {
           const progress = getPaymentProgress(paymentTerm.id);
           const paymentTodos = todos.filter(todo => todo.payment_term_id === paymentTerm.id);
-          const completedTodos = paymentTodos.filter(todo => todo.completed);
+          const completedTodos = paymentTodos.filter(todo => todo.status === 'completed');
           const paymentAttachments = getPaymentAttachments(paymentTerm.id);
 
           return (
@@ -343,39 +345,16 @@ export const ContractPaymentTerms = ({ contractId, canEdit, onUpdate }: Contract
                       <label className="text-sm font-medium text-muted-foreground">
                         To-Do Items ({paymentTodos.length})
                       </label>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 px-2"
-                        onClick={() => {
-                          document.getElementById('todos-section')?.scrollIntoView({ behavior: 'smooth' });
-                        }}
-                      >
-                        View & Add
-                      </Button>
                     </div>
-                    <div className="space-y-1">
-                      {paymentTodos.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">No to-do items</p>
-                      ) : (
-                        paymentTodos.slice(0, 3).map((todo) => (
-                          <div key={todo.id} className="flex items-center gap-2 text-xs">
-                            {todo.completed ? (
-                              <CheckCircle className="h-3 w-3 text-green-600" />
-                            ) : (
-                              <Clock className="h-3 w-3 text-yellow-600" />
-                            )}
-                            <span className={todo.completed ? 'line-through text-muted-foreground' : ''}>
-                              {todo.title}
-                            </span>
-                          </div>
-                        ))
-                      )}
-                      {paymentTodos.length > 3 && (
-                        <p className="text-xs text-muted-foreground">
-                          +{paymentTodos.length - 3} more
-                        </p>
-                      )}
+                    <div className="bg-muted/20 p-3 rounded-lg">
+                      <TodoWidget 
+                        entityType="contract" 
+                        entityId={contractId}
+                        paymentTermId={paymentTerm.id}
+                        canEdit={canUserEdit && canEdit}
+                        compact={true}
+                        onUpdate={fetchData}
+                      />
                     </div>
                   </div>
 

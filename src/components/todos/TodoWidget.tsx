@@ -7,6 +7,7 @@ interface TodoWidgetProps {
   paymentTermId?: string;
   canEdit?: boolean;
   compact?: boolean;
+  onUpdate?: () => void;
 }
 
 export const TodoWidget = ({ 
@@ -14,7 +15,8 @@ export const TodoWidget = ({
   entityId, 
   paymentTermId,
   canEdit = true,
-  compact = false 
+  compact = false,
+  onUpdate 
 }: TodoWidgetProps) => {
   return (
     <div className="space-y-4">
@@ -26,6 +28,7 @@ export const TodoWidget = ({
             paymentTermId={paymentTermId}
             onSuccess={() => {
               // Refresh will happen via TodoList's useEffect
+              onUpdate?.();
             }}
           />
         </div>
@@ -37,6 +40,7 @@ export const TodoWidget = ({
         showStats={!compact}
         compact={compact}
         canEdit={canEdit}
+        onUpdate={onUpdate}
       />
     </div>
   );
