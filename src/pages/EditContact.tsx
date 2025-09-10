@@ -278,14 +278,14 @@ const EditContact = () => {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Customer</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ''}>
+                        <Select onValueChange={(v) => field.onChange(v === 'none' ? '' : v)} value={field.value || ''}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select a customer" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="">No customer</SelectItem>
+                            <SelectItem value="none">No customer</SelectItem>
                             {customers.map((customer) => (
                               <SelectItem key={customer.id} value={customer.id}>
                                 {customer.name}
