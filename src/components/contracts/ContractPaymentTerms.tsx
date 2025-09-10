@@ -129,43 +129,15 @@ export const ContractPaymentTerms = ({
     const today = new Date();
     const dueDate = paymentTerm.due_date ? new Date(paymentTerm.due_date) : null;
 
-    // Only auto-update in specific trigger scenarios
-    if (triggerType === 'due_date_change') {
-      // When due date changes, update stage based on new date and task completion
-      if (!dueDate) {
-        return paymentStages.find(stage => stage.name === 'Pending') || null;
-      }
-      
-      if (dueDate <= today && incompleteTodos.length === 0) {
-        return paymentStages.find(stage => stage.name === 'Due') || null;
-      }
-      
+    // Simple logic: If there are incomplete todos, should be "Pending"
+    // If all todos complete (or no todos) and due date passed, should be "Due"
+    if (incompleteTodos.length > 0) {
+      return paymentStages.find(stage => stage.name === 'Pending') || null;
+    } else if (dueDate && dueDate <= today) {
+      return paymentStages.find(stage => stage.name === 'Due') || null;
+    } else {
       return paymentStages.find(stage => stage.name === 'Pending') || null;
     }
-    
-    if (triggerType === 'all_tasks_completed') {
-      // When all tasks are completed, only update if we have a due date and it's passed
-      if (dueDate && dueDate <= today) {
-        return paymentStages.find(stage => stage.name === 'Due') || null;
-      }
-    }
-    
-    if (triggerType === 'initial_load') {
-      // Only set initial stage if no stage is currently set
-      if (!paymentTerm.stage_id) {
-        if (!dueDate) {
-          return paymentStages.find(stage => stage.name === 'Pending') || null;
-        }
-        
-        if (dueDate <= today && incompleteTodos.length === 0) {
-          return paymentStages.find(stage => stage.name === 'Due') || null;
-        }
-        
-        return paymentStages.find(stage => stage.name === 'Pending') || null;
-      }
-    }
-
-    return null; // No automatic update needed
   };
   const updatePaymentStage = async (paymentTermId: string, newStageId: string, isAutomatic = false) => {
     if (!canUserEdit || !canEdit) return;
@@ -229,21 +201,20 @@ export const ContractPaymentTerms = ({
     }
   };
 
-  // Auto-update payment stages based on business rules
+  // Auto-update payment stages based on business rules  
   const autoUpdatePaymentStages = async (triggerType: 'initial_load' | 'due_date_change' = 'initial_load') => {
     if (!canUserEdit || !canEdit || paymentTerms.length === 0) return;
+    
     try {
       autoUpdatingRef.current = true;
-      let hasUpdates = false;
+      
       for (const paymentTerm of paymentTerms) {
         const recommendedStage = getAutomaticStage(paymentTerm, triggerType);
-        if (!recommendedStage) continue; // respect manual statuses or no update needed
-        if (recommendedStage.id !== paymentTerm.stage_id) {
+        
+        if (recommendedStage && recommendedStage.id !== paymentTerm.stage_id) {
           await updatePaymentStage(paymentTerm.id, recommendedStage.id, true);
-          hasUpdates = true;
         }
       }
-      // No toast here to avoid notification loops
     } catch (error) {
       console.error('Error auto-updating payment stages:', error);
     } finally {

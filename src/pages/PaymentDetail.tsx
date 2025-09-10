@@ -131,11 +131,90 @@ export default function PaymentDetail() {
 
       if (auditData) setAuditLogs(auditData);
 
+      // Auto-update payment stage after data fetch
+      if (paymentData) {
+        await autoUpdatePaymentStage(paymentData);
+      }
+
     } catch (error) {
       console.error('Error fetching payment data:', error);
       toast.error('Failed to load payment details');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const autoUpdatePaymentStage = async (paymentData: PaymentTerm) => {
+    if (!canEdit || !currentTenant?.id) return;
+
+    try {
+      // Get todos for this payment
+      const { data: todos } = await supabase
+        .from('todos')
+        .select('*')
+        .eq('entity_type', 'contract')
+        .eq('payment_term_id', paymentData.id);
+
+      // Get available stages
+      const { data: stages } = await supabase
+        .from('contract_payment_stages')
+        .select('*')
+        .eq('tenant_id', currentTenant.id);
+
+      if (!stages) return;
+
+      const paymentTodos = todos || [];
+      const incompleteTodos = paymentTodos.filter(todo => todo.status !== 'completed');
+      const today = new Date();
+      const dueDate = paymentData.due_date ? new Date(paymentData.due_date) : null;
+
+      let recommendedStage = null;
+
+      // Logic: If there are incomplete todos, should be "Pending"
+      // If all todos complete and due date passed, should be "Due"  
+      // If no todos and due date passed, should be "Due"
+      if (incompleteTodos.length > 0) {
+        recommendedStage = stages.find(stage => stage.name === 'Pending');
+      } else if (dueDate && dueDate <= today) {
+        recommendedStage = stages.find(stage => stage.name === 'Due');
+      } else if (paymentTodos.length === 0 && dueDate && dueDate <= today) {
+        recommendedStage = stages.find(stage => stage.name === 'Due');
+      }
+
+      // Update stage if needed
+      if (recommendedStage && recommendedStage.id !== paymentData.stage_id) {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        const { error } = await supabase
+          .from('contract_payment_terms')
+          .update({ 
+            stage_id: recommendedStage.id,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', paymentData.id);
+
+        if (!error) {
+          // Log audit trail
+          await supabase.from('contract_audit_logs').insert({
+            contract_id: paymentData.contract_id,
+            tenant_id: currentTenant.id,
+            action: 'payment_stage_auto_updated',
+            entity_type: 'payment_term',
+            entity_id: paymentData.id,
+            field_name: 'stage_id',
+            old_value: paymentData.stage_id,
+            new_value: recommendedStage.id,
+            user_id: user?.id,
+            user_name: `${user?.user_metadata?.first_name || ''} ${user?.user_metadata?.last_name || ''}`.trim(),
+            notes: 'Payment stage automatically updated based on task completion status'
+          });
+
+          // Refresh data to show updated stage
+          setTimeout(() => fetchPaymentData(), 100);
+        }
+      }
+    } catch (error) {
+      console.error('Error auto-updating payment stage:', error);
     }
   };
 
@@ -317,7 +396,15 @@ export default function PaymentDetail() {
                   canEdit={canEdit} 
                   compact={false}
                   includeChildren={false}
-                  onUpdate={fetchPaymentData}
+                  onUpdate={() => {
+                    fetchPaymentData();
+                    // Also trigger stage update after todo changes
+                    setTimeout(() => {
+                      if (payment) {
+                        autoUpdatePaymentStage(payment);
+                      }
+                    }, 200);
+                  }}
                 />
               </CardContent>
             </Card>
