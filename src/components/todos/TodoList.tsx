@@ -216,7 +216,10 @@ export const TodoList = ({
     if (typeFilter !== 'all' && todo.type_id !== typeFilter) return false;
     
     // Assigned filter
-    if (assignedFilter !== 'all' && todo.assigned_to !== assignedFilter) return false;
+    if (assignedFilter !== 'all') {
+      if (assignedFilter === 'unassigned' && todo.assigned_to !== null) return false;
+      if (assignedFilter !== 'unassigned' && todo.assigned_to !== assignedFilter) return false;
+    }
     
     // Search filter
     if (searchQuery && !todo.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
@@ -346,7 +349,7 @@ export const TodoList = ({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Assignees</SelectItem>
-                  <SelectItem value="">Unassigned</SelectItem>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
                   {profiles.map((profile) => (
                     <SelectItem key={profile.id} value={profile.id}>
                       {profile.first_name} {profile.last_name}

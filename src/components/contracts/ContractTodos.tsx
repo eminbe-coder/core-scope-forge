@@ -78,10 +78,10 @@ export const ContractTodos = ({ contractId, canEdit, onUpdate, compact = false }
     defaultValues: {
       title: '',
       description: '',
-      assigned_to: '',
+      assigned_to: 'unassigned',
       due_date: '',
       priority: 'medium',
-      payment_term_id: '',
+      payment_term_id: 'none',
       type_id: '',
     },
   });
@@ -185,7 +185,7 @@ export const ContractTodos = ({ contractId, canEdit, onUpdate, compact = false }
           due_date: values.due_date || null,
           priority: values.priority || 'medium',
           status: 'pending',
-          assigned_to: values.assigned_to || null,
+          assigned_to: values.assigned_to === 'unassigned' ? null : values.assigned_to || null,
           payment_term_id: values.payment_term_id || null,
           type_id: typeId,
           created_by: user.id,
@@ -436,7 +436,7 @@ export const ContractTodos = ({ contractId, canEdit, onUpdate, compact = false }
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent className="bg-background border border-border shadow-md z-50">
-                                  <SelectItem value="">Unassigned</SelectItem>
+                                  <SelectItem value="unassigned">Unassigned</SelectItem>
                                   {profiles.map((profile) => (
                                     <SelectItem key={profile.id} value={profile.id}>
                                       {profile.first_name} {profile.last_name}
