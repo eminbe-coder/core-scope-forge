@@ -665,7 +665,7 @@ export default function InstallmentDetail() {
                   onClick={registerPayment} 
                   disabled={!receivedAmount || isRegisteringPayment || isNaN(parseFloat(receivedAmount || '0'))}
                 >
-                  {isRegisteringPayment ? 'Registering...' : 'Register Payment'}
+                  {isRegisteringPayment ? 'Adding Payment...' : 'Add Payment'}
                 </Button>
               </DialogFooter>
             </DialogContent>
