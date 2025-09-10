@@ -44,7 +44,7 @@ export const ContractPaymentTerms = ({
   const [loading, setLoading] = useState(true);
   const [canUserEdit, setCanUserEdit] = useState(false);
   const autoUpdatingRef = useRef(false);
-  const autoUpdateNotifiedRef = useRef(false);
+  const initialLoadRef = useRef(false);
   useEffect(() => {
     if (contractId && currentTenant?.id) {
       fetchData();
@@ -79,6 +79,14 @@ export const ContractPaymentTerms = ({
       setPaymentStages(paymentStagesRes.data || []);
       setTodos(todosRes.data || []);
       setAttachments(attachmentsRes.data || []);
+      
+      // Auto-update stages only on initial load
+      if (!initialLoadRef.current && paymentTermsRes.data && paymentStagesRes.data) {
+        initialLoadRef.current = true;
+        setTimeout(() => {
+          autoUpdatePaymentStages();
+        }, 100);
+      }
     } catch (error) {
       console.error('Error fetching payment terms:', error);
       toast.error('Failed to load payment terms');
@@ -151,8 +159,19 @@ export const ContractPaymentTerms = ({
         toast.success('Payment stage updated successfully');
       }
 
-      // Refetch data to ensure consistency
-      await fetchData();
+      // Update local state immediately for UI responsiveness
+      setPaymentTerms(prevTerms => 
+        prevTerms.map(term => 
+          term.id === paymentTermId 
+            ? { 
+                ...term, 
+                stage_id: newStageId,
+                contract_payment_stages: paymentStages.find(s => s.id === newStageId) || term.contract_payment_stages
+              }
+            : term
+        )
+      );
+      
       onUpdate();
     } catch (error) {
       console.error('Error updating payment stage:', error);
@@ -215,38 +234,44 @@ export const ContractPaymentTerms = ({
         notes: 'Payment due date manually updated'
       });
       toast.success('Due date updated successfully');
-      // Refetch data to ensure consistency and trigger auto-stage update
+      
+      // Update local state and trigger auto-stage update
       await fetchData();
       onUpdate();
-
-      // Auto-update stage after due date change
+      
+      // Auto-update stage after due date change (only for this payment term)
       setTimeout(() => {
-        autoUpdatePaymentStages();
-      }, 100);
+        const updatedTerm = paymentTerms.find(pt => pt.id === paymentTermId);
+        if (updatedTerm) {
+          const recommendedStage = getAutomaticStage({
+            ...updatedTerm,
+            due_date: newDueDate
+          });
+          if (recommendedStage && recommendedStage.id !== updatedTerm.stage_id) {
+            updatePaymentStage(paymentTermId, recommendedStage.id, true);
+          }
+        }
+      }, 200);
     } catch (error) {
       console.error('Error updating due date:', error);
       toast.error('Failed to update due date');
     }
   };
 
-  // Auto-update payment stages when data changes
+  // Only auto-update on todo changes, not on payment terms changes to avoid loops
   useEffect(() => {
-    if (autoUpdatingRef.current) return;
-    if (paymentTerms.length > 0 && todos.length >= 0 && paymentStages.length > 0) {
-      // Small delay to ensure all data is loaded
+    if (autoUpdatingRef.current || !initialLoadRef.current) return;
+    if (todos.length >= 0 && paymentTerms.length > 0 && paymentStages.length > 0) {
       const timeoutId = setTimeout(() => {
         autoUpdatePaymentStages();
       }, 500);
       return () => clearTimeout(timeoutId);
     }
-  }, [paymentTerms, todos, paymentStages]);
+  }, [todos]);
 
   // Auto-update stages when todos are completed/updated
   const handleTodoUpdate = async () => {
     await fetchData();
-    setTimeout(() => {
-      autoUpdatePaymentStages();
-    }, 100);
   };
   const formatCurrency = (amount: number) => {
     return `$${amount.toLocaleString()}`;
@@ -320,13 +345,17 @@ export const ContractPaymentTerms = ({
                             </Badge>
                           </button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="z-50">
-                          {paymentStages.map(stage => (
-                            <DropdownMenuItem key={stage.id} onClick={() => updatePaymentStage(paymentTerm.id, stage.id)}>
-                              {stage.name}
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
+                         <DropdownMenuContent align="end" className="z-50 bg-background border shadow-md">
+                           {paymentStages.map(stage => (
+                             <DropdownMenuItem 
+                               key={stage.id} 
+                               onClick={() => updatePaymentStage(paymentTerm.id, stage.id)}
+                               className="cursor-pointer"
+                             >
+                               {stage.name}
+                             </DropdownMenuItem>
+                           ))}
+                         </DropdownMenuContent>
                       </DropdownMenu>
                     ) : (
                       <Badge variant={getStageColor(paymentTerm.contract_payment_stages?.name)}>
