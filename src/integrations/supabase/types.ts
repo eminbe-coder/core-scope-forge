@@ -1206,6 +1206,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_contracts_assigned_to"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "fk_contracts_currency_id"
             columns: ["currency_id"]
             isOneToOne: false
