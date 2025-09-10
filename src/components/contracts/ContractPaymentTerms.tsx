@@ -101,7 +101,27 @@ export const ContractPaymentTerms = ({ contractId, canEdit, onUpdate }: Contract
     }
   };
 
-  const updatePaymentStage = async (paymentTermId: string, newStageId: string) => {
+  const getAutomaticStage = (paymentTerm: PaymentTerm) => {
+    const paymentTodos = todos.filter(todo => todo.payment_term_id === paymentTerm.id);
+    const incompleteTodos = paymentTodos.filter(todo => todo.status !== 'completed');
+    const today = new Date();
+    const dueDate = paymentTerm.due_date ? new Date(paymentTerm.due_date) : null;
+    
+    // If no due date set, return pending stage
+    if (!dueDate) {
+      return paymentStages.find(stage => stage.name === 'Pending');
+    }
+    
+    // If due date is today or past AND no incomplete tasks, set to Due
+    if (dueDate <= today && incompleteTodos.length === 0) {
+      return paymentStages.find(stage => stage.name === 'Due');
+    }
+    
+    // Otherwise, set to Pending if there are incomplete tasks or due date is in future
+    return paymentStages.find(stage => stage.name === 'Pending');
+  };
+
+  const updatePaymentStage = async (paymentTermId: string, newStageId: string, isAutomatic = false) => {
     if (!canUserEdit || !canEdit) return;
 
     try {
@@ -109,26 +129,26 @@ export const ContractPaymentTerms = ({ contractId, canEdit, onUpdate }: Contract
       
       const oldPaymentTerm = paymentTerms.find(pt => pt.id === paymentTermId);
       
+      // Skip update if stage is already the same
+      if (oldPaymentTerm?.stage_id === newStageId) {
+        return;
+      }
+      
       const { error } = await supabase
         .from('contract_payment_terms')
-        .update({ stage_id: newStageId })
+        .update({ 
+          stage_id: newStageId,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', paymentTermId);
 
       if (error) throw error;
-
-      // Optimistic local update
-      const selectedStage = paymentStages.find((s) => s.id === newStageId);
-      setPaymentTerms((prev) => prev.map((pt) =>
-        pt.id === paymentTermId
-          ? { ...pt, stage_id: newStageId, contract_payment_stages: selectedStage ? { name: selectedStage.name, sort_order: selectedStage.sort_order } : pt.contract_payment_stages }
-          : pt
-      ));
 
       // Log audit trail
       await supabase.from('contract_audit_logs').insert({
         contract_id: contractId,
         tenant_id: currentTenant?.id,
-        action: 'payment_stage_changed',
+        action: isAutomatic ? 'payment_stage_auto_updated' : 'payment_stage_changed',
         entity_type: 'payment_term',
         entity_id: paymentTermId,
         field_name: 'stage_id',
@@ -136,15 +156,44 @@ export const ContractPaymentTerms = ({ contractId, canEdit, onUpdate }: Contract
         new_value: newStageId,
         user_id: user?.id,
         user_name: `${user?.user_metadata?.first_name || ''} ${user?.user_metadata?.last_name || ''}`.trim(),
-        notes: 'Payment stage manually updated',
+        notes: isAutomatic ? 'Payment stage automatically updated based on due date and task completion' : 'Payment stage manually updated',
       });
 
-      toast.success('Payment stage updated successfully');
-      fetchData();
+      if (!isAutomatic) {
+        toast.success('Payment stage updated successfully');
+      }
+      
+      // Refetch data to ensure consistency
+      await fetchData();
       onUpdate();
     } catch (error) {
       console.error('Error updating payment stage:', error);
-      toast.error('Failed to update payment stage');
+      if (!isAutomatic) {
+        toast.error('Failed to update payment stage');
+      }
+    }
+  };
+
+  // Auto-update payment stages based on business rules
+  const autoUpdatePaymentStages = async () => {
+    if (!canUserEdit || !canEdit || paymentTerms.length === 0) return;
+
+    try {
+      let hasUpdates = false;
+      for (const paymentTerm of paymentTerms) {
+        const recommendedStage = getAutomaticStage(paymentTerm);
+        if (recommendedStage && recommendedStage.id !== paymentTerm.stage_id) {
+          await updatePaymentStage(paymentTerm.id, recommendedStage.id, true);
+          hasUpdates = true;
+        }
+      }
+      
+      if (hasUpdates) {
+        // Small toast to show automatic updates occurred
+        toast.info('Payment stages automatically updated based on due dates and task completion');
+      }
+    } catch (error) {
+      console.error('Error auto-updating payment stages:', error);
     }
   };
   const updatePaymentDueDate = async (paymentTermId: string, newDueDate: string) => {
@@ -157,15 +206,13 @@ export const ContractPaymentTerms = ({ contractId, canEdit, onUpdate }: Contract
       
       const { error } = await supabase
         .from('contract_payment_terms')
-        .update({ due_date: newDueDate })
+        .update({ 
+          due_date: newDueDate,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', paymentTermId);
 
       if (error) throw error;
-
-      // Optimistic local update
-      setPaymentTerms((prev) => prev.map((pt) =>
-        pt.id === paymentTermId ? { ...pt, due_date: newDueDate } : pt
-      ));
 
       // Log audit trail
       await supabase.from('contract_audit_logs').insert({
@@ -183,12 +230,38 @@ export const ContractPaymentTerms = ({ contractId, canEdit, onUpdate }: Contract
       });
 
       toast.success('Due date updated successfully');
-      fetchData();
+      // Refetch data to ensure consistency and trigger auto-stage update
+      await fetchData();
       onUpdate();
+      
+      // Auto-update stage after due date change
+      setTimeout(() => {
+        autoUpdatePaymentStages();
+      }, 100);
     } catch (error) {
       console.error('Error updating due date:', error);
       toast.error('Failed to update due date');
     }
+  };
+
+  // Auto-update payment stages when data changes
+  useEffect(() => {
+    if (paymentTerms.length > 0 && todos.length >= 0 && paymentStages.length > 0) {
+      // Small delay to ensure all data is loaded
+      const timeoutId = setTimeout(() => {
+        autoUpdatePaymentStages();
+      }, 500);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [paymentTerms, todos, paymentStages]);
+
+  // Auto-update stages when todos are completed/updated
+  const handleTodoUpdate = async () => {
+    await fetchData();
+    setTimeout(() => {
+      autoUpdatePaymentStages();
+    }, 100);
   };
   const formatCurrency = (amount: number) => {
     return `$${amount.toLocaleString()}`;
@@ -354,7 +427,7 @@ export const ContractPaymentTerms = ({ contractId, canEdit, onUpdate }: Contract
                         canEdit={canUserEdit && canEdit}
                         compact={true}
                         includeChildren={false}
-                        onUpdate={fetchData}
+                        onUpdate={handleTodoUpdate}
                       />
                     </div>
                   </div>
