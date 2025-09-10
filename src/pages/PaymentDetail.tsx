@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -44,7 +44,7 @@ export default function PaymentDetail() {
   const [canEdit, setCanEdit] = useState(false);
   const [paymentNotes, setPaymentNotes] = useState('');
   const [isSavingNotes, setIsSavingNotes] = useState(false);
-
+  const prevDueDateRef = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (paymentId && currentTenant?.id) {
       fetchPaymentData();
@@ -131,11 +131,7 @@ export default function PaymentDetail() {
 
       if (auditData) setAuditLogs(auditData);
 
-      // Auto-update payment stage after data fetch
-      if (paymentData) {
-        await autoUpdatePaymentStage(paymentData);
-      }
-
+      return paymentData as PaymentTerm;
     } catch (error) {
       console.error('Error fetching payment data:', error);
       toast.error('Failed to load payment details');
@@ -144,7 +140,7 @@ export default function PaymentDetail() {
     }
   };
 
-  const autoUpdatePaymentStage = async (paymentData: PaymentTerm) => {
+  const autoUpdatePaymentStage = async (paymentData: PaymentTerm, trigger: 'todos' | 'dueDate') => {
     if (!canEdit || !currentTenant?.id) return;
 
     try {
@@ -165,20 +161,27 @@ export default function PaymentDetail() {
 
       const paymentTodos = todos || [];
       const incompleteTodos = paymentTodos.filter(todo => todo.status !== 'completed');
-      const today = new Date();
-      const dueDate = paymentData.due_date ? new Date(paymentData.due_date) : null;
+      const toStartOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const today = toStartOfDay(new Date());
+      const dueDate = paymentData.due_date ? toStartOfDay(new Date(`${paymentData.due_date}T00:00:00`)) : null;
 
-      let recommendedStage = null;
+      let recommendedStage: any = null;
 
-      // Logic: If there are incomplete todos, should be "Pending"
-      // If all todos complete and due date passed, should be "Due"  
-      // If no todos and due date passed, should be "Due"
-      if (incompleteTodos.length > 0) {
-        recommendedStage = stages.find(stage => stage.name === 'Pending');
-      } else if (dueDate && dueDate <= today) {
-        recommendedStage = stages.find(stage => stage.name === 'Due');
-      } else if (paymentTodos.length === 0 && dueDate && dueDate <= today) {
-        recommendedStage = stages.find(stage => stage.name === 'Due');
+      if (trigger === 'todos') {
+        // Only move to Due when all tasks are completed AND due date has passed
+        if (incompleteTodos.length === 0 && dueDate && dueDate <= today) {
+          recommendedStage = stages.find(stage => stage.name === 'Due');
+        }
+      } else if (trigger === 'dueDate') {
+        if (dueDate) {
+          // If due date moved to future and there are incomplete tasks, set to Pending
+          if (incompleteTodos.length > 0 && dueDate > today) {
+            recommendedStage = stages.find(stage => stage.name === 'Pending' || stage.name === 'Pending Task');
+          } else if (incompleteTodos.length === 0 && dueDate <= today) {
+            // If due date is past and all tasks are done, set to Due
+            recommendedStage = stages.find(stage => stage.name === 'Due');
+          }
+        }
       }
 
       // Update stage if needed
@@ -206,11 +209,10 @@ export default function PaymentDetail() {
             new_value: recommendedStage.id,
             user_id: user?.id,
             user_name: `${user?.user_metadata?.first_name || ''} ${user?.user_metadata?.last_name || ''}`.trim(),
-            notes: 'Payment stage automatically updated based on task completion status'
+            notes: trigger === 'todos' 
+              ? 'Payment stage auto-updated after all tasks completed' 
+              : 'Payment stage auto-updated after due date change'
           });
-
-          // Refresh data to show updated stage
-          setTimeout(() => fetchPaymentData(), 100);
         }
       }
     } catch (error) {
@@ -322,7 +324,7 @@ export default function PaymentDetail() {
             </div>
           </div>
           {canEdit && (
-            <Button onClick={() => setIsEditing(true)}>
+            <Button onClick={() => { prevDueDateRef.current = payment?.due_date; setIsEditing(true); }}>
               <Edit className="h-4 w-4 mr-2" />
               Edit Payment
             </Button>
@@ -396,14 +398,11 @@ export default function PaymentDetail() {
                   canEdit={canEdit} 
                   compact={false}
                   includeChildren={false}
-                  onUpdate={() => {
-                    fetchPaymentData();
-                    // Also trigger stage update after todo changes
-                    setTimeout(() => {
-                      if (payment) {
-                        autoUpdatePaymentStage(payment);
-                      }
-                    }, 200);
+                  onUpdate={async () => {
+                    if (payment) {
+                      await autoUpdatePaymentStage(payment, 'todos');
+                    }
+                    await fetchPaymentData();
                   }}
                 />
               </CardContent>
@@ -528,9 +527,13 @@ export default function PaymentDetail() {
           <EditPaymentForm
             payment={payment}
             contractId={contract.id}
-            onSuccess={() => {
+            onSuccess={async () => {
               setIsEditing(false);
-              fetchPaymentData();
+              const latest = await fetchPaymentData();
+              if (latest && prevDueDateRef.current !== latest.due_date) {
+                await autoUpdatePaymentStage(latest, 'dueDate');
+                await fetchPaymentData();
+              }
             }}
             onCancel={() => setIsEditing(false)}
           />
