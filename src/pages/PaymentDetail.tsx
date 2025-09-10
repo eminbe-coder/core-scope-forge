@@ -155,37 +155,34 @@ export default function PaymentDetail() {
         .eq('entity_type', 'contract')
         .eq('payment_term_id', payment.id);
 
-      // Get available stages
-      const { data: stages } = await supabase
-        .from('contract_payment_stages')
-        .select('*')
-        .eq('tenant_id', currentTenant.id);
-
-      if (!stages) return;
-
       const paymentTodos = todos || [];
       const incompleteTodos = paymentTodos.filter(todo => todo.status !== 'completed');
       
       const today = new Date().toISOString().split('T')[0];
       const isDueDatePassed = payment.due_date && payment.due_date <= today;
 
-      let recommendedStage: any = null;
+      let newPaymentStatus = 'pending';
 
-      // Determine stage based on rules
+      // Determine status based on rules
       if (incompleteTodos.length === 0 && isDueDatePassed) {
-        recommendedStage = stages.find(stage => stage.name === 'Due');
+        newPaymentStatus = 'due';
       } else {
-        recommendedStage = stages.find(stage => stage.name === 'Pending' || stage.name === 'Pending Task');
+        newPaymentStatus = 'pending';
       }
 
-      // Update stage if needed and different from current
-      if (recommendedStage && recommendedStage.id !== payment.stage_id) {
+      // Don't change status if already paid
+      if ((payment as any)?.payment_status === 'paid') {
+        return;
+      }
+
+      // Update status if different from current
+      if (newPaymentStatus !== (payment as any)?.payment_status) {
         const { data: { user } } = await supabase.auth.getUser();
         
         const { error } = await supabase
           .from('contract_payment_terms')
           .update({ 
-            stage_id: recommendedStage.id,
+            payment_status: newPaymentStatus,
             updated_at: new Date().toISOString()
           })
           .eq('id', payment.id);
@@ -195,15 +192,15 @@ export default function PaymentDetail() {
           await supabase.from('contract_audit_logs').insert({
             contract_id: payment.contract_id,
             tenant_id: currentTenant.id,
-            action: 'payment_stage_auto_updated',
+            action: 'payment_status_auto_updated',
             entity_type: 'payment_term',
             entity_id: payment.id,
-            field_name: 'stage_id',
-            old_value: payment.stage_id,
-            new_value: recommendedStage.id,
+            field_name: 'payment_status',
+            old_value: (payment as any)?.payment_status,
+            new_value: newPaymentStatus,
             user_id: user?.id,
             user_name: `${user?.user_metadata?.first_name || ''} ${user?.user_metadata?.last_name || ''}`.trim(),
-            notes: 'Payment stage auto-updated based on task completion and due date'
+            notes: 'Payment status auto-updated based on task completion and due date'
           });
 
           // Refresh payment data
@@ -211,7 +208,7 @@ export default function PaymentDetail() {
         }
       }
     } catch (error) {
-      console.error('Error auto-updating payment stage:', error);
+      console.error('Error auto-updating payment status:', error);
     }
   };
 
@@ -233,15 +230,19 @@ export default function PaymentDetail() {
   const registerPayment = async () => {
     if (!payment || !receivedAmount || !canEdit) return;
 
+    const amount = parseFloat(receivedAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+    
+    if (amount < (payment.calculated_amount || payment.amount_value)) {
+      toast.error('Received amount must be equal or greater than payment amount');
+      return;
+    }
+
     try {
       setIsRegisteringPayment(true);
-      const amount = parseFloat(receivedAmount);
-      
-      if (amount < payment.calculated_amount) {
-        toast.error('Received amount must be equal or greater than payment amount');
-        return;
-      }
-
       const { data: { user } } = await supabase.auth.getUser();
       
       const { error } = await supabase
@@ -264,7 +265,7 @@ export default function PaymentDetail() {
         entity_type: 'payment_term',
         entity_id: payment.id,
         field_name: 'payment_status',
-      old_value: (payment as any).payment_status,
+        old_value: (payment as any).payment_status,
         new_value: 'paid',
         user_id: user?.id,
         user_name: `${user?.user_metadata?.first_name || ''} ${user?.user_metadata?.last_name || ''}`.trim(),
@@ -301,6 +302,8 @@ export default function PaymentDetail() {
     switch ((status || '').toLowerCase()) {
       case 'pending':
         return 'outline';
+      case 'due':
+        return 'default';
       case 'paid':
         return 'secondary';
       default:
@@ -405,9 +408,6 @@ export default function PaymentDetail() {
                 Payment Details
               </CardTitle>
               <div className="flex gap-2">
-                <Badge variant={getStageColor(payment.contract_payment_stages?.name)}>
-                  {payment.contract_payment_stages?.name || 'No Stage'}
-                </Badge>
                 <Badge variant={getPaymentStatusColor((payment as any)?.payment_status)}>
                   {(payment as any)?.payment_status || 'Pending'}
                 </Badge>
@@ -660,7 +660,7 @@ export default function PaymentDetail() {
                 </Button>
                 <Button 
                   onClick={registerPayment} 
-                  disabled={!receivedAmount || isRegisteringPayment}
+                  disabled={!receivedAmount || isRegisteringPayment || parseFloat(receivedAmount || '0') <= 0}
                 >
                   {isRegisteringPayment ? 'Registering...' : 'Register Payment'}
                 </Button>
