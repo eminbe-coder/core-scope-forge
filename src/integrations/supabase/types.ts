@@ -1064,6 +1064,9 @@ export type Database = {
           installment_number: number
           name: string | null
           notes: string | null
+          payment_status: string | null
+          received_amount: number | null
+          received_date: string | null
           stage_id: string | null
           tenant_id: string
           updated_at: string
@@ -1079,6 +1082,9 @@ export type Database = {
           installment_number: number
           name?: string | null
           notes?: string | null
+          payment_status?: string | null
+          received_amount?: number | null
+          received_date?: string | null
           stage_id?: string | null
           tenant_id: string
           updated_at?: string
@@ -1094,6 +1100,9 @@ export type Database = {
           installment_number?: number
           name?: string | null
           notes?: string | null
+          payment_status?: string | null
+          received_amount?: number | null
+          received_date?: string | null
           stage_id?: string | null
           tenant_id?: string
           updated_at?: string

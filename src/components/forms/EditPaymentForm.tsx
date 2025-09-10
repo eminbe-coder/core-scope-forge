@@ -42,26 +42,41 @@ export const EditPaymentForm = ({ payment, contractId, onSuccess, onCancel }: Ed
     amount_type: payment.amount_type,
     amount_value: payment.amount_value,
     due_date: payment.due_date || '',
-    stage_id: payment.stage_id || '',
     notes: payment.notes || ''
   });
 
-  useEffect(() => {
-    fetchPaymentStages();
-  }, [currentTenant?.id]);
-
-  const fetchPaymentStages = async () => {
+  const getAutomaticStage = async (dueDate: string | null) => {
     try {
-      const { data, error } = await supabase
+      // Get payment stages
+      const { data: stages } = await supabase
         .from('contract_payment_stages')
         .select('*')
-        .eq('tenant_id', currentTenant?.id)
-        .order('sort_order');
+        .eq('tenant_id', currentTenant?.id);
 
-      if (error) throw error;
-      setPaymentStages(data || []);
+      if (!stages) return null;
+
+      // Get todos for this payment
+      const { data: todos } = await supabase
+        .from('todos')
+        .select('*')
+        .eq('entity_type', 'contract')
+        .eq('payment_term_id', payment.id);
+
+      const paymentTodos = todos || [];
+      const incompleteTodos = paymentTodos.filter(todo => todo.status !== 'completed');
+      
+      const today = new Date().toISOString().split('T')[0];
+      const isDueDatePassed = dueDate && dueDate <= today;
+
+      // Determine stage based on rules
+      if (incompleteTodos.length === 0 && isDueDatePassed) {
+        return stages.find(stage => stage.name === 'Due')?.id || null;
+      } else {
+        return stages.find(stage => stage.name === 'Pending' || stage.name === 'Pending Task')?.id || null;
+      }
     } catch (error) {
-      console.error('Error fetching payment stages:', error);
+      console.error('Error determining automatic stage:', error);
+      return null;
     }
   };
 
@@ -72,12 +87,15 @@ export const EditPaymentForm = ({ payment, contractId, onSuccess, onCancel }: Ed
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
+      // Get automatic stage based on current rules
+      const automaticStageId = await getAutomaticStage(formData.due_date || null);
+      
       const updates = {
         name: formData.name,
         amount_type: formData.amount_type,
         amount_value: parseFloat(formData.amount_value.toString()),
         due_date: formData.due_date || null,
-        stage_id: formData.stage_id || null,
+        stage_id: automaticStageId,
         notes: formData.notes,
         updated_at: new Date().toISOString()
       };
@@ -104,8 +122,8 @@ export const EditPaymentForm = ({ payment, contractId, onSuccess, onCancel }: Ed
       if (payment.due_date !== formData.due_date) {
         changedFields.push({ field: 'due_date', oldValue: payment.due_date, newValue: formData.due_date });
       }
-      if (payment.stage_id !== formData.stage_id) {
-        changedFields.push({ field: 'stage_id', oldValue: payment.stage_id, newValue: formData.stage_id });
+      if (payment.stage_id !== automaticStageId) {
+        changedFields.push({ field: 'stage_id', oldValue: payment.stage_id, newValue: automaticStageId });
       }
       if (payment.notes !== formData.notes) {
         changedFields.push({ field: 'notes', oldValue: payment.notes, newValue: formData.notes });
@@ -189,35 +207,14 @@ export const EditPaymentForm = ({ payment, contractId, onSuccess, onCancel }: Ed
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="due_date">Due Date</Label>
-              <Input
-                id="due_date"
-                type="date"
-                value={formData.due_date}
-                onChange={(e) => setFormData(prev => ({ ...prev, due_date: e.target.value }))}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="stage">Payment Stage</Label>
-              <Select 
-                value={formData.stage_id} 
-                onValueChange={(value) => setFormData(prev => ({ ...prev, stage_id: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select stage" />
-                </SelectTrigger>
-                <SelectContent>
-                  {paymentStages.map((stage) => (
-                    <SelectItem key={stage.id} value={stage.id}>
-                      {stage.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div>
+            <Label htmlFor="due_date">Due Date</Label>
+            <Input
+              id="due_date"
+              type="date"
+              value={formData.due_date}
+              onChange={(e) => setFormData(prev => ({ ...prev, due_date: e.target.value }))}
+            />
           </div>
 
           <div>

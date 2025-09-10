@@ -1,9 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { ArrowLeft, Edit, DollarSign, Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
@@ -44,7 +47,8 @@ export default function PaymentDetail() {
   const [canEdit, setCanEdit] = useState(false);
   const [paymentNotes, setPaymentNotes] = useState('');
   const [isSavingNotes, setIsSavingNotes] = useState(false);
-  const prevDueDateRef = useRef<string | undefined>(undefined);
+  const [isRegisteringPayment, setIsRegisteringPayment] = useState(false);
+  const [receivedAmount, setReceivedAmount] = useState('');
   useEffect(() => {
     if (paymentId && currentTenant?.id) {
       fetchPaymentData();
@@ -140,8 +144,8 @@ export default function PaymentDetail() {
     }
   };
 
-  const autoUpdatePaymentStage = async (paymentData: PaymentTerm, trigger: 'todos' | 'dueDate') => {
-    if (!canEdit || !currentTenant?.id) return;
+  const autoUpdatePaymentStage = async () => {
+    if (!payment || !canEdit || !currentTenant?.id) return;
 
     try {
       // Get todos for this payment
@@ -149,7 +153,7 @@ export default function PaymentDetail() {
         .from('todos')
         .select('*')
         .eq('entity_type', 'contract')
-        .eq('payment_term_id', paymentData.id);
+        .eq('payment_term_id', payment.id);
 
       // Get available stages
       const { data: stages } = await supabase
@@ -161,31 +165,21 @@ export default function PaymentDetail() {
 
       const paymentTodos = todos || [];
       const incompleteTodos = paymentTodos.filter(todo => todo.status !== 'completed');
-      const toStartOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-      const today = toStartOfDay(new Date());
-      const dueDate = paymentData.due_date ? toStartOfDay(new Date(`${paymentData.due_date}T00:00:00`)) : null;
+      
+      const today = new Date().toISOString().split('T')[0];
+      const isDueDatePassed = payment.due_date && payment.due_date <= today;
 
       let recommendedStage: any = null;
 
-      if (trigger === 'todos') {
-        // Only move to Due when all tasks are completed AND due date has passed
-        if (incompleteTodos.length === 0 && dueDate && dueDate <= today) {
-          recommendedStage = stages.find(stage => stage.name === 'Due');
-        }
-      } else if (trigger === 'dueDate') {
-        if (dueDate) {
-          // If due date moved to future and there are incomplete tasks, set to Pending
-          if (incompleteTodos.length > 0 && dueDate > today) {
-            recommendedStage = stages.find(stage => stage.name === 'Pending' || stage.name === 'Pending Task');
-          } else if (incompleteTodos.length === 0 && dueDate <= today) {
-            // If due date is past and all tasks are done, set to Due
-            recommendedStage = stages.find(stage => stage.name === 'Due');
-          }
-        }
+      // Determine stage based on rules
+      if (incompleteTodos.length === 0 && isDueDatePassed) {
+        recommendedStage = stages.find(stage => stage.name === 'Due');
+      } else {
+        recommendedStage = stages.find(stage => stage.name === 'Pending' || stage.name === 'Pending Task');
       }
 
-      // Update stage if needed
-      if (recommendedStage && recommendedStage.id !== paymentData.stage_id) {
+      // Update stage if needed and different from current
+      if (recommendedStage && recommendedStage.id !== payment.stage_id) {
         const { data: { user } } = await supabase.auth.getUser();
         
         const { error } = await supabase
@@ -194,25 +188,26 @@ export default function PaymentDetail() {
             stage_id: recommendedStage.id,
             updated_at: new Date().toISOString()
           })
-          .eq('id', paymentData.id);
+          .eq('id', payment.id);
 
         if (!error) {
           // Log audit trail
           await supabase.from('contract_audit_logs').insert({
-            contract_id: paymentData.contract_id,
+            contract_id: payment.contract_id,
             tenant_id: currentTenant.id,
             action: 'payment_stage_auto_updated',
             entity_type: 'payment_term',
-            entity_id: paymentData.id,
+            entity_id: payment.id,
             field_name: 'stage_id',
-            old_value: paymentData.stage_id,
+            old_value: payment.stage_id,
             new_value: recommendedStage.id,
             user_id: user?.id,
             user_name: `${user?.user_metadata?.first_name || ''} ${user?.user_metadata?.last_name || ''}`.trim(),
-            notes: trigger === 'todos' 
-              ? 'Payment stage auto-updated after all tasks completed' 
-              : 'Payment stage auto-updated after due date change'
+            notes: 'Payment stage auto-updated based on task completion and due date'
           });
+
+          // Refresh payment data
+          await fetchPaymentData();
         }
       }
     } catch (error) {
@@ -235,6 +230,59 @@ export default function PaymentDetail() {
     return new Date(dateString).toLocaleDateString();
   };
 
+  const registerPayment = async () => {
+    if (!payment || !receivedAmount || !canEdit) return;
+
+    try {
+      setIsRegisteringPayment(true);
+      const amount = parseFloat(receivedAmount);
+      
+      if (amount < payment.calculated_amount) {
+        toast.error('Received amount must be equal or greater than payment amount');
+        return;
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const { error } = await supabase
+        .from('contract_payment_terms')
+        .update({
+          received_amount: amount,
+          received_date: new Date().toISOString().split('T')[0],
+          payment_status: 'paid',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', payment.id);
+
+      if (error) throw error;
+
+      // Log audit trail
+      await supabase.from('contract_audit_logs').insert({
+        contract_id: payment.contract_id,
+        tenant_id: currentTenant?.id,
+        action: 'payment_registered',
+        entity_type: 'payment_term',
+        entity_id: payment.id,
+        field_name: 'payment_status',
+      old_value: (payment as any).payment_status,
+        new_value: 'paid',
+        user_id: user?.id,
+        user_name: `${user?.user_metadata?.first_name || ''} ${user?.user_metadata?.last_name || ''}`.trim(),
+        notes: `Payment registered: ${formatCurrency(amount)} received`
+      });
+
+      toast.success('Payment registered successfully');
+      setReceivedAmount('');
+      setIsRegisteringPayment(false);
+      await fetchPaymentData();
+    } catch (error) {
+      console.error('Error registering payment:', error);
+      toast.error('Failed to register payment');
+    } finally {
+      setIsRegisteringPayment(false);
+    }
+  };
+
   const getStageColor = (stageName?: string) => {
     switch ((stageName || '').toLowerCase()) {
       case 'pending':
@@ -242,6 +290,17 @@ export default function PaymentDetail() {
         return 'outline';
       case 'due':
         return 'default';
+      case 'paid':
+        return 'secondary';
+      default:
+        return 'outline';
+    }
+  };
+
+  const getPaymentStatusColor = (status?: string) => {
+    switch ((status || '').toLowerCase()) {
+      case 'pending':
+        return 'outline';
       case 'paid':
         return 'secondary';
       default:
@@ -323,11 +382,17 @@ export default function PaymentDetail() {
               </p>
             </div>
           </div>
-          {canEdit && (
-            <Button onClick={() => { prevDueDateRef.current = payment?.due_date; setIsEditing(true); }}>
-              <Edit className="h-4 w-4 mr-2" />
-              Edit Payment
-            </Button>
+          {canEdit && ((payment as any)?.payment_status !== 'paid') && (
+            <div className="flex gap-2">
+              <Button onClick={() => setIsEditing(true)}>
+                <Edit className="h-4 w-4 mr-2" />
+                Edit Payment
+              </Button>
+              <Button variant="outline" onClick={() => setIsRegisteringPayment(true)}>
+                <DollarSign className="h-4 w-4 mr-2" />
+                Register Payment
+              </Button>
+            </div>
           )}
         </div>
 
@@ -339,14 +404,19 @@ export default function PaymentDetail() {
                 <DollarSign className="h-5 w-5" />
                 Payment Details
               </CardTitle>
-              <Badge variant={getStageColor(payment.contract_payment_stages?.name)}>
-                {payment.contract_payment_stages?.name || 'No Stage'}
-              </Badge>
+              <div className="flex gap-2">
+                <Badge variant={getStageColor(payment.contract_payment_stages?.name)}>
+                  {payment.contract_payment_stages?.name || 'No Stage'}
+                </Badge>
+                <Badge variant={getPaymentStatusColor((payment as any)?.payment_status)}>
+                  {(payment as any)?.payment_status || 'Pending'}
+                </Badge>
+              </div>
             </div>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <label className="text-sm font-medium text-muted-foreground">Amount</label>
+              <label className="text-sm font-medium text-muted-foreground">Amount Due</label>
               <p className="text-lg font-semibold">
                 {formatCurrency(payment.calculated_amount || payment.amount_value)}
                 <span className="text-sm text-muted-foreground ml-1">
@@ -354,6 +424,19 @@ export default function PaymentDetail() {
                 </span>
               </p>
             </div>
+            {(payment as any)?.received_amount && (payment as any)?.received_amount > 0 && (
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Amount Received</label>
+                <p className="text-lg font-semibold text-green-600">
+                  {formatCurrency((payment as any)?.received_amount || 0)}
+                  {(payment as any)?.received_date && (
+                    <span className="text-sm text-muted-foreground ml-1 block">
+                      on {formatDate((payment as any)?.received_date)}
+                    </span>
+                  )}
+                </p>
+              </div>
+            )}
             <div>
               <label className="text-sm font-medium text-muted-foreground">Due Date</label>
               <p className="flex items-center gap-1">
@@ -399,10 +482,7 @@ export default function PaymentDetail() {
                   compact={false}
                   includeChildren={false}
                   onUpdate={async () => {
-                    if (payment) {
-                      await autoUpdatePaymentStage(payment, 'todos');
-                    }
-                    await fetchPaymentData();
+                    await autoUpdatePaymentStage();
                   }}
                 />
               </CardContent>
@@ -529,14 +609,64 @@ export default function PaymentDetail() {
             contractId={contract.id}
             onSuccess={async () => {
               setIsEditing(false);
-              const latest = await fetchPaymentData();
-              if (latest && prevDueDateRef.current !== latest.due_date) {
-                await autoUpdatePaymentStage(latest, 'dueDate');
-                await fetchPaymentData();
-              }
+              await fetchPaymentData();
+              await autoUpdatePaymentStage();
             }}
             onCancel={() => setIsEditing(false)}
           />
+        )}
+
+        {/* Register Payment Modal */}
+        {isRegisteringPayment && (
+          <Dialog open={true} onOpenChange={() => setIsRegisteringPayment(false)}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Register Payment</DialogTitle>
+              </DialogHeader>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Payment Amount Due</label>
+                  <p className="text-lg font-semibold">
+                    {formatCurrency(payment.calculated_amount || payment.amount_value)}
+                  </p>
+                </div>
+                
+                <div>
+                  <Label htmlFor="received_amount">Amount Received</Label>
+                  <Input
+                    id="received_amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={receivedAmount}
+                    onChange={(e) => setReceivedAmount(e.target.value)}
+                    placeholder="Enter received amount"
+                    required
+                  />
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    setIsRegisteringPayment(false);
+                    setReceivedAmount('');
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={registerPayment} 
+                  disabled={!receivedAmount || isRegisteringPayment}
+                >
+                  {isRegisteringPayment ? 'Registering...' : 'Register Payment'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         )}
       </div>
     </DashboardLayout>
