@@ -47,7 +47,8 @@ export default function InstallmentDetail() {
   const [canEdit, setCanEdit] = useState(false);
   const [paymentNotes, setPaymentNotes] = useState('');
   const [isSavingNotes, setIsSavingNotes] = useState(false);
-  const [isRegisteringPayment, setIsRegisteringPayment] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [isSavingPayment, setIsSavingPayment] = useState(false);
   const [receivedAmount, setReceivedAmount] = useState('');
   useEffect(() => {
     if (paymentId && currentTenant?.id) {
@@ -227,7 +228,7 @@ export default function InstallmentDetail() {
     return new Date(dateString).toLocaleDateString();
   };
 
-  const registerPayment = async () => {
+  const acceptPayment = async () => {
     if (!payment || !receivedAmount || !canEdit) return;
 
     const amount = parseFloat(receivedAmount);
@@ -237,18 +238,14 @@ export default function InstallmentDetail() {
     }
 
     try {
-      setIsRegisteringPayment(true);
+      setIsSavingPayment(true);
       const { data: { user } } = await supabase.auth.getUser();
-      
-      // For now, just update the payment status to partly paid if amount is less than installment
+
       const installmentAmount = payment.calculated_amount || payment.amount_value;
-      const newStatus = amount >= installmentAmount ? 'paid' : 'partly paid';
-      
-      // Update payment term with received amount (cumulative for now)
       const currentReceived = (payment as any)?.received_amount || 0;
       const totalReceived = currentReceived + amount;
       const finalStatus = totalReceived >= installmentAmount ? 'paid' : 'partly paid';
-      
+
       const { error } = await supabase
         .from('contract_payment_terms')
         .update({
@@ -256,12 +253,11 @@ export default function InstallmentDetail() {
           received_date: new Date().toISOString().split('T')[0],
           payment_status: finalStatus,
           updated_at: new Date().toISOString()
-        } as any) // Type cast since these columns exist but aren't in types yet
+        } as any)
         .eq('id', payment.id);
 
       if (error) throw error;
 
-      // Log audit trail
       await supabase.from('contract_audit_logs').insert({
         contract_id: payment.contract_id,
         tenant_id: currentTenant?.id,
@@ -276,14 +272,15 @@ export default function InstallmentDetail() {
         notes: `Payment registered: ${formatCurrency(amount)} received. Total: ${formatCurrency(totalReceived)}`
       });
 
-      toast.success('Payment registered successfully');
+      toast.success('Payment accepted');
       setReceivedAmount('');
-      setIsRegisteringPayment(false);
+      setIsPaymentModalOpen(false);
       await fetchPaymentData();
     } catch (error) {
-      console.error('Error registering payment:', error);
-      toast.error('Failed to register payment');
-      setIsRegisteringPayment(false);
+      console.error('Error accepting payment:', error);
+      toast.error('Failed to accept payment');
+    } finally {
+      setIsSavingPayment(false);
     }
   };
 
@@ -394,9 +391,9 @@ export default function InstallmentDetail() {
                 <Edit className="h-4 w-4 mr-2" />
                 Edit Instalment
               </Button>
-              <Button variant="outline" onClick={() => setIsRegisteringPayment(true)}>
+              <Button variant="outline" onClick={() => setIsPaymentModalOpen(true)}>
                 <DollarSign className="h-4 w-4 mr-2" />
-                Register Payment
+                Accept Payment
               </Button>
             </div>
           )}
@@ -619,12 +616,12 @@ export default function InstallmentDetail() {
           />
         )}
 
-        {/* Register Payment Modal */}
-        {isRegisteringPayment && (
-          <Dialog open={true} onOpenChange={() => setIsRegisteringPayment(false)}>
+        {/* Accept Payment Modal */}
+        {isPaymentModalOpen && (
+          <Dialog open={true} onOpenChange={() => setIsPaymentModalOpen(false)}>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Register Payment</DialogTitle>
+                <DialogTitle>Accept Payment</DialogTitle>
               </DialogHeader>
               
               <div className="space-y-4">
@@ -655,17 +652,17 @@ export default function InstallmentDetail() {
                   type="button" 
                   variant="outline" 
                   onClick={() => {
-                    setIsRegisteringPayment(false);
+                    setIsPaymentModalOpen(false);
                     setReceivedAmount('');
                   }}
                 >
                   Cancel
                 </Button>
                 <Button 
-                  onClick={registerPayment} 
-                  disabled={!receivedAmount || isRegisteringPayment}
+                  onClick={acceptPayment} 
+                  disabled={!receivedAmount || isSavingPayment}
                 >
-                  {isRegisteringPayment ? 'Adding Payment...' : 'Add Payment'}
+                  {isSavingPayment ? 'Accepting...' : 'Accept Payment'}
                 </Button>
               </DialogFooter>
             </DialogContent>
