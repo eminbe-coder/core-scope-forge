@@ -157,7 +157,7 @@ const ContractDetail = () => {
               {contract.status}
             </Badge>
             {canEdit && (
-              <Button variant="outline" onClick={() => navigate(`/contracts/${contract.id}/edit`)}>
+              <Button variant="outline" onClick={() => toast.info('Edit contract is coming soon') }>
                 <Edit className="h-4 w-4 mr-2" />
                 Edit Contract
               </Button>
@@ -197,17 +197,11 @@ const ContractDetail = () => {
             </Card>
 
             {/* To-Do Tasks */}
-            <Card className="bg-card border-border">
+            <Card className="bg-card border-border" id="contract-todos-section">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-sm">
                   <FileText className="h-4 w-4" />
                   To-Do Tasks
-                  {canEdit && (
-                    <Button size="sm" variant="outline" className="ml-auto h-6 px-2">
-                      <Plus className="h-3 w-3 mr-1" />
-                      Add Task
-                    </Button>
-                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -312,11 +306,11 @@ const ContractDetail = () => {
                   </div>
                   {canEdit && (
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => navigate(`/contracts/${contract.id}/payment-terms/edit`)}>
+                      <Button variant="outline" size="sm" onClick={() => toast.info('Edit payment terms is coming soon')}>
                         <Edit className="h-4 w-4 mr-2" />
                         Edit Terms
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => navigate(`/contracts/${contract.id}/payment-terms/add`)}>
+                      <Button variant="outline" size="sm" onClick={() => toast.info('Add installment is coming soon')}>
                         <Plus className="h-4 w-4 mr-2" />
                         Add Installment
                       </Button>

@@ -114,6 +114,14 @@ export const ContractPaymentTerms = ({ contractId, canEdit, onUpdate }: Contract
 
       if (error) throw error;
 
+      // Optimistic local update
+      const selectedStage = paymentStages.find((s) => s.id === newStageId);
+      setPaymentTerms((prev) => prev.map((pt) =>
+        pt.id === paymentTermId
+          ? { ...pt, stage_id: newStageId, contract_payment_stages: selectedStage ? { name: selectedStage.name, sort_order: selectedStage.sort_order } : pt.contract_payment_stages }
+          : pt
+      ));
+
       // Log audit trail
       await supabase.from('contract_audit_logs').insert({
         contract_id: contractId,
@@ -137,7 +145,6 @@ export const ContractPaymentTerms = ({ contractId, canEdit, onUpdate }: Contract
       toast.error('Failed to update payment stage');
     }
   };
-
   const updatePaymentDueDate = async (paymentTermId: string, newDueDate: string) => {
     if (!canUserEdit || !canEdit) return;
 
@@ -152,6 +159,11 @@ export const ContractPaymentTerms = ({ contractId, canEdit, onUpdate }: Contract
         .eq('id', paymentTermId);
 
       if (error) throw error;
+
+      // Optimistic local update
+      setPaymentTerms((prev) => prev.map((pt) =>
+        pt.id === paymentTermId ? { ...pt, due_date: newDueDate } : pt
+      ));
 
       // Log audit trail
       await supabase.from('contract_audit_logs').insert({
@@ -176,7 +188,6 @@ export const ContractPaymentTerms = ({ contractId, canEdit, onUpdate }: Contract
       toast.error('Failed to update due date');
     }
   };
-
   const formatCurrency = (amount: number) => {
     return `$${amount.toLocaleString()}`;
   };
@@ -187,14 +198,18 @@ export const ContractPaymentTerms = ({ contractId, canEdit, onUpdate }: Contract
   };
 
   const getStageColor = (stageName?: string) => {
-    switch (stageName?.toLowerCase()) {
-      case 'pending task': return 'outline';
-      case 'due': return 'default';
-      case 'paid': return 'secondary';
-      default: return 'outline';
+    switch ((stageName || '').toLowerCase()) {
+      case 'pending':
+      case 'pending task':
+        return 'outline';
+      case 'due':
+        return 'default';
+      case 'paid':
+        return 'secondary';
+      default:
+        return 'outline';
     }
   };
-
   const getPaymentProgress = (paymentTermId: string) => {
     const paymentTodos = todos.filter(todo => todo.payment_term_id === paymentTermId);
     if (paymentTodos.length === 0) return 100; // No todos means ready for due
@@ -324,9 +339,21 @@ export const ContractPaymentTerms = ({ contractId, canEdit, onUpdate }: Contract
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground mb-2 block">
-                      To-Do Items ({paymentTodos.length})
-                    </label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm font-medium text-muted-foreground">
+                        To-Do Items ({paymentTodos.length})
+                      </label>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2"
+                        onClick={() => {
+                          document.getElementById('contract-todos-section')?.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                      >
+                        View & Add
+                      </Button>
+                    </div>
                     <div className="space-y-1">
                       {paymentTodos.length === 0 ? (
                         <p className="text-xs text-muted-foreground">No to-do items</p>
