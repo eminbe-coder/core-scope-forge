@@ -24,6 +24,10 @@ interface Lead {
   headquarters?: string;
   description?: string;
   notes?: string;
+  stage_id?: string;
+  quality_id?: string;
+  stage_name?: string;
+  quality_name?: string;
   created_at: string;
   updated_at: string;
 }
@@ -41,13 +45,29 @@ const LeadDetail = () => {
 
     setLoading(true);
     try {
-      let query;
+      // Fetch stages and qualities maps
+      const [stagesResult, qualitiesResult] = await Promise.all([
+        supabase
+          .from('lead_stages')
+          .select('id, name')
+          .eq('tenant_id', currentTenant.id)
+          .eq('active', true),
+        supabase
+          .from('lead_quality')
+          .select('id, name')
+          .eq('tenant_id', currentTenant.id)
+          .eq('active', true)
+      ]);
+
+      const stagesMap = new Map(stagesResult.data?.map(s => [s.id, s.name]) || []);
+      const qualitiesMap = new Map(qualitiesResult.data?.map(q => [q.id, q.name]) || []);
+
       let leadData: any = null;
 
       if (type === 'contact') {
         const { data, error } = await supabase
           .from('contacts')
-          .select('id, first_name, last_name, email, phone, position, address, notes, created_at, updated_at')
+          .select('id, first_name, last_name, email, phone, position, address, notes, stage_id, quality_id, created_at, updated_at')
           .eq('id', id)
           .eq('is_lead', true)
           .eq('active', true)
@@ -67,6 +87,10 @@ const LeadDetail = () => {
             notes: data.notes,
             first_name: data.first_name,
             last_name: data.last_name,
+            stage_id: data.stage_id,
+            quality_id: data.quality_id,
+            stage_name: data.stage_id ? stagesMap.get(data.stage_id) : undefined,
+            quality_name: data.quality_id ? qualitiesMap.get(data.quality_id) : undefined,
             created_at: data.created_at,
             updated_at: data.updated_at,
           };
@@ -74,7 +98,7 @@ const LeadDetail = () => {
       } else if (type === 'company') {
         const { data, error } = await supabase
           .from('companies')
-          .select('id, name, email, phone, website, headquarters, industry, size, description, notes, created_at, updated_at')
+          .select('id, name, email, phone, website, headquarters, industry, size, description, notes, stage_id, quality_id, created_at, updated_at')
           .eq('id', id)
           .eq('is_lead', true)
           .eq('active', true)
@@ -96,6 +120,10 @@ const LeadDetail = () => {
             size: data.size,
             description: data.description,
             notes: data.notes,
+            stage_id: data.stage_id,
+            quality_id: data.quality_id,
+            stage_name: data.stage_id ? stagesMap.get(data.stage_id) : undefined,
+            quality_name: data.quality_id ? qualitiesMap.get(data.quality_id) : undefined,
             created_at: data.created_at,
             updated_at: data.updated_at,
           };
@@ -103,7 +131,7 @@ const LeadDetail = () => {
       } else if (type === 'site') {
         const { data, error } = await supabase
           .from('sites')
-          .select('id, name, address, city, state, country, notes, created_at, updated_at')
+          .select('id, name, address, city, state, country, notes, stage_id, quality_id, created_at, updated_at')
           .eq('id', id)
           .eq('is_lead', true)
           .eq('active', true)
@@ -122,6 +150,10 @@ const LeadDetail = () => {
             type: 'site' as const,
             address: fullAddress,
             notes: data.notes,
+            stage_id: data.stage_id,
+            quality_id: data.quality_id,
+            stage_name: data.stage_id ? stagesMap.get(data.stage_id) : undefined,
+            quality_name: data.quality_id ? qualitiesMap.get(data.quality_id) : undefined,
             created_at: data.created_at,
             updated_at: data.updated_at,
           };

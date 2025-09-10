@@ -28,6 +28,8 @@ interface Lead {
   industry?: string;
   first_name?: string;
   last_name?: string;
+  stage_name?: string;
+  quality_name?: string;
 }
 
 const Leads = () => {
@@ -52,6 +54,23 @@ const Leads = () => {
       setLoading(true);
       const allLeads: Lead[] = [];
 
+      // Fetch all stages and qualities first
+      const [stagesResult, qualitiesResult] = await Promise.all([
+        supabase
+          .from('lead_stages')
+          .select('id, name')
+          .eq('tenant_id', currentTenant.id)
+          .eq('active', true),
+        supabase
+          .from('lead_quality')
+          .select('id, name')
+          .eq('tenant_id', currentTenant.id)
+          .eq('active', true)
+      ]);
+
+      const stagesMap = new Map(stagesResult.data?.map(s => [s.id, s.name]) || []);
+      const qualitiesMap = new Map(qualitiesResult.data?.map(q => [q.id, q.name]) || []);
+
       // Fetch contact leads
       const { data: contactLeads, error: contactError } = await supabase
         .from('contacts')
@@ -63,6 +82,8 @@ const Leads = () => {
           phone, 
           position, 
           address,
+          stage_id,
+          quality_id,
           created_at,
           customers(name)
         `)
@@ -84,6 +105,8 @@ const Leads = () => {
           customer_name: contact.customers?.name,
           first_name: contact.first_name,
           last_name: contact.last_name || undefined,
+          stage_name: contact.stage_id ? stagesMap.get(contact.stage_id) : undefined,
+          quality_name: contact.quality_id ? qualitiesMap.get(contact.quality_id) : undefined,
           created_at: contact.created_at,
         });
       });
@@ -91,7 +114,10 @@ const Leads = () => {
       // Fetch company leads
       const { data: companyLeads, error: companyError } = await supabase
         .from('companies')
-        .select('id, name, email, phone, website, headquarters, industry, created_at')
+        .select(`
+          id, name, email, phone, website, headquarters, industry, 
+          stage_id, quality_id, created_at
+        `)
         .eq('tenant_id', currentTenant.id)
         .eq('is_lead', true)
         .eq('active', true);
@@ -108,6 +134,8 @@ const Leads = () => {
           website: company.website || undefined,
           address: company.headquarters || undefined,
           industry: company.industry || undefined,
+          stage_name: company.stage_id ? stagesMap.get(company.stage_id) : undefined,
+          quality_name: company.quality_id ? qualitiesMap.get(company.quality_id) : undefined,
           created_at: company.created_at,
         });
       });
@@ -122,6 +150,8 @@ const Leads = () => {
           city, 
           state, 
           country,
+          stage_id,
+          quality_id,
           created_at,
           customers(name)
         `)
@@ -142,6 +172,8 @@ const Leads = () => {
           type: 'site' as const,
           address: fullAddress,
           customer_name: site.customers?.name,
+          stage_name: site.stage_id ? stagesMap.get(site.stage_id) : undefined,
+          quality_name: site.quality_id ? qualitiesMap.get(site.quality_id) : undefined,
           created_at: site.created_at,
         });
       });
@@ -368,6 +400,22 @@ const Leads = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-2">
+                            {lead.stage_name && (
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-xs">
+                                  Stage: {lead.stage_name}
+                                </Badge>
+                              </div>
+                            )}
+                            
+                            {lead.quality_name && (
+                              <div className="flex items-center gap-2">
+                                <Badge variant="secondary" className="text-xs">
+                                  Quality: {lead.quality_name}
+                                </Badge>
+                              </div>
+                            )}
+
                             {lead.position && (
                               <p className="text-sm font-medium text-muted-foreground">
                                 {lead.position}

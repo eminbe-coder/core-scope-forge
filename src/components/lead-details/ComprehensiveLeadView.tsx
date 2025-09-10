@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   User, 
@@ -47,6 +47,10 @@ interface Lead {
   headquarters?: string;
   description?: string;
   notes?: string;
+  stage_id?: string;
+  quality_id?: string;
+  stage_name?: string;
+  quality_name?: string;
   created_at: string;
   updated_at: string;
 }
@@ -64,10 +68,46 @@ export const ComprehensiveLeadView = ({ lead, onUpdate }: ComprehensiveLeadViewP
   const [editMode, setEditMode] = useState(false);
   const [editedLead, setEditedLead] = useState<Lead>(lead);
   const [saving, setSaving] = useState(false);
+  const [leadStages, setLeadStages] = useState<Array<{ id: string; name: string }>>([]);
+  const [leadQualities, setLeadQualities] = useState<Array<{ id: string; name: string }>>([]);
 
   useEffect(() => {
     setEditedLead(lead);
   }, [lead]);
+
+  // Load lead stages and qualities
+  useEffect(() => {
+    const loadLeadData = async () => {
+      if (!currentTenant) return;
+      
+      try {
+        const [stagesResult, qualitiesResult] = await Promise.all([
+          supabase
+            .from('lead_stages')
+            .select('id, name')
+            .eq('tenant_id', currentTenant.id)
+            .eq('active', true)
+            .order('sort_order'),
+          supabase
+            .from('lead_quality')
+            .select('id, name')
+            .eq('tenant_id', currentTenant.id)
+            .eq('active', true)
+            .order('sort_order')
+        ]);
+
+        if (stagesResult.error) throw stagesResult.error;
+        if (qualitiesResult.error) throw qualitiesResult.error;
+
+        setLeadStages(stagesResult.data || []);
+        setLeadQualities(qualitiesResult.data || []);
+      } catch (error) {
+        console.error('Error loading lead data:', error);
+      }
+    };
+
+    loadLeadData();
+  }, [currentTenant]);
 
   const getLeadIcon = (type: string) => {
     switch (type) {
@@ -104,6 +144,8 @@ export const ComprehensiveLeadView = ({ lead, onUpdate }: ComprehensiveLeadViewP
           position: editedLead.position,
           address: editedLead.address,
           notes: editedLead.notes,
+          stage_id: editedLead.stage_id || null,
+          quality_id: editedLead.quality_id || null,
         };
       } else if (lead.type === 'company') {
         updateData = {
@@ -116,12 +158,16 @@ export const ComprehensiveLeadView = ({ lead, onUpdate }: ComprehensiveLeadViewP
           headquarters: editedLead.headquarters,
           description: editedLead.description,
           notes: editedLead.notes,
+          stage_id: editedLead.stage_id || null,
+          quality_id: editedLead.quality_id || null,
         };
       } else if (lead.type === 'site') {
         updateData = {
           name: editedLead.name,
           address: editedLead.address,
           notes: editedLead.notes,
+          stage_id: editedLead.stage_id || null,
+          quality_id: editedLead.quality_id || null,
         };
       }
 
@@ -403,6 +449,49 @@ export const ComprehensiveLeadView = ({ lead, onUpdate }: ComprehensiveLeadViewP
                 )}
               </div>
             )}
+
+            {/* Quality and Stage Section */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label>Lead Stage</Label>
+                {editMode ? (
+                  <Select value={editedLead.stage_id || ''} onValueChange={(value) => setEditedLead({ ...editedLead, stage_id: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select lead stage" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {leadStages.map((stage) => (
+                        <SelectItem key={stage.id} value={stage.id}>
+                          {stage.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <p className="text-muted-foreground">{lead.stage_name || 'Not set'}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Lead Quality</Label>
+                {editMode ? (
+                  <Select value={editedLead.quality_id || ''} onValueChange={(value) => setEditedLead({ ...editedLead, quality_id: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select lead quality" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {leadQualities.map((quality) => (
+                        <SelectItem key={quality.id} value={quality.id}>
+                          {quality.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <p className="text-muted-foreground">{lead.quality_name || 'Not set'}</p>
+                )}
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
