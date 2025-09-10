@@ -279,7 +279,6 @@ export default function PaymentDetail() {
     } catch (error) {
       console.error('Error registering payment:', error);
       toast.error('Failed to register payment');
-    } finally {
       setIsRegisteringPayment(false);
     }
   };
