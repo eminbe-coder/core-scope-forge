@@ -392,7 +392,7 @@ export default function InstallmentDetail() {
             <div className="flex gap-2">
               <Button onClick={() => setIsEditing(true)}>
                 <Edit className="h-4 w-4 mr-2" />
-                Edit Payment
+                Edit Instalment
               </Button>
               <Button variant="outline" onClick={() => setIsRegisteringPayment(true)}>
                 <DollarSign className="h-4 w-4 mr-2" />
