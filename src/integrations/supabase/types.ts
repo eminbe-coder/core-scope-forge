@@ -1156,6 +1156,7 @@ export type Database = {
           id: string
           name: string
           notes: string | null
+          sign_date: string | null
           signed_date: string | null
           site_id: string | null
           start_date: string | null
@@ -1176,6 +1177,7 @@ export type Database = {
           id?: string
           name: string
           notes?: string | null
+          sign_date?: string | null
           signed_date?: string | null
           site_id?: string | null
           start_date?: string | null
@@ -1196,6 +1198,7 @@ export type Database = {
           id?: string
           name?: string
           notes?: string | null
+          sign_date?: string | null
           signed_date?: string | null
           site_id?: string | null
           start_date?: string | null

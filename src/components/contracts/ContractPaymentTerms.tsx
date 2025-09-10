@@ -138,6 +138,45 @@ export const ContractPaymentTerms = ({ contractId, canEdit, onUpdate }: Contract
     }
   };
 
+  const updatePaymentDueDate = async (paymentTermId: string, newDueDate: string) => {
+    if (!canUserEdit || !canEdit) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const oldPaymentTerm = paymentTerms.find(pt => pt.id === paymentTermId);
+      
+      const { error } = await supabase
+        .from('contract_payment_terms')
+        .update({ due_date: newDueDate })
+        .eq('id', paymentTermId);
+
+      if (error) throw error;
+
+      // Log audit trail
+      await supabase.from('contract_audit_logs').insert({
+        contract_id: contractId,
+        tenant_id: currentTenant?.id,
+        action: 'payment_due_date_changed',
+        entity_type: 'payment_term',
+        entity_id: paymentTermId,
+        field_name: 'due_date',
+        old_value: oldPaymentTerm?.due_date,
+        new_value: newDueDate,
+        user_id: user?.id,
+        user_name: `${user?.user_metadata?.first_name || ''} ${user?.user_metadata?.last_name || ''}`.trim(),
+        notes: 'Payment due date manually updated',
+      });
+
+      toast.success('Due date updated successfully');
+      fetchData();
+      onUpdate();
+    } catch (error) {
+      console.error('Error updating due date:', error);
+      toast.error('Failed to update due date');
+    }
+  };
+
   const formatCurrency = (amount: number) => {
     return `$${amount.toLocaleString()}`;
   };
@@ -248,10 +287,22 @@ export const ContractPaymentTerms = ({ contractId, canEdit, onUpdate }: Contract
                   </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Due Date</label>
-                    <p className="flex items-center gap-1">
-                      <Calendar className="h-4 w-4" />
-                      {formatDate(paymentTerm.due_date)}
-                    </p>
+                    {canUserEdit && canEdit ? (
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        <input
+                          type="date"
+                          value={paymentTerm.due_date || ''}
+                          onChange={(e) => updatePaymentDueDate(paymentTerm.id, e.target.value)}
+                          className="text-sm border rounded px-2 py-1"
+                        />
+                      </div>
+                    ) : (
+                      <p className="flex items-center gap-1">
+                        <Calendar className="h-4 w-4" />
+                        {formatDate(paymentTerm.due_date)}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Progress</label>

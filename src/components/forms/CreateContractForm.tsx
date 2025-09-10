@@ -23,6 +23,7 @@ const contractSchema = z.object({
   customer_id: z.string().optional(),
   site_id: z.string().optional(),
   signed_date: z.string().optional(),
+  sign_date: z.string().optional(),
   start_date: z.string().optional(),
   end_date: z.string().optional(),
   customer_reference_number: z.string().optional(),
@@ -197,6 +198,15 @@ export const CreateContractForm = ({ deal, onSuccess }: CreateContractFormProps)
 
     setLoading(true);
     try {
+      // Get payment stages for this tenant
+      const { data: stages } = await supabase
+        .from('contract_payment_stages')
+        .select('*')
+        .eq('tenant_id', currentTenant.id);
+
+      const dueStage = stages?.find(s => s.name === 'Due');
+      const paidStage = stages?.find(s => s.name === 'Paid');
+
       // Create contract
       const { data: contract, error: contractError } = await supabase
         .from('contracts')
@@ -215,18 +225,41 @@ export const CreateContractForm = ({ deal, onSuccess }: CreateContractFormProps)
           assigned_to: values.assigned_to || null,
           customer_reference_number: values.customer_reference_number || null,
           notes: values.notes || null,
+          sign_date: values.sign_date || new Date().toISOString().split('T')[0],
         })
         .select()
         .single();
 
       if (contractError) throw contractError;
 
+      let finalPaymentTerms = paymentTerms;
+
+      // If creating from a deal, fetch and migrate deal payment terms
+      if (deal?.id) {
+        const { data: dealPaymentTerms } = await supabase
+          .from('deal_payment_terms')
+          .select('*')
+          .eq('deal_id', deal.id)
+          .order('installment_number');
+
+        if (dealPaymentTerms && dealPaymentTerms.length > 0) {
+          finalPaymentTerms = dealPaymentTerms.map(term => ({
+            installment_number: term.installment_number,
+            amount_type: term.amount_type,
+            amount_value: term.amount_value,
+            due_date: term.due_date,
+            notes: term.notes,
+            stage_id: null,
+          }));
+        }
+      }
+
       // Create payment terms
-      if (paymentTerms.length > 0) {
+      if (finalPaymentTerms.length > 0) {
         const { error: paymentTermsError } = await supabase
           .from('contract_payment_terms')
           .insert(
-            paymentTerms.map(term => ({
+            finalPaymentTerms.map((term, index) => ({
               contract_id: contract.id,
               tenant_id: currentTenant.id,
               installment_number: term.installment_number,
@@ -236,7 +269,7 @@ export const CreateContractForm = ({ deal, onSuccess }: CreateContractFormProps)
                 ? (values.value * term.amount_value) / 100 
                 : term.amount_value,
               due_date: term.due_date || null,
-              stage_id: term.stage_id || null,
+              stage_id: index === 0 ? paidStage?.id : dueStage?.id, // First payment as Paid, others as Due
               notes: term.notes || null,
             }))
           );
@@ -386,7 +419,7 @@ export const CreateContractForm = ({ deal, onSuccess }: CreateContractFormProps)
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <FormField
                 control={form.control}
                 name="signed_date"
@@ -395,6 +428,24 @@ export const CreateContractForm = ({ deal, onSuccess }: CreateContractFormProps)
                     <FormLabel>Signed Date</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="sign_date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contact Sign Date</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="date" 
+                        {...field} 
+                        defaultValue={new Date().toISOString().split('T')[0]}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
