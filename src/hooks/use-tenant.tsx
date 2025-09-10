@@ -8,11 +8,14 @@ interface Tenant {
   slug: string;
   domain: string | null;
   active: boolean;
+  country?: string;
   company_location?: string;
   cr_number?: string;
   tax_number?: string;
   contact_email?: string;
   contact_phone?: string;
+  contact_phone_country_code?: string;
+  contact_phone_number?: string;
   default_currency_id?: string;
   settings: any;
   created_at?: string;

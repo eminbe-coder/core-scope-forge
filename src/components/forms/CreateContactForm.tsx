@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EntitySourceSelect } from '@/components/ui/entity-source-select';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,7 +20,8 @@ const contactSchema = z.object({
   first_name: z.string().min(1, 'First name is required'),
   last_name: z.string().optional(),
   email: z.string().email('Invalid email').optional().or(z.literal('')),
-  phone: z.string().optional(),
+  country_code: z.string().optional(),
+  phone_number: z.string().optional(),
   position: z.string().optional(),
   address: z.string().optional(),
   notes: z.string().optional(),
@@ -66,7 +68,8 @@ export const CreateContactForm = ({ isLead = false, onSuccess }: CreateContactFo
       first_name: '',
       last_name: '',
       email: '',
-      phone: '',
+      country_code: '',
+      phone_number: '',
       position: '',
       address: '',
       notes: '',
@@ -249,12 +252,22 @@ export const CreateContactForm = ({ isLead = false, onSuccess }: CreateContactFo
 
               <FormField
                 control={form.control}
-                name="phone"
+                name="country_code"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Phone</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <PhoneInput
+                        value={{
+                          countryCode: field.value || '',
+                          phoneNumber: form.watch('phone_number') || ''
+                        }}
+                        onChange={(phoneData) => {
+                          form.setValue('country_code', phoneData.countryCode);
+                          form.setValue('phone_number', phoneData.phoneNumber);
+                        }}
+                        placeholder="Enter phone number"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

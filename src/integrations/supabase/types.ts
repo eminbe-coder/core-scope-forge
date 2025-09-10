@@ -179,9 +179,11 @@ export type Database = {
           address: string
           city: string
           country: string
+          country_code: string | null
           created_at: string
           id: string
           name: string
+          phone_number: string | null
           telephone: string
           tenant_id: string
           updated_at: string
@@ -191,9 +193,11 @@ export type Database = {
           address: string
           city: string
           country: string
+          country_code?: string | null
           created_at?: string
           id?: string
           name: string
+          phone_number?: string | null
           telephone: string
           tenant_id: string
           updated_at?: string
@@ -203,9 +207,11 @@ export type Database = {
           address?: string
           city?: string
           country?: string
+          country_code?: string | null
           created_at?: string
           id?: string
           name?: string
+          phone_number?: string | null
           telephone?: string
           tenant_id?: string
           updated_at?: string
@@ -351,6 +357,7 @@ export type Database = {
       companies: {
         Row: {
           active: boolean
+          country_code: string | null
           created_at: string
           description: string | null
           email: string | null
@@ -365,6 +372,7 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
+          phone_number: string | null
           quality_id: string | null
           size: string | null
           source_company_id: string | null
@@ -378,6 +386,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          country_code?: string | null
           created_at?: string
           description?: string | null
           email?: string | null
@@ -392,6 +401,7 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
+          phone_number?: string | null
           quality_id?: string | null
           size?: string | null
           source_company_id?: string | null
@@ -405,6 +415,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          country_code?: string | null
           created_at?: string
           description?: string | null
           email?: string | null
@@ -419,6 +430,7 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
+          phone_number?: string | null
           quality_id?: string | null
           size?: string | null
           source_company_id?: string | null
@@ -735,6 +747,7 @@ export type Database = {
         Row: {
           active: boolean
           address: string | null
+          country_code: string | null
           created_at: string
           customer_id: string | null
           email: string | null
@@ -745,6 +758,7 @@ export type Database = {
           last_name: string | null
           notes: string | null
           phone: string | null
+          phone_number: string | null
           position: string | null
           quality_id: string | null
           source_company_id: string | null
@@ -758,6 +772,7 @@ export type Database = {
         Insert: {
           active?: boolean
           address?: string | null
+          country_code?: string | null
           created_at?: string
           customer_id?: string | null
           email?: string | null
@@ -768,6 +783,7 @@ export type Database = {
           last_name?: string | null
           notes?: string | null
           phone?: string | null
+          phone_number?: string | null
           position?: string | null
           quality_id?: string | null
           source_company_id?: string | null
@@ -781,6 +797,7 @@ export type Database = {
         Update: {
           active?: boolean
           address?: string | null
+          country_code?: string | null
           created_at?: string
           customer_id?: string | null
           email?: string | null
@@ -791,6 +808,7 @@ export type Database = {
           last_name?: string | null
           notes?: string | null
           phone?: string | null
+          phone_number?: string | null
           position?: string | null
           quality_id?: string | null
           source_company_id?: string | null
@@ -2710,6 +2728,7 @@ export type Database = {
           company_id: string | null
           contact_id: string | null
           country: string
+          country_code: string | null
           created_at: string
           customer_id: string | null
           high_value: boolean
@@ -2720,6 +2739,7 @@ export type Database = {
           longitude: number | null
           name: string
           notes: string | null
+          phone_number: string | null
           postal_code: string | null
           quality_id: string | null
           stage_id: string | null
@@ -2734,6 +2754,7 @@ export type Database = {
           company_id?: string | null
           contact_id?: string | null
           country: string
+          country_code?: string | null
           created_at?: string
           customer_id?: string | null
           high_value?: boolean
@@ -2744,6 +2765,7 @@ export type Database = {
           longitude?: number | null
           name: string
           notes?: string | null
+          phone_number?: string | null
           postal_code?: string | null
           quality_id?: string | null
           stage_id?: string | null
@@ -2758,6 +2780,7 @@ export type Database = {
           company_id?: string | null
           contact_id?: string | null
           country?: string
+          country_code?: string | null
           created_at?: string
           customer_id?: string | null
           high_value?: boolean
@@ -2768,6 +2791,7 @@ export type Database = {
           longitude?: number | null
           name?: string
           notes?: string | null
+          phone_number?: string | null
           postal_code?: string | null
           quality_id?: string | null
           stage_id?: string | null
@@ -3037,6 +3061,9 @@ export type Database = {
           company_location: string | null
           contact_email: string | null
           contact_phone: string | null
+          contact_phone_country_code: string | null
+          contact_phone_number: string | null
+          country: string | null
           cr_number: string | null
           created_at: string
           default_currency_id: string | null
@@ -3054,6 +3081,9 @@ export type Database = {
           company_location?: string | null
           contact_email?: string | null
           contact_phone?: string | null
+          contact_phone_country_code?: string | null
+          contact_phone_number?: string | null
+          country?: string | null
           cr_number?: string | null
           created_at?: string
           default_currency_id?: string | null
@@ -3071,6 +3101,9 @@ export type Database = {
           company_location?: string | null
           contact_email?: string | null
           contact_phone?: string | null
+          contact_phone_country_code?: string | null
+          contact_phone_number?: string | null
+          country?: string | null
           cr_number?: string | null
           created_at?: string
           default_currency_id?: string | null

@@ -47,6 +47,76 @@ export const countryCodes: CountryCode[] = [
   { code: '+62', country: 'Indonesia', flag: '🇮🇩' },
 ];
 
+// Country name to phone code mapping
+export const countryToPhoneCode: Record<string, string> = {
+  'United States': '+1',
+  'Canada': '+1', 
+  'USA': '+1',
+  'US': '+1',
+  'United Kingdom': '+44',
+  'UK': '+44',
+  'Britain': '+44',
+  'France': '+33',
+  'Germany': '+49',
+  'Italy': '+39',
+  'Spain': '+34',
+  'Netherlands': '+31',
+  'Belgium': '+32',
+  'Switzerland': '+41',
+  'Austria': '+43',
+  'Denmark': '+45',
+  'Sweden': '+46',
+  'Norway': '+47',
+  'Finland': '+358',
+  'Portugal': '+351',
+  'Greece': '+30',
+  'Poland': '+48',
+  'Czech Republic': '+420',
+  'Hungary': '+36',
+  'Romania': '+40',
+  'China': '+86',
+  'Japan': '+81',
+  'South Korea': '+82',
+  'Korea': '+82',
+  'India': '+91',
+  'Australia': '+61',
+  'New Zealand': '+64',
+  'Brazil': '+55',
+  'Mexico': '+52',
+  'Argentina': '+54',
+  'Chile': '+56',
+  'South Africa': '+27',
+  'Egypt': '+20',
+  'UAE': '+971',
+  'United Arab Emirates': '+971',
+  'Saudi Arabia': '+966',
+  'KSA': '+966',
+  'Singapore': '+65',
+  'Malaysia': '+60',
+  'Thailand': '+66',
+  'Vietnam': '+84',
+  'Philippines': '+63',
+  'Indonesia': '+62',
+};
+
 export const getDefaultCountryCode = (): string => {
   return '+1'; // Default to US/Canada
+};
+
+export const getCountryCodeForCountry = (country: string): string => {
+  if (!country) return getDefaultCountryCode();
+  
+  // Try exact match first
+  const exactMatch = countryToPhoneCode[country];
+  if (exactMatch) return exactMatch;
+  
+  // Try case-insensitive partial match
+  const lowerCountry = country.toLowerCase();
+  for (const [countryName, code] of Object.entries(countryToPhoneCode)) {
+    if (countryName.toLowerCase().includes(lowerCountry) || lowerCountry.includes(countryName.toLowerCase())) {
+      return code;
+    }
+  }
+  
+  return getDefaultCountryCode();
 };

@@ -6,18 +6,22 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { countryCodes } from '@/lib/country-codes';
 
 const tenantSchema = z.object({
   name: z.string().min(1, 'Company name is required'),
   slug: z.string().min(1, 'Slug is required').regex(/^[a-z0-9-]+$/, 'Slug can only contain lowercase letters, numbers and hyphens'),
   domain: z.string().optional(),
+  country: z.string().optional(),
   company_location: z.string().optional(),
   cr_number: z.string().optional(),
   tax_number: z.string().optional(),
   contact_email: z.string().email().optional().or(z.literal('')),
-  contact_phone: z.string().optional(),
+  contact_phone_country_code: z.string().optional(),
+  contact_phone_number: z.string().optional(),
   default_currency_id: z.string().optional(),
 });
 
@@ -28,11 +32,14 @@ interface TenantData {
   name: string;
   slug: string;
   domain: string | null;
+  country?: string;
   company_location?: string;
   cr_number?: string;
   tax_number?: string;
   contact_email?: string;
   contact_phone?: string;
+  contact_phone_country_code?: string;
+  contact_phone_number?: string;
   default_currency_id?: string;
 }
 
@@ -54,11 +61,13 @@ export function TenantForm({ tenant, onSuccess, onCancel }: TenantFormProps) {
       name: tenant?.name || '',
       slug: tenant?.slug || '',
       domain: tenant?.domain || '',
+      country: tenant?.country || '',
       company_location: tenant?.company_location || '',
       cr_number: tenant?.cr_number || '',
       tax_number: tenant?.tax_number || '',
       contact_email: tenant?.contact_email || '',
-      contact_phone: tenant?.contact_phone || '',
+      contact_phone_country_code: tenant?.contact_phone_country_code || '',
+      contact_phone_number: tenant?.contact_phone_number || '',
       default_currency_id: tenant?.default_currency_id || '',
     },
   });
@@ -79,11 +88,13 @@ export function TenantForm({ tenant, onSuccess, onCancel }: TenantFormProps) {
         name: data.name,
         slug: data.slug,
         domain: data.domain || null,
+        country: data.country || null,
         company_location: data.company_location || null,
         cr_number: data.cr_number || null,
         tax_number: data.tax_number || null,
         contact_email: data.contact_email || null,
-        contact_phone: data.contact_phone || null,
+        contact_phone_country_code: data.contact_phone_country_code || null,
+        contact_phone_number: data.contact_phone_number || null,
         default_currency_id: data.default_currency_id || null,
       };
 
@@ -188,12 +199,40 @@ export function TenantForm({ tenant, onSuccess, onCancel }: TenantFormProps) {
 
         <FormField
           control={form.control}
+          name="country"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Country</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select country" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent className="max-h-[200px]">
+                  {countryCodes.map((country) => (
+                    <SelectItem key={country.country} value={country.country}>
+                      <span className="flex items-center gap-2">
+                        <span>{country.flag}</span>
+                        <span>{country.country}</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
           name="company_location"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Company Location</FormLabel>
+              <FormLabel>Company Location (Head Office)</FormLabel>
               <FormControl>
-                <Input {...field} placeholder="City, Country" />
+                <Input {...field} placeholder="City, State/Province" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -247,12 +286,22 @@ export function TenantForm({ tenant, onSuccess, onCancel }: TenantFormProps) {
 
           <FormField
             control={form.control}
-            name="contact_phone"
+            name="contact_phone_country_code"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Contact Phone</FormLabel>
                 <FormControl>
-                  <Input {...field} placeholder="+1 (555) 123-4567" />
+                  <PhoneInput
+                    value={{
+                      countryCode: field.value || '',
+                      phoneNumber: form.watch('contact_phone_number') || ''
+                    }}
+                    onChange={(phoneData) => {
+                      form.setValue('contact_phone_country_code', phoneData.countryCode);
+                      form.setValue('contact_phone_number', phoneData.phoneNumber);
+                    }}
+                    placeholder="Enter contact phone number"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>

@@ -2,57 +2,81 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { countryCodes, getDefaultCountryCode } from "@/lib/country-codes";
+import { countryCodes, getCountryCodeForCountry } from "@/lib/country-codes";
+import { useTenant } from "@/hooks/use-tenant";
+
+interface PhoneData {
+  countryCode: string;
+  phoneNumber: string;
+}
 
 interface PhoneInputProps {
-  value?: string;
-  onChange?: (value: string) => void;
+  value?: PhoneData | string;
+  onChange?: (value: PhoneData) => void;
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  defaultCountryCode?: string;
 }
 
 export const PhoneInput = React.forwardRef<HTMLDivElement, PhoneInputProps>(
-  ({ value = "", onChange, placeholder = "Enter phone number", className, disabled, ...props }, ref) => {
-    // Parse existing value to extract country code and number
-    const parsePhoneValue = (phoneValue: string) => {
-      if (!phoneValue) return { countryCode: getDefaultCountryCode(), number: "" };
+  ({ value, onChange, placeholder = "Enter phone number", className, disabled, defaultCountryCode, ...props }, ref) => {
+    const { currentTenant } = useTenant();
+    
+    // Get default country code from tenant or prop
+    const getInitialCountryCode = React.useCallback(() => {
+      if (defaultCountryCode) return defaultCountryCode;
+      if (currentTenant?.country) {
+        return getCountryCodeForCountry(currentTenant.country);
+      }
+      return getCountryCodeForCountry('');
+    }, [currentTenant?.country, defaultCountryCode]);
+
+    // Parse value into country code and phone number
+    const parseValue = React.useCallback((val: PhoneData | string | undefined) => {
+      if (!val) {
+        return { countryCode: getInitialCountryCode(), phoneNumber: "" };
+      }
       
-      // Find matching country code
-      const foundCode = countryCodes.find(cc => phoneValue.startsWith(cc.code));
-      if (foundCode) {
+      if (typeof val === 'object') {
         return {
-          countryCode: foundCode.code,
-          number: phoneValue.substring(foundCode.code.length).trim()
+          countryCode: val.countryCode || getInitialCountryCode(),
+          phoneNumber: val.phoneNumber || ""
         };
       }
       
-      // If no country code found, assume default and treat whole value as number
-      return { countryCode: getDefaultCountryCode(), number: phoneValue };
-    };
+      // Legacy string format - parse it
+      const foundCode = countryCodes.find(cc => val.startsWith(cc.code));
+      if (foundCode) {
+        return {
+          countryCode: foundCode.code,
+          phoneNumber: val.substring(foundCode.code.length).trim()
+        };
+      }
+      
+      return { countryCode: getInitialCountryCode(), phoneNumber: val };
+    }, [getInitialCountryCode]);
 
-    const { countryCode: initialCountryCode, number: initialNumber } = parsePhoneValue(value);
-    const [countryCode, setCountryCode] = React.useState(initialCountryCode);
-    const [number, setNumber] = React.useState(initialNumber);
+    const initialValue = parseValue(value);
+    const [countryCode, setCountryCode] = React.useState(initialValue.countryCode);
+    const [phoneNumber, setPhoneNumber] = React.useState(initialValue.phoneNumber);
 
-    // Update internal state when value prop changes
+    // Update when value prop changes
     React.useEffect(() => {
-      const { countryCode: newCountryCode, number: newNumber } = parsePhoneValue(value);
-      setCountryCode(newCountryCode);
-      setNumber(newNumber);
-    }, [value]);
+      const newValue = parseValue(value);
+      setCountryCode(newValue.countryCode);
+      setPhoneNumber(newValue.phoneNumber);
+    }, [value, parseValue]);
 
     const handleCountryCodeChange = (newCountryCode: string) => {
       setCountryCode(newCountryCode);
-      const fullPhoneNumber = number ? `${newCountryCode} ${number}` : newCountryCode;
-      onChange?.(fullPhoneNumber);
+      onChange?.({ countryCode: newCountryCode, phoneNumber });
     };
 
-    const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newNumber = e.target.value;
-      setNumber(newNumber);
-      const fullPhoneNumber = newNumber ? `${countryCode} ${newNumber}` : "";
-      onChange?.(fullPhoneNumber);
+    const handlePhoneNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newPhoneNumber = e.target.value;
+      setPhoneNumber(newPhoneNumber);
+      onChange?.({ countryCode, phoneNumber: newPhoneNumber });
     };
 
     return (
@@ -74,8 +98,8 @@ export const PhoneInput = React.forwardRef<HTMLDivElement, PhoneInputProps>(
         </Select>
         <Input
           type="tel"
-          value={number}
-          onChange={handleNumberChange}
+          value={phoneNumber}
+          onChange={handlePhoneNumberChange}
           placeholder={placeholder}
           className="rounded-l-none flex-1"
           disabled={disabled}
