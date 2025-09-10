@@ -1062,6 +1062,7 @@ export type Database = {
           due_date: string | null
           id: string
           installment_number: number
+          name: string | null
           notes: string | null
           stage_id: string | null
           tenant_id: string
@@ -1076,6 +1077,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           installment_number: number
+          name?: string | null
           notes?: string | null
           stage_id?: string | null
           tenant_id: string
@@ -1090,6 +1092,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           installment_number?: number
+          name?: string | null
           notes?: string | null
           stage_id?: string | null
           tenant_id?: string

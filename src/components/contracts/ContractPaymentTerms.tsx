@@ -13,6 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 interface PaymentTerm {
   id: string;
   installment_number: number;
+  name?: string;
   amount_type: string;
   amount_value: number;
   calculated_amount: number;
@@ -41,6 +42,8 @@ export const ContractPaymentTerms = ({
   const [paymentStages, setPaymentStages] = useState<any[]>([]);
   const [todos, setTodos] = useState<any[]>([]);
   const [attachments, setAttachments] = useState<any[]>([]);
+  const [contractCurrency, setContractCurrency] = useState<any>(null);
+  const [tenantCurrency, setTenantCurrency] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [canUserEdit, setCanUserEdit] = useState(false);
   const autoUpdatingRef = useRef(false);
@@ -67,14 +70,38 @@ export const ContractPaymentTerms = ({
         _user_id: user.id
       });
       setCanUserEdit(canModify || false);
-      const [paymentTermsRes, paymentStagesRes, todosRes, attachmentsRes] = await Promise.all([supabase.from('contract_payment_terms').select(`
+      const [paymentTermsRes, paymentStagesRes, todosRes, attachmentsRes, contractRes, tenantCurrencyRes] = await Promise.all([
+        supabase.from('contract_payment_terms').select(`
             *,
             contract_payment_stages (name, sort_order)
-          `).eq('contract_id', contractId).order('installment_number'), supabase.from('contract_payment_stages').select('*').eq('tenant_id', currentTenant?.id).order('sort_order'), supabase.from('todos').select('*').eq('entity_type', 'contract').eq('entity_id', contractId), supabase.from('contract_payment_attachments').select('*').eq('tenant_id', currentTenant?.id)]);
+          `).eq('contract_id', contractId).order('installment_number'),
+        supabase.from('contract_payment_stages').select('*').eq('tenant_id', currentTenant?.id).order('sort_order'),
+        supabase.from('todos').select('*').eq('entity_type', 'contract').eq('entity_id', contractId),
+        supabase.from('contract_payment_attachments').select('*').eq('tenant_id', currentTenant?.id),
+        supabase.from('contracts').select('currency_id').eq('id', contractId).single(),
+        supabase.from('currencies').select('*').eq('id', currentTenant?.default_currency_id).single()
+      ]);
       if (paymentTermsRes.error) throw paymentTermsRes.error;
       if (paymentStagesRes.error) throw paymentStagesRes.error;
       if (todosRes.error) throw todosRes.error;
       if (attachmentsRes.error) throw attachmentsRes.error;
+
+      // Set tenant currency
+      if (tenantCurrencyRes.data) {
+        setTenantCurrency(tenantCurrencyRes.data);
+      }
+
+      // Get contract currency if available
+      if (contractRes.data?.currency_id) {
+        const contractCurrencyRes = await supabase
+          .from('currencies')
+          .select('*')
+          .eq('id', contractRes.data.currency_id)
+          .single();
+        if (contractCurrencyRes.data) {
+          setContractCurrency(contractCurrencyRes.data);
+        }
+      }
       setPaymentTerms(paymentTermsRes.data as unknown as PaymentTerm[] || []);
       setPaymentStages(paymentStagesRes.data || []);
       setTodos(todosRes.data || []);
@@ -274,7 +301,64 @@ export const ContractPaymentTerms = ({
     await fetchData();
   };
   const formatCurrency = (amount: number) => {
-    return `$${amount.toLocaleString()}`;
+    const currency = contractCurrency || tenantCurrency;
+    const currencySymbol = currency?.symbol || '$';
+    const currencyCode = currency?.code || 'USD';
+    
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currencyCode,
+    }).format(amount || 0);
+  };
+
+  const updatePaymentName = async (paymentTermId: string, newName: string) => {
+    if (!canUserEdit || !canEdit) return;
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const oldPaymentTerm = paymentTerms.find(pt => pt.id === paymentTermId);
+
+      const { error } = await supabase
+        .from('contract_payment_terms')
+        .update({ 
+          name: newName,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', paymentTermId);
+
+      if (error) throw error;
+
+      // Log audit trail
+      await supabase.from('contract_audit_logs').insert({
+        contract_id: contractId,
+        tenant_id: currentTenant?.id,
+        action: 'payment_name_changed',
+        entity_type: 'payment_term',
+        entity_id: paymentTermId,
+        field_name: 'name',
+        old_value: oldPaymentTerm?.name,
+        new_value: newName,
+        user_id: user?.id,
+        user_name: `${user?.user_metadata?.first_name || ''} ${user?.user_metadata?.last_name || ''}`.trim(),
+        notes: 'Payment name manually updated'
+      });
+
+      toast.success('Payment name updated successfully');
+      
+      // Update local state immediately
+      setPaymentTerms(prevTerms => 
+        prevTerms.map(term => 
+          term.id === paymentTermId 
+            ? { ...term, name: newName }
+            : term
+        )
+      );
+      
+      onUpdate();
+    } catch (error) {
+      console.error('Error updating payment name:', error);
+      toast.error('Failed to update payment name');
+    }
   };
   const formatDate = (dateString?: string) => {
     if (!dateString) return '-';
@@ -333,7 +417,21 @@ export const ContractPaymentTerms = ({
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <DollarSign className="h-5 w-5" />
-                    Payment {paymentTerm.installment_number}
+                    {canUserEdit && canEdit ? (
+                      <input
+                        type="text"
+                        value={paymentTerm.name || `Payment ${paymentTerm.installment_number}`}
+                        onChange={(e) => updatePaymentName(paymentTerm.id, e.target.value)}
+                        className="bg-transparent border-none outline-none text-lg font-semibold focus:bg-background focus:border focus:rounded px-1"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.currentTarget.blur();
+                          }
+                        }}
+                      />
+                    ) : (
+                      <span>{paymentTerm.name || `Payment ${paymentTerm.installment_number}`}</span>
+                    )}
                   </CardTitle>
                   <div className="flex items-center gap-2">
                     {canUserEdit && canEdit ? (
