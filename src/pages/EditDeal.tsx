@@ -6,6 +6,7 @@ import { ArrowLeft, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
+import { useDealContractAutomation } from '@/hooks/use-deal-contract-automation';
 import { CreateActivityModal } from '@/components/modals/CreateActivityModal';
 import { CreateTodoModal } from '@/components/modals/CreateTodoModal';
 import { ComprehensiveDealView } from '@/components/deals/ComprehensiveDealView';
@@ -25,6 +26,8 @@ interface Deal {
   expected_close_date?: string;
   notes?: string;
   assigned_to?: string;
+  tenant_id: string;
+  is_converted?: boolean;
   customers?: {
     id: string;
     name: string;
@@ -59,6 +62,9 @@ const EditDeal = () => {
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [showTodoModal, setShowTodoModal] = useState(false);
   const dealViewRef = useRef<ComprehensiveDealViewRef>(null);
+
+  // Auto-trigger contract creation when deal reaches 100%
+  useDealContractAutomation(deal);
 
   const fetchDeal = async () => {
     if (!id || !currentTenant) return;

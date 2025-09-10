@@ -1646,17 +1646,56 @@ export type Database = {
         }
         Relationships: []
       }
+      deal_statuses: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          sort_order: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          sort_order?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          sort_order?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       deals: {
         Row: {
           assigned_to: string | null
+          converted_to_contract_id: string | null
           created_at: string
           currency_id: string | null
           customer_id: string | null
           customer_reference_number: string | null
+          deal_status_id: string | null
           description: string | null
           expected_close_date: string | null
           high_value: boolean
           id: string
+          is_converted: boolean
           name: string
           notes: string | null
           priority: Database["public"]["Enums"]["deal_priority"] | null
@@ -1674,14 +1713,17 @@ export type Database = {
         }
         Insert: {
           assigned_to?: string | null
+          converted_to_contract_id?: string | null
           created_at?: string
           currency_id?: string | null
           customer_id?: string | null
           customer_reference_number?: string | null
+          deal_status_id?: string | null
           description?: string | null
           expected_close_date?: string | null
           high_value?: boolean
           id?: string
+          is_converted?: boolean
           name: string
           notes?: string | null
           priority?: Database["public"]["Enums"]["deal_priority"] | null
@@ -1699,14 +1741,17 @@ export type Database = {
         }
         Update: {
           assigned_to?: string | null
+          converted_to_contract_id?: string | null
           created_at?: string
           currency_id?: string | null
           customer_id?: string | null
           customer_reference_number?: string | null
+          deal_status_id?: string | null
           description?: string | null
           expected_close_date?: string | null
           high_value?: boolean
           id?: string
+          is_converted?: boolean
           name?: string
           notes?: string | null
           priority?: Database["public"]["Enums"]["deal_priority"] | null
@@ -1791,6 +1836,20 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_deals_converted_contract"
+            columns: ["converted_to_contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_deals_deal_status"
+            columns: ["deal_status_id"]
+            isOneToOne: false
+            referencedRelation: "deal_statuses"
             referencedColumns: ["id"]
           },
         ]
