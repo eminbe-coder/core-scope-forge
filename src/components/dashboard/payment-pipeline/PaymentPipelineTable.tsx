@@ -6,9 +6,10 @@ import { format } from 'date-fns';
 
 interface PaymentPipelineTableProps {
   data: PaymentPipelineData[];
+  onWeekClick?: (weekData: PaymentPipelineData) => void;
 }
 
-export function PaymentPipelineTable({ data }: PaymentPipelineTableProps) {
+export function PaymentPipelineTable({ data, onWeekClick }: PaymentPipelineTableProps) {
   const { formatCurrency } = useCurrency();
 
   const formatDate = (dateString: string) => {
@@ -52,7 +53,11 @@ export function PaymentPipelineTable({ data }: PaymentPipelineTableProps) {
             const outstanding = week.expectedAmount - week.paidAmount;
             
             return (
-              <TableRow key={week.weekNumber}>
+              <TableRow 
+                key={week.weekNumber} 
+                className="hover:bg-muted/50 cursor-pointer"
+                onClick={() => onWeekClick?.(week)}
+              >
                 <TableCell className="font-medium">Week {week.weekNumber}</TableCell>
                 <TableCell>
                   <div className="text-sm">

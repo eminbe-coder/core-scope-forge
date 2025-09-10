@@ -4,9 +4,10 @@ import { useCurrency } from '@/hooks/use-currency';
 
 interface PaymentPipelineChartProps {
   data: PaymentPipelineData[];
+  onWeekClick?: (weekData: PaymentPipelineData) => void;
 }
 
-export function PaymentPipelineChart({ data }: PaymentPipelineChartProps) {
+export function PaymentPipelineChart({ data, onWeekClick }: PaymentPipelineChartProps) {
   const { formatCurrency } = useCurrency();
 
   const chartData = data.map(week => ({
@@ -24,10 +25,20 @@ export function PaymentPipelineChart({ data }: PaymentPipelineChartProps) {
     return [formatCurrency(value), name === 'expected' ? 'Expected' : name === 'paid' ? 'Paid' : 'Outstanding'];
   };
 
+  const handleBarClick = (clickData: any) => {
+    if (onWeekClick && clickData && clickData.activePayload && clickData.activePayload[0]) {
+      const weekNumber = clickData.activePayload[0].payload.week.replace('Week ', '');
+      const originalWeekData = data.find(w => w.weekNumber === parseInt(weekNumber));
+      if (originalWeekData) {
+        onWeekClick(originalWeekData);
+      }
+    }
+  };
+
   return (
     <div className="w-full h-[400px]">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }} onClick={handleBarClick}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis 
             dataKey="week" 
@@ -40,9 +51,9 @@ export function PaymentPipelineChart({ data }: PaymentPipelineChartProps) {
           <YAxis tick={{ fontSize: 12 }} />
           <Tooltip formatter={formatTooltip} />
           <Legend />
-          <Bar dataKey="expected" fill="#3b82f6" name="Expected" />
-          <Bar dataKey="paid" fill="#10b981" name="Paid" />
-          <Bar dataKey="outstanding" fill="#f59e0b" name="Outstanding" />
+          <Bar dataKey="expected" fill="#3b82f6" name="Expected" style={{ cursor: 'pointer' }} />
+          <Bar dataKey="paid" fill="#10b981" name="Paid" style={{ cursor: 'pointer' }} />
+          <Bar dataKey="outstanding" fill="#f59e0b" name="Outstanding" style={{ cursor: 'pointer' }} />
         </BarChart>
       </ResponsiveContainer>
     </div>

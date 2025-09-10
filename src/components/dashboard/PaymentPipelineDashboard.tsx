@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { PaymentPipelineChart } from './payment-pipeline/PaymentPipelineChart';
 import { PaymentPipelineTable } from './payment-pipeline/PaymentPipelineTable';
 import { PaymentPipelineLine } from './payment-pipeline/PaymentPipelineLine';
+import { WeeklyInstallmentsModal } from './payment-pipeline/WeeklyInstallmentsModal';
 import { 
   Calendar, 
   TrendingUp, 
@@ -45,6 +46,8 @@ export function PaymentPipelineDashboard() {
   const [period, setPeriod] = useState<PeriodType>('monthly');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedWeek, setSelectedWeek] = useState<PaymentPipelineData | null>(null);
+  const [showWeekModal, setShowWeekModal] = useState(false);
 
   useEffect(() => {
     if (user && currentTenant) {
@@ -215,6 +218,11 @@ export function PaymentPipelineDashboard() {
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
+  const handleWeekClick = (weekData: PaymentPipelineData) => {
+    setSelectedWeek(weekData);
+    setShowWeekModal(true);
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -339,11 +347,18 @@ export function PaymentPipelineDashboard() {
           </div>
         </CardHeader>
         <CardContent>
-          {viewType === 'chart' && <PaymentPipelineChart data={data} />}
-          {viewType === 'line' && <PaymentPipelineLine data={data} />}
-          {viewType === 'table' && <PaymentPipelineTable data={data} />}
+          {viewType === 'chart' && <PaymentPipelineChart data={data} onWeekClick={handleWeekClick} />}
+          {viewType === 'line' && <PaymentPipelineLine data={data} onWeekClick={handleWeekClick} />}
+          {viewType === 'table' && <PaymentPipelineTable data={data} onWeekClick={handleWeekClick} />}
         </CardContent>
       </Card>
+
+      {/* Weekly Installments Modal */}
+      <WeeklyInstallmentsModal
+        isOpen={showWeekModal}
+        onClose={() => setShowWeekModal(false)}
+        weekData={selectedWeek}
+      />
     </div>
   );
 }

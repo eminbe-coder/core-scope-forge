@@ -4,9 +4,10 @@ import { useCurrency } from '@/hooks/use-currency';
 
 interface PaymentPipelineLineProps {
   data: PaymentPipelineData[];
+  onWeekClick?: (weekData: PaymentPipelineData) => void;
 }
 
-export function PaymentPipelineLine({ data }: PaymentPipelineLineProps) {
+export function PaymentPipelineLine({ data, onWeekClick }: PaymentPipelineLineProps) {
   const { formatCurrency } = useCurrency();
 
   const chartData = data.map(week => ({
@@ -25,10 +26,20 @@ export function PaymentPipelineLine({ data }: PaymentPipelineLineProps) {
       'Cumulative Paid'];
   };
 
+  const handleLineClick = (clickData: any) => {
+    if (onWeekClick && clickData && clickData.activePayload && clickData.activePayload[0]) {
+      const weekNumber = clickData.activePayload[0].payload.week.replace('Week ', '');
+      const originalWeekData = data.find(w => w.weekNumber === parseInt(weekNumber));
+      if (originalWeekData) {
+        onWeekClick(originalWeekData);
+      }
+    }
+  };
+
   return (
     <div className="w-full h-[400px]">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+        <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }} onClick={handleLineClick}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis 
             dataKey="week" 
@@ -46,7 +57,7 @@ export function PaymentPipelineLine({ data }: PaymentPipelineLineProps) {
             dataKey="expected" 
             stroke="#3b82f6" 
             strokeWidth={2}
-            dot={{ r: 4 }}
+            dot={{ r: 4, cursor: 'pointer' }}
             name="Expected"
           />
           <Line 
@@ -54,7 +65,7 @@ export function PaymentPipelineLine({ data }: PaymentPipelineLineProps) {
             dataKey="paid" 
             stroke="#10b981" 
             strokeWidth={2}
-            dot={{ r: 4 }}
+            dot={{ r: 4, cursor: 'pointer' }}
             name="Paid"
           />
           <Line 
@@ -62,7 +73,7 @@ export function PaymentPipelineLine({ data }: PaymentPipelineLineProps) {
             dataKey="cumulative" 
             stroke="#8b5cf6" 
             strokeWidth={2}
-            dot={{ r: 4 }}
+            dot={{ r: 4, cursor: 'pointer' }}
             strokeDasharray="5 5"
             name="Cumulative Paid"
           />
@@ -71,7 +82,7 @@ export function PaymentPipelineLine({ data }: PaymentPipelineLineProps) {
             dataKey="outstanding" 
             stroke="#f59e0b" 
             strokeWidth={2}
-            dot={{ r: 4 }}
+            dot={{ r: 4, cursor: 'pointer' }}
             name="Outstanding"
           />
         </LineChart>
