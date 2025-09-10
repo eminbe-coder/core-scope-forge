@@ -353,6 +353,7 @@ export const ContractPaymentTerms = ({ contractId, canEdit, onUpdate }: Contract
                         paymentTermId={paymentTerm.id}
                         canEdit={canUserEdit && canEdit}
                         compact={true}
+                        includeChildren={false}
                         onUpdate={fetchData}
                       />
                     </div>

@@ -30,9 +30,16 @@ interface Todo {
   completed_by_profile?: { first_name: string; last_name: string } | null;
   created_by_profile?: { first_name: string; last_name: string } | null;
   todo_types?: { name: string; color: string; icon: string } | null;
+  // Hierarchy metadata
+  source_entity_type?: string;
+  source_entity_name?: string;
+  installment_number?: number;
 }
 
 interface TodoListProps {
+  todos?: Todo[];
+  loading?: boolean;
+  error?: string | null;
   entityType?: string;
   entityId?: string;
   showFilters?: boolean;
@@ -44,6 +51,9 @@ interface TodoListProps {
 }
 
 export const TodoList = ({ 
+  todos: propTodos,
+  loading: propLoading,
+  error: propError,
   entityType, 
   entityId, 
   showFilters = true, 
@@ -65,11 +75,25 @@ export const TodoList = ({
   const [profiles, setProfiles] = useState<any[]>([]);
 
   useEffect(() => {
-    if (currentTenant?.id) {
+    if (propTodos) {
+      // Use provided todos
+      setTodos(propTodos);
+      setLoading(false);
+    } else if (currentTenant?.id && entityType && entityId) {
+      // Fallback to fetching todos (backward compatibility)
       fetchTodos();
+    } else {
+      setTodos([]);
+      setLoading(false);
+    }
+    
+    if (currentTenant?.id) {
       fetchFiltersData();
     }
-  }, [currentTenant?.id, entityType, entityId]);
+  }, [propTodos, currentTenant?.id, entityType, entityId]);
+
+  // Use provided loading state or local loading state
+  const isLoading = propLoading !== undefined ? propLoading : loading;
 
   const fetchFiltersData = async () => {
     try {
@@ -159,8 +183,14 @@ export const TodoList = ({
       if (error) throw error;
 
       toast.success(`To-do item ${newStatus === 'completed' ? 'completed' : 'uncompleted'}`);
-      fetchTodos();
-      onUpdate?.();
+      if (propTodos) {
+        // If using provided todos, call onUpdate to refresh the parent
+        onUpdate?.();
+      } else {
+        // Otherwise fetch todos locally
+        fetchTodos();
+        onUpdate?.();
+      }
     } catch (error) {
       console.error('Error updating todo:', error);
       toast.error('Failed to update to-do item');
@@ -177,8 +207,14 @@ export const TodoList = ({
       if (error) throw error;
 
       toast.success('To-do item deleted successfully');
-      fetchTodos();
-      onUpdate?.();
+      if (propTodos) {
+        // If using provided todos, call onUpdate to refresh the parent
+        onUpdate?.();
+      } else {
+        // Otherwise fetch todos locally
+        fetchTodos();
+        onUpdate?.();
+      }
     } catch (error) {
       console.error('Error deleting todo:', error);
       toast.error('Failed to delete to-do item');
@@ -233,7 +269,20 @@ export const TodoList = ({
     inProgress: todos.filter(t => t.status === 'in_progress').length,
   };
 
-  if (loading) {
+  // Show error if provided
+  if (propError) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="text-center text-destructive">
+            {propError}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (isLoading) {
     return (
       <Card>
         <CardContent className="p-6">
@@ -435,13 +484,22 @@ export const TodoList = ({
                       </Badge>
                     )}
                     
+                    {/* Source entity badge */}
+                    {todo.source_entity_name && (
+                      <Badge variant="outline" className="text-xs">
+                        {todo.source_entity_name}
+                      </Badge>
+                    )}
+                    
                     {/* Entity badge */}
-                    <Badge variant="outline" className="text-xs capitalize">
-                      {todo.entity_type}
-                    </Badge>
+                    {!todo.source_entity_name && (
+                      <Badge variant="outline" className="text-xs capitalize">
+                        {todo.entity_type}
+                      </Badge>
+                    )}
                     
                     {/* Payment term badge */}
-                    {todo.payment_term_id && (
+                    {todo.payment_term_id && !todo.source_entity_name && (
                       <Badge variant="outline" className="text-xs">
                         Payment term linked
                       </Badge>
