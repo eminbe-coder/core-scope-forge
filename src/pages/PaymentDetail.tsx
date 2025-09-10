@@ -256,7 +256,7 @@ export default function PaymentDetail() {
           received_date: new Date().toISOString().split('T')[0],
           payment_status: finalStatus,
           updated_at: new Date().toISOString()
-        })
+        } as any) // Type cast since these columns exist but aren't in types yet
         .eq('id', payment.id);
 
       if (error) throw error;
