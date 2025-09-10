@@ -8,13 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, CheckCircle, Clock, AlertTriangle, User, Calendar } from 'lucide-react';
+import { Plus, CheckCircle2, Clock, AlertTriangle, User, Calendar, Trash2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 const todoSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -23,24 +24,27 @@ const todoSchema = z.object({
   due_date: z.string().optional(),
   priority: z.string().optional().default('medium'),
   payment_term_id: z.string().optional(),
+  type_id: z.string().optional(),
 });
 
 interface Todo {
   id: string;
   title: string;
   description?: string;
-  assigned_to?: string;
   due_date?: string;
-  priority: string;
-  completed: boolean;
-  completed_at?: string;
+  priority?: string;
+  status: 'pending' | 'in_progress' | 'completed';
+  assigned_to?: string;
   completed_by?: string;
   payment_term_id?: string;
   created_at: string;
+  completed_at?: string;
+  type_id?: string;
   assigned_profile?: { first_name: string; last_name: string } | null;
   completed_by_profile?: { first_name: string; last_name: string } | null;
   created_by_profile?: { first_name: string; last_name: string } | null;
   contract_payment_terms?: { installment_number: number } | null;
+  todo_types?: { name: string; color: string; icon: string } | null;
 }
 
 interface PaymentTerm {
@@ -63,6 +67,7 @@ export const ContractTodos = ({ contractId, canEdit, onUpdate, compact = false }
   const [todos, setTodos] = useState<Todo[]>([]);
   const [paymentTerms, setPaymentTerms] = useState<PaymentTerm[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
+  const [todoTypes, setTodoTypes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [filter, setFilter] = useState<'all' | 'completed' | 'pending'>('all');
@@ -77,6 +82,7 @@ export const ContractTodos = ({ contractId, canEdit, onUpdate, compact = false }
       due_date: '',
       priority: 'medium',
       payment_term_id: '',
+      type_id: '',
     },
   });
 
@@ -94,17 +100,20 @@ export const ContractTodos = ({ contractId, canEdit, onUpdate, compact = false }
       // Allow all tenant users to create and assign todos
       setCanUserEdit(true);
 
-      const [todosRes, paymentTermsRes, profilesRes] = await Promise.all([
+      const [todosRes, paymentTermsRes, profilesRes, todoTypesRes] = await Promise.all([
         supabase
-          .from('contract_todos')
+          .from('todos')
           .select(`
             *,
-            assigned_profile:profiles!fk_contract_todos_assigned_to (first_name, last_name),
-            completed_by_profile:profiles!fk_contract_todos_completed_by (first_name, last_name),
-            created_by_profile:profiles!fk_contract_todos_created_by (first_name, last_name),
-            contract_payment_terms (installment_number)
+            assigned_profile:profiles!todos_assigned_to_fkey (first_name, last_name),
+            completed_by_profile:profiles!todos_completed_by_fkey (first_name, last_name),
+            created_by_profile:profiles!todos_created_by_fkey (first_name, last_name),
+            contract_payment_terms (installment_number),
+            todo_types (name, color, icon)
           `)
-          .eq('contract_id', contractId)
+          .eq('entity_type', 'contract')
+          .eq('entity_id', contractId)
+          .eq('tenant_id', currentTenant?.id)
           .order('created_at', { ascending: false }),
         
         supabase
@@ -124,16 +133,25 @@ export const ContractTodos = ({ contractId, canEdit, onUpdate, compact = false }
             last_name,
             email
           )
-        `).eq('tenant_id', currentTenant?.id).eq('active', true)
+        `).eq('tenant_id', currentTenant?.id).eq('active', true),
+
+        supabase
+          .from('todo_types')
+          .select('*')
+          .eq('tenant_id', currentTenant?.id)
+          .eq('active', true)
+          .order('sort_order')
       ]);
 
       if (todosRes.error) throw todosRes.error;
       if (paymentTermsRes.error) throw paymentTermsRes.error;
       if (profilesRes.error) throw profilesRes.error;
+      if (todoTypesRes.error) throw todoTypesRes.error;
 
       setTodos(todosRes.data as unknown as Todo[] || []);
       setPaymentTerms(paymentTermsRes.data as unknown as PaymentTerm[] || []);
       setProfiles((profilesRes.data || []).map((membership: any) => membership.profiles).filter(Boolean));
+      setTodoTypes(todoTypesRes.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to load to-do items');
@@ -147,31 +165,33 @@ export const ContractTodos = ({ contractId, canEdit, onUpdate, compact = false }
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      // Get default todo type if none selected
+      let typeId = values.type_id;
+      if (!typeId && todoTypes.length > 0) {
+        const defaultType = todoTypes.find(t => t.name === 'General Task') || todoTypes[0];
+        typeId = defaultType.id;
+      }
       
       const { error } = await supabase
-        .from('contract_todos')
+        .from('todos')
         .insert({
-          ...values,
-          contract_id: contractId,
           tenant_id: currentTenant.id,
-          created_by: user?.id,
+          entity_type: 'contract',
+          entity_id: contractId,
+          title: values.title,
+          description: values.description || null,
           due_date: values.due_date || null,
+          priority: values.priority || 'medium',
+          status: 'pending',
           assigned_to: values.assigned_to || null,
           payment_term_id: values.payment_term_id || null,
+          type_id: typeId,
+          created_by: user.id,
         });
 
       if (error) throw error;
-
-      // Log audit trail
-      await supabase.from('contract_audit_logs').insert({
-        contract_id: contractId,
-        tenant_id: currentTenant.id,
-        action: 'todo_added',
-        entity_type: 'todo',
-        user_id: user?.id,
-        user_name: `${user?.user_metadata?.first_name || ''} ${user?.user_metadata?.last_name || ''}`.trim(),
-        notes: `Added todo: ${values.title}`,
-      });
 
       toast.success('To-do item added successfully');
       setDialogOpen(false);
@@ -184,16 +204,17 @@ export const ContractTodos = ({ contractId, canEdit, onUpdate, compact = false }
     }
   };
 
-  const toggleTodoCompletion = async (todoId: string, completed: boolean) => {
+  const toggleTodoCompletion = async (todoId: string, currentStatus: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
+      const newStatus = currentStatus === 'completed' ? 'pending' : 'completed';
       const updateData: any = {
-        completed: !completed,
+        status: newStatus,
         updated_at: new Date().toISOString(),
       };
 
-      if (!completed) {
+      if (newStatus === 'completed') {
         updateData.completed_at = new Date().toISOString();
         updateData.completed_by = user?.id;
       } else {
@@ -202,25 +223,13 @@ export const ContractTodos = ({ contractId, canEdit, onUpdate, compact = false }
       }
 
       const { error } = await supabase
-        .from('contract_todos')
+        .from('todos')
         .update(updateData)
         .eq('id', todoId);
 
       if (error) throw error;
 
-      // Log audit trail
-      await supabase.from('contract_audit_logs').insert({
-        contract_id: contractId,
-        tenant_id: currentTenant?.id,
-        action: completed ? 'todo_uncompleted' : 'todo_completed',
-        entity_type: 'todo',
-        entity_id: todoId,
-        user_id: user?.id,
-        user_name: `${user?.user_metadata?.first_name || ''} ${user?.user_metadata?.last_name || ''}`.trim(),
-        notes: `Todo ${completed ? 'uncompleted' : 'completed'}`,
-      });
-
-      toast.success(`To-do item ${completed ? 'uncompleted' : 'completed'}`);
+      toast.success(`To-do item ${newStatus === 'completed' ? 'completed' : 'uncompleted'}`);
       fetchData();
       onUpdate();
     } catch (error) {
@@ -229,8 +238,27 @@ export const ContractTodos = ({ contractId, canEdit, onUpdate, compact = false }
     }
   };
 
+  const deleteTodo = async (todoId: string) => {
+    try {
+      const { error } = await supabase
+        .from('todos')
+        .delete()
+        .eq('id', todoId);
+
+      if (error) throw error;
+
+      toast.success('To-do item deleted successfully');
+      fetchData();
+      onUpdate();
+    } catch (error) {
+      console.error('Error deleting todo:', error);
+      toast.error('Failed to delete to-do item');
+    }
+  };
+
   const getPriorityIcon = (priority: string) => {
     switch (priority) {
+      case 'urgent': return <AlertTriangle className="h-4 w-4 text-red-600" />;
       case 'high': return <AlertTriangle className="h-4 w-4 text-red-500" />;
       case 'medium': return <Clock className="h-4 w-4 text-yellow-500" />;
       case 'low': return <Clock className="h-4 w-4 text-green-500" />;
@@ -244,15 +272,15 @@ export const ContractTodos = ({ contractId, canEdit, onUpdate, compact = false }
   };
 
   const filteredTodos = todos.filter(todo => {
-    if (filter === 'completed') return todo.completed;
-    if (filter === 'pending') return !todo.completed;
+    if (filter === 'completed') return todo.status === 'completed';
+    if (filter === 'pending') return todo.status !== 'completed';
     return true;
   });
 
   const todosStats = {
     total: todos.length,
-    completed: todos.filter(t => t.completed).length,
-    pending: todos.filter(t => !t.completed).length,
+    completed: todos.filter(t => t.status === 'completed').length,
+    pending: todos.filter(t => t.status !== 'completed').length,
   };
 
   if (loading) {
@@ -292,7 +320,7 @@ export const ContractTodos = ({ contractId, canEdit, onUpdate, compact = false }
                       Add To-Do
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="max-w-lg">
                     <DialogHeader>
                       <DialogTitle>Add New To-Do Item</DialogTitle>
                     </DialogHeader>
@@ -343,10 +371,11 @@ export const ContractTodos = ({ contractId, canEdit, onUpdate, compact = false }
                                       <SelectValue placeholder="Select priority" />
                                     </SelectTrigger>
                                   </FormControl>
-                                  <SelectContent>
+                                  <SelectContent className="bg-background border border-border shadow-md z-50">
                                     <SelectItem value="low">Low</SelectItem>
                                     <SelectItem value="medium">Medium</SelectItem>
                                     <SelectItem value="high">High</SelectItem>
+                                    <SelectItem value="urgent">Urgent</SelectItem>
                                   </SelectContent>
                                 </Select>
                                 <FormMessage />
@@ -356,18 +385,43 @@ export const ContractTodos = ({ contractId, canEdit, onUpdate, compact = false }
 
                           <FormField
                             control={form.control}
-                            name="due_date"
+                            name="type_id"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Due Date</FormLabel>
-                                <FormControl>
-                                  <Input type="date" {...field} />
-                                </FormControl>
+                                <FormLabel>Type</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select type" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent className="bg-background border border-border shadow-md z-50">
+                                    {todoTypes.map((type) => (
+                                      <SelectItem key={type.id} value={type.id}>
+                                        {type.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                                 <FormMessage />
                               </FormItem>
                             )}
                           />
                         </div>
+
+                        <FormField
+                          control={form.control}
+                          name="due_date"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Due Date</FormLabel>
+                              <FormControl>
+                                <Input type="date" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
                         <FormField
                           control={form.control}
@@ -381,7 +435,8 @@ export const ContractTodos = ({ contractId, canEdit, onUpdate, compact = false }
                                     <SelectValue placeholder="Select user" />
                                   </SelectTrigger>
                                 </FormControl>
-                                <SelectContent>
+                                <SelectContent className="bg-background border border-border shadow-md z-50">
+                                  <SelectItem value="">Unassigned</SelectItem>
                                   {profiles.map((profile) => (
                                     <SelectItem key={profile.id} value={profile.id}>
                                       {profile.first_name} {profile.last_name}
@@ -406,7 +461,7 @@ export const ContractTodos = ({ contractId, canEdit, onUpdate, compact = false }
                                     <SelectValue placeholder="Select payment term" />
                                   </SelectTrigger>
                                 </FormControl>
-                                <SelectContent>
+                                <SelectContent className="bg-background border border-border shadow-md z-50">
                                   {paymentTerms.map((term) => (
                                     <SelectItem key={term.id} value={term.id}>
                                       Payment {term.installment_number} - {term.contract_payment_stages?.name}
@@ -432,101 +487,148 @@ export const ContractTodos = ({ contractId, canEdit, onUpdate, compact = false }
               )}
             </div>
           </div>
+          
+          {!compact && (
+            <div className="flex items-center gap-2 mt-4">
+              <Button
+                variant={filter === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilter('all')}
+              >
+                All ({todosStats.total})
+              </Button>
+              <Button
+                variant={filter === 'pending' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilter('pending')}
+              >
+                Pending ({todosStats.pending})
+              </Button>
+              <Button
+                variant={filter === 'completed' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilter('completed')}
+              >
+                Completed ({todosStats.completed})
+              </Button>
+            </div>
+          )}
         </CardHeader>
+        
         <CardContent>
-          <div className="flex items-center gap-2 mb-4">
-            <Button
-              variant={filter === 'all' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilter('all')}
-            >
-              All
-            </Button>
-            <Button
-              variant={filter === 'pending' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilter('pending')}
-            >
-              Pending ({todosStats.pending})
-            </Button>
-            <Button
-              variant={filter === 'completed' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilter('completed')}
-            >
-              Completed ({todosStats.completed})
-            </Button>
-          </div>
-
-          <div className="space-y-3">
-            {filteredTodos.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">
-                No to-do items found.
-              </p>
-            ) : (
-              filteredTodos.map((todo) => (
+          {filteredTodos.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              {filter === 'all' 
+                ? 'No to-do items yet. Add one to get started.' 
+                : `No ${filter} to-do items.`
+              }
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredTodos.map((todo) => (
                 <div
                   key={todo.id}
-                  className={`border rounded-lg p-4 space-y-2 ${
-                    todo.completed ? 'bg-muted/50' : 'bg-background'
-                  }`}
+                  className={cn(
+                    "flex items-center gap-3 p-4 border rounded-lg transition-colors",
+                    todo.status === 'completed' ? "bg-muted/50 border-muted" : "bg-background border-border hover:border-primary/20"
+                  )}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3 flex-1">
-                      {canUserEdit && canEdit && (
-                        <Checkbox
-                          checked={todo.completed}
-                          onCheckedChange={() => toggleTodoCompletion(todo.id, todo.completed)}
-                          className="mt-1"
-                        />
+                  <Checkbox
+                    checked={todo.status === 'completed'}
+                    onCheckedChange={() => toggleTodoCompletion(todo.id, todo.status)}
+                    className="mt-1"
+                  />
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className={cn(
+                        "font-medium",
+                        todo.status === 'completed' && "line-through text-muted-foreground"
+                      )}>
+                        {todo.title}
+                      </h4>
+                      
+                      {/* Status badge */}
+                      <Badge variant={
+                        todo.status === 'completed' ? 'default' : 
+                        todo.status === 'in_progress' ? 'secondary' : 'outline'
+                      } className="text-xs">
+                        {todo.status === 'in_progress' ? 'In Progress' : 
+                         todo.status === 'completed' ? 'Completed' : 'Pending'}
+                      </Badge>
+                      
+                      {/* Priority badge */}
+                      {(todo.priority === 'high' || todo.priority === 'urgent') && (
+                        <Badge variant={todo.priority === 'urgent' ? 'destructive' : 'secondary'} className="text-xs">
+                          {todo.priority === 'urgent' ? 'Urgent' : 'High Priority'}
+                        </Badge>
                       )}
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className={`font-medium ${todo.completed ? 'line-through text-muted-foreground' : ''}`}>
-                            {todo.title}
-                          </h4>
-                          {getPriorityIcon(todo.priority)}
-                          <Badge variant="outline" className="text-xs">
-                            {todo.priority}
-                          </Badge>
-                          {todo.contract_payment_terms && (
-                            <Badge variant="secondary" className="text-xs">
-                              Payment {todo.contract_payment_terms.installment_number}
-                            </Badge>
-                          )}
+                      
+                      {/* Type badge */}
+                      {todo.todo_types && (
+                        <Badge 
+                          variant="outline" 
+                          className="text-xs"
+                          style={{ color: todo.todo_types.color, borderColor: todo.todo_types.color }}
+                        >
+                          {todo.todo_types.name}
+                        </Badge>
+                      )}
+                      
+                      {/* Payment term badge */}
+                      {todo.contract_payment_terms && (
+                        <Badge variant="outline" className="text-xs">
+                          Payment {todo.contract_payment_terms.installment_number}
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    {todo.description && (
+                      <p className={cn(
+                        "text-sm mt-1",
+                        todo.status === 'completed' ? "text-muted-foreground" : "text-muted-foreground"
+                      )}>
+                        {todo.description}
+                      </p>
+                    )}
+                    
+                    <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                      {todo.due_date && (
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          Due: {formatDate(todo.due_date)}
                         </div>
-                        {todo.description && (
-                          <p className={`text-sm ${todo.completed ? 'text-muted-foreground' : 'text-muted-foreground'}`}>
-                            {todo.description}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2">
-                          {todo.due_date && (
-                            <div className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              Due: {formatDate(todo.due_date)}
-                            </div>
-                          )}
-                          {todo.assigned_profile && (
-                            <div className="flex items-center gap-1">
-                              <User className="h-3 w-3" />
-                              {todo.assigned_profile.first_name} {todo.assigned_profile.last_name}
-                            </div>
-                          )}
-                          {todo.completed && todo.completed_at && (
-                            <div className="flex items-center gap-1">
-                              <CheckCircle className="h-3 w-3" />
-                              Completed: {formatDate(todo.completed_at)}
-                            </div>
-                          )}
+                      )}
+                      {todo.assigned_profile && (
+                        <div className="flex items-center gap-1">
+                          <User className="h-3 w-3" />
+                          {todo.assigned_profile.first_name} {todo.assigned_profile.last_name}
                         </div>
-                      </div>
+                      )}
+                      {todo.status === 'completed' && todo.completed_at && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Completed: {formatDate(todo.completed_at)}
+                        </div>
+                      )}
+                      {getPriorityIcon(todo.priority || 'medium')}
                     </div>
                   </div>
+                  
+                  {canUserEdit && canEdit && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => deleteTodo(todo.id)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
