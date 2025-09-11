@@ -59,7 +59,7 @@ async function refreshAccessToken(
     .from('tenant_onedrive_settings')
     .update({
       access_token: tokenData.access_token,
-      refresh_token: tokenData.refresh_token || refresh_token, // Keep old refresh token if new one not provided
+      refresh_token: tokenData.refresh_token || refresh_token,
       token_expires_at: expiresAt.toISOString(),
     })
     .eq('tenant_id', tenant_id);
@@ -75,7 +75,6 @@ async function refreshAccessToken(
 
 // Helper function to make authenticated Graph API requests with automatic token refresh
 async function makeGraphRequest(supabase: any, tenant_id: string, url: string, options: any = {}) {
-  // Get current token settings
   const { data: settings, error: settingsError } = await supabase
     .from('tenant_onedrive_settings')
     .select('access_token, refresh_token, client_id, client_secret, token_expires_at')
@@ -111,7 +110,6 @@ async function makeGraphRequest(supabase: any, tenant_id: string, url: string, o
     }
   }
 
-  // Prepare headers with authorization
   const headers = {
     ...(options.headers || {}),
     'Authorization': `Bearer ${accessToken}`
@@ -168,70 +166,6 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
-
-    // For POST requests, validate JWT token and extract user context
-    if (req.method === 'POST') {
-      const authHeader = req.headers.get('authorization');
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        console.error('Missing or invalid authorization header');
-        return new Response(
-          JSON.stringify({ error: 'Missing authorization header' }),
-          { 
-            status: 401, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
-      }
-
-      const token = authHeader.replace('Bearer ', '');
-      
-      // Validate JWT token using Supabase client
-      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-      
-      if (authError || !user) {
-        console.error('Invalid JWT token:', authError);
-        return new Response(
-          JSON.stringify({ error: 'Invalid or expired token' }),
-          { 
-            status: 401, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
-      }
-
-      console.log(`Authenticated user: ${user.id}`);
-      
-      // Parse request body
-      const requestBody = await req.json();
-      const { action, tenant_id } = requestBody as OneDriveAuthRequest;
-
-      // Verify user has access to the specified tenant
-      if (tenant_id) {
-        const { data: membership, error: membershipError } = await supabase
-          .from('user_tenant_memberships')
-          .select('role')
-          .eq('user_id', user.id)
-          .eq('tenant_id', tenant_id)
-          .eq('active', true)
-          .single();
-
-        if (membershipError || !membership) {
-          console.error('User does not have access to tenant:', { user_id: user.id, tenant_id });
-          return new Response(
-            JSON.stringify({ error: 'Access denied to tenant' }),
-            { 
-              status: 403, 
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-            }
-          );
-        }
-
-        console.log(`User ${user.id} has ${membership.role} access to tenant ${tenant_id}`);
-      }
-
-      // Handle different actions based on the request
-      return await handlePostAction(supabase, requestBody);
-    }
 
     // Handle GET requests (OAuth callback from Microsoft)
     if (req.method === 'GET') {
@@ -302,6 +236,7 @@ serve(async (req) => {
             { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
           );
         }
+        
         if (!settings.code_verifier) {
           console.error('PKCE code_verifier missing for tenant during callback');
           return new Response(
@@ -314,7 +249,6 @@ serve(async (req) => {
         const authority = settings.azure_tenant_id && settings.azure_tenant_id.trim().length > 0 ? settings.azure_tenant_id : 'common';
         const tokenUrl = `https://login.microsoftonline.com/${authority}/oauth2/v2.0/token`;
         
-        // Construct redirect URI to match what was registered in Azure AD
         const baseUrl = Deno.env.get('SUPABASE_URL');
         if (!baseUrl) {
           console.error('SUPABASE_URL environment variable not set');
@@ -352,10 +286,8 @@ serve(async (req) => {
             }),
           });
 
-          // Always get the response text first for logging
           responseText = await tokenResponse.text();
           console.log(`Token exchange response status: ${tokenResponse.status}`);
-          console.log(`Token exchange response headers:`, Object.fromEntries(tokenResponse.headers.entries()));
           
         } catch (networkError) {
           console.error('Network error during token exchange:', networkError);
@@ -380,9 +312,7 @@ serve(async (req) => {
         if (!tokenResponse.ok) {
           console.error('Token exchange failed with status:', tokenResponse.status);
           console.error('Token exchange error details:', tokenData);
-          console.error('Raw response text:', responseText);
           
-          // Handle specific error cases
           let errorMessage = 'Authentication failed';
           
           if (tokenData.error === 'invalid_grant') {
@@ -399,16 +329,12 @@ serve(async (req) => {
             errorMessage = 'Invalid request parameters. Please try connecting again.';
           }
           
-          const safeMsg = tokenData.error_description || tokenData.error || errorMessage;
-          console.error(`Returning error message to user: ${safeMsg}`);
-          
           return new Response(
             `<html><body><script>window.close();</script><p>${errorMessage}</p></body></html>`,
             { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
           );
         }
 
-        // Validate that we received the required tokens
         if (!tokenData.access_token) {
           console.error('Token exchange succeeded but no access token received:', tokenData);
           return new Response(
@@ -419,7 +345,7 @@ serve(async (req) => {
 
         console.log('Token exchange successful - access token received');
 
-        // Get OneDrive root folder ID with better error handling
+        // Get OneDrive root folder ID
         console.log('Getting OneDrive root folder...');
         let driveResponse;
         let driveResponseText = '';
@@ -445,14 +371,6 @@ serve(async (req) => {
           console.error('Failed to get drive root - status:', driveResponse.status);
           console.error('Drive root response text:', driveResponseText);
           
-          let driveErrorData;
-          try {
-            driveErrorData = JSON.parse(driveResponseText);
-            console.error('Drive root error details:', driveErrorData);
-          } catch (parseError) {
-            console.error('Failed to parse drive error response');
-          }
-          
           return new Response(
             '<html><body><script>window.close();</script><p>Failed to access OneDrive. Please ensure you have proper permissions and try again.</p></body></html>',
             { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
@@ -464,7 +382,6 @@ serve(async (req) => {
           driveData = JSON.parse(driveResponseText);
         } catch (parseError) {
           console.error('Failed to parse drive response as JSON:', parseError);
-          console.error('Raw drive response:', driveResponseText);
           return new Response(
             '<html><body><script>window.close();</script><p>Invalid response from OneDrive. Please try connecting again.</p></body></html>',
             { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
@@ -489,11 +406,11 @@ serve(async (req) => {
           deals: 'Deals'
         };
 
-        // Create folders
+        // Create folders (continue on errors as folders might already exist)
         for (const [key, folderName] of Object.entries(folderStructure)) {
           try {
             console.log(`Creating folder: ${folderName}`);
-            const folderResponse = await fetch('https://graph.microsoft.com/v1.0/me/drive/root/children', {
+            await fetch('https://graph.microsoft.com/v1.0/me/drive/root/children', {
               method: 'POST',
               headers: {
                 'Authorization': `Bearer ${tokenData.access_token}`,
@@ -505,17 +422,6 @@ serve(async (req) => {
                 '@microsoft.graph.conflictBehavior': 'rename'
               }),
             });
-
-            if (!folderResponse.ok) {
-              const folderError = await folderResponse.json();
-              console.log(`Folder creation response for ${folderName}:`, folderError);
-              // Continue if folder already exists
-              if (folderError.error?.code !== 'nameAlreadyExists') {
-                console.error(`Failed to create folder ${folderName}:`, folderError);
-              }
-            } else {
-              console.log(`Successfully created folder: ${folderName}`);
-            }
           } catch (error) {
             console.log(`Error creating folder ${folderName}:`, error);
           }
@@ -529,11 +435,11 @@ serve(async (req) => {
           .from('tenant_onedrive_settings')
           .update({
             access_token: tokenData.access_token,
-            refresh_token: tokenData.refresh_token || null, // Handle case where refresh token might not be provided
+            refresh_token: tokenData.refresh_token || null,
             token_expires_at: expiresAt.toISOString(),
             root_folder_id: rootFolderId,
             folder_structure: folderStructure,
-            code_verifier: null, // Clear the code verifier after successful exchange
+            code_verifier: null,
             connected_at: new Date().toISOString(),
             last_sync_at: new Date().toISOString(),
           })
@@ -541,7 +447,6 @@ serve(async (req) => {
 
         if (updateError) {
           console.error('Database update error:', updateError);
-          console.error('Failed to save tokens for tenant:', tenant_id);
           return new Response(
             '<html><body><script>window.close();</script><p>Failed to save authentication tokens. Please try connecting again.</p></body></html>',
             { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
@@ -549,7 +454,6 @@ serve(async (req) => {
         }
         
         console.log('Authentication tokens saved successfully');
-
         console.log('OneDrive connection completed successfully');
         return new Response(
           '<html><body><script>window.close();</script><p>OneDrive connected successfully!</p></body></html>',
@@ -558,33 +462,85 @@ serve(async (req) => {
 
       } catch (error) {
         console.error('Callback processing error:', error);
-        console.error('Error details:', {
-          message: error.message,
-          stack: error.stack,
-          tenant_id: state ? 'present' : 'missing',
-          auth_code: authCode ? 'present' : 'missing'
-        });
-        
-        // Provide more specific error messages based on error type
-        let errorMessage = 'Authentication processing failed. Please try connecting again.';
-        
-        if (error.message?.includes('Token refresh failed')) {
-          errorMessage = 'Token refresh failed. Please try connecting again.';
-        } else if (error.message?.includes('Failed to access OneDrive')) {
-          errorMessage = 'Failed to access OneDrive. Please check your permissions and try again.';
-        } else if (error.message?.includes('Database')) {
-          errorMessage = 'Failed to save authentication data. Please try connecting again.';
-        }
-        
         return new Response(
-          `<html><body><script>window.close();</script><p>${errorMessage}</p></body></html>`,
+          '<html><body><script>window.close();</script><p>Authentication processing failed. Please try connecting again.</p></body></html>',
           { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
         );
       }
     }
 
-    // Handle POST requests (API actions) - this was moved to handlePostAction function
-    throw new Error('Unexpected method or action');
+    // Handle POST requests (API actions)
+    if (req.method === 'POST') {
+      const authHeader = req.headers.get('authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        console.error('Missing or invalid authorization header');
+        return new Response(
+          JSON.stringify({ error: 'Missing authorization header' }),
+          { 
+            status: 401, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+
+      const token = authHeader.replace('Bearer ', '');
+      
+      // Validate JWT token using Supabase client
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      
+      if (authError || !user) {
+        console.error('Invalid JWT token:', authError);
+        return new Response(
+          JSON.stringify({ error: 'Invalid or expired token' }),
+          { 
+            status: 401, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+
+      console.log(`Authenticated user: ${user.id}`);
+      
+      // Parse request body
+      const requestBody = await req.json();
+      const { action, tenant_id } = requestBody as OneDriveAuthRequest;
+
+      // Verify user has access to the specified tenant
+      if (tenant_id) {
+        const { data: membership, error: membershipError } = await supabase
+          .from('user_tenant_memberships')
+          .select('role')
+          .eq('user_id', user.id)
+          .eq('tenant_id', tenant_id)
+          .eq('active', true)
+          .single();
+
+        if (membershipError || !membership) {
+          console.error('User does not have access to tenant:', { user_id: user.id, tenant_id });
+          return new Response(
+            JSON.stringify({ error: 'Access denied to tenant' }),
+            { 
+              status: 403, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+
+        console.log(`User ${user.id} has ${membership.role} access to tenant ${tenant_id}`);
+      }
+
+      // Handle different actions
+      return await handlePostAction(supabase, requestBody);
+    }
+
+    // Unexpected method
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      { 
+        status: 405, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
 
   } catch (error) {
     console.error('OneDrive Auth Error:', error);
@@ -598,9 +554,9 @@ serve(async (req) => {
   }
 });
 
-// Handle POST actions (moved from main serve function)
+// Handle POST actions
 async function handlePostAction(supabase: any, requestBody: OneDriveAuthRequest) {
-  const { action, tenant_id, client_id, client_secret, code, library_id, library_name } = requestBody;
+  const { action, tenant_id, client_id, client_secret, library_id, library_name } = requestBody;
 
   console.log(`OneDrive Auth - Action: ${action}, Tenant: ${tenant_id}`);
 
@@ -624,10 +580,9 @@ async function handlePostAction(supabase: any, requestBody: OneDriveAuthRequest)
       const codeChallenge = btoa(String.fromCharCode(...new Uint8Array(hashed)))
         .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+/g, '');
 
-      // Log PKCE info without sensitive values
       console.log(`PKCE prepared (verifier length: ${codeVerifier.length}, method: S256)`);
 
-      // Persist code_verifier for this tenant to use during token exchange
+      // Persist code_verifier
       const { error: pkceSaveError } = await supabase
         .from('tenant_onedrive_settings')
         .update({
@@ -639,17 +594,16 @@ async function handlePostAction(supabase: any, requestBody: OneDriveAuthRequest)
       if (pkceSaveError) {
         console.error('Failed to persist PKCE code_verifier:', pkceSaveError);
         return new Response(
-          JSON.stringify({ error: 'Failed to initialize OneDrive auth (PKCE save failed)' }),
+          JSON.stringify({ error: 'Failed to initialize OneDrive auth' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      // Generate OAuth URL with PKCE and enhanced state
+      // Generate OAuth URL
       const baseUrl = Deno.env.get('SUPABASE_URL');
       if (!baseUrl) {
-        console.error('SUPABASE_URL environment variable not set');
         return new Response(
-          JSON.stringify({ error: 'Server configuration error - missing SUPABASE_URL' }),
+          JSON.stringify({ error: 'Server configuration error' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -657,7 +611,6 @@ async function handlePostAction(supabase: any, requestBody: OneDriveAuthRequest)
       const redirectUri = `${baseUrl}/functions/v1/onedrive-auth`;
       const scope = 'Files.ReadWrite Files.ReadWrite.All offline_access';
       
-      // Include timestamp and nonce for additional security
       const stateData = {
         tenant_id,
         timestamp: Date.now(),
@@ -692,21 +645,6 @@ async function handlePostAction(supabase: any, requestBody: OneDriveAuthRequest)
         );
       }
 
-      // Get tenant's OneDrive settings
-      const { data: settings, error: settingsError } = await supabase
-        .from('tenant_onedrive_settings')
-        .select('access_token, refresh_token, client_id, client_secret, token_expires_at')
-        .eq('tenant_id', tenant_id)
-        .single();
-
-      if (settingsError || !settings || !settings.access_token) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'No valid access token found' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Test connection by getting user's drive info using helper function
       try {
         console.log('Testing OneDrive connection...');
         const driveResponse = await makeGraphRequest(supabase, tenant_id, 'https://graph.microsoft.com/v1.0/me/drive');
@@ -753,22 +691,7 @@ async function handlePostAction(supabase: any, requestBody: OneDriveAuthRequest)
         );
       }
 
-      // Get tenant's OneDrive settings
-      const { data: settings, error: settingsError } = await supabase
-        .from('tenant_onedrive_settings')
-        .select('access_token, refresh_token, client_id, client_secret, token_expires_at')
-        .eq('tenant_id', tenant_id)
-        .single();
-
-      if (settingsError || !settings || !settings.access_token) {
-        return new Response(
-          JSON.stringify({ error: 'No valid access token found' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
       try {
-        // Get available sites with document libraries using helper function
         console.log('Fetching SharePoint sites...');
         const sitesResponse = await makeGraphRequest(supabase, tenant_id, 'https://graph.microsoft.com/v1.0/sites?search=*');
 
@@ -781,7 +704,7 @@ async function handlePostAction(supabase: any, requestBody: OneDriveAuthRequest)
         const sitesData = await sitesResponse.json();
         const libraries = [];
 
-        // Add the personal OneDrive as default option
+        // Add personal OneDrive
         console.log('Fetching personal OneDrive...');
         const driveResponse = await makeGraphRequest(supabase, tenant_id, 'https://graph.microsoft.com/v1.0/me/drive');
 
@@ -793,17 +716,11 @@ async function handlePostAction(supabase: any, requestBody: OneDriveAuthRequest)
             type: 'personal',
             webUrl: driveData.webUrl
           });
-          console.log('Successfully fetched personal OneDrive');
-        } else {
-          const driveError = await driveResponse.json();
-          console.error('Failed to fetch personal OneDrive:', driveError);
         }
 
-        // Add site document libraries
-        console.log(`Processing ${sitesData.value?.length || 0} SharePoint sites...`);
+        // Add SharePoint site libraries
         for (const site of sitesData.value || []) {
           try {
-            console.log(`Fetching drives for site: ${site.displayName}`);
             const drivesResponse = await makeGraphRequest(supabase, tenant_id, `https://graph.microsoft.com/v1.0/sites/${site.id}/drives`);
 
             if (drivesResponse.ok) {
@@ -819,10 +736,6 @@ async function handlePostAction(supabase: any, requestBody: OneDriveAuthRequest)
                   });
                 }
               }
-              console.log(`Found ${drivesData.value?.length || 0} drives for site: ${site.displayName}`);
-            } else {
-              const drivesError = await drivesResponse.json();
-              console.log(`Failed to fetch drives for site ${site.displayName}:`, drivesError);
             }
           } catch (error) {
             console.log(`Error fetching drives for site ${site.id}:`, error);
@@ -853,7 +766,6 @@ async function handlePostAction(supabase: any, requestBody: OneDriveAuthRequest)
       }
 
       try {
-        // Update the selected library in the database
         const { error: updateError } = await supabase
           .from('tenant_onedrive_settings')
           .update({
@@ -867,7 +779,7 @@ async function handlePostAction(supabase: any, requestBody: OneDriveAuthRequest)
           throw updateError;
         }
 
-        console.log(`Library ${library_name} (${library_id}) selected for tenant ${tenant_id}`);
+        console.log(`Library ${library_name} selected for tenant ${tenant_id}`);
         return new Response(
           JSON.stringify({ success: true }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -889,289 +801,3 @@ async function handlePostAction(supabase: any, requestBody: OneDriveAuthRequest)
       );
   }
 }
-        if (!tenant_id || !client_id || !client_secret) {
-          return new Response(
-            JSON.stringify({ error: 'Missing required parameters' }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        // Generate PKCE code_verifier and code_challenge
-        const randomBytes = new Uint8Array(64);
-        crypto.getRandomValues(randomBytes);
-        const codeVerifier = btoa(String.fromCharCode(...randomBytes))
-          .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+/g, '');
-
-        const encoder = new TextEncoder();
-        const hashed = await crypto.subtle.digest('SHA-256', encoder.encode(codeVerifier));
-        const codeChallenge = btoa(String.fromCharCode(...new Uint8Array(hashed)))
-          .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+/g, '');
-
-        // Log PKCE info without sensitive values
-        console.log(`PKCE prepared (verifier length: ${codeVerifier.length}, method: S256)`);
-
-        // Persist code_verifier for this tenant to use during token exchange
-        const { error: pkceSaveError } = await supabase
-          .from('tenant_onedrive_settings')
-          .update({
-            code_verifier: codeVerifier,
-            updated_at: new Date().toISOString()
-          })
-          .eq('tenant_id', tenant_id);
-
-        if (pkceSaveError) {
-          console.error('Failed to persist PKCE code_verifier:', pkceSaveError);
-          return new Response(
-            JSON.stringify({ error: 'Failed to initialize OneDrive auth (PKCE save failed)' }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        // Generate OAuth URL with PKCE and enhanced state
-        const baseUrl = Deno.env.get('SUPABASE_URL');
-        if (!baseUrl) {
-          console.error('SUPABASE_URL environment variable not set');
-          return new Response(
-            JSON.stringify({ error: 'Server configuration error - missing SUPABASE_URL' }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-        
-        const redirectUri = `${baseUrl}/functions/v1/onedrive-auth`;
-        const scope = 'Files.ReadWrite Files.ReadWrite.All offline_access';
-        
-        // Include timestamp and nonce for additional security
-        const stateData = {
-          tenant_id,
-          timestamp: Date.now(),
-          nonce: crypto.randomUUID()
-        };
-        const state = btoa(JSON.stringify(stateData));
-        
-        console.log('Generated OAuth URL with enhanced state parameter');
-        console.log(`Redirect URI: ${redirectUri}`);
-
-        const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?` +
-          `client_id=${encodeURIComponent(client_id)}&` +
-          `response_type=code&` +
-          `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-          `scope=${encodeURIComponent(scope)}&` +
-          `state=${encodeURIComponent(state)}&` +
-          `response_mode=query&` +
-          `code_challenge=${encodeURIComponent(codeChallenge)}&` +
-          `code_challenge_method=S256`;
-
-        return new Response(
-          JSON.stringify({ auth_url: authUrl }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      case 'test': {
-        if (!tenant_id) {
-          return new Response(
-            JSON.stringify({ error: 'Missing tenant_id' }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        // Get tenant's OneDrive settings
-        const { data: settings, error: settingsError } = await supabase
-          .from('tenant_onedrive_settings')
-          .select('access_token, refresh_token, client_id, client_secret, token_expires_at')
-          .eq('tenant_id', tenant_id)
-          .single();
-
-        if (settingsError || !settings || !settings.access_token) {
-          return new Response(
-            JSON.stringify({ success: false, error: 'No valid access token found' }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        // Test connection by getting user's drive info using helper function
-        try {
-          console.log('Testing OneDrive connection...');
-          const driveResponse = await makeGraphRequest(supabase, tenant_id, 'https://graph.microsoft.com/v1.0/me/drive');
-
-          if (driveResponse.ok) {
-            const driveInfo = await driveResponse.json();
-            console.log('Connection test successful');
-            return new Response(
-              JSON.stringify({ 
-                success: true, 
-                drive_name: driveInfo.name,
-                owner: driveInfo.owner?.user?.displayName 
-              }),
-              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-          } else {
-            const errorData = await driveResponse.json();
-            console.error('Connection test failed:', errorData);
-            return new Response(
-              JSON.stringify({ 
-                success: false, 
-                error: `Failed to access OneDrive: ${errorData.error?.message || 'Unknown error'}` 
-              }),
-              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-          }
-        } catch (error) {
-          console.error('Test connection error:', error);
-          return new Response(
-            JSON.stringify({ 
-              success: false, 
-              error: `Connection test failed: ${error.message}` 
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-      }
-
-      case 'get_libraries': {
-        if (!tenant_id) {
-          return new Response(
-            JSON.stringify({ error: 'Missing tenant_id' }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        // Get tenant's OneDrive settings
-        const { data: settings, error: settingsError } = await supabase
-          .from('tenant_onedrive_settings')
-          .select('access_token, refresh_token, client_id, client_secret, token_expires_at')
-          .eq('tenant_id', tenant_id)
-          .single();
-
-        if (settingsError || !settings || !settings.access_token) {
-          return new Response(
-            JSON.stringify({ error: 'No valid access token found' }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        try {
-          // Get available sites with document libraries using helper function
-          console.log('Fetching SharePoint sites...');
-          const sitesResponse = await makeGraphRequest(supabase, tenant_id, 'https://graph.microsoft.com/v1.0/sites?search=*');
-
-          if (!sitesResponse.ok) {
-            const sitesError = await sitesResponse.json();
-            console.error('Failed to fetch sites:', sitesError);
-            throw new Error(`Failed to fetch sites: ${sitesError.error?.message || 'Unknown error'}`);
-          }
-
-          const sitesData = await sitesResponse.json();
-          const libraries = [];
-
-          // Add the personal OneDrive as default option
-          console.log('Fetching personal OneDrive...');
-          const driveResponse = await makeGraphRequest(supabase, tenant_id, 'https://graph.microsoft.com/v1.0/me/drive');
-
-          if (driveResponse.ok) {
-            const driveData = await driveResponse.json();
-            libraries.push({
-              id: driveData.id,
-              name: `Personal OneDrive (${driveData.owner?.user?.displayName || 'Me'})`,
-              type: 'personal',
-              webUrl: driveData.webUrl
-            });
-            console.log('Successfully fetched personal OneDrive');
-          } else {
-            const driveError = await driveResponse.json();
-            console.error('Failed to fetch personal OneDrive:', driveError);
-          }
-
-          // Add site document libraries
-          console.log(`Processing ${sitesData.value?.length || 0} SharePoint sites...`);
-          for (const site of sitesData.value || []) {
-            try {
-              console.log(`Fetching drives for site: ${site.displayName}`);
-              const drivesResponse = await makeGraphRequest(supabase, tenant_id, `https://graph.microsoft.com/v1.0/sites/${site.id}/drives`);
-
-              if (drivesResponse.ok) {
-                const drivesData = await drivesResponse.json();
-                for (const drive of drivesData.value || []) {
-                  if (drive.driveType === 'documentLibrary') {
-                    libraries.push({
-                      id: drive.id,
-                      name: `${site.displayName} - ${drive.name}`,
-                      type: 'sharepoint',
-                      webUrl: drive.webUrl,
-                      siteId: site.id
-                    });
-                  }
-                }
-                console.log(`Found ${drivesData.value?.length || 0} drives for site: ${site.displayName}`);
-              } else {
-                const drivesError = await drivesResponse.json();
-                console.log(`Failed to fetch drives for site ${site.displayName}:`, drivesError);
-              }
-            } catch (error) {
-              console.log(`Error fetching drives for site ${site.id}:`, error);
-            }
-          }
-
-          return new Response(
-            JSON.stringify({ libraries }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        } catch (error) {
-          console.error('Error fetching libraries:', error);
-          return new Response(
-            JSON.stringify({ error: 'Failed to fetch document libraries' }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-      }
-
-      case 'set_library': {
-        if (!tenant_id || !library_id || !library_name) {
-          return new Response(
-            JSON.stringify({ error: 'Missing required parameters' }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        try {
-          const { error: updateError } = await supabase
-            .from('tenant_onedrive_settings')
-            .update({
-              selected_library_id: library_id,
-              selected_library_name: library_name,
-              updated_at: new Date().toISOString()
-            })
-            .eq('tenant_id', tenant_id);
-
-          if (updateError) {
-            throw updateError;
-          }
-
-          return new Response(
-            JSON.stringify({ success: true }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        } catch (error) {
-          console.error('Error setting library:', error);
-          return new Response(
-            JSON.stringify({ error: 'Failed to set selected library' }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-      }
-
-      default:
-        return new Response(
-          JSON.stringify({ error: 'Invalid action' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-    }
-
-  } catch (error) {
-    console.error('OneDrive Auth Error:', error);
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-});
