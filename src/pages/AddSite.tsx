@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { DynamicCompanySelect, DynamicContactSelect, DynamicSiteSelect } from '@/components/ui/dynamic-searchable-select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
@@ -394,17 +395,16 @@ const AddSite = () => {
                       <FormItem>
                         <FormLabel>Contact (Optional)</FormLabel>
                         <FormControl>
-                          <SearchableSelect
-                            value={field.value}
-                            onValueChange={field.onChange}
-                            options={contacts}
-                            placeholder="Search and select contact..."
-                            searchPlaceholder="Search contacts..."
-                            emptyText="No contacts found."
-                            renderOption={(contact) => `${contact.first_name} ${contact.last_name}${contact.email ? ` (${contact.email})` : ''}`}
-                            onAddNew={() => setShowContactModal(true)}
-                            addNewLabel="Add Contact"
-                          />
+                           <DynamicContactSelect
+                             value={field.value}
+                             onValueChange={field.onChange}
+                             placeholder="Search and select contact..."
+                             searchPlaceholder="Search contacts..."
+                             emptyText="No contacts found."
+                             renderOption={(contact) => `${contact.first_name} ${contact.last_name}${contact.email ? ` (${contact.email})` : ''}`}
+                             onAddNew={() => setShowContactModal(true)}
+                             addNewLabel="Add Contact"
+                           />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -418,17 +418,16 @@ const AddSite = () => {
                       <FormItem>
                         <FormLabel>Company (Optional)</FormLabel>
                         <FormControl>
-                          <SearchableSelect
-                            value={field.value}
-                            onValueChange={field.onChange}
-                            options={companies}
-                            placeholder="Search and select company..."
-                            searchPlaceholder="Search companies..."
-                            emptyText="No companies found."
-                            onAddNew={() => setShowCompanyModal(true)}
-                            addNewLabel="Add Company"
-                          />
-                        </FormControl>
+                           <DynamicCompanySelect
+                             value={field.value}
+                             onValueChange={field.onChange}
+                             placeholder="Search and select company..."
+                             searchPlaceholder="Search companies..."
+                             emptyText="No companies found."
+                             onAddNew={() => setShowCompanyModal(true)}
+                             addNewLabel="Add Company"
+                            />
+                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}

@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { DynamicCompanySelect, DynamicCustomerSelect, DynamicContactSelect, DynamicSiteSelect } from '@/components/ui/dynamic-searchable-select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
@@ -458,16 +459,15 @@ const AddContact = () => {
                         <FormItem>
                           <FormLabel>Company</FormLabel>
                           <FormControl>
-                            <SearchableSelect
-                              value={field.value}
-                              onValueChange={field.onChange}
-                              options={customers}
-                              placeholder="Search and select company..."
-                              searchPlaceholder="Search companies..."
-                              emptyText="No companies found."
-                              onAddNew={() => setShowCompanyModal(true)}
-                              addNewLabel="Add Company"
-                            />
+                             <DynamicCompanySelect
+                               value={field.value}
+                               onValueChange={field.onChange}
+                               placeholder="Search and select company..."
+                               searchPlaceholder="Search companies..."
+                               emptyText="No companies found."
+                               onAddNew={() => setShowCompanyModal(true)}
+                               addNewLabel="Add Company"
+                             />
                           </FormControl>
                           <FormMessage />
                         </FormItem>

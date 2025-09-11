@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { DynamicContactSelect, DynamicSiteSelect } from '@/components/ui/dynamic-searchable-select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -742,20 +743,19 @@ const AddCompany = () => {
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                      <div>
                        <label className="text-sm font-medium">Contacts</label>
-                       <SearchableSelect
-                         value=""
-                         onValueChange={(contactId) => {
-                           const contact = contacts.find(c => c.id === contactId);
-                           if (contact) handleContactSelect(contact);
-                         }}
-                         options={contacts}
-                         placeholder="Search and select contacts..."
-                         searchPlaceholder="Search contacts..."
-                         emptyText="No contacts found."
-                         renderOption={(contact) => `${contact.first_name} ${contact.last_name}${contact.email ? ` (${contact.email})` : ''}`}
-                         onAddNew={() => setShowContactModal(true)}
-                         addNewLabel="Add Contact"
-                       />
+                        <DynamicContactSelect
+                          value=""
+                          onValueChange={(contactId) => {
+                            const contact = contacts.find(c => c.id === contactId);
+                            if (contact) handleContactSelect(contact);
+                          }}
+                          placeholder="Search and select contacts..."
+                          searchPlaceholder="Search contacts..."
+                          emptyText="No contacts found."
+                          renderOption={(contact) => `${contact.first_name} ${contact.last_name}${contact.email ? ` (${contact.email})` : ''}`}
+                          onAddNew={() => setShowContactModal(true)}
+                          addNewLabel="Add Contact"
+                        />
                        
                        {/* Selected Contacts */}
                        {selectedContacts.length > 0 && (
@@ -782,21 +782,20 @@ const AddCompany = () => {
                      
                      <div>
                        <label className="text-sm font-medium">Sites</label>
-                       <SearchableSelect
-                         value=""
-                         onValueChange={(siteId) => {
-                           const currentSiteIds = form.getValues('siteIds') || [];
-                           if (!currentSiteIds.includes(siteId)) {
-                             form.setValue('siteIds', [...currentSiteIds, siteId]);
-                           }
-                         }}
-                         options={sites}
-                         placeholder="Search and select sites..."
-                         searchPlaceholder="Search sites..."
-                         emptyText="No sites found."
-                         onAddNew={() => setShowSiteModal(true)}
-                         addNewLabel="Add Site"
-                       />
+                        <DynamicSiteSelect
+                          value=""
+                          onValueChange={(siteId) => {
+                            const currentSiteIds = form.getValues('siteIds') || [];
+                            if (!currentSiteIds.includes(siteId)) {
+                              form.setValue('siteIds', [...currentSiteIds, siteId]);
+                            }
+                          }}
+                          placeholder="Search and select sites..."
+                          searchPlaceholder="Search sites..."
+                          emptyText="No sites found."
+                          onAddNew={() => setShowSiteModal(true)}
+                          addNewLabel="Add Site"
+                        />
                        
                        {/* Selected Sites */}
                        {form.watch('siteIds')?.length > 0 && (

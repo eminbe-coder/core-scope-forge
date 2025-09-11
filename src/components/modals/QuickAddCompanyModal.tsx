@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { toast } from 'sonner';
 import { Building } from 'lucide-react';
+import { useEntityRefresh } from '@/components/ui/entity-refresh-context';
 
 const quickCompanySchema = z.object({
   name: z.string().min(2, 'Company name must be at least 2 characters'),
@@ -31,6 +32,7 @@ interface QuickAddCompanyModalProps {
 
 export const QuickAddCompanyModal = ({ open, onClose, onCompanyCreated }: QuickAddCompanyModalProps) => {
   const { currentTenant } = useTenant();
+  const { refreshEntities } = useEntityRefresh();
   const [loading, setLoading] = useState(false);
   const [industries, setIndustries] = useState<Array<{ id: string; name: string }>>([]);
   const [companyTypes, setCompanyTypes] = useState<Array<{ id: string; name: string }>>([]);
@@ -114,6 +116,7 @@ export const QuickAddCompanyModal = ({ open, onClose, onCompanyCreated }: QuickA
       if (error) throw error;
 
       toast.success(`Company ${data.name} created successfully`);
+      refreshEntities('companies'); // Trigger refresh of all company selects
       onCompanyCreated(insertedCompany);
       form.reset();
       onClose();

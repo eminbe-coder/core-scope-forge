@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { DynamicCompanySelect } from '@/components/ui/dynamic-searchable-select';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -194,8 +195,7 @@ export function CompanyRelationshipSelector({
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <Label htmlFor="company">Company</Label>
-                  <SearchableSelect
-                    options={companies}
+                  <DynamicCompanySelect
                     value={formData.company_id}
                     onValueChange={(value) => setFormData({ ...formData, company_id: value })}
                     placeholder="Select a company"
