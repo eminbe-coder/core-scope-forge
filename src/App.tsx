@@ -23,6 +23,7 @@ import SiteDetail from "./pages/SiteDetail";
 import EditSite from "./pages/EditSite";
 import Contacts from "./pages/Contacts";
 import AddContact from "./pages/AddContact";
+import ContactDetail from "./pages/ContactDetail";
 import EditContact from "./pages/EditContact";
 import AddCustomer from "./pages/AddCustomer";
 import EditCustomer from "./pages/EditCustomer";
@@ -125,16 +126,21 @@ const App = () => (
                       <Contacts />
                     </ProtectedRoute>
                   } />
-                   <Route path="/contacts/add" element={
-                     <ProtectedRoute>
-                       <AddContact />
-                     </ProtectedRoute>
-                    } />
-                    <Route path="/contacts/edit/:id" element={
-                      <ProtectedRoute>
-                        <EditContact />
-                      </ProtectedRoute>
-                    } />
+                  <Route path="/contacts/add" element={
+                    <ProtectedRoute>
+                      <AddContact />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/contacts/:id" element={
+                    <ProtectedRoute>
+                      <ContactDetail />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/contacts/edit/:id" element={
+                    <ProtectedRoute>
+                      <EditContact />
+                    </ProtectedRoute>
+                  } />
                     <Route path="/customers/add" element={
                       <ProtectedRoute>
                         <AddCustomer />

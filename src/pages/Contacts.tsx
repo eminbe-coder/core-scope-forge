@@ -94,6 +94,10 @@ const Contacts = () => {
     navigate(`/contacts/edit/${contact.id}`);
   };
 
+  const handleView = (contact: Contact) => {
+    navigate(`/contacts/${contact.id}`);
+  };
+
   const handleDelete = (contact: Contact) => {
     setDeleteModal({ open: true, contact });
   };
@@ -149,6 +153,7 @@ const Contacts = () => {
           id: contact.id,
           title: `${contact.first_name} ${contact.last_name}`,
           icon: User,
+          onClick: () => handleView(contact),
           fields: [
             ...(contact.position ? [{
               value: contact.position,
