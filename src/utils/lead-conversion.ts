@@ -116,7 +116,7 @@ export const convertLeadToDeal = async ({
 
     if (dealError) throw dealError;
 
-    // Update lead to mark as converted
+    // Update lead to mark as converted (archived)
     const updateTable = leadType === 'contact' ? 'contacts' : leadType === 'company' ? 'companies' : 'sites';
     await supabase
       .from(updateTable)

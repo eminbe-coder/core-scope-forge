@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
+import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,6 +42,7 @@ export const TodoForm = ({
   defaultOpen = false 
 }: TodoFormProps) => {
   const { currentTenant } = useTenant();
+  const { user } = useAuth();
   const [open, setOpen] = useState(defaultOpen);
   const [todoTypes, setTodoTypes] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -52,7 +54,7 @@ export const TodoForm = ({
     defaultValues: {
       title: '',
       description: '',
-      assigned_to: 'unassigned',
+      assigned_to: user?.id || 'unassigned',
       due_date: '',
       priority: 'medium',
       type_id: '',
@@ -63,8 +65,18 @@ export const TodoForm = ({
   useEffect(() => {
     if (open && currentTenant?.id) {
       fetchFormData();
+      // Reset form with current user as default when opening
+      form.reset({
+        title: '',
+        description: '',
+        assigned_to: user?.id || 'unassigned',
+        due_date: '',
+        priority: 'medium',
+        type_id: '',
+        payment_term_id: paymentTermId || 'none',
+      });
     }
-  }, [open, currentTenant?.id, entityType, entityId]);
+  }, [open, currentTenant?.id, entityType, entityId, user?.id]);
 
   const fetchFormData = async () => {
     try {

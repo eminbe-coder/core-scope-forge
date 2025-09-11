@@ -8,7 +8,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
-import { Target, Search, Building2, User, MapPin, Mail, Phone, Globe, MessageSquare, CheckSquare } from 'lucide-react';
+import { Target, Search, Building2, User, MapPin, Mail, Phone, Globe, MessageSquare, CheckSquare, Archive } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EntityListing } from '@/components/entity-listing';
 import { LeadActivities } from '@/components/lead-activities/LeadActivities';
@@ -40,6 +40,7 @@ const Leads = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
+  const [showArchived, setShowArchived] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; lead: Lead | null }>({
     open: false,
@@ -88,7 +89,7 @@ const Leads = () => {
           customers(name)
         `)
         .eq('tenant_id', currentTenant.id)
-        .eq('is_lead', true)
+        .eq('is_lead', !showArchived)
         .eq('active', true);
 
       if (contactError) throw contactError;
@@ -119,7 +120,7 @@ const Leads = () => {
           stage_id, quality_id, created_at
         `)
         .eq('tenant_id', currentTenant.id)
-        .eq('is_lead', true)
+        .eq('is_lead', !showArchived)
         .eq('active', true);
 
       if (companyError) throw companyError;
@@ -156,7 +157,7 @@ const Leads = () => {
           customers(name)
         `)
         .eq('tenant_id', currentTenant.id)
-        .eq('is_lead', true)
+        .eq('is_lead', !showArchived)
         .eq('active', true);
 
       if (siteError) throw siteError;
@@ -191,7 +192,7 @@ const Leads = () => {
 
   useEffect(() => {
     fetchLeads();
-  }, [currentTenant]);
+  }, [currentTenant, showArchived]);
 
   const filteredLeads = leads.filter(lead => {
     const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -325,18 +326,26 @@ const Leads = () => {
         <div className="space-y-6">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold">Leads</h1>
+              <h1 className="text-3xl font-bold">{showArchived ? 'Archived Leads' : 'Active Leads'}</h1>
               <p className="text-muted-foreground">
-                Manage all your potential business opportunities
+                {showArchived ? 'View your converted and archived leads' : 'Manage all your potential business opportunities'}
               </p>
             </div>
             <div className="flex items-center gap-2">
+              <Button 
+                variant="outline"
+                onClick={() => setShowArchived(!showArchived)}
+                className="flex items-center gap-2"
+              >
+                <Archive className="h-4 w-4" />
+                {showArchived ? 'Show Active' : 'Show Archived'}
+              </Button>
               <Button onClick={() => navigate('/leads/add')}>
                 Add New Lead
               </Button>
               <Badge variant="outline" className="text-lg px-3 py-1">
                 <Target className="h-4 w-4 mr-2" />
-                {leadCounts.all} Total Leads
+                {leadCounts.all} {showArchived ? 'Archived' : 'Active'} Leads
               </Badge>
             </div>
           </div>
@@ -370,7 +379,9 @@ const Leads = () => {
                     <p className="text-muted-foreground text-center max-w-sm">
                       {searchTerm 
                         ? 'No leads match your search criteria.' 
-                        : 'Flag contacts, companies, or sites as leads to see them here.'
+                        : showArchived
+                          ? 'No archived leads found.'
+                          : 'Flag contacts, companies, or sites as leads to see them here.'
                       }
                     </p>
                   </CardContent>

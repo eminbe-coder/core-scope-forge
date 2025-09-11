@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
-import { Handshake, DollarSign } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Handshake, DollarSign, Archive } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
@@ -66,6 +67,7 @@ const Deals = () => {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; deal: Deal | null }>({
     open: false,
     deal: null,
@@ -87,6 +89,7 @@ const Deals = () => {
           assigned_user:profiles!deals_assigned_to_fkey(first_name, last_name, email)
         `)
         .eq('tenant_id', currentTenant.id)
+        .eq('is_converted', showArchived)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -127,7 +130,7 @@ const Deals = () => {
 
   useEffect(() => {
     fetchDeals();
-  }, [currentTenant]);
+  }, [currentTenant, showArchived]);
 
   const handleEdit = (deal: Deal) => {
     navigate(`/deals/edit/${deal.id}`);
@@ -173,9 +176,24 @@ const Deals = () => {
 
   return (
     <DashboardLayout>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-3xl font-bold">Deals</h1>
+          <p className="text-muted-foreground">Track and manage sales opportunities</p>
+        </div>
+        <Button 
+          variant="outline" 
+          onClick={() => setShowArchived(!showArchived)}
+          className="flex items-center gap-2"
+        >
+          <Archive className="h-4 w-4" />
+          {showArchived ? 'Hide Archived' : 'Show Archived'}
+        </Button>
+      </div>
+      
       <EntityListing
-        title="Deals"
-        description="Track and manage sales opportunities"
+        title={showArchived ? "Archived Deals" : "Active Deals"}
+        description={showArchived ? "View your completed and archived deals" : "Track and manage active sales opportunities"}
         icon={Handshake}
         entities={filteredDeals}
         loading={loading}
@@ -300,7 +318,7 @@ const Deals = () => {
         onDelete={handleDelete}
         editPermission="deals.edit"
         deletePermission="deals.delete"
-        emptyStateMessage="Start tracking sales opportunities by creating your first deal."
+        emptyStateMessage={showArchived ? "No archived deals found." : "Start tracking sales opportunities by creating your first deal."}
       />
       
       <DeleteConfirmationModal

@@ -35,8 +35,14 @@ export const useDealContractAutomation = (deal: Deal | null) => {
 
         if (stageError || !stage) return;
 
-        // If stage has 100% win percentage, trigger contract creation
+        // If stage has 100% win percentage, mark as archived and trigger contract creation
         if (stage.win_percentage === 100) {
+          // Mark deal as archived
+          await supabase
+            .from('deals')
+            .update({ is_converted: true })
+            .eq('id', deal.id);
+
           toast.success('Deal completed! Creating contract...', {
             duration: 3000,
           });
