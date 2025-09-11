@@ -216,7 +216,7 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
   
   const [editedDeal, setEditedDeal] = useState({
     stage_id: deal.stage_id || '',
-    deal_status_id: deal.deal_status_id || '',
+    deal_status_id: deal.deal_status_id || 'none',
     description: deal.description || '',
     value: deal.value || 0,
     expected_close_date: deal.expected_close_date || '',
@@ -585,8 +585,8 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
       }
 
       if (editedDeal.deal_status_id !== deal.deal_status_id) {
-        updateData.deal_status_id = editedDeal.deal_status_id || null;
-        const statusName = dealStatuses.find(s => s.id === editedDeal.deal_status_id)?.name || 'None';
+        updateData.deal_status_id = editedDeal.deal_status_id === 'none' ? null : editedDeal.deal_status_id;
+        const statusName = editedDeal.deal_status_id === 'none' ? 'None' : dealStatuses.find(s => s.id === editedDeal.deal_status_id)?.name || 'None';
         changes.push(`Status updated to ${statusName}`);
       }
 
@@ -1240,7 +1240,7 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">No status</SelectItem>
+                        <SelectItem value="none">No status</SelectItem>
                         {dealStatuses.map((status) => (
                           <SelectItem key={status.id} value={status.id}>
                             {status.name}

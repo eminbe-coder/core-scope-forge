@@ -137,7 +137,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
   const [showContactModal, setShowContactModal] = useState(false);
   const [editedDeal, setEditedDeal] = useState({
     stage_id: deal.stage_id || '',
-    deal_status_id: deal.deal_status_id || '',
+    deal_status_id: deal.deal_status_id || 'none',
     description: deal.description || '',
     value: deal.value || 0,
     expected_close_date: deal.expected_close_date || '',
@@ -622,8 +622,8 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
       }
 
       if (editedDeal.deal_status_id !== deal.deal_status_id) {
-        const statusName = dealStatuses.find(s => s.id === editedDeal.deal_status_id)?.name || 'None';
-        const oldStatusName = dealStatuses.find(s => s.id === deal.deal_status_id)?.name || 'None';
+        const statusName = editedDeal.deal_status_id === 'none' ? 'None' : dealStatuses.find(s => s.id === editedDeal.deal_status_id)?.name || 'None';
+        const oldStatusName = deal.deal_status_id ? dealStatuses.find(s => s.id === deal.deal_status_id)?.name || 'None' : 'None';
         changes.push(`Status changed from "${oldStatusName}" to "${statusName}"`);
       }
 
@@ -632,7 +632,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
         .from('deals')
         .update({
           stage_id: editedDeal.stage_id || null,
-          deal_status_id: editedDeal.deal_status_id || null,
+          deal_status_id: editedDeal.deal_status_id === 'none' ? null : editedDeal.deal_status_id,
           description: editedDeal.description || null,
           value: editedDeal.value,
           expected_close_date: editedDeal.expected_close_date || null,
@@ -694,7 +694,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
   const handleCancel = () => {
     setEditedDeal({
       stage_id: deal.stage_id || '',
-      deal_status_id: deal.deal_status_id || '',
+      deal_status_id: deal.deal_status_id || 'none',
       description: deal.description || '',
       value: deal.value || 0,
       expected_close_date: deal.expected_close_date || '',
@@ -951,7 +951,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No status</SelectItem>
+                    <SelectItem value="none">No status</SelectItem>
                     {dealStatuses.map((status) => (
                       <SelectItem key={status.id} value={status.id}>
                         {status.name}
