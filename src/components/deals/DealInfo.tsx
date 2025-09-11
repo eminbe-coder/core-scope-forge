@@ -7,10 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { UnifiedEntitySelect } from '@/components/ui/unified-entity-select';
 import { MultiSelectDropdown } from '@/components/deals/MultiSelectDropdown';
+import { SolutionCategorySelect } from '@/components/ui/solution-category-select';
 import { QuickAddSiteModal } from '@/components/modals/QuickAddSiteModal';
 import { QuickAddCompanyModal } from '@/components/modals/QuickAddCompanyModal';
 import { UnifiedQuickAddContactModal } from '@/components/modals/UnifiedQuickAddContactModal';
-import { DollarSign, Calendar, Building, MapPin, Percent, Edit3, Save, X, Users, User, Plus, CheckSquare, Trash2 } from 'lucide-react';
+import { DollarSign, Calendar, Building, MapPin, Percent, Edit3, Save, X, Users, User, Plus, CheckSquare, Trash2, Tag } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,6 +22,12 @@ interface DealStage {
   id: string;
   name: string;
   win_percentage: number;
+}
+
+interface DealStatus {
+  id: string;
+  name: string;
+  description?: string;
 }
 
 interface Site {
@@ -71,6 +78,7 @@ interface Deal {
   value?: number;
   status: string;
   stage_id?: string;
+  deal_status_id?: string;
   site_id?: string;
   customer_id?: string;
   customer_reference_number?: string;
@@ -78,6 +86,7 @@ interface Deal {
   expected_close_date?: string;
   notes?: string;
   assigned_to?: string;
+  solution_category_ids?: string[];
   customers?: {
     id: string;
     name: string;
@@ -110,6 +119,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
   const { currentTenant } = useTenant();
   const { toast } = useToast();
   const [stages, setStages] = useState<DealStage[]>([]);
+  const [dealStatuses, setDealStatuses] = useState<DealStatus[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -127,6 +137,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
   const [showContactModal, setShowContactModal] = useState(false);
   const [editedDeal, setEditedDeal] = useState({
     stage_id: deal.stage_id || '',
+    deal_status_id: deal.deal_status_id || '',
     description: deal.description || '',
     value: deal.value || 0,
     expected_close_date: deal.expected_close_date || '',
@@ -134,6 +145,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
     customer_id: deal.customer_id || '',
     customer_reference_number: deal.customer_reference_number || '',
     assigned_to: deal.assigned_to || 'unassigned',
+    solution_category_ids: deal.solution_category_ids || [] as string[],
     company_ids: [] as string[],
     contact_ids: [] as string[],
   });
@@ -153,6 +165,24 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
       setStages(data || []);
     } catch (error) {
       console.error('Error fetching deal stages:', error);
+    }
+  };
+
+  const fetchDealStatuses = async () => {
+    if (!currentTenant) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('deal_statuses')
+        .select('id, name, description')
+        .eq('tenant_id', currentTenant.id)
+        .eq('active', true)
+        .order('sort_order');
+
+      if (error) throw error;
+      setDealStatuses(data || []);
+    } catch (error) {
+      console.error('Error fetching deal statuses:', error);
     }
   };
 
@@ -386,6 +416,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
 
   useEffect(() => {
     fetchStages();
+    fetchDealStatuses();
     fetchSites();
     fetchCompanies();
     fetchContacts();
@@ -586,11 +617,22 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
         }
       }
 
+      if (JSON.stringify(editedDeal.solution_category_ids) !== JSON.stringify(deal.solution_category_ids || [])) {
+        changes.push('Solution categories updated');
+      }
+
+      if (editedDeal.deal_status_id !== deal.deal_status_id) {
+        const statusName = dealStatuses.find(s => s.id === editedDeal.deal_status_id)?.name || 'None';
+        const oldStatusName = dealStatuses.find(s => s.id === deal.deal_status_id)?.name || 'None';
+        changes.push(`Status changed from "${oldStatusName}" to "${statusName}"`);
+      }
+
       // Update deal
       const { error } = await supabase
         .from('deals')
         .update({
           stage_id: editedDeal.stage_id || null,
+          deal_status_id: editedDeal.deal_status_id || null,
           description: editedDeal.description || null,
           value: editedDeal.value,
           expected_close_date: editedDeal.expected_close_date || null,
@@ -598,6 +640,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
           customer_id: editedDeal.customer_id || null,
           customer_reference_number: editedDeal.customer_reference_number || null,
           assigned_to: editedDeal.assigned_to === 'unassigned' ? null : editedDeal.assigned_to || null,
+          solution_category_ids: editedDeal.solution_category_ids,
           updated_at: new Date().toISOString(),
         })
         .eq('id', deal.id);
@@ -651,6 +694,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
   const handleCancel = () => {
     setEditedDeal({
       stage_id: deal.stage_id || '',
+      deal_status_id: deal.deal_status_id || '',
       description: deal.description || '',
       value: deal.value || 0,
       expected_close_date: deal.expected_close_date || '',
@@ -658,6 +702,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
       customer_id: deal.customer_id || '',
       customer_reference_number: deal.customer_reference_number || '',
       assigned_to: deal.assigned_to || 'unassigned',
+      solution_category_ids: deal.solution_category_ids || [] as string[],
       company_ids: linkedCompanies.map(c => c.id),
       contact_ids: linkedContacts.map(c => c.id),
     });
@@ -891,6 +936,36 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
               </div>
             )}
             
+            {/* Status */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium flex items-center gap-2">
+                <Tag className="h-4 w-4" />
+                Status
+              </span>
+              {editMode ? (
+                <Select
+                  value={editedDeal.deal_status_id}
+                  onValueChange={(value) => setEditedDeal(prev => ({ ...prev, deal_status_id: value }))}
+                >
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">No status</SelectItem>
+                    {dealStatuses.map((status) => (
+                      <SelectItem key={status.id} value={status.id}>
+                        {status.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <span className="text-sm">
+                  {dealStatuses.find(s => s.id === deal.deal_status_id)?.name || 'Not set'}
+                </span>
+              )}
+            </div>
+            
             {/* Expected Close Date */}
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium flex items-center gap-2">
@@ -956,6 +1031,30 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
                 <p className="text-sm text-muted-foreground">
                   {deal.description || 'No description'}
                 </p>
+              )}
+            </div>
+
+            {/* Solution Categories */}
+            <div className="space-y-2">
+              <span className="text-sm font-medium">Solution Categories</span>
+              {editMode ? (
+                <SolutionCategorySelect
+                  value={editedDeal.solution_category_ids}
+                  onChange={(value) => setEditedDeal(prev => ({ ...prev, solution_category_ids: value }))}
+                  placeholder="Select solution categories..."
+                />
+              ) : (
+                <div className="flex flex-wrap gap-1">
+                  {deal.solution_category_ids && deal.solution_category_ids.length > 0 ? (
+                    deal.solution_category_ids.map((categoryId) => (
+                      <Badge key={categoryId} variant="secondary" className="text-xs">
+                        Category {categoryId.slice(-4)}
+                      </Badge>
+                    ))
+                  ) : (
+                    <span className="text-sm text-muted-foreground">No categories selected</span>
+                  )}
+                </div>
               )}
             </div>
           </div>

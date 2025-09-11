@@ -26,8 +26,10 @@ import {
   Upload,
   Folder,
   ExternalLink,
-  Activity
+  Activity,
+  Tag
 } from 'lucide-react';
+import { SolutionCategorySelect } from '@/components/ui/solution-category-select';
 import { QuickAddCompanyModal } from '@/components/modals/QuickAddCompanyModal';
 import { UnifiedQuickAddContactModal } from '@/components/modals/UnifiedQuickAddContactModal';
 import { QuickAddSiteModal } from '@/components/modals/QuickAddSiteModal';
@@ -45,6 +47,7 @@ interface Deal {
   value?: number;
   status: string;
   stage_id?: string;
+  deal_status_id?: string;
   site_id?: string;
   customer_id?: string;
   currency_id?: string;
@@ -53,6 +56,7 @@ interface Deal {
   expected_close_date?: string;
   notes?: string;
   assigned_to?: string;
+  solution_category_ids?: string[];
   customers?: {
     id: string;
     name: string;
@@ -80,6 +84,12 @@ interface DealStage {
   id: string;
   name: string;
   win_percentage: number;
+}
+
+interface DealStatus {
+  id: string;
+  name: string;
+  description?: string;
 }
 
 interface PaymentTerm {
@@ -175,6 +185,7 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
   
   // State for all data
   const [stages, setStages] = useState<DealStage[]>([]);
+  const [dealStatuses, setDealStatuses] = useState<DealStatus[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -205,6 +216,7 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
   
   const [editedDeal, setEditedDeal] = useState({
     stage_id: deal.stage_id || '',
+    deal_status_id: deal.deal_status_id || '',
     description: deal.description || '',
     value: deal.value || 0,
     expected_close_date: deal.expected_close_date || '',
@@ -213,6 +225,7 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
     currency_id: deal.currency_id || currentTenant?.default_currency_id || '',
     customer_reference_number: deal.customer_reference_number || '',
     assigned_to: deal.assigned_to || 'unassigned',
+    solution_category_ids: deal.solution_category_ids || [] as string[],
     company_ids: [] as string[],
     contact_ids: [] as string[],
   });
@@ -224,6 +237,7 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
     try {
       await Promise.all([
         fetchStages(),
+        fetchDealStatuses(),
         fetchSites(),
         fetchCompanies(),
         fetchContacts(),
@@ -252,6 +266,18 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
 
     if (error) throw error;
     setStages(data || []);
+  };
+
+  const fetchDealStatuses = async () => {
+    const { data, error } = await supabase
+      .from('deal_statuses')
+      .select('id, name, description')
+      .eq('tenant_id', currentTenant!.id)
+      .eq('active', true)
+      .order('sort_order');
+
+    if (error) throw error;
+    setDealStatuses(data || []);
   };
 
   const fetchSites = async () => {
@@ -551,6 +577,17 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
       if (editedDeal.assigned_to !== deal.assigned_to) {
         updateData.assigned_to = editedDeal.assigned_to === 'unassigned' ? null : editedDeal.assigned_to;
         changes.push('Salesperson updated');
+      }
+
+      if (JSON.stringify(editedDeal.solution_category_ids) !== JSON.stringify(deal.solution_category_ids || [])) {
+        updateData.solution_category_ids = editedDeal.solution_category_ids;
+        changes.push('Solution categories updated');
+      }
+
+      if (editedDeal.deal_status_id !== deal.deal_status_id) {
+        updateData.deal_status_id = editedDeal.deal_status_id || null;
+        const statusName = dealStatuses.find(s => s.id === editedDeal.deal_status_id)?.name || 'None';
+        changes.push(`Status updated to ${statusName}`);
       }
 
       // Update deal if there are changes
@@ -1193,6 +1230,33 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
                 </div>
                 
                 <div>
+                  <Label>Status</Label>
+                  {editMode ? (
+                    <Select
+                      value={editedDeal.deal_status_id}
+                      onValueChange={(value) => setEditedDeal(prev => ({ ...prev, deal_status_id: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">No status</SelectItem>
+                        {dealStatuses.map((status) => (
+                          <SelectItem key={status.id} value={status.id}>
+                            {status.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Tag className="h-4 w-4 text-muted-foreground" />
+                      <span>{dealStatuses.find(s => s.id === deal.deal_status_id)?.name || 'Not set'}</span>
+                    </div>
+                  )}
+                </div>
+                
+                <div>
                   <Label>Deal Value</Label>
                   {editMode ? (
                     <Input
@@ -1303,6 +1367,32 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
                 ) : (
                   <div className="p-3 bg-muted rounded-lg">
                     {deal.description || 'No description provided'}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <Label>Solution Categories</Label>
+                {editMode ? (
+                  <SolutionCategorySelect
+                    value={editedDeal.solution_category_ids}
+                    onChange={(value) => setEditedDeal(prev => ({ ...prev, solution_category_ids: value }))}
+                    placeholder="Select solution categories..."
+                  />
+                ) : (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {deal.solution_category_ids && deal.solution_category_ids.length > 0 ? (
+                      deal.solution_category_ids.map((categoryId) => {
+                        // Find category name from available categories (we'd need to fetch solution categories)
+                        return (
+                          <Badge key={categoryId} variant="secondary" className="text-xs">
+                            Category {categoryId.slice(-4)}
+                          </Badge>
+                        );
+                      })
+                    ) : (
+                      <span className="text-muted-foreground text-sm">No categories selected</span>
+                    )}
                   </div>
                 )}
               </div>
