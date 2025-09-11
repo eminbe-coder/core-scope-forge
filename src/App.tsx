@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/use-auth";
 import { TenantProvider } from "@/hooks/use-tenant";
 import { PermissionsProvider } from "@/hooks/use-permissions";
+import { EntityRefreshProvider } from "@/components/ui/entity-refresh-context";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -65,238 +66,240 @@ const App = () => (
       <AuthProvider>
         <TenantProvider>
           <PermissionsProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <Routes>
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/accept-invitation" element={<AcceptInvitation />} />
-                <Route path="/set-password" element={<SetPassword />} />
-                <Route path="/" element={<Index />} />
-                <Route path="/companies" element={
-                  <ProtectedRoute>
-                    <Companies />
-                  </ProtectedRoute>
-                } />
-                <Route path="/companies/add" element={
-                  <ProtectedRoute>
-                    <AddCompany />
-                  </ProtectedRoute>
-                } />
-                <Route path="/companies/edit/:id" element={
-                  <ProtectedRoute>
-                    <EditCompany />
-                  </ProtectedRoute>
-                } />
-                <Route path="/customers" element={
-                  <ProtectedRoute>
-                    <Customers />
-                  </ProtectedRoute>
-                } />
-                <Route path="/customers/:id" element={
-                  <ProtectedRoute>
-                    <CustomerDetail />
-                  </ProtectedRoute>
-                } />
-                <Route path="/sites" element={
-                  <ProtectedRoute>
-                    <Sites />
-                  </ProtectedRoute>
-                } />
-                <Route path="/add-site" element={
-                  <ProtectedRoute>
-                    <AddSite />
-                  </ProtectedRoute>
-                } />
-                <Route path="/sites/:id" element={
-                  <ProtectedRoute>
-                    <SiteDetail />
-                  </ProtectedRoute>
-                } />
-                <Route path="/sites/edit/:id" element={
-                  <ProtectedRoute>
-                    <EditSite />
-                  </ProtectedRoute>
-                } />
-                <Route path="/contacts" element={
-                  <ProtectedRoute>
-                    <Contacts />
-                  </ProtectedRoute>
-                } />
-                 <Route path="/contacts/add" element={
-                   <ProtectedRoute>
-                     <AddContact />
-                   </ProtectedRoute>
-                  } />
-                  <Route path="/contacts/edit/:id" element={
+            <EntityRefreshProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <Routes>
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/accept-invitation" element={<AcceptInvitation />} />
+                  <Route path="/set-password" element={<SetPassword />} />
+                  <Route path="/" element={<Index />} />
+                  <Route path="/companies" element={
                     <ProtectedRoute>
-                      <EditContact />
+                      <Companies />
                     </ProtectedRoute>
                   } />
-                  <Route path="/customers/add" element={
+                  <Route path="/companies/add" element={
                     <ProtectedRoute>
-                      <AddCustomer />
+                      <AddCompany />
                     </ProtectedRoute>
                   } />
-                  <Route path="/customers/edit/:id" element={
+                  <Route path="/companies/edit/:id" element={
                     <ProtectedRoute>
-                      <EditCustomer />
+                      <EditCompany />
                     </ProtectedRoute>
                   } />
-                 <Route path="/leads" element={
-                   <ProtectedRoute>
-                     <Leads />
-                   </ProtectedRoute>
-                 } />
-                 <Route path="/leads/add" element={
-                   <ProtectedRoute>
-                     <AddLead />
-                   </ProtectedRoute>
-                 } />
-                 <Route path="/leads/:type/:id" element={
-                   <ProtectedRoute>
-                     <LeadDetail />
-                   </ProtectedRoute>
-                 } />
-                 <Route path="/deals" element={
-                   <ProtectedRoute>
-                     <Deals />
-                   </ProtectedRoute>
-                } />
-                <Route path="/deals/add" element={
-                  <ProtectedRoute>
-                    <AddDeal />
-                  </ProtectedRoute>
-                } />
-                 <Route path="/deals/edit/:id" element={
-                   <ProtectedRoute>
-                     <EditDeal />
-                   </ProtectedRoute>
-                 } />
-                 <Route path="/contracts" element={
-                   <ProtectedRoute>
-                     <Contracts />
-                   </ProtectedRoute>
-                 } />
-                 <Route path="/contracts/add" element={
-                   <ProtectedRoute>
-                     <AddContract />
-                   </ProtectedRoute>
-                 } />
-                <Route path="/contracts/:id" element={
+                  <Route path="/customers" element={
                     <ProtectedRoute>
-                      <ContractDetail />
+                      <Customers />
                     </ProtectedRoute>
                   } />
-                  <Route path="/contracts/edit/:id" element={
+                  <Route path="/customers/:id" element={
                     <ProtectedRoute>
-                      <EditContract />
+                      <CustomerDetail />
                     </ProtectedRoute>
                   } />
-                  <Route path="/notification-center" element={
+                  <Route path="/sites" element={
                     <ProtectedRoute>
-                      <NotificationCenter />
+                      <Sites />
                     </ProtectedRoute>
                   } />
-                  <Route path="/contract-tests" element={
+                  <Route path="/add-site" element={
                     <ProtectedRoute>
-                      <ContractTestDashboard />
+                      <AddSite />
                     </ProtectedRoute>
                   } />
-                <Route path="/projects" element={
-                  <ProtectedRoute>
-                    <Projects />
-                  </ProtectedRoute>
-                } />
-                <Route path="/activities" element={
-                  <ProtectedRoute>
-                    <Activities />
-                  </ProtectedRoute>
-                } />
-                 <Route path="/todos" element={
-                   <ProtectedRoute>
-                     <Todos />
-                   </ProtectedRoute>
-                 } />
-                 <Route path="/my-todos" element={
-                   <ProtectedRoute>
-                     <MyTodos />
-                   </ProtectedRoute>
-                 } />
-                <Route path="/devices" element={
-                  <ProtectedRoute>
-                    <Devices />
-                  </ProtectedRoute>
-                } />
-                <Route path="/settings" element={
-                  <ProtectedRoute>
-                    <Settings />
-                  </ProtectedRoute>
-                } />
-                <Route path="/crm-settings" element={
-                  <ProtectedRoute>
-                    <CRMSettings />
-                  </ProtectedRoute>
-                } />
-                <Route path="/todo-engine-settings" element={
-                  <ProtectedRoute>
-                    <TodoEngineSettings />
-                  </ProtectedRoute>
-                } />
-                <Route path="/global-admin" element={
-                  <ProtectedRoute>
-                    <GlobalAdmin />
-                  </ProtectedRoute>
-                } />
-                <Route path="/users-roles" element={
-                  <ProtectedRoute>
-                    <UsersRoles />
-                  </ProtectedRoute>
-                } />
-                <Route path="/pricing" element={
-                  <ProtectedRoute>
-                    <Pricing />
-                  </ProtectedRoute>
-                } />
-                <Route path="/reports" element={
-                  <ProtectedRoute>
-                    <Reports />
-                  </ProtectedRoute>
-                } />
-                <Route path="/reports/new" element={
-                  <ProtectedRoute>
-                    <ReportBuilder />
-                  </ProtectedRoute>
-                } />
-                <Route path="/reports/:id/edit" element={
-                  <ProtectedRoute>
-                    <ReportBuilder />
-                  </ProtectedRoute>
-                } />
-                <Route path="/reports/:id/run" element={
-                  <ProtectedRoute>
-                    <ReportRunner />
-                  </ProtectedRoute>
-                } />
-                <Route path="/scheduled-reports" element={
-                  <ProtectedRoute>
-                    <ScheduledReports />
-                  </ProtectedRoute>
-                } />
-                 <Route path="/targets-commission-reports" element={
-                   <ProtectedRoute>
-                     <TargetsCommissionReports />
-                   </ProtectedRoute>
-                 } />
-                 <Route path="/installments/:paymentId" element={
-                   <ProtectedRoute>
-                     <InstallmentDetail />
-                   </ProtectedRoute>
-                 } />
-                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                 <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
+                  <Route path="/sites/:id" element={
+                    <ProtectedRoute>
+                      <SiteDetail />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/sites/edit/:id" element={
+                    <ProtectedRoute>
+                      <EditSite />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/contacts" element={
+                    <ProtectedRoute>
+                      <Contacts />
+                    </ProtectedRoute>
+                  } />
+                   <Route path="/contacts/add" element={
+                     <ProtectedRoute>
+                       <AddContact />
+                     </ProtectedRoute>
+                    } />
+                    <Route path="/contacts/edit/:id" element={
+                      <ProtectedRoute>
+                        <EditContact />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/customers/add" element={
+                      <ProtectedRoute>
+                        <AddCustomer />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/customers/edit/:id" element={
+                      <ProtectedRoute>
+                        <EditCustomer />
+                      </ProtectedRoute>
+                    } />
+                   <Route path="/leads" element={
+                     <ProtectedRoute>
+                       <Leads />
+                     </ProtectedRoute>
+                   } />
+                   <Route path="/leads/add" element={
+                     <ProtectedRoute>
+                       <AddLead />
+                     </ProtectedRoute>
+                   } />
+                   <Route path="/leads/:type/:id" element={
+                     <ProtectedRoute>
+                       <LeadDetail />
+                     </ProtectedRoute>
+                   } />
+                   <Route path="/deals" element={
+                     <ProtectedRoute>
+                       <Deals />
+                     </ProtectedRoute>
+                  } />
+                  <Route path="/deals/add" element={
+                    <ProtectedRoute>
+                      <AddDeal />
+                    </ProtectedRoute>
+                  } />
+                   <Route path="/deals/edit/:id" element={
+                     <ProtectedRoute>
+                       <EditDeal />
+                     </ProtectedRoute>
+                   } />
+                   <Route path="/contracts" element={
+                     <ProtectedRoute>
+                       <Contracts />
+                     </ProtectedRoute>
+                   } />
+                   <Route path="/contracts/add" element={
+                     <ProtectedRoute>
+                       <AddContract />
+                     </ProtectedRoute>
+                   } />
+                  <Route path="/contracts/:id" element={
+                      <ProtectedRoute>
+                        <ContractDetail />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/contracts/edit/:id" element={
+                      <ProtectedRoute>
+                        <EditContract />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/notification-center" element={
+                      <ProtectedRoute>
+                        <NotificationCenter />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/contract-tests" element={
+                      <ProtectedRoute>
+                        <ContractTestDashboard />
+                      </ProtectedRoute>
+                    } />
+                  <Route path="/projects" element={
+                    <ProtectedRoute>
+                      <Projects />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/activities" element={
+                    <ProtectedRoute>
+                      <Activities />
+                    </ProtectedRoute>
+                  } />
+                   <Route path="/todos" element={
+                     <ProtectedRoute>
+                       <Todos />
+                     </ProtectedRoute>
+                   } />
+                   <Route path="/my-todos" element={
+                     <ProtectedRoute>
+                       <MyTodos />
+                     </ProtectedRoute>
+                   } />
+                  <Route path="/devices" element={
+                    <ProtectedRoute>
+                      <Devices />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/settings" element={
+                    <ProtectedRoute>
+                      <Settings />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/crm-settings" element={
+                    <ProtectedRoute>
+                      <CRMSettings />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/todo-engine-settings" element={
+                    <ProtectedRoute>
+                      <TodoEngineSettings />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/global-admin" element={
+                    <ProtectedRoute>
+                      <GlobalAdmin />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/users-roles" element={
+                    <ProtectedRoute>
+                      <UsersRoles />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/pricing" element={
+                    <ProtectedRoute>
+                      <Pricing />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/reports" element={
+                    <ProtectedRoute>
+                      <Reports />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/reports/new" element={
+                    <ProtectedRoute>
+                      <ReportBuilder />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/reports/:id/edit" element={
+                    <ProtectedRoute>
+                      <ReportBuilder />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/reports/:id/run" element={
+                    <ProtectedRoute>
+                      <ReportRunner />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/scheduled-reports" element={
+                    <ProtectedRoute>
+                      <ScheduledReports />
+                    </ProtectedRoute>
+                  } />
+                   <Route path="/targets-commission-reports" element={
+                     <ProtectedRoute>
+                       <TargetsCommissionReports />
+                     </ProtectedRoute>
+                   } />
+                   <Route path="/installments/:paymentId" element={
+                     <ProtectedRoute>
+                       <InstallmentDetail />
+                     </ProtectedRoute>
+                   } />
+                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                   <Route path="*" element={<NotFound />} />
+                </Routes>
+              </BrowserRouter>
+            </EntityRefreshProvider>
           </PermissionsProvider>
         </TenantProvider>
       </AuthProvider>
