@@ -1,6 +1,37 @@
 
 serve(async (req) => {
   const authHeader = req.headers.get("Authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+  return new Response(JSON.stringify({ message: "Missing authorization header" }), {
+    status: 401,
+  });
+}
+
+const accessToken = authHeader.replace("Bearer ", "");
+
+const supabase = createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_ANON_KEY")!,
+  {
+    global: {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+  }
+);
+
+const {
+  data: { user },
+  error,
+} = await supabase.auth.getUser();
+
+if (error || !user) {
+  return new Response(JSON.stringify({ message: "Invalid or expired token" }), {
+    status: 401,
+  });
+}
+
+console.log("Authenticated user:", user);
+
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return new Response(JSON.stringify({ message: "Missing authorization header" }), {
