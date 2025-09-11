@@ -1,3 +1,21 @@
+
+serve(async (req) => {
+  const authHeader = req.headers.get("Authorization");
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return new Response(JSON.stringify({ message: "Missing authorization header" }), {
+      status: 401,
+    });
+  }
+
+  const accessToken = authHeader.replace("Bearer ", "");
+
+  // Optional: You can log or use this token later
+  console.log("Received token:", accessToken);
+
+  // Continue with your existing logic...
+});
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
