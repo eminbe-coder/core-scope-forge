@@ -578,17 +578,13 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
   const handleCompanyCreated = async (company: Company) => {
     setShowCompanyModal(false);
     await loadData();
-    // Auto-select the newly created company
-    setSelectedCustomerType('company');
-    form.setValue('customer_id', company.id);
+    // Don't auto-select - let user choose what to do with the new company
   };
 
   const handleContactCreated = async (contact: Contact) => {
     setShowContactModal(false);
     await loadData();
-    // Auto-select the newly created contact
-    setSelectedCustomerType('contact');
-    form.setValue('customer_id', contact.id);
+    // Don't auto-select - let user choose what to do with the new contact
   };
 
   const handleSiteCreated = (site: { id: string; name: string }) => {
@@ -903,92 +899,119 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
                 )}
               />
 
-              {/* Linked Companies */}
+              {/* Selected Relationships Section */}
               <div className="space-y-4">
-                <Label>Linked Companies (Optional)</Label>
-                <div className="flex gap-2">
-                  <SearchableSelect
-                    options={companies}
-                    value=""
-                    onValueChange={(companyId) => {
-                      const company = companies.find(c => c.id === companyId);
-                      if (company && !linkedCompanies.find(c => c.id === company.id)) {
-                        setLinkedCompanies([...linkedCompanies, { id: company.id, name: company.name }]);
-                      }
-                    }}
-                    placeholder="Search and add companies"
-                    searchPlaceholder="Search companies..."
-                    emptyText="No companies found"
-                    onAddNew={() => setShowCompanyModal(true)}
-                    addNewLabel="Add Company"
-                  />
-                </div>
-                
-                {linkedCompanies.length > 0 && (
-                  <div className="space-y-2">
-                    {linkedCompanies.map((company) => (
-                      <div key={company.id} className="flex items-center justify-between bg-muted p-2 rounded">
-                        <span className="text-sm">{company.name}</span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setLinkedCompanies(linkedCompanies.filter(c => c.id !== company.id))}
-                        >
-                          Remove
-                        </Button>
+                <Label>Selected Relationships</Label>
+                {linkedCompanies.length === 0 && linkedContacts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No relationships selected</p>
+                ) : (
+                  <div className="space-y-3">
+                    {linkedCompanies.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-medium mb-2">Companies</h4>
+                        <div className="space-y-2">
+                          {linkedCompanies.map((company) => (
+                            <div key={company.id} className="flex items-center justify-between bg-muted p-3 rounded-lg">
+                              <div className="flex items-center gap-2">
+                                <Building2 className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm font-medium">{company.name}</span>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setLinkedCompanies(linkedCompanies.filter(c => c.id !== company.id))}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    ))}
+                    )}
+                    
+                    {linkedContacts.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-medium mb-2">Contacts</h4>
+                        <div className="space-y-2">
+                          {linkedContacts.map((contact) => (
+                            <div key={contact.id} className="flex items-center justify-between bg-muted p-3 rounded-lg">
+                              <div className="flex items-center gap-2">
+                                <User className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm font-medium">{contact.name}</span>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setLinkedContacts(linkedContacts.filter(c => c.id !== contact.id))}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
 
-              {/* Linked Contacts */}
+              {/* Add Relationships */}
               <div className="space-y-4">
-                <Label>Linked Contacts (Optional)</Label>
-                <div className="flex gap-2">
-                  <SearchableSelect
-                    options={contacts}
-                    value=""
-                    onValueChange={(contactId) => {
-                      const contact = contacts.find(c => c.id === contactId);
-                      if (contact && !linkedContacts.find(c => c.id === contact.id)) {
-                        setLinkedContacts([...linkedContacts, { 
-                          id: contact.id, 
-                          name: `${contact.first_name} ${contact.last_name || ''}`.trim(),
-                          first_name: contact.first_name,
-                          last_name: contact.last_name
-                        }]);
-                      }
-                    }}
-                    placeholder="Search and add contacts"
-                    searchPlaceholder="Search contacts..."
-                    emptyText="No contacts found"
-                    renderOption={(contact) => 
-                      `${contact.first_name} ${contact.last_name || ''}`.trim()
-                    }
-                    onAddNew={() => setShowContactModal(true)}
-                    addNewLabel="Add Contact"
-                  />
-                </div>
+                <Label>Add Relationships (Optional)</Label>
                 
-                {linkedContacts.length > 0 && (
-                  <div className="space-y-2">
-                    {linkedContacts.map((contact) => (
-                      <div key={contact.id} className="flex items-center justify-between bg-muted p-2 rounded">
-                        <span className="text-sm">{contact.name}</span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setLinkedContacts(linkedContacts.filter(c => c.id !== contact.id))}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    ))}
+                {/* Add Companies */}
+                <div className="space-y-2">
+                  <Label className="text-sm">Add Companies</Label>
+                  <div className="flex gap-2">
+                    <SearchableSelect
+                      options={companies.filter(c => !linkedCompanies.find(lc => lc.id === c.id))}
+                      value=""
+                      onValueChange={(companyId) => {
+                        const company = companies.find(c => c.id === companyId);
+                        if (company && !linkedCompanies.find(c => c.id === company.id)) {
+                          setLinkedCompanies([...linkedCompanies, { id: company.id, name: company.name }]);
+                        }
+                      }}
+                      placeholder="Search and add companies"
+                      searchPlaceholder="Search companies..."
+                      emptyText="No companies found"
+                      onAddNew={() => setShowCompanyModal(true)}
+                      addNewLabel="Add Company"
+                    />
                   </div>
-                )}
+                </div>
+
+                {/* Add Contacts */}
+                <div className="space-y-2">
+                  <Label className="text-sm">Add Contacts</Label>
+                  <div className="flex gap-2">
+                    <SearchableSelect
+                      options={contacts.filter(c => !linkedContacts.find(lc => lc.id === c.id))}
+                      value=""
+                      onValueChange={(contactId) => {
+                        const contact = contacts.find(c => c.id === contactId);
+                        if (contact && !linkedContacts.find(c => c.id === contact.id)) {
+                          setLinkedContacts([...linkedContacts, { 
+                            id: contact.id, 
+                            name: `${contact.first_name} ${contact.last_name || ''}`.trim(),
+                            first_name: contact.first_name,
+                            last_name: contact.last_name
+                          }]);
+                        }
+                      }}
+                      placeholder="Search and add contacts"
+                      searchPlaceholder="Search contacts..."
+                      emptyText="No contacts found"
+                      renderOption={(contact) => 
+                        `${contact.first_name} ${contact.last_name || ''}`.trim()
+                      }
+                      onAddNew={() => setShowContactModal(true)}
+                      addNewLabel="Add Contact"
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Company Relationships */}
