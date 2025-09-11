@@ -349,8 +349,21 @@ export const CreateSiteForm = ({ isLead = false, onSuccess }: CreateSiteFormProp
                     )}
                   />
                 </>
-              )}
+            )}
             </div>
+
+            {isLead && (
+              <div className="space-y-4">
+                <Label>Site Lead Sources</Label>
+                <EnhancedSourceSelect
+                  value={sourceValues}
+                  onValueChange={setSourceValues}
+                />
+                <p className="text-sm text-muted-foreground">
+                  At least one source field (Category, Company, or Contact) must be filled.
+                </p>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
