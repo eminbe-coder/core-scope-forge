@@ -17,6 +17,7 @@ import { QuickAddSiteModal } from '@/components/modals/QuickAddSiteModal';
 import { CompanyRelationshipSelector, CompanyRelationship } from '@/components/forms/CompanyRelationshipSelector';
 import { convertLeadToDeal } from '@/utils/lead-conversion';
 import { saveEntityRelationships } from '@/utils/entity-relationships';
+import { SolutionCategorySelect } from '@/components/ui/solution-category-select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
@@ -35,6 +36,7 @@ const dealSchema = z.object({
   expected_close_date: z.string().optional(),
   assigned_to: z.string().optional(),
   notes: z.string().optional(),
+  solution_category_ids: z.array(z.string()).optional(),
 });
 
 type DealFormData = z.infer<typeof dealSchema>;
@@ -146,6 +148,7 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
       expected_close_date: '',
       assigned_to: '',
       notes: '',
+      solution_category_ids: [],
     },
   });
 
@@ -436,6 +439,7 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
         expected_close_date: data.expected_close_date || null,
         assigned_to: data.assigned_to === 'unassigned' ? null : data.assigned_to || null,
         notes: data.notes || null,
+        solution_category_ids: data.solution_category_ids || [],
         tenant_id: currentTenant.id,
       };
 
@@ -1066,6 +1070,24 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
                         ))}
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="solution_category_ids"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Solution Categories</FormLabel>
+                    <FormControl>
+                      <SolutionCategorySelect
+                        value={field.value || []}
+                        onChange={field.onChange}
+                        placeholder="Select solution categories..."
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
