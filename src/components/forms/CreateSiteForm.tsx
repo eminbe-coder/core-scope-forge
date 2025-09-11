@@ -14,6 +14,8 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { CompanyRelationshipSelector, CompanyRelationship } from '@/components/forms/CompanyRelationshipSelector';
 import { saveEntityRelationships } from '@/utils/entity-relationships';
+import { EnhancedSourceSelect, SourceValues } from '@/components/ui/enhanced-source-select';
+import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
 
 const siteSchema = z.object({
@@ -57,6 +59,11 @@ export const CreateSiteForm = ({ isLead = false, onSuccess }: CreateSiteFormProp
   const [leadStages, setLeadStages] = useState<LeadStage[]>([]);
   const [leadQualities, setLeadQualities] = useState<LeadQuality[]>([]);
   const [defaultQualityId, setDefaultQualityId] = useState<string | null>(null);
+  const [sourceValues, setSourceValues] = useState<SourceValues>({
+    sourceCategory: '',
+    companySource: '',
+    contactSource: '',
+  });
 
   const form = useForm<SiteFormData>({
     resolver: zodResolver(siteSchema),
@@ -121,6 +128,22 @@ export const CreateSiteForm = ({ isLead = false, onSuccess }: CreateSiteFormProp
   const onSubmit = async (data: SiteFormData) => {
     if (!currentTenant || !user) return;
 
+    // Validate source fields for leads
+    if (isLead) {
+      const hasSourceCategory = sourceValues.sourceCategory && sourceValues.sourceCategory.length > 0;
+      const hasCompanySource = sourceValues.companySource && sourceValues.companySource.length > 0;
+      const hasContactSource = sourceValues.contactSource && sourceValues.contactSource.length > 0;
+      
+      if (!hasSourceCategory && !hasCompanySource && !hasContactSource) {
+        toast({
+          title: 'Validation Error',
+          description: 'At least one source field (Category, Company, or Contact) must be filled for leads',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     try {
       const { data: site, error } = await supabase
@@ -131,6 +154,10 @@ export const CreateSiteForm = ({ isLead = false, onSuccess }: CreateSiteFormProp
           tenant_id: currentTenant.id,
           stage_id: data.stage_id || null,
           quality_id: data.quality_id || null,
+          source_id: sourceValues.sourceCategory || null,
+          source_company_id: sourceValues.companySource || null,
+          source_contact_id: sourceValues.contactSource || null,
+          source_user_id: null,
         })
         .select()
         .single();

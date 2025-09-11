@@ -4,9 +4,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { EntitySourceSelect } from '@/components/ui/entity-source-select';
+import { EnhancedSourceSelect, SourceValues } from '@/components/ui/enhanced-source-select';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,10 +28,6 @@ const contactSchema = z.object({
   notes: z.string().optional(),
   stage_id: z.string().optional(),
   quality_id: z.string().optional(),
-  source_id: z.string().optional(),
-  source_company_id: z.string().optional(),
-  source_contact_id: z.string().optional(),
-  source_user_id: z.string().optional(),
 });
 
 type ContactFormData = z.infer<typeof contactSchema>;
@@ -60,7 +57,11 @@ export const CreateContactForm = ({ isLead = false, onSuccess }: CreateContactFo
   const [leadQualities, setLeadQualities] = useState<Array<{ id: string; name: string }>>([]);
   const [dealSources, setDealSources] = useState<Array<{ id: string; name: string }>>([]);
   const [defaultQualityId, setDefaultQualityId] = useState<string | null>(null);
-  const [sourceEntity, setSourceEntity] = useState<{type: 'company' | 'contact' | 'user'; id: string} | null>(null);
+  const [sourceValues, setSourceValues] = useState<SourceValues>({
+    sourceCategory: '',
+    companySource: '',
+    contactSource: '',
+  });
 
   const form = useForm<ContactFormData>({
     resolver: zodResolver(contactSchema),
@@ -75,10 +76,6 @@ export const CreateContactForm = ({ isLead = false, onSuccess }: CreateContactFo
       notes: '',
       stage_id: '',
       quality_id: '',
-      source_id: '',
-      source_company_id: '',
-      source_contact_id: '',
-      source_user_id: '',
     },
   });
 
@@ -146,15 +143,32 @@ export const CreateContactForm = ({ isLead = false, onSuccess }: CreateContactFo
   const onSubmit = async (data: ContactFormData) => {
     if (!currentTenant || !user) return;
 
+    // Validate source fields for leads
+    if (isLead) {
+      const hasSourceCategory = sourceValues.sourceCategory && sourceValues.sourceCategory.length > 0;
+      const hasCompanySource = sourceValues.companySource && sourceValues.companySource.length > 0;
+      const hasContactSource = sourceValues.contactSource && sourceValues.contactSource.length > 0;
+      
+      if (!hasSourceCategory && !hasCompanySource && !hasContactSource) {
+        toast({
+          title: 'Validation Error',
+          description: 'At least one source field (Category, Company, or Contact) must be filled for leads',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     try {
       const contactData = {
         ...data,
         tenant_id: currentTenant.id,
         is_lead: isLead,
-        source_company_id: sourceEntity?.type === 'company' ? sourceEntity.id : null,
-        source_contact_id: sourceEntity?.type === 'contact' ? sourceEntity.id : null,
-        source_user_id: sourceEntity?.type === 'user' ? sourceEntity.id : null,
+        source_id: sourceValues.sourceCategory || null,
+        source_company_id: sourceValues.companySource || null,
+        source_contact_id: sourceValues.contactSource || null,
+        source_user_id: null,
       };
 
       const { data: contact, error } = await supabase
@@ -358,38 +372,16 @@ export const CreateContactForm = ({ isLead = false, onSuccess }: CreateContactFo
             />
 
             {isLead && (
-              <>
-                <FormField
-                  control={form.control}
-                  name="source_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Source Category</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ''}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select source category" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {dealSources.map((source) => (
-                            <SelectItem key={source.id} value={source.id}>
-                              {source.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+              <div className="space-y-4">
+                <Label>Lead Sources</Label>
+                <EnhancedSourceSelect
+                  value={sourceValues}
+                  onValueChange={setSourceValues}
                 />
-
-                <EntitySourceSelect
-                  value={sourceEntity}
-                  onValueChange={setSourceEntity}
-                  label="Specific Source"
-                />
-              </>
+                <p className="text-sm text-muted-foreground">
+                  At least one source field (Category, Company, or Contact) must be filled.
+                </p>
+              </div>
             )}
 
             <FormField

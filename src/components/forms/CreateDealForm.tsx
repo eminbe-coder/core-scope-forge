@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SearchableSelect } from '@/components/ui/searchable-select';
-import { EntitySourceSelect } from '@/components/ui/entity-source-select';
+import { EnhancedSourceSelect, SourceValues } from '@/components/ui/enhanced-source-select';
 import { QuickAddCompanyModal } from '@/components/modals/QuickAddCompanyModal';
 import { QuickAddContactModal } from '@/components/modals/QuickAddContactModal';
 import { QuickAddSiteModal } from '@/components/modals/QuickAddSiteModal';
@@ -30,10 +30,6 @@ const dealSchema = z.object({
   value: z.string().optional(),
   currency_id: z.string().optional(),
   stage_id: z.string().min(1, 'Stage is required'),
-  source_id: z.string().optional(),
-  source_company_id: z.string().optional(),
-  source_contact_id: z.string().optional(),
-  source_user_id: z.string().optional(),
   priority: z.enum(['low', 'medium', 'high']),  
   expected_close_date: z.string().optional(),
   assigned_to: z.string().optional(),
@@ -129,7 +125,11 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
   const [linkedContacts, setLinkedContacts] = useState<{ id: string; name: string; first_name?: string; last_name?: string }[]>([]);
   const [leadData, setLeadData] = useState<any>(null);
   const [companyRelationships, setCompanyRelationships] = useState<CompanyRelationship[]>([]);
-  const [sourceEntity, setSourceEntity] = useState<{type: 'company' | 'contact' | 'user'; id: string} | null>(null);
+  const [sourceValues, setSourceValues] = useState<SourceValues>({
+    sourceCategory: '',
+    companySource: '',
+    contactSource: '',
+  });
 
   const form = useForm<DealFormData>({
     resolver: zodResolver(dealSchema),
@@ -141,10 +141,6 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
       value: '',
       currency_id: '',
       stage_id: '',
-      source_id: '',
-      source_company_id: '',
-      source_contact_id: '',
-      source_user_id: '',
       priority: 'medium',
       expected_close_date: '',
       assigned_to: '',
@@ -386,6 +382,21 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
   const onSubmit = async (data: DealFormData) => {
     if (!currentTenant) return;
 
+    // Validate source fields
+    const hasSourceCategory = sourceValues.sourceCategory && sourceValues.sourceCategory.length > 0;
+    const hasCompanySource = sourceValues.companySource && sourceValues.companySource.length > 0;
+    const hasContactSource = sourceValues.contactSource && sourceValues.contactSource.length > 0;
+    
+    if (!hasSourceCategory && !hasCompanySource && !hasContactSource) {
+      toast({
+        title: 'Validation Error',
+        description: 'At least one source field (Category, Company, or Contact) must be filled',
+        variant: 'destructive',
+      });
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       let customerId = data.customer_id;
@@ -415,10 +426,10 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
         value: data.value ? parseFloat(data.value) : null,
         currency_id: data.currency_id || currentTenant.default_currency_id || null,
         stage_id: data.stage_id,
-        source_id: data.source_id || null,
-        source_company_id: sourceEntity?.type === 'company' ? sourceEntity.id : null,
-        source_contact_id: sourceEntity?.type === 'contact' ? sourceEntity.id : null,
-        source_user_id: sourceEntity?.type === 'user' ? sourceEntity.id : null,
+        source_id: sourceValues.sourceCategory || null,
+        source_company_id: sourceValues.companySource || null,
+        source_contact_id: sourceValues.contactSource || null,
+        source_user_id: null,
         priority: data.priority,
         probability,
         expected_close_date: data.expected_close_date || null,
@@ -719,37 +730,19 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="source_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Source Category</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select source category" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {sources.map((source) => (
-                            <SelectItem key={source.id} value={source.id}>
-                              {source.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </div>
 
-              <EntitySourceSelect
-                value={sourceEntity}
-                onValueChange={setSourceEntity}
-                label="Specific Source"
-              />
+              {/* Enhanced Source Selection */}
+              <div className="space-y-4">
+                <Label>Deal/Lead Sources</Label>
+                <EnhancedSourceSelect
+                  value={sourceValues}
+                  onValueChange={setSourceValues}
+                />
+                <p className="text-sm text-muted-foreground">
+                  At least one source field (Category, Company, or Contact) must be filled.
+                </p>
+              </div>
 
               <FormField
                 control={form.control}
