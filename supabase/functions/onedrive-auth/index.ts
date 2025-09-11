@@ -169,6 +169,70 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // For POST requests, validate JWT token and extract user context
+    if (req.method === 'POST') {
+      const authHeader = req.headers.get('authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        console.error('Missing or invalid authorization header');
+        return new Response(
+          JSON.stringify({ error: 'Missing authorization header' }),
+          { 
+            status: 401, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+
+      const token = authHeader.replace('Bearer ', '');
+      
+      // Validate JWT token using Supabase client
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      
+      if (authError || !user) {
+        console.error('Invalid JWT token:', authError);
+        return new Response(
+          JSON.stringify({ error: 'Invalid or expired token' }),
+          { 
+            status: 401, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+
+      console.log(`Authenticated user: ${user.id}`);
+      
+      // Parse request body
+      const requestBody = await req.json();
+      const { action, tenant_id } = requestBody as OneDriveAuthRequest;
+
+      // Verify user has access to the specified tenant
+      if (tenant_id) {
+        const { data: membership, error: membershipError } = await supabase
+          .from('user_tenant_memberships')
+          .select('role')
+          .eq('user_id', user.id)
+          .eq('tenant_id', tenant_id)
+          .eq('active', true)
+          .single();
+
+        if (membershipError || !membership) {
+          console.error('User does not have access to tenant:', { user_id: user.id, tenant_id });
+          return new Response(
+            JSON.stringify({ error: 'Access denied to tenant' }),
+            { 
+              status: 403, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+
+        console.log(`User ${user.id} has ${membership.role} access to tenant ${tenant_id}`);
+      }
+
+      // Handle different actions based on the request
+      return await handlePostAction(supabase, requestBody);
+    }
+
     // Handle GET requests (OAuth callback from Microsoft)
     if (req.method === 'GET') {
       const url = new URL(req.url);
@@ -519,13 +583,312 @@ serve(async (req) => {
       }
     }
 
-    // Handle POST requests (API actions)
-    const { action, tenant_id, client_id, client_secret, code, library_id, library_name } = await req.json() as OneDriveAuthRequest;
+    // Handle POST requests (API actions) - this was moved to handlePostAction function
+    throw new Error('Unexpected method or action');
 
-    console.log(`OneDrive Auth - Action: ${action}, Tenant: ${tenant_id}`);
+  } catch (error) {
+    console.error('OneDrive Auth Error:', error);
+    return new Response(
+      JSON.stringify({ error: error.message || 'Internal server error' }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+  }
+});
 
-    switch (action) {
-      case 'initialize': {
+// Handle POST actions (moved from main serve function)
+async function handlePostAction(supabase: any, requestBody: OneDriveAuthRequest) {
+  const { action, tenant_id, client_id, client_secret, code, library_id, library_name } = requestBody;
+
+  console.log(`OneDrive Auth - Action: ${action}, Tenant: ${tenant_id}`);
+
+  switch (action) {
+    case 'initialize': {
+      if (!tenant_id || !client_id || !client_secret) {
+        return new Response(
+          JSON.stringify({ error: 'Missing required parameters' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Generate PKCE code_verifier and code_challenge
+      const randomBytes = new Uint8Array(64);
+      crypto.getRandomValues(randomBytes);
+      const codeVerifier = btoa(String.fromCharCode(...randomBytes))
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+/g, '');
+
+      const encoder = new TextEncoder();
+      const hashed = await crypto.subtle.digest('SHA-256', encoder.encode(codeVerifier));
+      const codeChallenge = btoa(String.fromCharCode(...new Uint8Array(hashed)))
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+/g, '');
+
+      // Log PKCE info without sensitive values
+      console.log(`PKCE prepared (verifier length: ${codeVerifier.length}, method: S256)`);
+
+      // Persist code_verifier for this tenant to use during token exchange
+      const { error: pkceSaveError } = await supabase
+        .from('tenant_onedrive_settings')
+        .update({
+          code_verifier: codeVerifier,
+          updated_at: new Date().toISOString()
+        })
+        .eq('tenant_id', tenant_id);
+
+      if (pkceSaveError) {
+        console.error('Failed to persist PKCE code_verifier:', pkceSaveError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to initialize OneDrive auth (PKCE save failed)' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Generate OAuth URL with PKCE and enhanced state
+      const baseUrl = Deno.env.get('SUPABASE_URL');
+      if (!baseUrl) {
+        console.error('SUPABASE_URL environment variable not set');
+        return new Response(
+          JSON.stringify({ error: 'Server configuration error - missing SUPABASE_URL' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      const redirectUri = `${baseUrl}/functions/v1/onedrive-auth`;
+      const scope = 'Files.ReadWrite Files.ReadWrite.All offline_access';
+      
+      // Include timestamp and nonce for additional security
+      const stateData = {
+        tenant_id,
+        timestamp: Date.now(),
+        nonce: crypto.randomUUID()
+      };
+      const state = btoa(JSON.stringify(stateData));
+      
+      console.log('Generated OAuth URL with enhanced state parameter');
+      console.log(`Redirect URI: ${redirectUri}`);
+
+      const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?` +
+        `client_id=${encodeURIComponent(client_id)}&` +
+        `response_type=code&` +
+        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+        `scope=${encodeURIComponent(scope)}&` +
+        `state=${encodeURIComponent(state)}&` +
+        `response_mode=query&` +
+        `code_challenge=${encodeURIComponent(codeChallenge)}&` +
+        `code_challenge_method=S256`;
+
+      return new Response(
+        JSON.stringify({ auth_url: authUrl }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    case 'test': {
+      if (!tenant_id) {
+        return new Response(
+          JSON.stringify({ error: 'Missing tenant_id' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Get tenant's OneDrive settings
+      const { data: settings, error: settingsError } = await supabase
+        .from('tenant_onedrive_settings')
+        .select('access_token, refresh_token, client_id, client_secret, token_expires_at')
+        .eq('tenant_id', tenant_id)
+        .single();
+
+      if (settingsError || !settings || !settings.access_token) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'No valid access token found' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Test connection by getting user's drive info using helper function
+      try {
+        console.log('Testing OneDrive connection...');
+        const driveResponse = await makeGraphRequest(supabase, tenant_id, 'https://graph.microsoft.com/v1.0/me/drive');
+
+        if (driveResponse.ok) {
+          const driveInfo = await driveResponse.json();
+          console.log('Connection test successful');
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              drive_name: driveInfo.name,
+              owner: driveInfo.owner?.user?.displayName 
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } else {
+          const errorData = await driveResponse.json();
+          console.error('Connection test failed:', errorData);
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: `Failed to access OneDrive: ${errorData.error?.message || 'Unknown error'}` 
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      } catch (error) {
+        console.error('Test connection error:', error);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: `Connection test failed: ${error.message}` 
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    case 'get_libraries': {
+      if (!tenant_id) {
+        return new Response(
+          JSON.stringify({ error: 'Missing tenant_id' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Get tenant's OneDrive settings
+      const { data: settings, error: settingsError } = await supabase
+        .from('tenant_onedrive_settings')
+        .select('access_token, refresh_token, client_id, client_secret, token_expires_at')
+        .eq('tenant_id', tenant_id)
+        .single();
+
+      if (settingsError || !settings || !settings.access_token) {
+        return new Response(
+          JSON.stringify({ error: 'No valid access token found' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      try {
+        // Get available sites with document libraries using helper function
+        console.log('Fetching SharePoint sites...');
+        const sitesResponse = await makeGraphRequest(supabase, tenant_id, 'https://graph.microsoft.com/v1.0/sites?search=*');
+
+        if (!sitesResponse.ok) {
+          const sitesError = await sitesResponse.json();
+          console.error('Failed to fetch sites:', sitesError);
+          throw new Error(`Failed to fetch sites: ${sitesError.error?.message || 'Unknown error'}`);
+        }
+
+        const sitesData = await sitesResponse.json();
+        const libraries = [];
+
+        // Add the personal OneDrive as default option
+        console.log('Fetching personal OneDrive...');
+        const driveResponse = await makeGraphRequest(supabase, tenant_id, 'https://graph.microsoft.com/v1.0/me/drive');
+
+        if (driveResponse.ok) {
+          const driveData = await driveResponse.json();
+          libraries.push({
+            id: driveData.id,
+            name: `Personal OneDrive (${driveData.owner?.user?.displayName || 'Me'})`,
+            type: 'personal',
+            webUrl: driveData.webUrl
+          });
+          console.log('Successfully fetched personal OneDrive');
+        } else {
+          const driveError = await driveResponse.json();
+          console.error('Failed to fetch personal OneDrive:', driveError);
+        }
+
+        // Add site document libraries
+        console.log(`Processing ${sitesData.value?.length || 0} SharePoint sites...`);
+        for (const site of sitesData.value || []) {
+          try {
+            console.log(`Fetching drives for site: ${site.displayName}`);
+            const drivesResponse = await makeGraphRequest(supabase, tenant_id, `https://graph.microsoft.com/v1.0/sites/${site.id}/drives`);
+
+            if (drivesResponse.ok) {
+              const drivesData = await drivesResponse.json();
+              for (const drive of drivesData.value || []) {
+                if (drive.driveType === 'documentLibrary') {
+                  libraries.push({
+                    id: drive.id,
+                    name: `${site.displayName} - ${drive.name}`,
+                    type: 'sharepoint',
+                    webUrl: drive.webUrl,
+                    siteId: site.id
+                  });
+                }
+              }
+              console.log(`Found ${drivesData.value?.length || 0} drives for site: ${site.displayName}`);
+            } else {
+              const drivesError = await drivesResponse.json();
+              console.log(`Failed to fetch drives for site ${site.displayName}:`, drivesError);
+            }
+          } catch (error) {
+            console.log(`Error fetching drives for site ${site.id}:`, error);
+          }
+        }
+
+        console.log(`Found ${libraries.length} total libraries`);
+        return new Response(
+          JSON.stringify({ libraries }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+
+      } catch (error) {
+        console.error('Get libraries error:', error);
+        return new Response(
+          JSON.stringify({ error: `Failed to fetch libraries: ${error.message}` }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    case 'set_library': {
+      if (!tenant_id || !library_id || !library_name) {
+        return new Response(
+          JSON.stringify({ error: 'Missing required parameters' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      try {
+        // Update the selected library in the database
+        const { error: updateError } = await supabase
+          .from('tenant_onedrive_settings')
+          .update({
+            selected_library_id: library_id,
+            selected_library_name: library_name,
+            updated_at: new Date().toISOString()
+          })
+          .eq('tenant_id', tenant_id);
+
+        if (updateError) {
+          throw updateError;
+        }
+
+        console.log(`Library ${library_name} (${library_id}) selected for tenant ${tenant_id}`);
+        return new Response(
+          JSON.stringify({ success: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+
+      } catch (error) {
+        console.error('Set library error:', error);
+        return new Response(
+          JSON.stringify({ error: `Failed to set library: ${error.message}` }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    default:
+      return new Response(
+        JSON.stringify({ error: `Unknown action: ${action}` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+  }
+}
         if (!tenant_id || !client_id || !client_secret) {
           return new Response(
             JSON.stringify({ error: 'Missing required parameters' }),

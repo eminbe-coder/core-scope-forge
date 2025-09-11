@@ -11,6 +11,7 @@ import { Cloud, CheckCircle, AlertCircle, Settings, TestTube, FolderTree } from 
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useTenant } from '@/hooks/use-tenant';
+import { useAuth } from '@/hooks/use-auth';
 
 interface OneDriveSettings {
   id?: string;
@@ -40,6 +41,7 @@ interface DocumentLibrary {
 
 export const OneDriveSettings = () => {
   const { currentTenant } = useTenant();
+  const { session } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -147,7 +149,7 @@ export const OneDriveSettings = () => {
   };
 
   const fetchLibraries = async () => {
-    if (!currentTenant || !isConnected) return;
+    if (!currentTenant || !isConnected || !session?.access_token) return;
 
     setLoadingLibraries(true);
     try {
@@ -155,6 +157,9 @@ export const OneDriveSettings = () => {
         body: {
           action: 'get_libraries',
           tenant_id: currentTenant.id
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
         }
       });
 
@@ -190,6 +195,8 @@ export const OneDriveSettings = () => {
         errorMessage = "Authentication expired. Please reconnect to OneDrive.";
       } else if (error.message && error.message.includes('403')) {
         errorMessage = "Access denied. Please check your OneDrive permissions.";
+      } else if (error.message && error.message.includes('Missing authorization header')) {
+        errorMessage = "Session expired. Please refresh the page and try again.";
       }
       
       toast({
@@ -204,7 +211,7 @@ export const OneDriveSettings = () => {
 
   const handleLibrarySelect = async (libraryId: string) => {
     const selectedLibrary = libraries.find(lib => lib.id === libraryId);
-    if (!selectedLibrary || !currentTenant) return;
+    if (!selectedLibrary || !currentTenant || !session?.access_token) return;
 
     setLoading(true);
     try {
@@ -214,6 +221,9 @@ export const OneDriveSettings = () => {
           tenant_id: currentTenant.id,
           library_id: libraryId,
           library_name: selectedLibrary.name
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
         }
       });
 
@@ -261,7 +271,10 @@ export const OneDriveSettings = () => {
           tenant_id: currentTenant?.id,
           client_id: settings.client_id,
           client_secret: settings.client_secret
-        }
+        },
+        headers: session?.access_token ? {
+          Authorization: `Bearer ${session.access_token}`
+        } : {}
       });
 
       if (error) {
@@ -303,7 +316,10 @@ export const OneDriveSettings = () => {
         body: {
           action: 'test',
           tenant_id: currentTenant?.id
-        }
+        },
+        headers: session?.access_token ? {
+          Authorization: `Bearer ${session.access_token}`
+        } : {}
       });
 
       if (error) {
@@ -332,6 +348,8 @@ export const OneDriveSettings = () => {
         errorMessage = "Authentication expired. Please reconnect to OneDrive.";
       } else if (error.message && error.message.includes('403')) {
         errorMessage = "Access denied. Please check your OneDrive permissions.";
+      } else if (error.message && error.message.includes('Missing authorization header')) {
+        errorMessage = "Session expired. Please refresh the page and try again.";
       }
       
       toast({
@@ -471,10 +489,10 @@ export const OneDriveSettings = () => {
             <h4 className="text-sm font-medium">OneDrive Connection</h4>
             
             <div className="flex items-center gap-2">
-              {!isConnected ? (
+            {!isConnected ? (
                 <Button 
                   onClick={handleConnect} 
-                  disabled={!settings.client_id || !settings.client_secret}
+                  disabled={!settings.client_id || !settings.client_secret || !session?.access_token}
                   variant="outline"
                 >
                   <Settings className="h-4 w-4 mr-2" />
@@ -482,7 +500,7 @@ export const OneDriveSettings = () => {
                 </Button>
               ) : (
                 <>
-                  <Button onClick={handleTestConnection} disabled={testing} variant="outline">
+                  <Button onClick={handleTestConnection} disabled={testing || !session?.access_token} variant="outline">
                     <TestTube className="h-4 w-4 mr-2" />
                     {testing ? 'Testing...' : 'Test Connection'}
                   </Button>
@@ -490,6 +508,12 @@ export const OneDriveSettings = () => {
                     Disconnect
                   </Button>
                 </>
+              )}
+              
+              {!session?.access_token && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  Session expired. Please refresh the page to continue.
+                </p>
               )}
             </div>
 
