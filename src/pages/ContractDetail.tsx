@@ -26,6 +26,7 @@ interface Contract {
   assigned_to?: string;
   customer_reference_number?: string;
   notes?: string;
+  solution_category_ids?: string[];
   created_at: string;
   customers?: { name: string } | null;
   currencies?: { code: string; symbol: string } | null;

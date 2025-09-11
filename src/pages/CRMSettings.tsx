@@ -26,6 +26,7 @@ import { LeadStagesManager } from '@/components/settings/LeadStagesManager';
 import { LeadQualityManager } from '@/components/settings/LeadQualityManager';
 import { DealSourcesManager } from '@/components/settings/DealSourcesManager';
 import { DealStatusesManager } from '@/components/settings/DealStatusesManager';
+import { SolutionCategoriesManager } from '@/components/settings/SolutionCategoriesManager';
 
 const CRMSettingsPage = () => {
   const [activeSection, setActiveSection] = useState<string>('deal-stages');
@@ -60,6 +61,12 @@ const CRMSettingsPage = () => {
       label: 'Deal Statuses',
       icon: Flag,
       component: DealStatusesManager
+    },
+    {
+      id: 'solution-categories',
+      label: 'Solution Categories',
+      icon: CheckSquare,
+      component: SolutionCategoriesManager
     },
     {
       id: 'targets',

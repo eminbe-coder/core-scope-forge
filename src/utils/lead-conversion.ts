@@ -109,6 +109,7 @@ export const convertLeadToDeal = async ({
         source_company_id: leadData?.source_company_id || null,
         source_contact_id: leadData?.source_contact_id || null,
         source_user_id: leadData?.source_user_id || null,
+        solution_category_ids: leadData?.solution_category_ids || [],
         tenant_id: tenantId,
       })
       .select()

@@ -47,7 +47,7 @@ export const useDealContractAutomation = (deal: Deal | null) => {
             duration: 3000,
           });
 
-          // Navigate to contract creation with deal data
+          // Navigate to contract creation with deal data (solution categories will carry over automatically)
           setTimeout(() => {
             navigate(`/contracts/add?dealId=${deal.id}`);
           }, 1500);

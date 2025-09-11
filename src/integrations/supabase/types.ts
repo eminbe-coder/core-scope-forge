@@ -375,6 +375,7 @@ export type Database = {
           phone_number: string | null
           quality_id: string | null
           size: string | null
+          solution_category_ids: string[] | null
           source_company_id: string | null
           source_contact_id: string | null
           source_id: string | null
@@ -404,6 +405,7 @@ export type Database = {
           phone_number?: string | null
           quality_id?: string | null
           size?: string | null
+          solution_category_ids?: string[] | null
           source_company_id?: string | null
           source_contact_id?: string | null
           source_id?: string | null
@@ -433,6 +435,7 @@ export type Database = {
           phone_number?: string | null
           quality_id?: string | null
           size?: string | null
+          solution_category_ids?: string[] | null
           source_company_id?: string | null
           source_contact_id?: string | null
           source_id?: string | null
@@ -761,6 +764,7 @@ export type Database = {
           phone_number: string | null
           position: string | null
           quality_id: string | null
+          solution_category_ids: string[] | null
           source_company_id: string | null
           source_contact_id: string | null
           source_id: string | null
@@ -786,6 +790,7 @@ export type Database = {
           phone_number?: string | null
           position?: string | null
           quality_id?: string | null
+          solution_category_ids?: string[] | null
           source_company_id?: string | null
           source_contact_id?: string | null
           source_id?: string | null
@@ -811,6 +816,7 @@ export type Database = {
           phone_number?: string | null
           position?: string | null
           quality_id?: string | null
+          solution_category_ids?: string[] | null
           source_company_id?: string | null
           source_contact_id?: string | null
           source_id?: string | null
@@ -1252,6 +1258,7 @@ export type Database = {
           sign_date: string | null
           signed_date: string | null
           site_id: string | null
+          solution_category_ids: string[] | null
           start_date: string | null
           status: string
           tenant_id: string
@@ -1273,6 +1280,7 @@ export type Database = {
           sign_date?: string | null
           signed_date?: string | null
           site_id?: string | null
+          solution_category_ids?: string[] | null
           start_date?: string | null
           status?: string
           tenant_id: string
@@ -1294,6 +1302,7 @@ export type Database = {
           sign_date?: string | null
           signed_date?: string | null
           site_id?: string | null
+          solution_category_ids?: string[] | null
           start_date?: string | null
           status?: string
           tenant_id?: string
@@ -1833,6 +1842,7 @@ export type Database = {
           priority: Database["public"]["Enums"]["deal_priority"] | null
           probability: number | null
           site_id: string | null
+          solution_category_ids: string[] | null
           source_company_id: string | null
           source_contact_id: string | null
           source_id: string | null
@@ -1861,6 +1871,7 @@ export type Database = {
           priority?: Database["public"]["Enums"]["deal_priority"] | null
           probability?: number | null
           site_id?: string | null
+          solution_category_ids?: string[] | null
           source_company_id?: string | null
           source_contact_id?: string | null
           source_id?: string | null
@@ -1889,6 +1900,7 @@ export type Database = {
           priority?: Database["public"]["Enums"]["deal_priority"] | null
           probability?: number | null
           site_id?: string | null
+          solution_category_ids?: string[] | null
           source_company_id?: string | null
           source_contact_id?: string | null
           source_id?: string | null
@@ -2933,6 +2945,7 @@ export type Database = {
           phone_number: string | null
           postal_code: string | null
           quality_id: string | null
+          solution_category_ids: string[] | null
           source_company_id: string | null
           source_contact_id: string | null
           source_id: string | null
@@ -2963,6 +2976,7 @@ export type Database = {
           phone_number?: string | null
           postal_code?: string | null
           quality_id?: string | null
+          solution_category_ids?: string[] | null
           source_company_id?: string | null
           source_contact_id?: string | null
           source_id?: string | null
@@ -2993,6 +3007,7 @@ export type Database = {
           phone_number?: string | null
           postal_code?: string | null
           quality_id?: string | null
+          solution_category_ids?: string[] | null
           source_company_id?: string | null
           source_contact_id?: string | null
           source_id?: string | null
@@ -3018,6 +3033,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      solution_categories: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          sort_order: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          sort_order?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          sort_order?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       targets: {
         Row: {
@@ -3271,6 +3322,7 @@ export type Database = {
           created_at: string
           default_currency_id: string | null
           default_lead_quality_id: string | null
+          default_solution_category_id: string | null
           domain: string | null
           id: string
           name: string
@@ -3291,6 +3343,7 @@ export type Database = {
           created_at?: string
           default_currency_id?: string | null
           default_lead_quality_id?: string | null
+          default_solution_category_id?: string | null
           domain?: string | null
           id?: string
           name: string
@@ -3311,6 +3364,7 @@ export type Database = {
           created_at?: string
           default_currency_id?: string | null
           default_lead_quality_id?: string | null
+          default_solution_category_id?: string | null
           domain?: string | null
           id?: string
           name?: string
@@ -3332,6 +3386,13 @@ export type Database = {
             columns: ["default_lead_quality_id"]
             isOneToOne: false
             referencedRelation: "lead_quality"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenants_default_solution_category_fk"
+            columns: ["default_solution_category_id"]
+            isOneToOne: false
+            referencedRelation: "solution_categories"
             referencedColumns: ["id"]
           },
         ]

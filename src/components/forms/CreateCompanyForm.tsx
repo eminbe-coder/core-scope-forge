@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { CompanyRelationshipSelector, CompanyRelationship } from '@/components/forms/CompanyRelationshipSelector';
 import { saveEntityRelationships } from '@/utils/entity-relationships';
 import { useNavigate } from 'react-router-dom';
+import { SolutionCategorySelect } from '@/components/ui/solution-category-select';
 
 const companySchema = z.object({
   name: z.string().min(1, 'Company name is required'),
@@ -32,6 +33,7 @@ const companySchema = z.object({
   notes: z.string().optional(),
   stage_id: z.string().optional(),
   quality_id: z.string().optional(),
+  solution_category_ids: z.array(z.string()).optional(),
 });
 
 type CompanyFormData = z.infer<typeof companySchema>;
@@ -86,6 +88,7 @@ export const CreateCompanyForm = ({ isLead = false, createMode = 'new', onSucces
       notes: '',
       stage_id: '',
       quality_id: '',
+      solution_category_ids: [],
     },
   });
 
@@ -260,6 +263,7 @@ export const CreateCompanyForm = ({ isLead = false, createMode = 'new', onSucces
           source_company_id: sourceValues.companySource || null,
           source_contact_id: sourceValues.contactSource || null,
           source_user_id: null,
+          solution_category_ids: data.solution_category_ids || [],
         })
         .select()
         .single();
@@ -568,6 +572,26 @@ export const CreateCompanyForm = ({ isLead = false, createMode = 'new', onSucces
                 </FormItem>
               )}
             />
+
+            {isLead && (
+              <FormField
+                control={form.control}
+                name="solution_category_ids"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Solution Categories</FormLabel>
+                    <FormControl>
+                      <SolutionCategorySelect
+                        value={field.value || []}
+                        onChange={field.onChange}
+                        placeholder="Select solution categories..."
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             {/* Company Relationships */}
             <CompanyRelationshipSelector

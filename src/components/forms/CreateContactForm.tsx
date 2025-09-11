@@ -16,6 +16,7 @@ import { useTenant } from '@/hooks/use-tenant';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { SolutionCategorySelect } from '@/components/ui/solution-category-select';
 
 const contactSchema = z.object({
   first_name: z.string().min(1, 'First name is required'),
@@ -28,6 +29,7 @@ const contactSchema = z.object({
   notes: z.string().optional(),
   stage_id: z.string().optional(),
   quality_id: z.string().optional(),
+  solution_category_ids: z.array(z.string()).optional(),
 });
 
 type ContactFormData = z.infer<typeof contactSchema>;
@@ -79,6 +81,7 @@ export const CreateContactForm = ({ isLead = false, createMode = 'new', onSucces
       notes: '',
       stage_id: '',
       quality_id: '',
+      solution_category_ids: [],
     },
   });
 
@@ -247,6 +250,7 @@ export const CreateContactForm = ({ isLead = false, createMode = 'new', onSucces
         source_company_id: sourceValues.companySource || null,
         source_contact_id: sourceValues.contactSource || null,
         source_user_id: null,
+        solution_category_ids: data.solution_category_ids || [],
       };
 
       const { data: contact, error } = await supabase
@@ -525,6 +529,26 @@ export const CreateContactForm = ({ isLead = false, createMode = 'new', onSucces
                 </FormItem>
               )}
             />
+
+            {isLead && (
+              <FormField
+                control={form.control}
+                name="solution_category_ids"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Solution Categories</FormLabel>
+                    <FormControl>
+                      <SolutionCategorySelect
+                        value={field.value || []}
+                        onChange={field.onChange}
+                        placeholder="Select solution categories..."
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <div className="flex gap-2">
               <Button type="submit" disabled={isSubmitting}>

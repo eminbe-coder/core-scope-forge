@@ -17,6 +17,7 @@ import { saveEntityRelationships } from '@/utils/entity-relationships';
 import { EnhancedSourceSelect, SourceValues } from '@/components/ui/enhanced-source-select';
 import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
+import { SolutionCategorySelect } from '@/components/ui/solution-category-select';
 
 const siteSchema = z.object({
   name: z.string().min(1, 'Site name is required'),
@@ -30,6 +31,7 @@ const siteSchema = z.object({
   notes: z.string().optional(),
   stage_id: z.string().optional(),
   quality_id: z.string().optional(),
+  solution_category_ids: z.array(z.string()).optional(),
 });
 
 type SiteFormData = z.infer<typeof siteSchema>;
@@ -80,6 +82,7 @@ export const CreateSiteForm = ({ isLead = false, createMode = 'new', onSuccess }
       notes: '',
       stage_id: '',
       quality_id: '',
+      solution_category_ids: [],
     },
   });
 
@@ -247,6 +250,7 @@ export const CreateSiteForm = ({ isLead = false, createMode = 'new', onSuccess }
           source_company_id: sourceValues.companySource || null,
           source_contact_id: sourceValues.contactSource || null,
           source_user_id: null,
+          solution_category_ids: data.solution_category_ids || [],
         })
         .select()
         .single();
@@ -563,6 +567,26 @@ export const CreateSiteForm = ({ isLead = false, createMode = 'new', onSuccess }
                 </FormItem>
               )}
             />
+
+            {isLead && (
+              <FormField
+                control={form.control}
+                name="solution_category_ids"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Solution Categories</FormLabel>
+                    <FormControl>
+                      <SolutionCategorySelect
+                        value={field.value || []}
+                        onChange={field.onChange}
+                        placeholder="Select solution categories..."
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <div className="flex gap-2">
               <Button type="submit" disabled={isSubmitting}>

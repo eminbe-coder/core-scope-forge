@@ -14,6 +14,7 @@ import { MultiSelectDropdown } from '@/components/deals/MultiSelectDropdown';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { toast } from 'sonner';
 import { Plus, X } from 'lucide-react';
+import { SolutionCategorySelect } from '@/components/ui/solution-category-select';
 
 const contractSchema = z.object({
   name: z.string().min(1, 'Contract name is required'),
@@ -27,6 +28,7 @@ const contractSchema = z.object({
   customer_reference_number: z.string().optional(),
   assigned_to: z.string().optional(),
   notes: z.string().optional(),
+  solution_category_ids: z.array(z.string()).optional(),
 });
 
 interface Deal {
@@ -40,6 +42,7 @@ interface Deal {
   customer_reference_number?: string;
   assigned_to?: string;
   notes?: string;
+  solution_category_ids?: string[];
 }
 
 interface PaymentTerm {
@@ -82,6 +85,7 @@ export const CreateContractForm = ({ deal, onSuccess }: CreateContractFormProps)
       customer_reference_number: deal.customer_reference_number || '',
       assigned_to: deal.assigned_to || '',
       notes: deal.notes || '',
+      solution_category_ids: deal.solution_category_ids || [],
       signed_date: new Date().toISOString().split('T')[0],
     } : {
       name: '',
@@ -93,6 +97,7 @@ export const CreateContractForm = ({ deal, onSuccess }: CreateContractFormProps)
       customer_reference_number: '',
       assigned_to: '',
       notes: '',
+      solution_category_ids: [],
       signed_date: new Date().toISOString().split('T')[0],
     },
   });
@@ -225,6 +230,7 @@ export const CreateContractForm = ({ deal, onSuccess }: CreateContractFormProps)
           assigned_to: values.assigned_to || null,
           customer_reference_number: values.customer_reference_number || null,
           notes: values.notes || null,
+          solution_category_ids: values.solution_category_ids || [],
           sign_date: values.signed_date || null,
         })
         .select()
@@ -553,6 +559,24 @@ export const CreateContractForm = ({ deal, onSuccess }: CreateContractFormProps)
                         ))}
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="solution_category_ids"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Solution Categories</FormLabel>
+                    <FormControl>
+                      <SolutionCategorySelect
+                        value={field.value || []}
+                        onChange={field.onChange}
+                        placeholder="Select solution categories..."
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
