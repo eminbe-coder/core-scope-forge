@@ -106,8 +106,11 @@ export const countryToPhoneCode: Record<string, string> = {
   'Indonesia': '+62',
 };
 
-export const getDefaultCountryCode = (): string => {
-  return '+1'; // Default to US/Canada
+export const getDefaultCountryCode = (tenantCountry?: string): string => {
+  if (tenantCountry) {
+    return getCountryCodeForCountry(tenantCountry);
+  }
+  return '+1'; // Default to US/Canada only if no tenant country
 };
 
 // GCC countries for tenant settings

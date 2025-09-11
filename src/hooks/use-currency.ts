@@ -11,21 +11,28 @@ interface CurrencyInfo {
 
 export function useCurrency() {
   const { currentTenant } = useTenant();
-  const [currency, setCurrency] = useState<CurrencyInfo>({ id: 'USD', code: 'USD', symbol: '$' });
+  const [currency, setCurrency] = useState<CurrencyInfo>({ id: '', code: 'USD', symbol: '$' });
 
   useEffect(() => {
     const load = async () => {
       try {
         const id = currentTenant?.default_currency_id;
-        if (!id) return; // keep default USD if tenant not loaded
+        if (!id) {
+          // Set USD as fallback only if no tenant currency is set
+          setCurrency({ id: '', code: 'USD', symbol: '$' });
+          return;
+        }
         const { data } = await supabase
           .from('currencies')
           .select('id, code, symbol, name')
           .eq('id', id)
           .single();
-        if (data) setCurrency({ id: data.id, code: data.code, symbol: data.symbol, name: data.name });
+        if (data) {
+          setCurrency({ id: data.id, code: data.code, symbol: data.symbol, name: data.name });
+        }
       } catch (e) {
         console.warn('useCurrency: failed to load currency, falling back to USD', e);
+        setCurrency({ id: '', code: 'USD', symbol: '$' });
       }
     };
     load();

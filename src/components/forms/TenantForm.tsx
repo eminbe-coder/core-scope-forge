@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PhoneInput } from '@/components/ui/phone-input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
 import { gccCountries } from '@/lib/country-codes';
 
 const tenantSchema = z.object({
@@ -53,6 +54,7 @@ export function TenantForm({ tenant, onSuccess, onCancel }: TenantFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [currencies, setCurrencies] = useState<Array<{ id: string; code: string; name: string }>>([]);
   const { toast } = useToast();
+  const { user } = useAuth();
   const isEditing = !!tenant;
 
   const form = useForm<TenantFormData>({
@@ -96,15 +98,64 @@ export function TenantForm({ tenant, onSuccess, onCancel }: TenantFormProps) {
         contact_phone_country_code: data.contact_phone_country_code || null,
         contact_phone_number: data.contact_phone_number || null,
         default_currency_id: data.default_currency_id || null,
+        updated_at: new Date().toISOString(),
       };
 
       if (isEditing) {
+        // Store previous values for audit logging
+        const previousValues = {
+          country: tenant?.country,
+          default_currency_id: tenant?.default_currency_id,
+        };
+
         const { error } = await supabase
           .from('tenants')
           .update(tenantData)
           .eq('id', tenant.id);
         
         if (error) throw error;
+
+        // Log audit trail for important changes
+        const auditLogs = [];
+        
+        if (previousValues.country !== data.country) {
+          auditLogs.push({
+            entity_id: tenant.id,
+            entity_type: 'tenant',
+            activity_type: 'tenant_country_updated',
+            title: 'Tenant Country Updated',
+            description: `Country changed from "${previousValues.country || 'Not set'}" to "${data.country || 'Not set'}"`,
+            created_by: user?.id,
+            tenant_id: tenant.id,
+          });
+        }
+
+        if (previousValues.default_currency_id !== data.default_currency_id) {
+          // Get currency names for better logging
+          const previousCurrency = currencies.find(c => c.id === previousValues.default_currency_id);
+          const newCurrency = currencies.find(c => c.id === data.default_currency_id);
+          
+          auditLogs.push({
+            entity_id: tenant.id,
+            entity_type: 'tenant',
+            activity_type: 'tenant_currency_updated',
+            title: 'Tenant Default Currency Updated',
+            description: `Default currency changed from "${previousCurrency?.code || 'Not set'}" to "${newCurrency?.code || 'Not set'}"`,
+            created_by: user?.id,
+            tenant_id: tenant.id,
+          });
+        }
+
+        // Insert audit logs if any changes were made
+        if (auditLogs.length > 0) {
+          const { error: auditError } = await supabase
+            .from('activity_logs')
+            .insert(auditLogs);
+          
+          if (auditError) {
+            console.error('Error logging audit trail:', auditError);
+          }
+        }
       } else {
         const { error } = await supabase
           .from('tenants')
@@ -115,7 +166,7 @@ export function TenantForm({ tenant, onSuccess, onCancel }: TenantFormProps) {
 
       toast({
         title: 'Success',
-        description: `Tenant ${isEditing ? 'updated' : 'created'} successfully`,
+        description: isEditing ? 'Tenant Settings Updated' : 'Tenant created successfully',
       });
 
       onSuccess();

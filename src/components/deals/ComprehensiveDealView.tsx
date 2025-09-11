@@ -1230,12 +1230,14 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
                   ) : (
                     <div className="flex items-center gap-2">
                       <DollarSign className="h-4 w-4 text-muted-foreground" />
-                      <span>
-                        {deal.currencies?.symbol || currentTenant?.default_currency_id ? 
-                          `${availableCurrencies.find(c => c.id === (deal.currency_id || currentTenant?.default_currency_id))?.code || 'USD'} (${deal.currencies?.symbol || '$'})` :
-                          'Not set'
-                        }
-                      </span>
+                       <span>
+                         {deal.currency_id && availableCurrencies.find(c => c.id === deal.currency_id) ? 
+                           `${availableCurrencies.find(c => c.id === deal.currency_id)?.code} (${availableCurrencies.find(c => c.id === deal.currency_id)?.symbol})` :
+                           currentTenant?.default_currency_id ? 
+                             `${availableCurrencies.find(c => c.id === currentTenant.default_currency_id)?.code || 'USD'} (${availableCurrencies.find(c => c.id === currentTenant.default_currency_id)?.symbol || '$'})` :
+                             'Not set'
+                         }
+                       </span>
                     </div>
                   )}
                 </div>

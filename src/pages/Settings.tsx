@@ -13,7 +13,7 @@ import { useState, useEffect } from 'react';
 const SettingsPage = () => {
   const [activeSection, setActiveSection] = useState<string>('general');
   const [isEditingTenant, setIsEditingTenant] = useState(false);
-  const { currentTenant, refreshTenants } = useTenant();
+  const { currentTenant, refreshTenants, refreshCurrentTenant } = useTenant();
 
   // Check URL params for tab
   useEffect(() => {
@@ -24,9 +24,10 @@ const SettingsPage = () => {
     }
   }, []);
 
-  const handleTenantUpdateSuccess = () => {
+  const handleTenantUpdateSuccess = async () => {
     setIsEditingTenant(false);
-    refreshTenants();
+    await refreshCurrentTenant(); // Refresh current tenant data
+    await refreshTenants(); // Refresh all tenant data
   };
 
   return (
@@ -109,8 +110,18 @@ const SettingsPage = () => {
                                 <p className="text-muted-foreground">{currentTenant.name}</p>
                               </div>
                               <div>
+                                <span className="font-medium">Country:</span>
+                                <p className="text-muted-foreground">{currentTenant.country || 'Not set'}</p>
+                              </div>
+                              <div>
                                 <span className="font-medium">Location:</span>
                                 <p className="text-muted-foreground">{currentTenant.company_location || 'Not set'}</p>
+                              </div>
+                              <div>
+                                <span className="font-medium">Default Currency:</span>
+                                <p className="text-muted-foreground">
+                                  {currentTenant.default_currency_id ? 'Set' : 'Not set'}
+                                </p>
                               </div>
                               <div>
                                 <span className="font-medium">CR Number:</span>
@@ -126,7 +137,12 @@ const SettingsPage = () => {
                               </div>
                               <div>
                                 <span className="font-medium">Contact Phone:</span>
-                                <p className="text-muted-foreground">{currentTenant.contact_phone || 'Not set'}</p>
+                                <p className="text-muted-foreground">
+                                  {currentTenant.contact_phone_country_code && currentTenant.contact_phone_number 
+                                    ? `${currentTenant.contact_phone_country_code}${currentTenant.contact_phone_number}`
+                                    : 'Not set'
+                                  }
+                                </p>
                               </div>
                             </div>
                           </div>

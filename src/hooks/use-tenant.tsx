@@ -40,6 +40,7 @@ interface TenantContextType {
   isSuperAdmin: boolean;
   setCurrentTenant: (tenant: Tenant) => void;
   refreshTenants: () => void;
+  refreshCurrentTenant: () => void;
 }
 
 const TenantContext = createContext<TenantContextType>({
@@ -51,6 +52,7 @@ const TenantContext = createContext<TenantContextType>({
   isSuperAdmin: false,
   setCurrentTenant: () => {},
   refreshTenants: () => {},
+  refreshCurrentTenant: () => {},
 });
 
 export const useTenant = () => {
@@ -83,6 +85,37 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
       if (membership?.role) {
         setUserRole(membership.role);
       }
+    }
+  };
+
+  const refreshCurrentTenant = async () => {
+    if (!currentTenant || !user) return;
+
+    try {
+      // Refresh the current tenant data from the database
+      const { data, error } = await supabase
+        .from('tenants')
+        .select(`
+          id, name, slug, domain, active, country, company_location, 
+          cr_number, tax_number, contact_email, contact_phone_country_code,
+          contact_phone_number, default_currency_id, settings, created_at, updated_at
+        `)
+        .eq('id', currentTenant.id)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setCurrentTenantState(data);
+        // Also update in userTenants array
+        setUserTenants(prev => prev.map(membership => 
+          membership.tenant_id === data.id 
+            ? { ...membership, tenant: data }
+            : membership
+        ));
+      }
+    } catch (error) {
+      console.error('Error refreshing current tenant:', error);
     }
   };
 
@@ -120,6 +153,13 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
             slug: tenant.slug,
             domain: tenant.domain,
             active: tenant.active,
+            country: (tenant as any).country,
+            company_location: (tenant as any).company_location,
+            cr_number: (tenant as any).cr_number,
+            tax_number: (tenant as any).tax_number,
+            contact_email: (tenant as any).contact_email,
+            contact_phone_country_code: (tenant as any).contact_phone_country_code,
+            contact_phone_number: (tenant as any).contact_phone_number,
             settings: tenant.settings,
             default_currency_id: tenant.default_currency_id
           }
@@ -136,7 +176,7 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
       
-      // Regular users - fetch their tenant memberships
+      // Regular users - fetch their tenant memberships with all tenant fields
       const { data, error } = await supabase
         .from('user_tenant_memberships')
         .select(`
@@ -145,7 +185,11 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
           tenant_id,
           role,
           active,
-          tenant:tenants(*)
+          tenant:tenants(
+            id, name, slug, domain, active, country, company_location, 
+            cr_number, tax_number, contact_email, contact_phone_country_code,
+            contact_phone_number, default_currency_id, settings, created_at, updated_at
+          )
         `)
         .eq('user_id', user.id)
         .eq('active', true);
@@ -189,7 +233,8 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
       isAdmin,
       isSuperAdmin,
       setCurrentTenant,
-      refreshTenants
+      refreshTenants,
+      refreshCurrentTenant
     }}>
       {children}
     </TenantContext.Provider>
