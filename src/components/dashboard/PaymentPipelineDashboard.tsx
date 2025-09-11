@@ -96,15 +96,6 @@ export function PaymentPipelineDashboard() {
           id: u.id, 
           name: `${u.first_name} ${u.last_name}` 
         })) || []);
-      } else if (filterType === 'company') {
-        const { data } = await supabase
-          .from('companies')
-          .select('id, name')
-          .eq('tenant_id', currentTenant.id)
-          .eq('active', true)
-          .order('name');
-        
-        setFilterOptions(data?.map(c => ({ id: c.id, name: c.name })) || []);
       } else if (filterType === 'department') {
         const { data } = await supabase
           .from('departments')
@@ -114,6 +105,9 @@ export function PaymentPipelineDashboard() {
           .order('name');
         
         setFilterOptions(data?.map(d => ({ id: d.id, name: d.name })) || []);
+      } else {
+        // For company filter, we don't need sub-options since it's tenant-wide
+        setFilterOptions([]);
       }
     } catch (error) {
       console.error('Error loading filter options:', error);
@@ -140,9 +134,7 @@ export function PaymentPipelineDashboard() {
             assigned_to,
             customer_id,
             site_id,
-            currencies(symbol),
-            customers(companies(id, name)),
-            sites(companies(id, name))
+            currencies(symbol)
           ),
           contract_payment_stages(name)
         `)
@@ -162,9 +154,7 @@ export function PaymentPipelineDashboard() {
             customer_id,
             site_id,
             deal_stages!inner(win_percentage),
-            currencies(symbol),
-            customers(companies(id, name)),
-            sites(companies(id, name))
+            currencies(symbol)
           )
         `)
         .eq('installment_number', 1)
@@ -178,6 +168,8 @@ export function PaymentPipelineDashboard() {
         contractQuery = contractQuery.eq('contracts.assigned_to', filterValue);
         dealQuery = dealQuery.eq('deals.assigned_to', filterValue);
       }
+      // Company filter is handled by tenant_id constraint (already applied above)
+      // Department filter would need user-department relationship (not implemented yet)
 
       const [contractResult, dealResult] = await Promise.all([
         contractQuery,
@@ -187,37 +179,31 @@ export function PaymentPipelineDashboard() {
       if (contractResult.error) throw contractResult.error;
       if (dealResult.error) throw dealResult.error;
 
-      // Filter by permissions and additional filters
+      // Filter by permissions - for company filter, show all tenant data
       let filteredContractPayments = contractResult.data?.filter(payment => {
         const contract = payment.contracts;
-        const hasPermission = contract.assigned_to === user.id || isUserAdmin();
         
-        if (!hasPermission) return false;
-        
-        // Apply company/department filters
-        if (filterType === 'company' && filterValue !== 'all') {
-          const companyId = contract.customers?.companies?.[0]?.id || 
-                          contract.sites?.companies?.[0]?.id;
-          return companyId === filterValue;
+        // For company filter, show all tenant data (no permission restriction)
+        if (filterType === 'company') {
+          return true;
         }
         
-        return true;
+        // For user/department filters, apply permission check
+        const hasPermission = contract.assigned_to === user.id || isUserAdmin();
+        return hasPermission;
       }) || [];
 
       let filteredDealPayments = dealResult.data?.filter(payment => {
         const deal = payment.deals;
-        const hasPermission = deal.assigned_to === user.id || isUserAdmin();
         
-        if (!hasPermission) return false;
-        
-        // Apply company/department filters  
-        if (filterType === 'company' && filterValue !== 'all') {
-          const companyId = deal.customers?.companies?.[0]?.id || 
-                          deal.sites?.companies?.[0]?.id;
-          return companyId === filterValue;
+        // For company filter, show all tenant data (no permission restriction)
+        if (filterType === 'company') {
+          return true;
         }
         
-        return true;
+        // For user/department filters, apply permission check
+        const hasPermission = deal.assigned_to === user.id || isUserAdmin();
+        return hasPermission;
       }) || [];
 
       // Group data by weeks/months/quarters based on period
@@ -406,7 +392,7 @@ export function PaymentPipelineDashboard() {
               </SelectContent>
             </Select>
             
-            {filterType !== 'all' && (
+            {filterType !== 'all' && filterType !== 'company' && (
               <Select value={filterValue} onValueChange={setFilterValue}>
                 <SelectTrigger className="w-40">
                   <SelectValue placeholder={`Select ${filterType}`} />
