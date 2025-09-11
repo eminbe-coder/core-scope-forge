@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -193,28 +194,16 @@ export function CompanyRelationshipSelector({
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <Label htmlFor="company">Company</Label>
-                  <div className="flex gap-2">
-                    <Select value={formData.company_id} onValueChange={(value) => setFormData({ ...formData, company_id: value })}>
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Select a company" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-background border shadow-lg z-50">
-                        {companies.map((company) => (
-                          <SelectItem key={company.id} value={company.id}>
-                            {company.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowCompanyModal(true)}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <SearchableSelect
+                    options={companies}
+                    value={formData.company_id}
+                    onValueChange={(value) => setFormData({ ...formData, company_id: value })}
+                    placeholder="Select a company"
+                    searchPlaceholder="Search companies..."
+                    emptyText="No companies found"
+                    onAddNew={() => setShowCompanyModal(true)}
+                    addNewLabel="Add Company"
+                  />
                 </div>
 
                 <div>
