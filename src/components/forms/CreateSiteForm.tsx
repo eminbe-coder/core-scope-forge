@@ -36,6 +36,7 @@ type SiteFormData = z.infer<typeof siteSchema>;
 
 interface CreateSiteFormProps {
   isLead?: boolean;
+  createMode?: 'new' | 'existing';
   onSuccess?: (id: string) => void;
 }
 
@@ -49,7 +50,7 @@ interface LeadQuality {
   name: string;
 }
 
-export const CreateSiteForm = ({ isLead = false, onSuccess }: CreateSiteFormProps) => {
+export const CreateSiteForm = ({ isLead = false, createMode = 'new', onSuccess }: CreateSiteFormProps) => {
   const { currentTenant } = useTenant();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -59,6 +60,8 @@ export const CreateSiteForm = ({ isLead = false, onSuccess }: CreateSiteFormProp
   const [leadStages, setLeadStages] = useState<LeadStage[]>([]);
   const [leadQualities, setLeadQualities] = useState<LeadQuality[]>([]);
   const [defaultQualityId, setDefaultQualityId] = useState<string | null>(null);
+  const [existingSites, setExistingSites] = useState<Array<{ id: string; name: string; address: string }>>([]);
+  const [selectedSiteId, setSelectedSiteId] = useState<string>('');
   const [sourceValues, setSourceValues] = useState<SourceValues>({
     sourceCategory: '',
     companySource: '',
@@ -81,10 +84,38 @@ export const CreateSiteForm = ({ isLead = false, onSuccess }: CreateSiteFormProp
   });
 
   useEffect(() => {
-    if (isLead && currentTenant) {
-      loadLeadOptions();
+    if (currentTenant) {
+      if (isLead) {
+        loadLeadOptions();
+      }
+      if (createMode === 'existing') {
+        loadExistingSites();
+      }
     }
-  }, [isLead, currentTenant]);
+  }, [isLead, createMode, currentTenant]);
+
+  const loadExistingSites = async () => {
+    if (!currentTenant) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('sites')
+        .select('id, name, address')
+        .eq('tenant_id', currentTenant.id)
+        .eq('active', true)
+        .order('name');
+
+      if (error) throw error;
+      setExistingSites(data || []);
+    } catch (error) {
+      console.error('Error loading existing sites:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load existing sites',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const loadLeadOptions = async () => {
     if (!currentTenant) return;
@@ -122,6 +153,64 @@ export const CreateSiteForm = ({ isLead = false, onSuccess }: CreateSiteFormProp
       }
     } catch (error) {
       console.error('Error loading lead options:', error);
+    }
+  };
+
+  const handleExistingSiteSubmit = async () => {
+    if (!selectedSiteId || !currentTenant || !user) return;
+
+    // Validate source fields for leads
+    if (isLead) {
+      const hasSourceCategory = sourceValues.sourceCategory && sourceValues.sourceCategory.length > 0;
+      const hasCompanySource = sourceValues.companySource && sourceValues.companySource.length > 0;
+      const hasContactSource = sourceValues.contactSource && sourceValues.contactSource.length > 0;
+      
+      if (!hasSourceCategory && !hasCompanySource && !hasContactSource) {
+        toast({
+          title: 'Validation Error',
+          description: 'At least one source field (Category, Company, or Contact) must be filled for leads',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Update the existing site to become a lead
+      const { error } = await supabase
+        .from('sites')
+        .update({
+          is_lead: true,
+          high_value: false,
+          source_id: sourceValues.sourceCategory || null,
+          source_company_id: sourceValues.companySource || null,
+          source_contact_id: sourceValues.contactSource || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', selectedSiteId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Site converted to lead successfully',
+      });
+
+      if (onSuccess) {
+        onSuccess(selectedSiteId);
+      } else {
+        navigate('/leads');
+      }
+    } catch (error) {
+      console.error('Error converting site to lead:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to convert site to lead',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -207,11 +296,59 @@ export const CreateSiteForm = ({ isLead = false, onSuccess }: CreateSiteFormProp
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{isLead ? 'Create Site Lead' : 'Create Site'}</CardTitle>
+        <CardTitle>
+          {createMode === 'existing' 
+            ? 'Select Existing Site for Lead' 
+            : (isLead ? 'Create Site Lead' : 'Create Site')
+          }
+        </CardTitle>
       </CardHeader>
       <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {createMode === 'existing' ? (
+          <div className="space-y-6">
+            <div>
+              <Label>Select Site</Label>
+              <Select value={selectedSiteId} onValueChange={setSelectedSiteId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose an existing site" />
+                </SelectTrigger>
+                <SelectContent>
+                  {existingSites.map((site) => (
+                    <SelectItem key={site.id} value={site.id}>
+                      <div>
+                        <div className="font-medium">{site.name}</div>
+                        <div className="text-sm text-muted-foreground">{site.address}</div>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {isLead && selectedSiteId && (
+              <div className="space-y-4">
+                <Label>Site Lead Sources</Label>
+                <EnhancedSourceSelect
+                  value={sourceValues}
+                  onValueChange={setSourceValues}
+                />
+                <p className="text-sm text-muted-foreground">
+                  At least one source field (Category, Company, or Contact) must be filled.
+                </p>
+              </div>
+            )}
+
+            <Button 
+              onClick={handleExistingSiteSubmit}
+              disabled={!selectedSiteId || isSubmitting}
+              className="w-full"
+            >
+              {isSubmitting ? 'Converting...' : 'Convert to Lead'}
+            </Button>
+          </div>
+        ) : (
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField
               control={form.control}
               name="name"
@@ -441,6 +578,7 @@ export const CreateSiteForm = ({ isLead = false, onSuccess }: CreateSiteFormProp
             </div>
           </form>
         </Form>
+        )}
       </CardContent>
     </Card>
   );

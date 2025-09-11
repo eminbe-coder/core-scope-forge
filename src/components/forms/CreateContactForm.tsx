@@ -34,6 +34,7 @@ type ContactFormData = z.infer<typeof contactSchema>;
 
 interface CreateContactFormProps {
   isLead?: boolean;
+  createMode?: 'new' | 'existing';
   onSuccess?: (id: string) => void;
 }
 
@@ -47,7 +48,7 @@ interface LeadQuality {
   name: string;
 }
 
-export const CreateContactForm = ({ isLead = false, onSuccess }: CreateContactFormProps) => {
+export const CreateContactForm = ({ isLead = false, createMode = 'new', onSuccess }: CreateContactFormProps) => {
   const { currentTenant } = useTenant();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -57,6 +58,8 @@ export const CreateContactForm = ({ isLead = false, onSuccess }: CreateContactFo
   const [leadQualities, setLeadQualities] = useState<Array<{ id: string; name: string }>>([]);
   const [dealSources, setDealSources] = useState<Array<{ id: string; name: string }>>([]);
   const [defaultQualityId, setDefaultQualityId] = useState<string | null>(null);
+  const [existingContacts, setExistingContacts] = useState<Array<{ id: string; name: string; first_name: string; last_name?: string; email?: string }>>([]);
+  const [selectedContactId, setSelectedContactId] = useState<string>('');
   const [sourceValues, setSourceValues] = useState<SourceValues>({
     sourceCategory: '',
     companySource: '',
@@ -80,68 +83,102 @@ export const CreateContactForm = ({ isLead = false, onSuccess }: CreateContactFo
   });
 
   useEffect(() => {
-    if (isLead && currentTenant) {
-      // Load lead stages, qualities, and deal sources when isLead changes
-      const loadLeadData = async () => {
+    if (currentTenant) {
+      if (isLead) {
+        loadLeadData();
+      }
+      if (createMode === 'existing') {
+        loadExistingContacts();
+      }
+    }
+  }, [isLead, createMode, currentTenant]);
+
+  const loadExistingContacts = async () => {
+    if (!currentTenant) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('contacts')
+        .select('id, first_name, last_name, email')
+        .eq('tenant_id', currentTenant.id)
+        .eq('active', true)
+        .order('first_name');
+
+      if (error) throw error;
+
+      const contactsWithName = data?.map(contact => ({
+        ...contact,
+        name: `${contact.first_name} ${contact.last_name || ''}`.trim()
+      })) || [];
+
+      setExistingContacts(contactsWithName);
+    } catch (error) {
+      console.error('Error loading existing contacts:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load existing contacts',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const loadLeadData = async () => {
+    if (!currentTenant || !isLead) return;
         if (!currentTenant || !isLead) return;
         
-        try {
-          const [stagesResult, qualitiesResult, sourcesResult, tenantResult] = await Promise.all([
-            supabase
-              .from('lead_stages')
-              .select('id, name')
-              .eq('tenant_id', currentTenant.id)
-              .eq('active', true)
-              .order('sort_order'),
-            supabase
-              .from('lead_quality')
-              .select('id, name')
-              .eq('tenant_id', currentTenant.id)
-              .eq('active', true)
-              .order('sort_order'),
-            supabase
-              .from('deal_sources')
-              .select('id, name')
-              .eq('tenant_id', currentTenant.id)
-              .eq('active', true)
-              .order('sort_order'),
-            supabase
-              .from('tenants')
-              .select('default_lead_quality_id')
-              .eq('id', currentTenant.id)
-              .single()
-          ]);
+    try {
+      const [stagesResult, qualitiesResult, sourcesResult, tenantResult] = await Promise.all([
+        supabase
+          .from('lead_stages')
+          .select('id, name')
+          .eq('tenant_id', currentTenant.id)
+          .eq('active', true)
+          .order('sort_order'),
+        supabase
+          .from('lead_quality')
+          .select('id, name')
+          .eq('tenant_id', currentTenant.id)
+          .eq('active', true)
+          .order('sort_order'),
+        supabase
+          .from('deal_sources')
+          .select('id, name')
+          .eq('tenant_id', currentTenant.id)
+          .eq('active', true)
+          .order('sort_order'),
+        supabase
+          .from('tenants')
+          .select('default_lead_quality_id')
+          .eq('id', currentTenant.id)
+          .single()
+      ]);
 
-          if (stagesResult.error) throw stagesResult.error;
-          if (qualitiesResult.error) throw qualitiesResult.error;
-          if (sourcesResult.error) throw sourcesResult.error;
-          if (tenantResult.error) throw tenantResult.error;
+      if (stagesResult.error) throw stagesResult.error;
+      if (qualitiesResult.error) throw qualitiesResult.error;
+      if (sourcesResult.error) throw sourcesResult.error;
+      if (tenantResult.error) throw tenantResult.error;
 
-          setLeadStages(stagesResult.data || []);
-          setLeadQualities(qualitiesResult.data || []);
-          setDealSources(sourcesResult.data || []);
-          setDefaultQualityId(tenantResult.data?.default_lead_quality_id || null);
-          
-          // Set default quality if not already set
-          if (tenantResult.data?.default_lead_quality_id && !form.getValues('quality_id')) {
-            form.setValue('quality_id', tenantResult.data.default_lead_quality_id);
-          }
-        } catch (error) {
-          console.error('Error loading lead data:', error);
-          toast({
-            title: 'Error',
-            description: 'Failed to load lead data',
-            variant: 'destructive',
-          });
-        }
-      };
-
-      loadLeadData();
+      setLeadStages(stagesResult.data || []);
+      setLeadQualities(qualitiesResult.data || []);
+      setDealSources(sourcesResult.data || []);
+      setDefaultQualityId(tenantResult.data?.default_lead_quality_id || null);
+      
+      // Set default quality if not already set
+      if (tenantResult.data?.default_lead_quality_id && !form.getValues('quality_id')) {
+        form.setValue('quality_id', tenantResult.data.default_lead_quality_id);
+      }
+    } catch (error) {
+      console.error('Error loading lead data:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load lead data',
+        variant: 'destructive',
+      });
     }
-  }, [isLead, currentTenant]);
+  };
 
-  const onSubmit = async (data: ContactFormData) => {
-    if (!currentTenant || !user) return;
+  const handleExistingContactSubmit = async () => {
+    if (!selectedContactId || !currentTenant || !user) return;
 
     // Validate source fields for leads
     if (isLead) {
@@ -158,6 +195,47 @@ export const CreateContactForm = ({ isLead = false, onSuccess }: CreateContactFo
         return;
       }
     }
+
+    setIsSubmitting(true);
+    try {
+      // Update the existing contact to become a lead
+      const { error } = await supabase
+        .from('contacts')
+        .update({
+          is_lead: true,
+          high_value: false,
+          source_id: sourceValues.sourceCategory || null,
+          source_company_id: sourceValues.companySource || null,
+          source_contact_id: sourceValues.contactSource || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', selectedContactId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Contact converted to lead successfully',
+      });
+
+      if (onSuccess) {
+        onSuccess(selectedContactId);
+      } else {
+        navigate('/leads');
+      }
+    } catch (error) {
+      console.error('Error converting contact to lead:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to convert contact to lead',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const onSubmit = async (data: ContactFormData) => {
 
     setIsSubmitting(true);
     try {
@@ -216,11 +294,61 @@ export const CreateContactForm = ({ isLead = false, onSuccess }: CreateContactFo
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{isLead ? 'Create Contact Lead' : 'Create Contact'}</CardTitle>
+        <CardTitle>
+          {createMode === 'existing' 
+            ? 'Select Existing Contact for Lead' 
+            : (isLead ? 'Create Contact Lead' : 'Create Contact')
+          }
+        </CardTitle>
       </CardHeader>
       <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {createMode === 'existing' ? (
+          <div className="space-y-6">
+            <div>
+              <Label>Select Contact</Label>
+              <Select value={selectedContactId} onValueChange={setSelectedContactId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose an existing contact" />
+                </SelectTrigger>
+                <SelectContent>
+                  {existingContacts.map((contact) => (
+                    <SelectItem key={contact.id} value={contact.id}>
+                      <div>
+                        <div className="font-medium">{contact.name}</div>
+                        {contact.email && (
+                          <div className="text-sm text-muted-foreground">{contact.email}</div>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {isLead && selectedContactId && (
+              <div className="space-y-4">
+                <Label>Contact Lead Sources</Label>
+                <EnhancedSourceSelect
+                  value={sourceValues}
+                  onValueChange={setSourceValues}
+                />
+                <p className="text-sm text-muted-foreground">
+                  At least one source field (Category, Company, or Contact) must be filled.
+                </p>
+              </div>
+            )}
+
+            <Button 
+              onClick={handleExistingContactSubmit}
+              disabled={!selectedContactId || isSubmitting}
+              className="w-full"
+            >
+              {isSubmitting ? 'Converting...' : 'Convert to Lead'}
+            </Button>
+          </div>
+        ) : (
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -410,8 +538,9 @@ export const CreateContactForm = ({ isLead = false, onSuccess }: CreateContactFo
                 Cancel
               </Button>
             </div>
-          </form>
-        </Form>
+            </form>
+          </Form>
+        )}
       </CardContent>
     </Card>
   );

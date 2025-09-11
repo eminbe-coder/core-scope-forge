@@ -38,6 +38,7 @@ type CompanyFormData = z.infer<typeof companySchema>;
 
 interface CreateCompanyFormProps {
   isLead?: boolean;
+  createMode?: 'new' | 'existing';
   onSuccess?: (id: string) => void;
 }
 
@@ -51,7 +52,7 @@ interface LeadQuality {
   name: string;
 }
 
-export const CreateCompanyForm = ({ isLead = false, onSuccess }: CreateCompanyFormProps) => {
+export const CreateCompanyForm = ({ isLead = false, createMode = 'new', onSuccess }: CreateCompanyFormProps) => {
   const { currentTenant } = useTenant();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -62,6 +63,8 @@ export const CreateCompanyForm = ({ isLead = false, onSuccess }: CreateCompanyFo
   const [leadQualities, setLeadQualities] = useState<LeadQuality[]>([]);
   const [dealSources, setDealSources] = useState<Array<{ id: string; name: string }>>([]);
   const [defaultQualityId, setDefaultQualityId] = useState<string | null>(null);
+  const [existingCompanies, setExistingCompanies] = useState<Array<{ id: string; name: string; email?: string }>>([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
   const [sourceValues, setSourceValues] = useState<SourceValues>({
     sourceCategory: '',
     companySource: '',
@@ -87,10 +90,38 @@ export const CreateCompanyForm = ({ isLead = false, onSuccess }: CreateCompanyFo
   });
 
   useEffect(() => {
-    if (isLead && currentTenant) {
-      loadLeadOptions();
+    if (currentTenant) {
+      if (isLead) {
+        loadLeadOptions();
+      }
+      if (createMode === 'existing') {
+        loadExistingCompanies();
+      }
     }
-  }, [isLead, currentTenant]);
+  }, [isLead, createMode, currentTenant]);
+
+  const loadExistingCompanies = async () => {
+    if (!currentTenant) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('id, name, email')
+        .eq('tenant_id', currentTenant.id)
+        .eq('active', true)
+        .order('name');
+
+      if (error) throw error;
+      setExistingCompanies(data || []);
+    } catch (error) {
+      console.error('Error loading existing companies:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load existing companies',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const loadLeadOptions = async () => {
     if (!currentTenant) return;
@@ -135,6 +166,64 @@ export const CreateCompanyForm = ({ isLead = false, onSuccess }: CreateCompanyFo
       }
     } catch (error) {
       console.error('Error loading lead options:', error);
+    }
+  };
+
+  const handleExistingCompanySubmit = async () => {
+    if (!selectedCompanyId || !currentTenant || !user) return;
+
+    // Validate source fields for leads
+    if (isLead) {
+      const hasSourceCategory = sourceValues.sourceCategory && sourceValues.sourceCategory.length > 0;
+      const hasCompanySource = sourceValues.companySource && sourceValues.companySource.length > 0;
+      const hasContactSource = sourceValues.contactSource && sourceValues.contactSource.length > 0;
+      
+      if (!hasSourceCategory && !hasCompanySource && !hasContactSource) {
+        toast({
+          title: 'Validation Error',
+          description: 'At least one source field (Category, Company, or Contact) must be filled for leads',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Update the existing company to become a lead
+      const { error } = await supabase
+        .from('companies')
+        .update({
+          is_lead: true,
+          high_value: false,
+          source_id: sourceValues.sourceCategory || null,
+          source_company_id: sourceValues.companySource || null,
+          source_contact_id: sourceValues.contactSource || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', selectedCompanyId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Company converted to lead successfully',
+      });
+
+      if (onSuccess) {
+        onSuccess(selectedCompanyId);
+      } else {
+        navigate('/leads');
+      }
+    } catch (error) {
+      console.error('Error converting company to lead:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to convert company to lead',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -220,11 +309,61 @@ export const CreateCompanyForm = ({ isLead = false, onSuccess }: CreateCompanyFo
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{isLead ? 'Create Company Lead' : 'Create Company'}</CardTitle>
+        <CardTitle>
+          {createMode === 'existing' 
+            ? 'Select Existing Company for Lead' 
+            : (isLead ? 'Create Company Lead' : 'Create Company')
+          }
+        </CardTitle>
       </CardHeader>
       <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {createMode === 'existing' ? (
+          <div className="space-y-6">
+            <div>
+              <Label>Select Company</Label>
+              <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose an existing company" />
+                </SelectTrigger>
+                <SelectContent>
+                  {existingCompanies.map((company) => (
+                    <SelectItem key={company.id} value={company.id}>
+                      <div>
+                        <div className="font-medium">{company.name}</div>
+                        {company.email && (
+                          <div className="text-sm text-muted-foreground">{company.email}</div>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {isLead && selectedCompanyId && (
+              <div className="space-y-4">
+                <Label>Company Lead Sources</Label>
+                <EnhancedSourceSelect
+                  value={sourceValues}
+                  onValueChange={setSourceValues}
+                />
+                <p className="text-sm text-muted-foreground">
+                  At least one source field (Category, Company, or Contact) must be filled.
+                </p>
+              </div>
+            )}
+
+            <Button 
+              onClick={handleExistingCompanySubmit}
+              disabled={!selectedCompanyId || isSubmitting}
+              className="w-full"
+            >
+              {isSubmitting ? 'Converting...' : 'Convert to Lead'}
+            </Button>
+          </div>
+        ) : (
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField
               control={form.control}
               name="name"
@@ -450,8 +589,9 @@ export const CreateCompanyForm = ({ isLead = false, onSuccess }: CreateCompanyFo
                 Cancel
               </Button>
             </div>
-          </form>
-        </Form>
+            </form>
+          </Form>
+        )}
       </CardContent>
     </Card>
   );
