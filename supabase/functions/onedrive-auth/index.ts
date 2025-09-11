@@ -7,7 +7,7 @@ const corsHeaders = {
 }
 
 interface OneDriveAuthRequest {
-  action: 'initialize' | 'callback' | 'test' | 'get_libraries' | 'set_library';
+  action: 'initialize' | 'callback' | 'test' | 'get_libraries' | 'set_library' | 'get_tenant_folder_status';
   tenant_id?: string;
   client_id?: string;
   client_secret?: string;
@@ -399,38 +399,73 @@ serve(async (req) => {
         
         console.log(`OneDrive root folder ID obtained: ${rootFolderId}`);
 
-        // Create base folder structure
-        const folderStructure = {
-          customers: 'Customers',
-          sites: 'Sites', 
-          deals: 'Deals'
-        };
+        // Create tenant-specific folder structure
+        const tenantFolderName = `TenantFiles_${tenant_id}`;
+        console.log(`Creating tenant-specific folder: ${tenantFolderName}`);
+        
+        let tenantFolderId = null;
+        let tenantFolderMetadata = null;
+        
+        try {
+          // Create main tenant folder
+          const tenantFolderResponse = await fetch('https://graph.microsoft.com/v1.0/me/drive/root/children', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${tokenData.access_token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              name: tenantFolderName,
+              folder: {},
+              '@microsoft.graph.conflictBehavior': 'rename'
+            }),
+          });
 
-        // Create folders (continue on errors as folders might already exist)
-        for (const [key, folderName] of Object.entries(folderStructure)) {
-          try {
-            console.log(`Creating folder: ${folderName}`);
-            await fetch('https://graph.microsoft.com/v1.0/me/drive/root/children', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${tokenData.access_token}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                name: folderName,
-                folder: {},
-                '@microsoft.graph.conflictBehavior': 'rename'
-              }),
-            });
-          } catch (error) {
-            console.log(`Error creating folder ${folderName}:`, error);
+          if (tenantFolderResponse.ok) {
+            tenantFolderMetadata = await tenantFolderResponse.json();
+            tenantFolderId = tenantFolderMetadata.id;
+            console.log(`Tenant folder created with ID: ${tenantFolderId}`);
+            
+            // Create subfolders within tenant folder
+            const subfolders = ['Customers', 'Sites', 'Deals', 'Contracts', 'Documents'];
+            for (const subfolderName of subfolders) {
+              try {
+                await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${tenantFolderId}/children`, {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${tokenData.access_token}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    name: subfolderName,
+                    folder: {},
+                    '@microsoft.graph.conflictBehavior': 'rename'
+                  }),
+                });
+                console.log(`Created subfolder: ${subfolderName}`);
+              } catch (error) {
+                console.log(`Error creating subfolder ${subfolderName}:`, error);
+              }
+            }
+          } else {
+            const errorText = await tenantFolderResponse.text();
+            console.error('Failed to create tenant folder:', errorText);
           }
+        } catch (error) {
+          console.error('Error creating tenant folder structure:', error);
         }
 
-        // Save tokens to database securely
+        // Save tokens and folder metadata to database securely
         const expiresAt = new Date(Date.now() + (tokenData.expires_in * 1000));
         
-        console.log('Saving authentication tokens to database...');
+        const updatedFolderStructure = {
+          tenant_folder_id: tenantFolderId,
+          tenant_folder_name: tenantFolderName,
+          tenant_folder_metadata: tenantFolderMetadata,
+          subfolders: ['Customers', 'Sites', 'Deals', 'Contracts', 'Documents']
+        };
+        
+        console.log('Saving authentication tokens and folder metadata to database...');
         const { error: updateError } = await supabase
           .from('tenant_onedrive_settings')
           .update({
@@ -438,7 +473,7 @@ serve(async (req) => {
             refresh_token: tokenData.refresh_token || null,
             token_expires_at: expiresAt.toISOString(),
             root_folder_id: rootFolderId,
-            folder_structure: folderStructure,
+            folder_structure: updatedFolderStructure,
             code_verifier: null,
             connected_at: new Date().toISOString(),
             last_sync_at: new Date().toISOString(),
@@ -453,8 +488,8 @@ serve(async (req) => {
           );
         }
         
-        console.log('Authentication tokens saved successfully');
-        console.log('OneDrive connection completed successfully');
+        console.log('Authentication tokens and folder metadata saved successfully');
+        console.log('OneDrive connection and tenant onboarding completed successfully');
         return new Response(
           '<html><body><script>window.close();</script><p>OneDrive connected successfully!</p></body></html>',
           { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
@@ -789,6 +824,60 @@ async function handlePostAction(supabase: any, requestBody: OneDriveAuthRequest)
         console.error('Set library error:', error);
         return new Response(
           JSON.stringify({ error: `Failed to set library: ${error.message}` }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    case 'get_tenant_folder_status': {
+      if (!tenant_id) {
+        return new Response(
+          JSON.stringify({ error: 'Missing tenant_id' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      try {
+        // Get tenant folder information from database
+        const { data: settings, error: settingsError } = await supabase
+          .from('tenant_onedrive_settings')
+          .select('folder_structure, connected_at, access_token')
+          .eq('tenant_id', tenant_id)
+          .single();
+
+        if (settingsError || !settings) {
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: 'Tenant OneDrive settings not found',
+              connected: false 
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const isConnected = !!(settings.access_token && settings.connected_at);
+        const hasTenantFolder = !!(settings.folder_structure?.tenant_folder_id);
+
+        return new Response(
+          JSON.stringify({ 
+            success: true,
+            connected: isConnected,
+            has_tenant_folder: hasTenantFolder,
+            folder_structure: settings.folder_structure,
+            connected_at: settings.connected_at
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+
+      } catch (error) {
+        console.error('Get tenant folder status error:', error);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: `Failed to get tenant folder status: ${error.message}`,
+            connected: false 
+          }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
