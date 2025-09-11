@@ -9,7 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
-import { CreateTodoModal } from '@/components/modals/CreateTodoModal';
+import { TodoForm } from '@/components/todos/TodoForm';
 import { CreateActivityModal } from '@/components/modals/CreateActivityModal';
 import { format } from 'date-fns';
 
@@ -314,13 +314,17 @@ export const LeadActivities = ({ entityId, entityType, entityName }: LeadActivit
         </CardContent>
       </Card>
 
-      <CreateTodoModal
-        open={todoModalOpen}
-        onClose={() => setTodoModalOpen(false)}
-        onSuccess={fetchActivities}
-        entityId={entityId}
+      <TodoForm
         entityType={entityType}
-        entityName={entityName}
+        entityId={entityId}
+        onSuccess={fetchActivities}
+        trigger={
+          <Button variant="outline" onClick={() => setTodoModalOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add To-Do
+          </Button>
+        }
+        defaultOpen={todoModalOpen}
       />
 
       <CreateActivityModal

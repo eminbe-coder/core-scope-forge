@@ -8,7 +8,7 @@ import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
 import { useDealContractAutomation } from '@/hooks/use-deal-contract-automation';
 import { CreateActivityModal } from '@/components/modals/CreateActivityModal';
-import { CreateTodoModal } from '@/components/modals/CreateTodoModal';
+import { TodoForm } from '@/components/todos/TodoForm';
 import { ComprehensiveDealView } from '@/components/deals/ComprehensiveDealView';
 import type { ComprehensiveDealViewRef } from '@/components/deals/ComprehensiveDealView';
 
@@ -167,18 +167,21 @@ const EditDeal = () => {
         entityName={deal.name}
       />
 
-      <CreateTodoModal
-        open={showTodoModal}
-        onClose={() => setShowTodoModal(false)}
+      <TodoForm
+        entityType="deal"
+        entityId={deal.id}
         onSuccess={() => {
           setShowTodoModal(false);
-          // Refresh both deal and the todos list in the left panel
           fetchDeal();
           dealViewRef.current?.refreshTodos();
         }}
-        entityId={deal.id}
-        entityType="deal"
-        entityName={deal.name}
+        trigger={
+          <Button variant="outline" onClick={() => setShowTodoModal(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Todo
+          </Button>
+        }
+        defaultOpen={showTodoModal}
       />
     </DashboardLayout>
   );

@@ -1553,13 +1553,13 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
             </CardContent>
           </Card>
 
-          {/* Recent Activities */}
+          {/* Activities Notes */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Recent Activities</CardTitle>
-                  <CardDescription>Latest updates and notes</CardDescription>
+                  <CardTitle>Activities & Notes</CardTitle>
+                  <CardDescription>Activity log and notes</CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -1582,14 +1582,10 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
               
               {/* Activity list */}
               <div className="space-y-3 max-h-96 overflow-y-auto">
-                {activities.map((activity) => (
+                {activities.filter(activity => activity.type !== 'task').map((activity) => (
                   <div key={activity.id} className="flex gap-3 p-3 bg-muted rounded-lg">
                     <div className="flex-shrink-0 mt-1">
-                      {activity.type === 'task' ? (
-                        <CheckSquare className="h-4 w-4 text-blue-500" />
-                      ) : (
-                        <Activity className="h-4 w-4 text-green-500" />
-                      )}
+                      <Activity className="h-4 w-4 text-green-500" />
                     </div>
                     <div className="flex-1 min-w-0">
                       {activity.title && (
@@ -1608,7 +1604,7 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
                   </div>
                 ))}
                 
-                {activities.length === 0 && (
+                {activities.filter(activity => activity.type !== 'task').length === 0 && (
                   <div className="text-center py-4 text-muted-foreground">
                     No activities yet
                   </div>

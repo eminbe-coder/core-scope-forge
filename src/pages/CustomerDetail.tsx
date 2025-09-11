@@ -10,7 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
 import { CreateActivityModal } from '@/components/modals/CreateActivityModal';
-import { CreateTodoModal } from '@/components/modals/CreateTodoModal';
+import { TodoWidget } from '@/components/todos/TodoWidget';
 
 interface Customer {
   id: string;
@@ -618,20 +618,12 @@ const CustomerDetail = () => {
         entityName={customer.name}
       />
 
-      <CreateTodoModal
-        open={showTodoModal}
-        onClose={() => setShowTodoModal(false)}
-        onSuccess={() => {
-          setShowTodoModal(false);
-          fetchRelatedData();
-          toast({
-            title: 'Success',
-            description: 'Task created successfully',
-          });
-        }}
-        entityId={customer.id}
+      <TodoWidget 
         entityType="customer"
-        entityName={customer.name}
+        entityId={customer.id}
+        canEdit={true}
+        compact={false}
+        includeChildren={false}
       />
     </DashboardLayout>
   );
