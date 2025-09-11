@@ -18,7 +18,7 @@ import { toast } from 'sonner';
 import { validateSiteData } from '@/lib/site-validation';
 import { MapPin, Building, User, Upload, Download, FileSpreadsheet, Plus, Camera, X } from 'lucide-react';
 import { parseSiteCSV, importSites, downloadSiteTemplate } from '@/lib/site-import';
-import { QuickAddContactModal } from '@/components/modals/QuickAddContactModal';
+import { UnifiedQuickAddContactModal } from '@/components/modals/UnifiedQuickAddContactModal';
 import { QuickAddCompanyModal } from '@/components/modals/QuickAddCompanyModal';
 
 // GCC Countries list
@@ -700,7 +700,7 @@ const AddSite = () => {
         </Form>
 
         {/* Quick Add Modals */}
-        <QuickAddContactModal
+        <UnifiedQuickAddContactModal
           open={showContactModal}
           onClose={() => setShowContactModal(false)}
           onContactCreated={handleContactCreated}

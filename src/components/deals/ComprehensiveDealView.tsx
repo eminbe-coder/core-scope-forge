@@ -29,7 +29,7 @@ import {
   Activity
 } from 'lucide-react';
 import { QuickAddCompanyModal } from '@/components/modals/QuickAddCompanyModal';
-import { QuickAddContactModal } from '@/components/modals/QuickAddContactModal';
+import { UnifiedQuickAddContactModal } from '@/components/modals/UnifiedQuickAddContactModal';
 import { QuickAddSiteModal } from '@/components/modals/QuickAddSiteModal';
 import { DealTodos } from './DealTodos';
 import { EntityRelationships } from '@/components/entity-relationships/EntityRelationships';
@@ -1624,7 +1624,7 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
         onCompanyCreated={handleCompanyCreated}
       />
 
-      <QuickAddContactModal
+      <UnifiedQuickAddContactModal
         open={showContactModal}
         onClose={() => setShowContactModal(false)}
         onContactCreated={handleContactCreated}

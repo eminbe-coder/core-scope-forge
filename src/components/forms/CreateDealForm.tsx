@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { EnhancedSourceSelect, SourceValues } from '@/components/ui/enhanced-source-select';
 import { QuickAddCompanyModal } from '@/components/modals/QuickAddCompanyModal';
-import { QuickAddContactModal } from '@/components/modals/QuickAddContactModal';
+import { UnifiedQuickAddContactModal } from '@/components/modals/UnifiedQuickAddContactModal';
 import { QuickAddSiteModal } from '@/components/modals/QuickAddSiteModal';
 import { CompanyRelationshipSelector, CompanyRelationship } from '@/components/forms/CompanyRelationshipSelector';
 import { convertLeadToDeal } from '@/utils/lead-conversion';
@@ -1230,7 +1230,7 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
         onCompanyCreated={handleCompanyCreated}
       />
 
-      <QuickAddContactModal
+      <UnifiedQuickAddContactModal
         open={showContactModal}
         onClose={() => setShowContactModal(false)}
         onContactCreated={handleContactCreated}

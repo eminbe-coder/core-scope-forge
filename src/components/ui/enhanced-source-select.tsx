@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { QuickAddCompanyModal } from "@/components/modals/QuickAddCompanyModal";
-import { QuickAddContactModal } from "@/components/modals/QuickAddContactModal";
+import { UnifiedQuickAddContactModal } from "@/components/modals/UnifiedQuickAddContactModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/use-tenant";
 import { useToast } from "@/hooks/use-toast";
@@ -384,7 +384,7 @@ export const EnhancedSourceSelect = React.forwardRef<HTMLDivElement, EnhancedSou
           }}
         />
 
-        <QuickAddContactModal
+        <UnifiedQuickAddContactModal
           open={showContactModal}
           onClose={() => setShowContactModal(false)}
           onContactCreated={(contact) => {

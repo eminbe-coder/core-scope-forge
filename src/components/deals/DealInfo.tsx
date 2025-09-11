@@ -9,7 +9,7 @@ import { UnifiedEntitySelect } from '@/components/ui/unified-entity-select';
 import { MultiSelectDropdown } from '@/components/deals/MultiSelectDropdown';
 import { QuickAddSiteModal } from '@/components/modals/QuickAddSiteModal';
 import { QuickAddCompanyModal } from '@/components/modals/QuickAddCompanyModal';
-import { QuickAddContactModal } from '@/components/modals/QuickAddContactModal';
+import { UnifiedQuickAddContactModal } from '@/components/modals/UnifiedQuickAddContactModal';
 import { DollarSign, Calendar, Building, MapPin, Percent, Edit3, Save, X, Users, User, Plus, CheckSquare, Trash2 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -1412,7 +1412,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
         }}
       />
       
-      <QuickAddContactModal
+      <UnifiedQuickAddContactModal
         open={showContactModal}
         onClose={() => setShowContactModal(false)}
         onContactCreated={() => {

@@ -95,6 +95,9 @@ export const countryToPhoneCode: Record<string, string> = {
   'Qatar': '+974',
   'Bahrain': '+973',
   'Oman': '+968',
+  'Jordan': '+962',
+  'Lebanon': '+961',
+  'Iraq': '+964',
   'Singapore': '+65',
   'Malaysia': '+60',
   'Thailand': '+66',
@@ -115,6 +118,9 @@ export const gccCountries: CountryCode[] = [
   { code: '+974', country: 'Qatar', flag: '🇶🇦' },
   { code: '+973', country: 'Bahrain', flag: '🇧🇭' },
   { code: '+968', country: 'Oman', flag: '🇴🇲' },
+  { code: '+962', country: 'Jordan', flag: '🇯🇴' },
+  { code: '+961', country: 'Lebanon', flag: '🇱🇧' },
+  { code: '+964', country: 'Iraq', flag: '🇮🇶' },
 ];
 
 export const getCountryCodeForCountry = (country: string): string => {
