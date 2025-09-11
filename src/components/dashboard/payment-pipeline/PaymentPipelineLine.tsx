@@ -12,17 +12,17 @@ export function PaymentPipelineLine({ data, onWeekClick }: PaymentPipelineLinePr
 
   const chartData = data.map(week => ({
     week: `Week ${week.weekNumber}`,
+    pending: week.pendingAmount,
+    due: week.dueAmount,
     expected: week.expectedAmount,
-    paid: week.paidAmount,
-    outstanding: week.expectedAmount - week.paidAmount,
     cumulative: data.slice(0, week.weekNumber).reduce((sum, w) => sum + w.paidAmount, 0)
   }));
 
   const formatTooltip = (value: any, name: string) => {
     return [formatCurrency(value), 
-      name === 'expected' ? 'Expected' : 
-      name === 'paid' ? 'Paid' : 
-      name === 'outstanding' ? 'Outstanding' :
+      name === 'pending' ? 'Pending' : 
+      name === 'due' ? 'Due' : 
+      name === 'expected' ? 'Total Expected' :
       'Cumulative Paid'];
   };
 
@@ -54,19 +54,27 @@ export function PaymentPipelineLine({ data, onWeekClick }: PaymentPipelineLinePr
           <Legend />
           <Line 
             type="monotone" 
-            dataKey="expected" 
-            stroke="#3b82f6" 
+            dataKey="pending" 
+            stroke="#eab308" 
             strokeWidth={2}
             dot={{ r: 4, cursor: 'pointer' }}
-            name="Expected"
+            name="Pending"
           />
           <Line 
             type="monotone" 
-            dataKey="paid" 
+            dataKey="due" 
+            stroke="#3b82f6" 
+            strokeWidth={2}
+            dot={{ r: 4, cursor: 'pointer' }}
+            name="Due"
+          />
+          <Line 
+            type="monotone" 
+            dataKey="expected" 
             stroke="#10b981" 
             strokeWidth={2}
             dot={{ r: 4, cursor: 'pointer' }}
-            name="Paid"
+            name="Total Expected"
           />
           <Line 
             type="monotone" 
@@ -76,14 +84,6 @@ export function PaymentPipelineLine({ data, onWeekClick }: PaymentPipelineLinePr
             dot={{ r: 4, cursor: 'pointer' }}
             strokeDasharray="5 5"
             name="Cumulative Paid"
-          />
-          <Line 
-            type="monotone" 
-            dataKey="outstanding" 
-            stroke="#f59e0b" 
-            strokeWidth={2}
-            dot={{ r: 4, cursor: 'pointer' }}
-            name="Outstanding"
           />
         </LineChart>
       </ResponsiveContainer>

@@ -42,6 +42,8 @@ export function PaymentPipelineTable({ data, onWeekClick }: PaymentPipelineTable
             <TableHead>Expected</TableHead>
             <TableHead>Paid</TableHead>
             <TableHead>Outstanding</TableHead>
+            <TableHead>Pending Amount</TableHead>
+            <TableHead>Due Amount</TableHead>
             <TableHead>Payment Ratio</TableHead>
             <TableHead>Pending Items</TableHead>
             <TableHead>Sources</TableHead>
@@ -73,6 +75,12 @@ export function PaymentPipelineTable({ data, onWeekClick }: PaymentPipelineTable
                 </TableCell>
                 <TableCell className="text-orange-600 font-medium">
                   {formatCurrency(outstanding)}
+                </TableCell>
+                <TableCell className="text-yellow-600 font-medium">
+                  {formatCurrency(week.pendingAmount)}
+                </TableCell>
+                <TableCell className="text-blue-600 font-medium">
+                  {formatCurrency(week.dueAmount)}
                 </TableCell>
                 <TableCell>
                   <Badge className={`text-white ${getStatusColor(ratio)}`}>
@@ -116,6 +124,12 @@ export function PaymentPipelineTable({ data, onWeekClick }: PaymentPipelineTable
             </TableCell>
             <TableCell className="text-orange-600">
               {formatCurrency(data.reduce((sum, week) => sum + (week.expectedAmount - week.paidAmount), 0))}
+            </TableCell>
+            <TableCell className="text-yellow-600">
+              {formatCurrency(data.reduce((sum, week) => sum + week.pendingAmount, 0))}
+            </TableCell>
+            <TableCell className="text-blue-600">
+              {formatCurrency(data.reduce((sum, week) => sum + week.dueAmount, 0))}
             </TableCell>
             <TableCell>
               <Badge className={`text-white ${getStatusColor(

@@ -12,12 +12,16 @@ import { PaymentPipelineChart } from './payment-pipeline/PaymentPipelineChart';
 import { PaymentPipelineTable } from './payment-pipeline/PaymentPipelineTable';
 import { PaymentPipelineLine } from './payment-pipeline/PaymentPipelineLine';
 import { WeeklyInstallmentsModal } from './payment-pipeline/WeeklyInstallmentsModal';
+import { PaymentTargetProgress } from './payment-pipeline/PaymentTargetProgress';
 import { 
   Calendar, 
   TrendingUp, 
   DollarSign, 
   Clock,
-  AlertCircle 
+  AlertCircle,
+  Filter,
+  PiggyBank,
+  CheckCircle
 } from 'lucide-react';
 import { useCurrency } from '@/hooks/use-currency';
 
@@ -27,6 +31,8 @@ export interface PaymentPipelineData {
   weekEnd: string;
   expectedAmount: number;
   paidAmount: number;
+  pendingAmount: number;
+  dueAmount: number;
   pendingCount: number;
   contractPayments: any[];
   dealPayments: any[];
@@ -34,6 +40,12 @@ export interface PaymentPipelineData {
 
 type ViewType = 'chart' | 'line' | 'table';
 type PeriodType = 'monthly' | 'quarterly' | 'annually';
+type FilterType = 'all' | 'user' | 'company' | 'department';
+
+interface FilterOption {
+  id: string;
+  name: string;
+}
 
 export function PaymentPipelineDashboard() {
   const { user } = useAuth();
@@ -48,12 +60,66 @@ export function PaymentPipelineDashboard() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedWeek, setSelectedWeek] = useState<PaymentPipelineData | null>(null);
   const [showWeekModal, setShowWeekModal] = useState(false);
+  
+  // New filter states
+  const [filterType, setFilterType] = useState<FilterType>('all');
+  const [filterValue, setFilterValue] = useState<string>('all');
+  const [filterOptions, setFilterOptions] = useState<FilterOption[]>([]);
+
+  useEffect(() => {
+    if (user && currentTenant) {
+      loadFilterOptions();
+    }
+  }, [user, currentTenant, filterType]);
 
   useEffect(() => {
     if (user && currentTenant) {
       loadPaymentPipelineData();
     }
-  }, [user, currentTenant, period, selectedMonth, selectedYear]);
+  }, [user, currentTenant, period, selectedMonth, selectedYear, filterType, filterValue]);
+
+  const loadFilterOptions = async () => {
+    if (!currentTenant) return;
+
+    try {
+      if (filterType === 'user') {
+        const { data } = await supabase
+          .from('profiles')
+          .select(`
+            id, first_name, last_name,
+            user_tenant_memberships!inner(tenant_id, active)
+          `)
+          .eq('user_tenant_memberships.tenant_id', currentTenant.id)
+          .eq('user_tenant_memberships.active', true);
+        
+        setFilterOptions(data?.map(u => ({ 
+          id: u.id, 
+          name: `${u.first_name} ${u.last_name}` 
+        })) || []);
+      } else if (filterType === 'company') {
+        const { data } = await supabase
+          .from('companies')
+          .select('id, name')
+          .eq('tenant_id', currentTenant.id)
+          .eq('active', true)
+          .order('name');
+        
+        setFilterOptions(data?.map(c => ({ id: c.id, name: c.name })) || []);
+      } else if (filterType === 'department') {
+        const { data } = await supabase
+          .from('departments')
+          .select('id, name')
+          .eq('tenant_id', currentTenant.id)
+          .eq('active', true)
+          .order('name');
+        
+        setFilterOptions(data?.map(d => ({ id: d.id, name: d.name })) || []);
+      }
+    } catch (error) {
+      console.error('Error loading filter options:', error);
+      setFilterOptions([]);
+    }
+  };
 
   const loadPaymentPipelineData = async () => {
     try {
@@ -62,8 +128,8 @@ export function PaymentPipelineDashboard() {
       // Get the date range based on selected period
       const { startDate, endDate } = getDateRange();
       
-      // Load contract payment terms
-      const { data: contractPayments, error: contractError } = await supabase
+      // Build the query with filter conditions
+      let contractQuery = supabase
         .from('contract_payment_terms')
         .select(`
           *,
@@ -72,17 +138,19 @@ export function PaymentPipelineDashboard() {
             name,
             tenant_id,
             assigned_to,
-            currencies(symbol)
-          )
+            customer_id,
+            site_id,
+            currencies(symbol),
+            customers(companies(id, name)),
+            sites(companies(id, name))
+          ),
+          contract_payment_stages(name)
         `)
         .gte('due_date', startDate.toISOString().split('T')[0])
         .lte('due_date', endDate.toISOString().split('T')[0])
         .eq('contracts.tenant_id', currentTenant.id);
 
-      if (contractError) throw contractError;
-
-      // Load deal payment terms for deals at 90% stage
-      const { data: dealPayments, error: dealError } = await supabase
+      let dealQuery = supabase
         .from('deal_payment_terms')
         .select(`
           *,
@@ -91,8 +159,12 @@ export function PaymentPipelineDashboard() {
             name,
             tenant_id,
             assigned_to,
+            customer_id,
+            site_id,
             deal_stages!inner(win_percentage),
-            currencies(symbol)
+            currencies(symbol),
+            customers(companies(id, name)),
+            sites(companies(id, name))
           )
         `)
         .eq('installment_number', 1)
@@ -101,23 +173,57 @@ export function PaymentPipelineDashboard() {
         .eq('deals.tenant_id', currentTenant.id)
         .gte('deals.deal_stages.win_percentage', 90);
 
-      if (dealError) throw dealError;
+      // Apply filters
+      if (filterType === 'user' && filterValue !== 'all') {
+        contractQuery = contractQuery.eq('contracts.assigned_to', filterValue);
+        dealQuery = dealQuery.eq('deals.assigned_to', filterValue);
+      }
 
-      // Filter by user permissions - only show data user has access to
-      const filteredContractPayments = contractPayments?.filter(payment => {
+      const [contractResult, dealResult] = await Promise.all([
+        contractQuery,
+        dealQuery
+      ]);
+
+      if (contractResult.error) throw contractResult.error;
+      if (dealResult.error) throw dealResult.error;
+
+      // Filter by permissions and additional filters
+      let filteredContractPayments = contractResult.data?.filter(payment => {
         const contract = payment.contracts;
-        return contract.assigned_to === user.id || isUserAdmin();
+        const hasPermission = contract.assigned_to === user.id || isUserAdmin();
+        
+        if (!hasPermission) return false;
+        
+        // Apply company/department filters
+        if (filterType === 'company' && filterValue !== 'all') {
+          const companyId = contract.customers?.companies?.[0]?.id || 
+                          contract.sites?.companies?.[0]?.id;
+          return companyId === filterValue;
+        }
+        
+        return true;
       }) || [];
 
-      const filteredDealPayments = dealPayments?.filter(payment => {
+      let filteredDealPayments = dealResult.data?.filter(payment => {
         const deal = payment.deals;
-        return deal.assigned_to === user.id || isUserAdmin();
+        const hasPermission = deal.assigned_to === user.id || isUserAdmin();
+        
+        if (!hasPermission) return false;
+        
+        // Apply company/department filters  
+        if (filterType === 'company' && filterValue !== 'all') {
+          const companyId = deal.customers?.companies?.[0]?.id || 
+                          deal.sites?.companies?.[0]?.id;
+          return companyId === filterValue;
+        }
+        
+        return true;
       }) || [];
 
-      // Group data by weeks
-      const weeklyData = groupPaymentsByWeek(filteredContractPayments, filteredDealPayments, startDate, endDate);
+      // Group data by weeks/months/quarters based on period
+      const periodData = groupPaymentsByPeriod(filteredContractPayments, filteredDealPayments, startDate, endDate);
       
-      setData(weeklyData);
+      setData(periodData);
     } catch (error) {
       console.error('Error loading payment pipeline data:', error);
       toast.error('Failed to load payment pipeline data');
@@ -156,62 +262,94 @@ export function PaymentPipelineDashboard() {
     return { startDate, endDate };
   };
 
-  const groupPaymentsByWeek = (contractPayments: any[], dealPayments: any[], startDate: Date, endDate: Date): PaymentPipelineData[] => {
-    const weeks: PaymentPipelineData[] = [];
+  const groupPaymentsByPeriod = (contractPayments: any[], dealPayments: any[], startDate: Date, endDate: Date): PaymentPipelineData[] => {
+    const periods: PaymentPipelineData[] = [];
     const current = new Date(startDate);
-    let weekNumber = 1;
+    let periodNumber = 1;
 
     while (current <= endDate) {
-      const weekStart = new Date(current);
-      const weekEnd = new Date(current);
-      weekEnd.setDate(weekEnd.getDate() + 6);
+      let periodStart: Date, periodEnd: Date;
       
-      if (weekEnd > endDate) {
-        weekEnd.setTime(endDate.getTime());
+      if (period === 'monthly') {
+        periodStart = new Date(current.getFullYear(), current.getMonth(), 1);
+        periodEnd = new Date(current.getFullYear(), current.getMonth() + 1, 0);
+        current.setMonth(current.getMonth() + 1);
+      } else if (period === 'quarterly') {
+        const quarterStart = Math.floor(current.getMonth() / 3) * 3;
+        periodStart = new Date(current.getFullYear(), quarterStart, 1);
+        periodEnd = new Date(current.getFullYear(), quarterStart + 3, 0);
+        current.setMonth(current.getMonth() + 3);
+      } else { // annually
+        periodStart = new Date(current.getFullYear(), 0, 1);
+        periodEnd = new Date(current.getFullYear(), 11, 31);
+        current.setFullYear(current.getFullYear() + 1);
+      }
+      
+      if (periodEnd > endDate) {
+        periodEnd = new Date(endDate);
       }
 
-      const weekStartStr = weekStart.toISOString().split('T')[0];
-      const weekEndStr = weekEnd.toISOString().split('T')[0];
+      const periodStartStr = periodStart.toISOString().split('T')[0];
+      const periodEndStr = periodEnd.toISOString().split('T')[0];
 
-      // Filter payments for this week
-      const weekContractPayments = contractPayments.filter(payment => 
-        payment.due_date >= weekStartStr && payment.due_date <= weekEndStr
+      // Filter payments for this period
+      const periodContractPayments = contractPayments.filter(payment => 
+        payment.due_date >= periodStartStr && payment.due_date <= periodEndStr
       );
 
-      const weekDealPayments = dealPayments.filter(payment => 
-        payment.due_date >= weekStartStr && payment.due_date <= weekEndStr
+      const periodDealPayments = dealPayments.filter(payment => 
+        payment.due_date >= periodStartStr && payment.due_date <= periodEndStr
       );
 
-      // Calculate totals
-      const contractExpected = weekContractPayments.reduce((sum, p) => sum + (p.calculated_amount || p.amount_value || 0), 0);
-      const contractPaid = weekContractPayments.reduce((sum, p) => sum + (p.received_amount || 0), 0);
+      // Calculate totals based on new requirements
+      const contractExpected = periodContractPayments.reduce((sum, p) => sum + (p.calculated_amount || p.amount_value || 0), 0);
+      const contractPaid = periodContractPayments.reduce((sum, p) => sum + (p.received_amount || 0), 0);
       
-      const dealExpected = weekDealPayments.reduce((sum, p) => sum + (p.calculated_amount || p.amount_value || 0), 0);
+      const dealExpected = periodDealPayments.reduce((sum, p) => sum + (p.calculated_amount || p.amount_value || 0), 0);
       
-      const pendingCount = weekContractPayments.filter(p => p.payment_status === 'pending').length +
-                          weekDealPayments.filter(p => !p.paid_date).length;
+      // Calculate pending and due amounts
+      const contractPending = periodContractPayments
+        .filter(p => p.contract_payment_stages?.name === 'Pending' || (!p.contract_payment_stages && !p.received_amount))
+        .reduce((sum, p) => sum + (p.calculated_amount || p.amount_value || 0), 0);
+      
+      const contractDue = periodContractPayments
+        .filter(p => p.contract_payment_stages?.name === 'Due')
+        .reduce((sum, p) => sum + (p.calculated_amount || p.amount_value || 0), 0);
+      
+      const dealPending = dealPayments.filter(p => !p.paid_date)
+        .reduce((sum, p) => sum + (p.calculated_amount || p.amount_value || 0), 0);
+      
+      const pendingCount = periodContractPayments.filter(p => 
+        p.contract_payment_stages?.name === 'Pending' || 
+        (!p.contract_payment_stages && !p.received_amount)
+      ).length + periodDealPayments.filter(p => !p.paid_date).length;
 
-      weeks.push({
-        weekNumber,
-        weekStart: weekStartStr,
-        weekEnd: weekEndStr,
+      periods.push({
+        weekNumber: periodNumber,
+        weekStart: periodStartStr,
+        weekEnd: periodEndStr,
         expectedAmount: contractExpected + dealExpected,
         paidAmount: contractPaid,
+        pendingAmount: contractPending + dealPending,
+        dueAmount: contractDue,
         pendingCount,
-        contractPayments: weekContractPayments,
-        dealPayments: weekDealPayments
+        contractPayments: periodContractPayments,
+        dealPayments: periodDealPayments
       });
 
-      current.setDate(current.getDate() + 7);
-      weekNumber++;
+      periodNumber++;
+      
+      if (current > endDate) break;
     }
 
-    return weeks;
+    return periods;
   };
 
-  const getTotalExpected = () => data.reduce((sum, week) => sum + week.expectedAmount, 0);
-  const getTotalPaid = () => data.reduce((sum, week) => sum + week.paidAmount, 0);
-  const getTotalPending = () => data.reduce((sum, week) => sum + week.pendingCount, 0);
+  const getTotalExpected = () => data.reduce((sum, period) => sum + period.expectedAmount, 0);
+  const getTotalPaid = () => data.reduce((sum, period) => sum + period.paidAmount, 0);
+  const getTotalPending = () => data.reduce((sum, period) => sum + period.pendingCount, 0);
+  const getTotalPendingAmount = () => data.reduce((sum, period) => sum + period.pendingAmount, 0);
+  const getTotalDueAmount = () => data.reduce((sum, period) => sum + period.dueAmount, 0);
 
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -221,6 +359,12 @@ export function PaymentPipelineDashboard() {
   const handleWeekClick = (weekData: PaymentPipelineData) => {
     setSelectedWeek(weekData);
     setShowWeekModal(true);
+  };
+
+  const handleFilterTypeChange = (newFilterType: FilterType) => {
+    setFilterType(newFilterType);
+    setFilterValue('all');
+    setFilterOptions([]);
   };
 
   if (loading) {
@@ -246,7 +390,40 @@ export function PaymentPipelineDashboard() {
     <div className="space-y-6">
       {/* Controls */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="flex gap-4 items-center">
+        <div className="flex gap-4 items-center flex-wrap">
+          {/* Filter Control */}
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <Select value={filterType} onValueChange={handleFilterTypeChange}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="user">User</SelectItem>
+                <SelectItem value="company">Company</SelectItem>
+                <SelectItem value="department">Department</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            {filterType !== 'all' && (
+              <Select value={filterValue} onValueChange={setFilterValue}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder={`Select ${filterType}`} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All {filterType}s</SelectItem>
+                  {filterOptions.map((option) => (
+                    <SelectItem key={option.id} value={option.id}>
+                      {option.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          {/* Period Control */}
           <Select value={period} onValueChange={(value: PeriodType) => setPeriod(value)}>
             <SelectTrigger className="w-32">
               <SelectValue />
@@ -290,24 +467,24 @@ export function PaymentPipelineDashboard() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Expected</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(getTotalExpected())}</div>
+            <div className="text-xl font-bold">{formatCurrency(getTotalExpected())}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Paid</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(getTotalPaid())}</div>
+            <div className="text-xl font-bold text-green-600">{formatCurrency(getTotalPaid())}</div>
           </CardContent>
         </Card>
 
@@ -317,7 +494,7 @@ export function PaymentPipelineDashboard() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{formatCurrency(getTotalExpected() - getTotalPaid())}</div>
+            <div className="text-xl font-bold text-orange-600">{formatCurrency(getTotalExpected() - getTotalPaid())}</div>
           </CardContent>
         </Card>
 
@@ -327,10 +504,39 @@ export function PaymentPipelineDashboard() {
             <AlertCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{getTotalPending()}</div>
+            <div className="text-xl font-bold text-red-600">{getTotalPending()}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending Installments</CardTitle>
+            <PiggyBank className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl font-bold text-yellow-600">{formatCurrency(getTotalPendingAmount())}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Due Payments</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl font-bold text-blue-600">{formatCurrency(getTotalDueAmount())}</div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Target Progress Bar */}
+      <PaymentTargetProgress 
+        filterType={filterType}
+        filterValue={filterValue}
+        period={period}
+        selectedMonth={selectedMonth}
+        selectedYear={selectedYear}
+      />
 
       {/* Data Views */}
       <Card>

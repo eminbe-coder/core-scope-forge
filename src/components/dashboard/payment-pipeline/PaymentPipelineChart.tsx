@@ -12,17 +12,20 @@ export function PaymentPipelineChart({ data, onWeekClick }: PaymentPipelineChart
 
   const chartData = data.map(week => ({
     week: `Week ${week.weekNumber}`,
+    pending: week.pendingAmount,
+    due: week.dueAmount,
     expected: week.expectedAmount,
-    paid: week.paidAmount,
-    outstanding: week.expectedAmount - week.paidAmount,
-    pending: week.pendingCount
+    pendingCount: week.pendingCount
   }));
 
   const formatTooltip = (value: any, name: string) => {
-    if (name === 'pending') {
+    if (name === 'pendingCount') {
       return [value, 'Pending Items'];
     }
-    return [formatCurrency(value), name === 'expected' ? 'Expected' : name === 'paid' ? 'Paid' : 'Outstanding'];
+    return [formatCurrency(value), 
+      name === 'pending' ? 'Pending' : 
+      name === 'due' ? 'Due' : 
+      'Total Expected'];
   };
 
   const handleBarClick = (clickData: any) => {
@@ -51,9 +54,9 @@ export function PaymentPipelineChart({ data, onWeekClick }: PaymentPipelineChart
           <YAxis tick={{ fontSize: 12 }} />
           <Tooltip formatter={formatTooltip} />
           <Legend />
-          <Bar dataKey="expected" fill="#3b82f6" name="Expected" style={{ cursor: 'pointer' }} />
-          <Bar dataKey="paid" fill="#10b981" name="Paid" style={{ cursor: 'pointer' }} />
-          <Bar dataKey="outstanding" fill="#f59e0b" name="Outstanding" style={{ cursor: 'pointer' }} />
+          <Bar dataKey="pending" fill="#eab308" name="Pending" style={{ cursor: 'pointer' }} />
+          <Bar dataKey="due" fill="#3b82f6" name="Due" style={{ cursor: 'pointer' }} />
+          <Bar dataKey="expected" fill="#10b981" name="Total Expected" style={{ cursor: 'pointer' }} />
         </BarChart>
       </ResponsiveContainer>
     </div>
