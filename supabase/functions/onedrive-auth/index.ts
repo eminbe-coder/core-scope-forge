@@ -187,6 +187,11 @@ serve(async (req) => {
       }
 
       if (!authCode || !state) {
+        console.error('OAuth callback missing required parameters:', { 
+          hasCode: !!authCode, 
+          hasState: !!state,
+          url: req.url 
+        });
         return new Response(
           '<html><body><script>window.close();</script><p>Missing authorization code or state</p></body></html>',
           { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
@@ -194,8 +199,30 @@ serve(async (req) => {
       }
 
       try {
-        const { tenant_id } = JSON.parse(atob(state));
-        console.log(`Processing callback for tenant: ${tenant_id}`);
+        // Validate and decode state parameter
+        let decodedState;
+        try {
+          decodedState = JSON.parse(atob(state));
+          console.log('State parameter decoded successfully');
+        } catch (stateError) {
+          console.error('Invalid state parameter - not valid base64 or JSON:', stateError);
+          return new Response(
+            '<html><body><script>window.close();</script><p>Invalid state parameter. Please try connecting again.</p></body></html>',
+            { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
+          );
+        }
+
+        // Validate state structure
+        const { tenant_id } = decodedState;
+        if (!tenant_id || typeof tenant_id !== 'string' || tenant_id.trim().length === 0) {
+          console.error('Invalid tenant_id in state:', { tenant_id, decodedState });
+          return new Response(
+            '<html><body><script>window.close();</script><p>Invalid tenant ID in state parameter. Please try connecting again.</p></body></html>',
+            { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
+          );
+        }
+
+        console.log(`Processing OAuth callback for tenant: ${tenant_id}`);
 
         // Get tenant's OneDrive settings
         const { data: settings, error: settingsError } = await supabase
@@ -219,57 +246,177 @@ serve(async (req) => {
           );
         }
 
-        // Exchange code for tokens
+        // Exchange code for tokens with enhanced error handling
         const authority = settings.azure_tenant_id && settings.azure_tenant_id.trim().length > 0 ? settings.azure_tenant_id : 'common';
         const tokenUrl = `https://login.microsoftonline.com/${authority}/oauth2/v2.0/token`;
-        const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/onedrive-auth`;
+        
+        // Construct redirect URI to match what was registered in Azure AD
+        const baseUrl = Deno.env.get('SUPABASE_URL');
+        if (!baseUrl) {
+          console.error('SUPABASE_URL environment variable not set');
+          return new Response(
+            '<html><body><script>window.close();</script><p>Server configuration error</p></body></html>',
+            { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
+          );
+        }
+        
+        const redirectUri = `${baseUrl}/functions/v1/onedrive-auth`;
         const scope = 'https://graph.microsoft.com/.default offline_access';
 
         console.log(`Exchanging authorization code for access token...`);
-        const tokenResponse = await fetch(tokenUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: new URLSearchParams({
-            client_id: settings.client_id,
-            client_secret: settings.client_secret,
-            code: authCode,
-            grant_type: 'authorization_code',
-            redirect_uri: redirectUri,
-            code_verifier: settings.code_verifier,
-            scope,
-          }),
-        });
+        console.log(`Using redirect URI: ${redirectUri}`);
+        console.log(`Using authority: ${authority}`);
+        console.log(`Using token URL: ${tokenUrl}`);
 
-        const tokenData = await tokenResponse.json();
+        let tokenResponse;
+        let responseText = '';
+        
+        try {
+          tokenResponse = await fetch(tokenUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+              client_id: settings.client_id,
+              client_secret: settings.client_secret,
+              code: authCode,
+              grant_type: 'authorization_code',
+              redirect_uri: redirectUri,
+              code_verifier: settings.code_verifier,
+              scope,
+            }),
+          });
 
-        if (!tokenResponse.ok) {
-          console.error('Token exchange error:', tokenData);
-          const safeMsg = tokenData.error_description || tokenData.error || 'Unknown error';
+          // Always get the response text first for logging
+          responseText = await tokenResponse.text();
+          console.log(`Token exchange response status: ${tokenResponse.status}`);
+          console.log(`Token exchange response headers:`, Object.fromEntries(tokenResponse.headers.entries()));
+          
+        } catch (networkError) {
+          console.error('Network error during token exchange:', networkError);
           return new Response(
-            `<html><body><script>window.close();</script><p>Failed to get access token: ${safeMsg}</p></body></html>`,
+            '<html><body><script>window.close();</script><p>Network error during authentication. Please check your connection and try again.</p></body></html>',
             { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
           );
         }
 
-        console.log('Token exchange successful, getting OneDrive root folder...');
-
-        // Get OneDrive root folder ID
-        const driveResponse = await fetch('https://graph.microsoft.com/v1.0/me/drive/root', {
-          headers: {
-            'Authorization': `Bearer ${tokenData.access_token}`,
-          },
-        });
-
-        if (!driveResponse.ok) {
-          const errorData = await driveResponse.json();
-          console.error('Failed to get drive root:', errorData);
-          throw new Error('Failed to access OneDrive');
+        let tokenData;
+        try {
+          tokenData = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error('Failed to parse token response as JSON:', parseError);
+          console.error('Raw token response:', responseText);
+          return new Response(
+            '<html><body><script>window.close();</script><p>Invalid response from Microsoft. Please try connecting again.</p></body></html>',
+            { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
+          );
         }
 
-        const driveData = await driveResponse.json();
+        if (!tokenResponse.ok) {
+          console.error('Token exchange failed with status:', tokenResponse.status);
+          console.error('Token exchange error details:', tokenData);
+          console.error('Raw response text:', responseText);
+          
+          // Handle specific error cases
+          let errorMessage = 'Authentication failed';
+          
+          if (tokenData.error === 'invalid_grant') {
+            if (tokenData.error_description?.includes('AADSTS70008')) {
+              errorMessage = 'Authorization code expired or already used. Please try connecting again.';
+            } else if (tokenData.error_description?.includes('AADSTS50011')) {
+              errorMessage = 'Redirect URI mismatch. Please contact support.';
+            } else {
+              errorMessage = 'Invalid authorization code. Please try connecting again.';
+            }
+          } else if (tokenData.error === 'invalid_client') {
+            errorMessage = 'Invalid client credentials. Please check your app registration.';
+          } else if (tokenData.error === 'invalid_request') {
+            errorMessage = 'Invalid request parameters. Please try connecting again.';
+          }
+          
+          const safeMsg = tokenData.error_description || tokenData.error || errorMessage;
+          console.error(`Returning error message to user: ${safeMsg}`);
+          
+          return new Response(
+            `<html><body><script>window.close();</script><p>${errorMessage}</p></body></html>`,
+            { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
+          );
+        }
+
+        // Validate that we received the required tokens
+        if (!tokenData.access_token) {
+          console.error('Token exchange succeeded but no access token received:', tokenData);
+          return new Response(
+            '<html><body><script>window.close();</script><p>No access token received from Microsoft. Please try connecting again.</p></body></html>',
+            { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
+          );
+        }
+
+        console.log('Token exchange successful - access token received');
+
+        // Get OneDrive root folder ID with better error handling
+        console.log('Getting OneDrive root folder...');
+        let driveResponse;
+        let driveResponseText = '';
+        
+        try {
+          driveResponse = await fetch('https://graph.microsoft.com/v1.0/me/drive/root', {
+            headers: {
+              'Authorization': `Bearer ${tokenData.access_token}`,
+            },
+          });
+          
+          driveResponseText = await driveResponse.text();
+          
+        } catch (networkError) {
+          console.error('Network error accessing OneDrive:', networkError);
+          return new Response(
+            '<html><body><script>window.close();</script><p>Failed to connect to OneDrive. Please check your connection and try again.</p></body></html>',
+            { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
+          );
+        }
+
+        if (!driveResponse.ok) {
+          console.error('Failed to get drive root - status:', driveResponse.status);
+          console.error('Drive root response text:', driveResponseText);
+          
+          let driveErrorData;
+          try {
+            driveErrorData = JSON.parse(driveResponseText);
+            console.error('Drive root error details:', driveErrorData);
+          } catch (parseError) {
+            console.error('Failed to parse drive error response');
+          }
+          
+          return new Response(
+            '<html><body><script>window.close();</script><p>Failed to access OneDrive. Please ensure you have proper permissions and try again.</p></body></html>',
+            { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
+          );
+        }
+
+        let driveData;
+        try {
+          driveData = JSON.parse(driveResponseText);
+        } catch (parseError) {
+          console.error('Failed to parse drive response as JSON:', parseError);
+          console.error('Raw drive response:', driveResponseText);
+          return new Response(
+            '<html><body><script>window.close();</script><p>Invalid response from OneDrive. Please try connecting again.</p></body></html>',
+            { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
+          );
+        }
+        
         const rootFolderId = driveData.id;
+        if (!rootFolderId) {
+          console.error('No root folder ID received from OneDrive:', driveData);
+          return new Response(
+            '<html><body><script>window.close();</script><p>Failed to get OneDrive folder information. Please try connecting again.</p></body></html>',
+            { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
+          );
+        }
+        
+        console.log(`OneDrive root folder ID obtained: ${rootFolderId}`);
 
         // Create base folder structure
         const folderStructure = {
@@ -310,28 +457,34 @@ serve(async (req) => {
           }
         }
 
-        // Save tokens to database
+        // Save tokens to database securely
         const expiresAt = new Date(Date.now() + (tokenData.expires_in * 1000));
-
+        
+        console.log('Saving authentication tokens to database...');
         const { error: updateError } = await supabase
           .from('tenant_onedrive_settings')
           .update({
             access_token: tokenData.access_token,
-            refresh_token: tokenData.refresh_token,
+            refresh_token: tokenData.refresh_token || null, // Handle case where refresh token might not be provided
             token_expires_at: expiresAt.toISOString(),
             root_folder_id: rootFolderId,
             folder_structure: folderStructure,
-            code_verifier: null,
+            code_verifier: null, // Clear the code verifier after successful exchange
+            connected_at: new Date().toISOString(),
+            last_sync_at: new Date().toISOString(),
           })
           .eq('tenant_id', tenant_id);
 
         if (updateError) {
           console.error('Database update error:', updateError);
+          console.error('Failed to save tokens for tenant:', tenant_id);
           return new Response(
-            '<html><body><script>window.close();</script><p>Failed to save tokens</p></body></html>',
+            '<html><body><script>window.close();</script><p>Failed to save authentication tokens. Please try connecting again.</p></body></html>',
             { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
           );
         }
+        
+        console.log('Authentication tokens saved successfully');
 
         console.log('OneDrive connection completed successfully');
         return new Response(
@@ -341,8 +494,26 @@ serve(async (req) => {
 
       } catch (error) {
         console.error('Callback processing error:', error);
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack,
+          tenant_id: state ? 'present' : 'missing',
+          auth_code: authCode ? 'present' : 'missing'
+        });
+        
+        // Provide more specific error messages based on error type
+        let errorMessage = 'Authentication processing failed. Please try connecting again.';
+        
+        if (error.message?.includes('Token refresh failed')) {
+          errorMessage = 'Token refresh failed. Please try connecting again.';
+        } else if (error.message?.includes('Failed to access OneDrive')) {
+          errorMessage = 'Failed to access OneDrive. Please check your permissions and try again.';
+        } else if (error.message?.includes('Database')) {
+          errorMessage = 'Failed to save authentication data. Please try connecting again.';
+        }
+        
         return new Response(
-          '<html><body><script>window.close();</script><p>Processing failed</p></body></html>',
+          `<html><body><script>window.close();</script><p>${errorMessage}</p></body></html>`,
           { headers: { ...corsHeaders, 'Content-Type': 'text/html' } }
         );
       }
@@ -393,10 +564,29 @@ serve(async (req) => {
           );
         }
 
-        // Generate OAuth URL with PKCE
-        const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/onedrive-auth`;
+        // Generate OAuth URL with PKCE and enhanced state
+        const baseUrl = Deno.env.get('SUPABASE_URL');
+        if (!baseUrl) {
+          console.error('SUPABASE_URL environment variable not set');
+          return new Response(
+            JSON.stringify({ error: 'Server configuration error - missing SUPABASE_URL' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        const redirectUri = `${baseUrl}/functions/v1/onedrive-auth`;
         const scope = 'Files.ReadWrite Files.ReadWrite.All offline_access';
-        const state = btoa(JSON.stringify({ tenant_id }));
+        
+        // Include timestamp and nonce for additional security
+        const stateData = {
+          tenant_id,
+          timestamp: Date.now(),
+          nonce: crypto.randomUUID()
+        };
+        const state = btoa(JSON.stringify(stateData));
+        
+        console.log('Generated OAuth URL with enhanced state parameter');
+        console.log(`Redirect URI: ${redirectUri}`);
 
         const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?` +
           `client_id=${encodeURIComponent(client_id)}&` +
