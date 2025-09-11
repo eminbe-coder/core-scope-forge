@@ -2933,6 +2933,10 @@ export type Database = {
           phone_number: string | null
           postal_code: string | null
           quality_id: string | null
+          source_company_id: string | null
+          source_contact_id: string | null
+          source_id: string | null
+          source_user_id: string | null
           stage_id: string | null
           state: string | null
           tenant_id: string
@@ -2959,6 +2963,10 @@ export type Database = {
           phone_number?: string | null
           postal_code?: string | null
           quality_id?: string | null
+          source_company_id?: string | null
+          source_contact_id?: string | null
+          source_id?: string | null
+          source_user_id?: string | null
           stage_id?: string | null
           state?: string | null
           tenant_id: string
@@ -2985,6 +2993,10 @@ export type Database = {
           phone_number?: string | null
           postal_code?: string | null
           quality_id?: string | null
+          source_company_id?: string | null
+          source_contact_id?: string | null
+          source_id?: string | null
+          source_user_id?: string | null
           stage_id?: string | null
           state?: string | null
           tenant_id?: string
