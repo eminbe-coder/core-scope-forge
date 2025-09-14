@@ -5,11 +5,12 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { CheckCircle2, Clock, AlertTriangle, User, Calendar, Trash2, Search, Filter } from 'lucide-react';
+import { CheckCircle2, Clock, AlertTriangle, User, Calendar, Trash2, Search, Filter, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface Todo {
   id: string;
@@ -71,16 +72,21 @@ export const TodoList = ({
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [assignedFilter, setAssignedFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [dueDateFilter, setDueDateFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('created_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [todoTypes, setTodoTypes] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
 
   useEffect(() => {
     if (propTodos) {
       // Use provided todos
       setTodos(propTodos);
       setLoading(false);
-    } else if (currentTenant?.id && entityType && entityId) {
-      // Fallback to fetching todos (backward compatibility)
+    } else if (currentTenant?.id) {
+      // Fetch todos based on context
       fetchTodos();
     } else {
       setTodos([]);
@@ -97,7 +103,7 @@ export const TodoList = ({
 
   const fetchFiltersData = async () => {
     try {
-      const [todoTypesRes, profilesRes] = await Promise.all([
+      const [todoTypesRes, profilesRes, departmentsRes] = await Promise.all([
         supabase
           .from('todo_types')
           .select('*')
@@ -113,11 +119,19 @@ export const TodoList = ({
             last_name,
             email
           )
-        `).eq('tenant_id', currentTenant?.id).eq('active', true)
+        `).eq('tenant_id', currentTenant?.id).eq('active', true),
+
+        supabase
+          .from('departments')
+          .select('*')
+          .eq('tenant_id', currentTenant?.id)
+          .eq('active', true)
+          .order('name')
       ]);
 
       setTodoTypes(todoTypesRes.data || []);
       setProfiles((profilesRes.data || []).map((membership: any) => membership.profiles).filter(Boolean));
+      setDepartments(departmentsRes.data || []);
     } catch (error) {
       console.error('Error fetching filter data:', error);
     }
@@ -140,9 +154,15 @@ export const TodoList = ({
         `)
         .eq('tenant_id', currentTenant.id);
       
-      // Filter by entity if provided
-      if (entityType && entityId) {
+      // Filter by entity if provided and not "user"
+      if (entityType && entityId && entityType !== 'user') {
         query = query.eq('entity_type', entityType).eq('entity_id', entityId);
+      } else if (entityType === 'user' && entityId === 'current') {
+        // For "My To-Dos", get todos assigned to current user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          query = query.eq('assigned_to', user.id);
+        }
       }
       
       const { data, error } = await query.order('created_at', { ascending: false });
@@ -236,31 +256,78 @@ export const TodoList = ({
     return new Date(dateString).toLocaleDateString();
   };
 
-  // Apply filters
-  const filteredTodos = todos.filter(todo => {
-    // Status filter
-    if (filter === 'completed' && todo.status !== 'completed') return false;
-    if (filter === 'pending' && todo.status === 'completed') return false;
-    if (filter === 'in_progress' && todo.status !== 'in_progress') return false;
-    
-    // Priority filter
-    if (priorityFilter !== 'all' && todo.priority !== priorityFilter) return false;
-    
-    // Type filter
-    if (typeFilter !== 'all' && todo.type_id !== typeFilter) return false;
-    
-    // Assigned filter
-    if (assignedFilter !== 'all') {
-      if (assignedFilter === 'unassigned' && todo.assigned_to !== null) return false;
-      if (assignedFilter !== 'unassigned' && todo.assigned_to !== assignedFilter) return false;
-    }
-    
-    // Search filter
-    if (searchQuery && !todo.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !todo.description?.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-    
-    return true;
-  });
+  // Apply filters and sorting
+  const filteredAndSortedTodos = todos
+    .filter(todo => {
+      // Status filter
+      if (filter === 'completed' && todo.status !== 'completed') return false;
+      if (filter === 'pending' && todo.status === 'completed') return false;
+      if (filter === 'in_progress' && todo.status !== 'in_progress') return false;
+      
+      // Priority filter
+      if (priorityFilter !== 'all' && todo.priority !== priorityFilter) return false;
+      
+      // Type filter
+      if (typeFilter !== 'all' && todo.type_id !== typeFilter) return false;
+      
+      // Category filter (entity type)
+      if (categoryFilter !== 'all' && todo.entity_type !== categoryFilter) return false;
+      
+      // Due date filter
+      if (dueDateFilter !== 'all') {
+        const today = new Date().toDateString();
+        const todoDate = todo.due_date ? new Date(todo.due_date).toDateString() : null;
+        
+        if (dueDateFilter === 'due_today' && todoDate !== today) return false;
+        if (dueDateFilter === 'overdue' && (!todoDate || new Date(todo.due_date!) >= new Date())) return false;
+        if (dueDateFilter === 'upcoming' && (!todoDate || new Date(todo.due_date!) <= new Date())) return false;
+        if (dueDateFilter === 'no_date' && todoDate !== null) return false;
+      }
+      
+      // Assigned filter
+      if (assignedFilter !== 'all') {
+        if (assignedFilter === 'unassigned' && todo.assigned_to !== null) return false;
+        if (assignedFilter !== 'unassigned' && todo.assigned_to !== assignedFilter) return false;
+      }
+      
+      // Search filter
+      if (searchQuery && !todo.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
+          !todo.description?.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+      
+      return true;
+    })
+    .sort((a, b) => {
+      let aValue: any, bValue: any;
+      
+      switch (sortBy) {
+        case 'due_date':
+          aValue = a.due_date || '9999-12-31';
+          bValue = b.due_date || '9999-12-31';
+          break;
+        case 'priority':
+          const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 };
+          aValue = priorityOrder[a.priority as keyof typeof priorityOrder] || 0;
+          bValue = priorityOrder[b.priority as keyof typeof priorityOrder] || 0;
+          break;
+        case 'category':
+          aValue = a.entity_type || '';
+          bValue = b.entity_type || '';
+          break;
+        case 'assignee':
+          aValue = a.assigned_profile ? `${a.assigned_profile.first_name} ${a.assigned_profile.last_name}` : 'Unassigned';
+          bValue = b.assigned_profile ? `${b.assigned_profile.first_name} ${b.assigned_profile.last_name}` : 'Unassigned';
+          break;
+        default: // created_at
+          aValue = a.created_at;
+          bValue = b.created_at;
+      }
+      
+      if (sortOrder === 'asc') {
+        return aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
+      } else {
+        return aValue < bValue ? 1 : aValue > bValue ? -1 : 0;
+      }
+    });
 
   const todosStats = {
     total: todos.length,
@@ -327,6 +394,31 @@ export const TodoList = ({
               />
             </div>
 
+            {/* Sort controls */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-medium text-muted-foreground">Sort by:</span>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="h-8 w-auto">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="created_at">Creation Date</SelectItem>
+                  <SelectItem value="due_date">Due Date</SelectItem>
+                  <SelectItem value="priority">Priority</SelectItem>
+                  <SelectItem value="category">Category</SelectItem>
+                  <SelectItem value="assignee">Assignee</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                className="h-8 w-8 p-0"
+              >
+                {sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
+              </Button>
+            </div>
+
             {/* Status filters */}
             <div className="flex items-center gap-2 flex-wrap">
               <Button
@@ -361,71 +453,115 @@ export const TodoList = ({
               </Button>
             </div>
 
-            {/* Advanced filters */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                <SelectTrigger className="h-8">
-                  <SelectValue placeholder="Priority" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Priorities</SelectItem>
-                  <SelectItem value="urgent">Urgent</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="low">Low</SelectItem>
-                </SelectContent>
-              </Select>
+            {/* Advanced filters - Collapsible */}
+            <Collapsible>
+              <CollapsibleTrigger asChild>
+                <Button variant="outline" size="sm" className="w-full justify-between">
+                  <span className="flex items-center gap-2">
+                    <Filter className="h-4 w-4" />
+                    Advanced Filters
+                  </span>
+                  <ArrowUpDown className="h-4 w-4" />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-3 mt-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                    <SelectTrigger className="h-8">
+                      <SelectValue placeholder="Priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Priorities</SelectItem>
+                      <SelectItem value="urgent">Urgent</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="low">Low</SelectItem>
+                    </SelectContent>
+                  </Select>
 
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="h-8">
-                  <SelectValue placeholder="Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  {todoTypes.map((type) => (
-                    <SelectItem key={type.id} value={type.id}>
-                      {type.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  <Select value={typeFilter} onValueChange={setTypeFilter}>
+                    <SelectTrigger className="h-8">
+                      <SelectValue placeholder="Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      {todoTypes.map((type) => (
+                        <SelectItem key={type.id} value={type.id}>
+                          {type.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
-              <Select value={assignedFilter} onValueChange={setAssignedFilter}>
-                <SelectTrigger className="h-8">
-                  <SelectValue placeholder="Assignee" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Assignees</SelectItem>
-                  <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {profiles.map((profile) => (
-                    <SelectItem key={profile.id} value={profile.id}>
-                      {profile.first_name} {profile.last_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger className="h-8">
+                      <SelectValue placeholder="Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      <SelectItem value="deal">Deal</SelectItem>
+                      <SelectItem value="contract">Contract</SelectItem>
+                      <SelectItem value="customer">Customer</SelectItem>
+                      <SelectItem value="site">Site</SelectItem>
+                      <SelectItem value="company">Company</SelectItem>
+                      <SelectItem value="contact">Contact</SelectItem>
+                      <SelectItem value="project">Project</SelectItem>
+                    </SelectContent>
+                  </Select>
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setPriorityFilter('all');
-                  setTypeFilter('all');
-                  setAssignedFilter('all');
-                  setSearchQuery('');
-                }}
-                className="h-8"
-              >
-                <Filter className="h-4 w-4 mr-2" />
-                Clear
-              </Button>
-            </div>
+                  <Select value={dueDateFilter} onValueChange={setDueDateFilter}>
+                    <SelectTrigger className="h-8">
+                      <SelectValue placeholder="Due Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Due Dates</SelectItem>
+                      <SelectItem value="due_today">Due Today</SelectItem>
+                      <SelectItem value="overdue">Overdue</SelectItem>
+                      <SelectItem value="upcoming">Upcoming</SelectItem>
+                      <SelectItem value="no_date">No Due Date</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={assignedFilter} onValueChange={setAssignedFilter}>
+                    <SelectTrigger className="h-8">
+                      <SelectValue placeholder="Assignee" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Assignees</SelectItem>
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
+                      {profiles.map((profile) => (
+                        <SelectItem key={profile.id} value={profile.id}>
+                          {profile.first_name} {profile.last_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setPriorityFilter('all');
+                      setTypeFilter('all');
+                      setCategoryFilter('all');
+                      setDueDateFilter('all');
+                      setAssignedFilter('all');
+                      setSearchQuery('');
+                    }}
+                    className="h-8"
+                  >
+                    <Filter className="h-4 w-4 mr-2" />
+                    Clear All
+                  </Button>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
         )}
       </CardHeader>
       
       <CardContent>
-        {filteredTodos.length === 0 ? (
+        {filteredAndSortedTodos.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             {todos.length === 0 
               ? 'No to-do items yet. Create one to get started.' 
@@ -434,12 +570,18 @@ export const TodoList = ({
           </div>
         ) : (
           <div className="space-y-3">
-            {filteredTodos.map((todo) => (
+            {filteredAndSortedTodos.map((todo) => {
+              const isOverdue = todo.due_date && new Date(todo.due_date) < new Date() && todo.status !== 'completed';
+              const isDueToday = todo.due_date && new Date(todo.due_date).toDateString() === new Date().toDateString();
+              
+              return (
               <div
                 key={todo.id}
                 className={cn(
                   "flex items-center gap-3 p-4 border rounded-lg transition-colors",
-                  todo.status === 'completed' ? "bg-muted/50 border-muted" : "bg-background border-border hover:border-primary/20"
+                  todo.status === 'completed' ? "bg-muted/50 border-muted" : "bg-background border-border hover:border-primary/20",
+                  isOverdue && "border-destructive/50 bg-destructive/5",
+                  isDueToday && "border-warning/50 bg-warning/5"
                 )}
               >
                 <Checkbox
@@ -470,6 +612,20 @@ export const TodoList = ({
                     {(todo.priority === 'high' || todo.priority === 'urgent') && (
                       <Badge variant={todo.priority === 'urgent' ? 'destructive' : 'secondary'} className="text-xs">
                         {todo.priority === 'urgent' ? 'Urgent' : 'High Priority'}
+                      </Badge>
+                    )}
+                    
+                    {/* Due date status badges */}
+                    {isOverdue && (
+                      <Badge variant="destructive" className="text-xs">
+                        <AlertTriangle className="h-3 w-3 mr-1" />
+                        Overdue
+                      </Badge>
+                    )}
+                    {isDueToday && !isOverdue && (
+                      <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-800 border-orange-200">
+                        <Clock className="h-3 w-3 mr-1" />
+                        Due Today
                       </Badge>
                     )}
                     
@@ -549,7 +705,8 @@ export const TodoList = ({
                   </Button>
                 )}
               </div>
-            ))}
+            );
+            })}
           </div>
         )}
       </CardContent>

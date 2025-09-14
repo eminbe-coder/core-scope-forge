@@ -144,6 +144,9 @@ const MyTodos = () => {
           showStats={false}
           title="All My To-Dos"
           canEdit={true}
+          entityType="user"
+          entityId="current"
+          onUpdate={fetchStats}
         />
       </div>
     </DashboardLayout>
