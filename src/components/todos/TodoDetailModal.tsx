@@ -355,15 +355,18 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
                 <div>
                   <Label>Assigned To</Label>
                   <Select
-                    value={editedTodo.assigned_to || ''}
-                    onValueChange={(value) => setEditedTodo({ ...editedTodo, assigned_to: value || undefined })}
+                    value={editedTodo.assigned_to || 'unassigned'}
+                    onValueChange={(value) => setEditedTodo({ 
+                      ...editedTodo, 
+                      assigned_to: value === 'unassigned' ? undefined : value 
+                    })}
                     disabled={!canEdit}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select assignee" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Unassigned</SelectItem>
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
                       {profiles.map((profile) => (
                         <SelectItem key={profile.id} value={profile.id}>
                           {profile.first_name} {profile.last_name}
@@ -376,15 +379,18 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
                 <div>
                   <Label>Type</Label>
                   <Select
-                    value={editedTodo.type_id || ''}
-                    onValueChange={(value) => setEditedTodo({ ...editedTodo, type_id: value || undefined })}
+                    value={editedTodo.type_id || 'none'}
+                    onValueChange={(value) => setEditedTodo({ 
+                      ...editedTodo, 
+                      type_id: value === 'none' ? undefined : value 
+                    })}
                     disabled={!canEdit}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No type</SelectItem>
+                      <SelectItem value="none">No type</SelectItem>
                       {todoTypes.map((type) => (
                         <SelectItem key={type.id} value={type.id}>
                           {type.name}
