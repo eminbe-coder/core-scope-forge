@@ -28,6 +28,7 @@ interface TodoCalendarViewProps {
   onSelectEvent?: (event: any) => void;
   onSelectSlot?: (slotInfo: any) => void;
   onEventDrop?: (args: { event: any; start: Date; end: Date }) => void;
+  onTodoClick?: (todo: Todo) => void;
 }
 
 interface CalendarEvent extends Event {
@@ -39,6 +40,7 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
   onSelectEvent,
   onSelectSlot,
   onEventDrop,
+  onTodoClick,
 }) => {
   const events: CalendarEvent[] = useMemo(() => {
     return todos
@@ -109,7 +111,13 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
     const isOverdue = new Date(todo.due_date!) < new Date() && todo.status !== 'completed';
     
     return (
-      <div className="p-1">
+      <div 
+        className="p-1 cursor-pointer hover:opacity-80 transition-opacity"
+        onClick={(e) => {
+          e.stopPropagation();
+          onTodoClick?.(todo);
+        }}
+      >
         <div className="flex items-center gap-1 text-xs">
           <span className="truncate">{todo.title}</span>
           {isOverdue && <span className="text-xs">⚠️</span>}

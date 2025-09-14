@@ -2,6 +2,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { TodoList } from '@/components/todos/TodoList';
 import { TodoForm } from '@/components/todos/TodoForm';
 import { TodoCalendarView } from '@/components/todos/TodoCalendarView';
+import { TodoDetailModal } from '@/components/todos/TodoDetailModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, CheckCircle, Clock, AlertTriangle, List, Calendar } from 'lucide-react';
@@ -9,10 +10,12 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useTodoPreferences } from '@/hooks/use-todo-preferences';
+import { useUrlState } from '@/hooks/use-url-state';
 
 const MyTodos = () => {
   const { currentTenant } = useTenant();
   const { preferences, updatePreference } = useTodoPreferences();
+  const [selectedTodoId, setSelectedTodoId] = useUrlState('todo', '');
   const [stats, setStats] = useState({
     total: 0,
     completed: 0,
@@ -21,12 +24,28 @@ const MyTodos = () => {
     dueToday: 0
   });
   const [todos, setTodos] = useState<any[]>([]);
+  const [selectedTodo, setSelectedTodo] = useState<any>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   useEffect(() => {
     if (currentTenant?.id) {
       fetchStats();
     }
   }, [currentTenant?.id]);
+
+  // Handle URL state for selected todo
+  useEffect(() => {
+    if (selectedTodoId && todos.length > 0) {
+      const todo = todos.find(t => t.id === selectedTodoId);
+      if (todo) {
+        setSelectedTodo(todo);
+        setIsDetailModalOpen(true);
+      }
+    } else {
+      setSelectedTodo(null);
+      setIsDetailModalOpen(false);
+    }
+  }, [selectedTodoId, todos]);
 
   const fetchStats = async () => {
     try {
@@ -70,6 +89,14 @@ const MyTodos = () => {
     } catch (error) {
       console.error('Error fetching stats:', error);
     }
+  };
+
+  const handleTodoClick = (todo: any) => {
+    setSelectedTodoId(todo.id);
+  };
+
+  const handleDetailModalClose = () => {
+    setSelectedTodoId('');
   };
 
   const handleEventDrop = async (args: { event: any; start: Date; end: Date }) => {
@@ -208,6 +235,7 @@ const MyTodos = () => {
             onUpdate={fetchStats}
             preferences={preferences}
             onPreferenceChange={updatePreference}
+            onTodoClick={handleTodoClick}
           />
         ) : (
           <div className="space-y-4">
@@ -219,6 +247,7 @@ const MyTodos = () => {
                 <TodoCalendarView
                   todos={todos}
                   onEventDrop={handleEventDrop}
+                  onTodoClick={handleTodoClick}
                   onSelectEvent={(event) => {
                     console.log('Selected event:', event);
                   }}
@@ -227,6 +256,15 @@ const MyTodos = () => {
             </Card>
           </div>
         )}
+
+        {/* Todo Detail Modal */}
+        <TodoDetailModal
+          todo={selectedTodo}
+          isOpen={isDetailModalOpen}
+          onClose={handleDetailModalClose}
+          onUpdate={fetchStats}
+          canEdit={true}
+        />
       </div>
     </DashboardLayout>
   );

@@ -63,6 +63,7 @@ interface TodoListProps {
   onUpdate?: () => void;
   preferences?: TodoPreferences;
   onPreferenceChange?: (key: keyof TodoPreferences, value: any) => void;
+  onTodoClick?: (todo: Todo) => void;
 }
 
 export const TodoList = ({ 
@@ -78,7 +79,8 @@ export const TodoList = ({
   canEdit = true,
   onUpdate,
   preferences,
-  onPreferenceChange
+  onPreferenceChange,
+  onTodoClick
 }: TodoListProps) => {
   const { currentTenant } = useTenant();
   const [todos, setTodos] = useState<Todo[]>([]);
@@ -645,10 +647,13 @@ export const TodoList = ({
                   className="mt-1"
                 />
                 
-                <div className="flex-1 min-w-0">
+                <div 
+                  className="flex-1 min-w-0 cursor-pointer" 
+                  onClick={() => onTodoClick?.(todo)}
+                >
                   <div className="flex items-center gap-2 flex-wrap">
                     <h4 className={cn(
-                      "font-medium",
+                      "font-medium hover:text-primary transition-colors",
                       todo.status === 'completed' && "line-through text-muted-foreground"
                     )}>
                       {todo.title}
