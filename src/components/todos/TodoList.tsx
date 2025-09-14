@@ -67,7 +67,7 @@ export const TodoList = ({
   const { currentTenant } = useTenant();
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'completed' | 'pending' | 'in_progress'>('all');
+  const [filter, setFilter] = useState<'all' | 'completed' | 'pending' | 'in_progress' | 'due' | 'overdue'>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [assignedFilter, setAssignedFilter] = useState<string>('all');
@@ -263,6 +263,8 @@ export const TodoList = ({
       if (filter === 'completed' && todo.status !== 'completed') return false;
       if (filter === 'pending' && todo.status === 'completed') return false;
       if (filter === 'in_progress' && todo.status !== 'in_progress') return false;
+      if (filter === 'due' && (!todo.due_date || new Date(todo.due_date).toDateString() !== new Date().toDateString() || todo.status === 'completed')) return false;
+      if (filter === 'overdue' && (!todo.due_date || new Date(todo.due_date) >= new Date() || todo.status === 'completed')) return false;
       
       // Priority filter
       if (priorityFilter !== 'all' && todo.priority !== priorityFilter) return false;
@@ -334,6 +336,8 @@ export const TodoList = ({
     completed: todos.filter(t => t.status === 'completed').length,
     pending: todos.filter(t => t.status !== 'completed').length,
     inProgress: todos.filter(t => t.status === 'in_progress').length,
+    due: todos.filter(t => t.due_date && new Date(t.due_date).toDateString() === new Date().toDateString() && t.status !== 'completed').length,
+    overdue: todos.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'completed').length,
   };
 
   // Show error if provided
@@ -434,6 +438,22 @@ export const TodoList = ({
                 onClick={() => setFilter('pending')}
               >
                 Pending ({todosStats.pending})
+              </Button>
+              <Button
+                variant={filter === 'due' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilter('due')}
+                className={filter === 'due' ? '' : 'text-orange-600 border-orange-200 hover:bg-orange-50'}
+              >
+                Due ({todosStats.due})
+              </Button>
+              <Button
+                variant={filter === 'overdue' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilter('overdue')}
+                className={filter === 'overdue' ? '' : 'text-red-600 border-red-200 hover:bg-red-50'}
+              >
+                Overdue ({todosStats.overdue})
               </Button>
               {todosStats.inProgress > 0 && (
                 <Button
