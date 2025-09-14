@@ -3875,6 +3875,57 @@ export type Database = {
           },
         ]
       }
+      user_todo_preferences: {
+        Row: {
+          created_at: string
+          filter_assigned: string | null
+          filter_category: string | null
+          filter_due_date: string | null
+          filter_priority: string | null
+          filter_status: string | null
+          filter_type: string | null
+          id: string
+          sort_by: string | null
+          sort_order: string | null
+          tenant_id: string
+          updated_at: string
+          user_id: string
+          view_type: string
+        }
+        Insert: {
+          created_at?: string
+          filter_assigned?: string | null
+          filter_category?: string | null
+          filter_due_date?: string | null
+          filter_priority?: string | null
+          filter_status?: string | null
+          filter_type?: string | null
+          id?: string
+          sort_by?: string | null
+          sort_order?: string | null
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+          view_type?: string
+        }
+        Update: {
+          created_at?: string
+          filter_assigned?: string | null
+          filter_category?: string | null
+          filter_due_date?: string | null
+          filter_priority?: string | null
+          filter_status?: string | null
+          filter_type?: string | null
+          id?: string
+          sort_by?: string | null
+          sort_order?: string | null
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+          view_type?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

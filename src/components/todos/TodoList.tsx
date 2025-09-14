@@ -37,6 +37,18 @@ interface Todo {
   installment_number?: number;
 }
 
+interface TodoPreferences {
+  view_type: 'list' | 'calendar';
+  filter_status: string;
+  filter_priority: string;
+  filter_type: string;
+  filter_assigned: string;
+  filter_category: string;
+  filter_due_date: string;
+  sort_by: string;
+  sort_order: 'asc' | 'desc';
+}
+
 interface TodoListProps {
   todos?: Todo[];
   loading?: boolean;
@@ -49,6 +61,8 @@ interface TodoListProps {
   title?: string;
   canEdit?: boolean;
   onUpdate?: () => void;
+  preferences?: TodoPreferences;
+  onPreferenceChange?: (key: keyof TodoPreferences, value: any) => void;
 }
 
 export const TodoList = ({ 
@@ -62,20 +76,22 @@ export const TodoList = ({
   compact = false,
   title = "To-Do Items",
   canEdit = true,
-  onUpdate 
+  onUpdate,
+  preferences,
+  onPreferenceChange
 }: TodoListProps) => {
   const { currentTenant } = useTenant();
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'completed' | 'pending' | 'in_progress' | 'due' | 'overdue'>('all');
-  const [priorityFilter, setPriorityFilter] = useState<string>('all');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [assignedFilter, setAssignedFilter] = useState<string>('all');
+  const [filter, setFilter] = useState<'all' | 'completed' | 'pending' | 'in_progress' | 'due' | 'overdue'>(preferences?.filter_status as any || 'all');
+  const [priorityFilter, setPriorityFilter] = useState<string>(preferences?.filter_priority || 'all');
+  const [typeFilter, setTypeFilter] = useState<string>(preferences?.filter_type || 'all');
+  const [assignedFilter, setAssignedFilter] = useState<string>(preferences?.filter_assigned || 'all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [dueDateFilter, setDueDateFilter] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<string>('created_at');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [categoryFilter, setCategoryFilter] = useState<string>(preferences?.filter_category || 'all');
+  const [dueDateFilter, setDueDateFilter] = useState<string>(preferences?.filter_due_date || 'all');
+  const [sortBy, setSortBy] = useState<string>(preferences?.sort_by || 'created_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(preferences?.sort_order || 'desc');
   const [todoTypes, setTodoTypes] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
@@ -401,7 +417,10 @@ export const TodoList = ({
             {/* Sort controls */}
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-sm font-medium text-muted-foreground">Sort by:</span>
-              <Select value={sortBy} onValueChange={setSortBy}>
+              <Select value={sortBy} onValueChange={(value) => {
+                setSortBy(value);
+                onPreferenceChange?.('sort_by', value);
+              }}>
                 <SelectTrigger className="h-8 w-auto">
                   <SelectValue />
                 </SelectTrigger>
@@ -416,7 +435,11 @@ export const TodoList = ({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                onClick={() => {
+                  const newOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+                  setSortOrder(newOrder);
+                  onPreferenceChange?.('sort_order', newOrder);
+                }}
                 className="h-8 w-8 p-0"
               >
                 {sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
@@ -428,21 +451,30 @@ export const TodoList = ({
               <Button
                 variant={filter === 'all' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setFilter('all')}
+                onClick={() => {
+                  setFilter('all');
+                  onPreferenceChange?.('filter_status', 'all');
+                }}
               >
                 All ({todosStats.total})
               </Button>
               <Button
                 variant={filter === 'pending' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setFilter('pending')}
+                onClick={() => {
+                  setFilter('pending');
+                  onPreferenceChange?.('filter_status', 'pending');
+                }}
               >
                 Pending ({todosStats.pending})
               </Button>
               <Button
                 variant={filter === 'due' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setFilter('due')}
+                onClick={() => {
+                  setFilter('due');
+                  onPreferenceChange?.('filter_status', 'due');
+                }}
                 className={filter === 'due' ? '' : 'text-orange-600 border-orange-200 hover:bg-orange-50'}
               >
                 Due ({todosStats.due})
@@ -450,7 +482,10 @@ export const TodoList = ({
               <Button
                 variant={filter === 'overdue' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setFilter('overdue')}
+                onClick={() => {
+                  setFilter('overdue');
+                  onPreferenceChange?.('filter_status', 'overdue');
+                }}
                 className={filter === 'overdue' ? '' : 'text-red-600 border-red-200 hover:bg-red-50'}
               >
                 Overdue ({todosStats.overdue})
