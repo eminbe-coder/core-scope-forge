@@ -31,6 +31,7 @@ import Leads from "./pages/Leads";
 import AddLead from "./pages/AddLead";
 import LeadDetail from "./pages/LeadDetail";
 import Deals from "./pages/Deals";
+import DealDetail from "./pages/DealDetail";
 import AddDeal from "./pages/AddDeal";
 import EditDeal from "./pages/EditDeal";
 import Contracts from "./pages/Contracts";
@@ -176,7 +177,12 @@ const App = () => (
                       <AddDeal />
                     </ProtectedRoute>
                   } />
-                   <Route path="/deals/edit/:id" element={
+                   <Route path="/deals/:id" element={
+                      <ProtectedRoute>
+                        <DealDetail />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/deals/edit/:id" element={
                      <ProtectedRoute>
                        <EditDeal />
                      </ProtectedRoute>
