@@ -212,22 +212,40 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
   };
 
   const navigateToEntity = () => {
-    if (!linkedEntity || !todo?.entity_id) return;
+    if (!linkedEntity || !todo?.entity_id) {
+      toast.error('Entity information not available');
+      return;
+    }
     
-    const routes: { [key: string]: string } = {
-      deal: `/deals/${todo.entity_id}`,
-      project: `/projects/${todo.entity_id}`,
+    // Routes that have detail pages
+    const detailRoutes: { [key: string]: string } = {
       customer: `/customers/${todo.entity_id}`,
       contact: `/contacts/${todo.entity_id}`,
-      company: `/companies/${todo.entity_id}`,
       site: `/sites/${todo.entity_id}`,
       contract: `/contracts/${todo.entity_id}`
     };
     
-    const route = routes[linkedEntity.type];
-    if (route) {
-      navigate(route);
+    // Routes that only have list pages or edit pages
+    const fallbackRoutes: { [key: string]: string } = {
+      deal: '/deals',
+      project: '/projects', 
+      company: '/companies'
+    };
+    
+    const detailRoute = detailRoutes[linkedEntity.type];
+    const fallbackRoute = fallbackRoutes[linkedEntity.type];
+    
+    if (detailRoute) {
+      // Navigate to detail page
+      navigate(detailRoute);
       onClose();
+    } else if (fallbackRoute) {
+      // Navigate to list page with a message
+      navigate(fallbackRoute);
+      onClose();
+      toast.info(`Navigated to ${getEntityDisplayName(linkedEntity.type)} list page`);
+    } else {
+      toast.error('Navigation not available for this entity type');
     }
   };
 
