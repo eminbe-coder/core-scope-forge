@@ -217,6 +217,12 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
       return;
     }
     
+    console.log('Navigating to entity:', { 
+      type: linkedEntity.type, 
+      id: todo.entity_id,
+      name: linkedEntity.name 
+    });
+    
     // Routes that have detail pages
     const detailRoutes: { [key: string]: string } = {
       customer: `/customers/${todo.entity_id}`,
@@ -235,16 +241,21 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
     const detailRoute = detailRoutes[linkedEntity.type];
     const fallbackRoute = fallbackRoutes[linkedEntity.type];
     
+    console.log('Route mapping:', { detailRoute, fallbackRoute });
+    
     if (detailRoute) {
+      console.log('Navigating to detail page:', detailRoute);
       // Navigate to detail page
       navigate(detailRoute);
       onClose();
     } else if (fallbackRoute) {
+      console.log('Navigating to list page:', fallbackRoute);
       // Navigate to list page with a message
       navigate(fallbackRoute);
       onClose();
       toast.info(`Navigated to ${getEntityDisplayName(linkedEntity.type)} list page`);
     } else {
+      console.log('No route found for entity type:', linkedEntity.type);
       toast.error('Navigation not available for this entity type');
     }
   };
