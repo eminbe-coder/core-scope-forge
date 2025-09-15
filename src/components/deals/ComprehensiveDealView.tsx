@@ -161,6 +161,12 @@ interface Currency {
   symbol: string;
 }
 
+interface SolutionCategory {
+  id: string;
+  name: string;
+  description?: string;
+}
+
 interface ComprehensiveDealViewProps {
   deal: Deal;
   onUpdate: () => void;
@@ -191,6 +197,7 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [availableCurrencies, setAvailableCurrencies] = useState<Currency[]>([]);
+  const [solutionCategories, setSolutionCategories] = useState<SolutionCategory[]>([]);
   const [linkedCompanies, setLinkedCompanies] = useState<Company[]>([]);
   const [linkedContacts, setLinkedContacts] = useState<Contact[]>([]);
   const [tenantUsers, setTenantUsers] = useState<{ id: string; name: string; email: string }[]>([]);
@@ -243,6 +250,7 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
         fetchContacts(),
         fetchCustomers(),
         fetchCurrencies(),
+        fetchSolutionCategories(),
         fetchTenantUsers(),
         fetchLinkedEntities(),
         fetchPaymentTerms(),
@@ -313,6 +321,18 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
 
     if (error) throw error;
     setAvailableCurrencies(data || []);
+  };
+
+  const fetchSolutionCategories = async () => {
+    const { data, error } = await supabase
+      .from('solution_categories')
+      .select('id, name, description')
+      .eq('tenant_id', currentTenant!.id)
+      .eq('active', true)
+      .order('name');
+
+    if (error) throw error;
+    setSolutionCategories(data || []);
   };
 
   const fetchContacts = async () => {
@@ -1383,10 +1403,10 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
                   <div className="flex flex-wrap gap-1 mt-1">
                     {deal.solution_category_ids && deal.solution_category_ids.length > 0 ? (
                       deal.solution_category_ids.map((categoryId) => {
-                        // Find category name from available categories (we'd need to fetch solution categories)
+                        const category = solutionCategories.find(c => c.id === categoryId);
                         return (
                           <Badge key={categoryId} variant="secondary" className="text-xs">
-                            Category {categoryId.slice(-4)}
+                            {category ? category.name : `Category ${categoryId.slice(-4)}`}
                           </Badge>
                         );
                       })
