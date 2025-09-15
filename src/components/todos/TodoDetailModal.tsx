@@ -11,12 +11,13 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { CalendarIcon, Clock, User, Save, Trash2, MessageSquare, Activity } from 'lucide-react';
+import { CalendarIcon, Clock, User, Save, Trash2, MessageSquare, Activity, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
 
 interface Todo {
   id: string;
@@ -66,6 +67,7 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
   canEdit = true,
 }) => {
   const { currentTenant } = useTenant();
+  const navigate = useNavigate();
   const [editedTodo, setEditedTodo] = useState<Todo | null>(null);
   const [saving, setSaving] = useState(false);
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -73,6 +75,7 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [newNote, setNewNote] = useState('');
   const [addingNote, setAddingNote] = useState(false);
+  const [linkedEntity, setLinkedEntity] = useState<{ name: string; type: string } | null>(null);
 
   useEffect(() => {
     if (todo) {
@@ -81,6 +84,7 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
         fetchProfiles();
         fetchTodoTypes();
         fetchActivityLogs();
+        fetchLinkedEntity();
       }
     }
   }, [todo, currentTenant?.id]);
@@ -132,6 +136,98 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
       }
     } catch (error) {
       console.error('Error fetching activity logs:', error);
+    }
+  };
+
+  const fetchLinkedEntity = async () => {
+    if (!todo?.entity_type || !todo?.entity_id) return;
+    
+    try {
+      let query;
+      let nameField = 'name';
+      
+      switch (todo.entity_type) {
+        case 'deal':
+          query = supabase.from('deals').select('name').eq('id', todo.entity_id).single();
+          break;
+        case 'project':
+          query = supabase.from('projects').select('name').eq('id', todo.entity_id).single();
+          break;
+        case 'customer':
+          query = supabase.from('customers').select('name').eq('id', todo.entity_id).single();
+          break;
+        case 'contact':
+          query = supabase.from('contacts').select('first_name, last_name').eq('id', todo.entity_id).single();
+          nameField = 'first_name';
+          break;
+        case 'company':
+          query = supabase.from('companies').select('name').eq('id', todo.entity_id).single();
+          break;
+        case 'site':
+          query = supabase.from('sites').select('name').eq('id', todo.entity_id).single();
+          break;
+        case 'contract':
+          query = supabase.from('contracts').select('name').eq('id', todo.entity_id).single();
+          break;
+        default:
+          return;
+      }
+      
+      const { data, error } = await query;
+      
+      if (error) {
+        console.error('Error fetching linked entity:', error);
+        return;
+      }
+      
+      if (data) {
+        let entityName = '';
+        if (todo.entity_type === 'contact') {
+          entityName = `${data.first_name || ''} ${data.last_name || ''}`.trim();
+        } else {
+          entityName = data[nameField] || 'Unknown';
+        }
+        
+        setLinkedEntity({
+          name: entityName,
+          type: todo.entity_type
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching linked entity:', error);
+    }
+  };
+
+  const getEntityDisplayName = (type: string) => {
+    const displayNames: { [key: string]: string } = {
+      deal: 'Deal',
+      project: 'Project', 
+      customer: 'Customer',
+      contact: 'Contact',
+      company: 'Company',
+      site: 'Site',
+      contract: 'Contract'
+    };
+    return displayNames[type] || type;
+  };
+
+  const navigateToEntity = () => {
+    if (!linkedEntity || !todo?.entity_id) return;
+    
+    const routes: { [key: string]: string } = {
+      deal: `/deals/${todo.entity_id}`,
+      project: `/projects/${todo.entity_id}`,
+      customer: `/customers/${todo.entity_id}`,
+      contact: `/contacts/${todo.entity_id}`,
+      company: `/companies/${todo.entity_id}`,
+      site: `/sites/${todo.entity_id}`,
+      contract: `/contracts/${todo.entity_id}`
+    };
+    
+    const route = routes[linkedEntity.type];
+    if (route) {
+      navigate(route);
+      onClose();
     }
   };
 
@@ -399,6 +495,20 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
                     </SelectContent>
                   </Select>
                 </div>
+
+                {linkedEntity && (
+                  <div>
+                    <Label>Linked Entity</Label>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start"
+                      onClick={navigateToEntity}
+                    >
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Linked to: {getEntityDisplayName(linkedEntity.type)} – {linkedEntity.name}
+                    </Button>
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label>Info</Label>
