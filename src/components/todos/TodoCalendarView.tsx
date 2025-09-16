@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { Calendar, momentLocalizer, Event } from 'react-big-calendar';
+import React, { useMemo, useState, useEffect } from 'react';
+import { Calendar, momentLocalizer, Event, View } from 'react-big-calendar';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import moment from 'moment';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +34,8 @@ interface TodoCalendarViewProps {
   onSelectSlot?: (slotInfo: any) => void;
   onEventDrop?: (args: { event: any; start: Date; end: Date }) => void;
   onTodoClick?: (todo: Todo) => void;
+  onViewChange?: (view: View) => void;
+  defaultView?: View;
 }
 
 interface CalendarEvent extends Event {
@@ -46,7 +48,11 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
   onSelectSlot,
   onEventDrop,
   onTodoClick,
+  onViewChange,
+  defaultView = 'week',
 }) => {
+  const [currentView, setCurrentView] = useState<View>(defaultView);
+  const [currentDate, setCurrentDate] = useState(new Date());
   const events: CalendarEvent[] = useMemo(() => {
     return todos
       .filter(todo => todo.due_date)
@@ -55,14 +61,16 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
         let endDate: Date;
         
         if (todo.due_time) {
-          // Combine date and time
+          // Combine date and time for timed events
           const dateTimeString = `${todo.due_date}T${todo.due_time}`;
           startDate = new Date(dateTimeString);
-          endDate = new Date(startDate.getTime() + 60 * 60 * 1000); // Add 1 hour
+          endDate = new Date(startDate.getTime() + 60 * 60 * 1000); // Add 1 hour default duration
         } else {
-          // All day event
+          // All day event - show at top of calendar
           startDate = new Date(todo.due_date!);
+          startDate.setHours(0, 0, 0, 0);
           endDate = new Date(todo.due_date!);
+          endDate.setHours(23, 59, 59, 999);
         }
         
         return {
@@ -161,13 +169,53 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
   };
 
   const handleEventDrop = (args: { event: any; start: Date; end: Date }) => {
+    console.log('Event drop detected:', args);
     if (onEventDrop) {
       onEventDrop(args);
     }
   };
 
+  const handleEventResize = (args: { event: any; start: Date; end: Date }) => {
+    console.log('Event resize detected:', args);
+    if (onEventDrop) {
+      onEventDrop(args);
+    }
+  };
+
+  const handleViewChange = (view: View) => {
+    setCurrentView(view);
+    if (onViewChange) {
+      onViewChange(view);
+    }
+  };
+
+  const handleNavigate = (date: Date) => {
+    setCurrentDate(date);
+  };
+
+  // Custom time indicator
+  const TimeIndicator = () => {
+    const now = new Date();
+    const isToday = moment(currentDate).isSame(now, 'day');
+    
+    if (!isToday || currentView === 'month') return null;
+    
+    const hour = now.getHours();
+    const minute = now.getMinutes();
+    const topPercentage = ((hour - 6) * 60 + minute) / (16 * 60) * 100; // 6am to 10pm = 16 hours
+    
+    return (
+      <div 
+        className="absolute left-0 right-0 border-t-2 border-red-500 z-10 pointer-events-none"
+        style={{ top: `${topPercentage}%` }}
+      >
+        <div className="w-3 h-3 bg-red-500 rounded-full -mt-1.5 -ml-1.5"></div>
+      </div>
+    );
+  };
+
   return (
-    <div className="h-[600px] bg-background rounded-lg border p-4">
+    <div className="h-[700px] bg-background rounded-lg border p-4 relative">
       <DragAndDropCalendar
         localizer={localizer}
         events={events}
@@ -183,18 +231,31 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
           event: CustomEvent,
         }}
         views={['week', 'day']}
-        defaultView="week"
+        view={currentView}
+        onView={handleViewChange}
+        date={currentDate}
+        onNavigate={handleNavigate}
         step={15}
         timeslots={4}
-        showMultiDayTimes
+        showMultiDayTimes={true}
+        allDayAccessor="allDay"
         className="todo-calendar"
-        onEventDrop={onEventDrop ? handleEventDrop : undefined}
-        onEventResize={onEventDrop ? handleEventDrop : undefined}
-        draggableAccessor={() => !!onEventDrop}
-        resizable={!!onEventDrop}
+        onEventDrop={handleEventDrop}
+        onEventResize={handleEventResize}
+        draggableAccessor={() => true}
+        resizable={true}
         min={new Date(0, 0, 0, 6, 0, 0)}
         max={new Date(0, 0, 0, 22, 0, 0)}
+        scrollToTime={new Date(0, 0, 0, 8, 0, 0)}
+        formats={{
+          timeGutterFormat: 'h:mm A',
+          eventTimeRangeFormat: ({ start, end }, culture, localizer) =>
+            localizer?.format(start, 'h:mm A', culture) + ' - ' + localizer?.format(end, 'h:mm A', culture),
+          agendaTimeRangeFormat: ({ start, end }, culture, localizer) =>
+            localizer?.format(start, 'h:mm A', culture) + ' - ' + localizer?.format(end, 'h:mm A', culture),
+        }}
       />
+      <TimeIndicator />
     </div>
   );
 };

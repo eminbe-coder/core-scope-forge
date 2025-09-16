@@ -1,6 +1,7 @@
 /* Calendar Styles */
 .todo-calendar .rbc-calendar {
   font-family: inherit;
+  position: relative;
 }
 
 .todo-calendar .rbc-toolbar {
@@ -85,4 +86,78 @@
 
 .todo-calendar .rbc-allday-cell {
   background: hsl(var(--muted) / 0.1);
+  min-height: 60px;
+}
+
+/* Resizable columns and time slots */
+.todo-calendar .rbc-time-view {
+  position: relative;
+}
+
+.todo-calendar .rbc-time-header {
+  position: relative;
+}
+
+.todo-calendar .rbc-time-header-cell {
+  border-right: 1px solid hsl(var(--border));
+  min-width: 120px;
+  resize: horizontal;
+  overflow: auto;
+}
+
+.todo-calendar .rbc-day-slot {
+  border-right: 1px solid hsl(var(--border));
+  min-width: 120px;
+}
+
+.todo-calendar .rbc-time-slot {
+  border-top: 1px solid hsl(var(--border) / 0.3);
+  min-height: 20px;
+}
+
+.todo-calendar .rbc-time-gutter .rbc-timeslot-group {
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+/* Current time indicator styles */
+.todo-calendar .rbc-current-time-indicator {
+  background-color: hsl(var(--destructive));
+  height: 2px;
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 10;
+}
+
+/* All day events styling */
+.todo-calendar .rbc-allday-cell {
+  background: hsl(var(--muted) / 0.05);
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.todo-calendar .rbc-row-bg {
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+/* Enhanced drag and drop */
+.todo-calendar .rbc-addons-dnd-drag-preview {
+  opacity: 0.8;
+  z-index: 1000;
+}
+
+.todo-calendar .rbc-addons-dnd-dragged-event {
+  opacity: 0.5;
+}
+
+/* Time gutter improvements */
+.todo-calendar .rbc-time-gutter {
+  border-right: 1px solid hsl(var(--border));
+  width: 70px;
+  min-width: 70px;
+}
+
+.todo-calendar .rbc-label {
+  padding: 2px 4px;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
 }
