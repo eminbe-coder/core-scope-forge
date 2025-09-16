@@ -149,36 +149,76 @@
   opacity: 0.5;
 }
 
-/* Resizable columns */
+/* Enhanced resizable columns and time slots */
+.resizable-calendar {
+  position: relative;
+}
+
 .resizable-calendar .rbc-time-header-cell {
   border-right: 1px solid hsl(var(--border));
   min-width: 120px;
-  resize: horizontal;
-  overflow: auto;
   position: relative;
+  transition: width 0.1s ease;
 }
 
 .resizable-calendar .rbc-day-slot {
   border-right: 1px solid hsl(var(--border));
   min-width: 120px;
   position: relative;
+  transition: width 0.1s ease;
 }
 
-/* Column resize handle */
-.resizable-calendar .rbc-time-header-cell::after {
-  content: '';
-  position: absolute;
-  right: -2px;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  cursor: col-resize;
-  background: transparent;
-  z-index: 10;
+.resizable-calendar .rbc-time-slot {
+  border-top: 1px solid hsl(var(--border) / 0.2);
+  min-height: 15px;
+  transition: all 0.1s ease;
 }
 
-.resizable-calendar .rbc-time-header-cell:hover::after {
-  background: hsl(var(--primary) / 0.3);
+.resizable-calendar .rbc-time-slot:hover {
+  background: hsl(var(--accent) / 0.1);
+}
+
+/* Column resize handle styling */
+.column-resize-handle {
+  transition: background-color 0.2s ease;
+}
+
+.column-resize-handle:hover {
+  background: hsl(var(--primary) / 0.5) !important;
+}
+
+/* Time slot resize handle styling */
+.timeslot-resize-handle {
+  transition: background-color 0.2s ease;
+}
+
+.timeslot-resize-handle:hover {
+  background: hsl(var(--primary) / 0.5) !important;
+}
+
+/* Enhanced time slots for better visibility */
+.resizable-calendar .rbc-time-gutter {
+  position: relative;
+  border-right: 1px solid hsl(var(--border));
+  width: 70px;
+  min-width: 70px;
+}
+
+/* Better visual feedback during resize */
+.resizable-calendar.resizing-column {
+  user-select: none;
+}
+
+.resizable-calendar.resizing-column * {
+  cursor: col-resize !important;
+}
+
+.resizable-calendar.resizing-timeslot {
+  user-select: none;
+}
+
+.resizable-calendar.resizing-timeslot * {
+  cursor: row-resize !important;
 }
 
 /* Working hours styling */

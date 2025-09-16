@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { Calendar, momentLocalizer, Event, View } from 'react-big-calendar';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import moment from 'moment';
@@ -56,8 +56,13 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
   const [currentView, setCurrentView] = useState<View>(defaultView);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [calendarHeight, setCalendarHeight] = useState(700);
+  const [columnWidths, setColumnWidths] = useState<{ [key: string]: number }>({});
+  const [timeSlotHeight, setTimeSlotHeight] = useState(30);
   const { workingHours, calculateStartTime, isWorkingTime } = useWorkingHours();
   const resizeRef = useRef<HTMLDivElement>(null);
+  const calendarRef = useRef<HTMLDivElement>(null);
+  const [isResizingColumn, setIsResizingColumn] = useState<string | null>(null);
+  const [isResizingTimeSlot, setIsResizingTimeSlot] = useState(false);
   const events: CalendarEvent[] = useMemo(() => {
     return todos
       .filter(todo => todo.due_date)
@@ -311,6 +316,171 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
     document.removeEventListener('mouseup', stopResize);
   };
 
+  // Column resizing functionality
+  const handleColumnResize = useCallback((e: MouseEvent, columnIndex: string) => {
+    if (!calendarRef.current || !isResizingColumn) return;
+    
+    const rect = calendarRef.current.getBoundingClientRect();
+    const relativeX = e.clientX - rect.left;
+    const minWidth = 100;
+    const maxWidth = 400;
+    const newWidth = Math.max(minWidth, Math.min(maxWidth, relativeX));
+    
+    setColumnWidths(prev => ({
+      ...prev,
+      [columnIndex]: newWidth
+    }));
+  }, [isResizingColumn]);
+
+  const startColumnResize = (e: React.MouseEvent, columnIndex: string) => {
+    e.preventDefault();
+    setIsResizingColumn(columnIndex);
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      handleColumnResize(e, columnIndex);
+    };
+    
+    const handleMouseUp = () => {
+      setIsResizingColumn(null);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  // Time slot resizing functionality
+  const handleTimeSlotResize = useCallback((e: MouseEvent) => {
+    if (!isResizingTimeSlot) return;
+    
+    const deltaY = e.movementY;
+    setTimeSlotHeight(prev => Math.max(15, Math.min(60, prev + deltaY)));
+  }, [isResizingTimeSlot]);
+
+  const startTimeSlotResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizingTimeSlot(true);
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      handleTimeSlotResize(e);
+    };
+    
+    const handleMouseUp = () => {
+      setIsResizingTimeSlot(false);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  // Apply custom styles for resizable elements
+  useEffect(() => {
+    if (!calendarRef.current) return;
+    
+    // Apply column widths
+    Object.entries(columnWidths).forEach(([columnIndex, width]) => {
+      const columnElements = calendarRef.current?.querySelectorAll(
+        `.rbc-time-header-cell:nth-child(${parseInt(columnIndex) + 2}), .rbc-day-slot:nth-child(${parseInt(columnIndex) + 1})`
+      );
+      columnElements?.forEach(el => {
+        (el as HTMLElement).style.width = `${width}px`;
+        (el as HTMLElement).style.minWidth = `${width}px`;
+      });
+    });
+
+    // Apply time slot height
+    const timeSlots = calendarRef.current?.querySelectorAll('.rbc-time-slot');
+    timeSlots?.forEach(slot => {
+      (slot as HTMLElement).style.height = `${timeSlotHeight}px`;
+      (slot as HTMLElement).style.minHeight = `${timeSlotHeight}px`;
+    });
+  }, [columnWidths, timeSlotHeight]);
+
+  // Add resize handles after calendar renders
+  useEffect(() => {
+    if (!calendarRef.current) return;
+
+    const addResizeHandles = () => {
+      // Add column resize handles
+      const headerCells = calendarRef.current?.querySelectorAll('.rbc-time-header-cell');
+      headerCells?.forEach((cell, index) => {
+        if (index === 0) return; // Skip the first column (time gutter)
+        
+        const existingHandle = cell.querySelector('.column-resize-handle');
+        if (existingHandle) return;
+        
+        const handle = document.createElement('div');
+        handle.className = 'column-resize-handle';
+        handle.style.cssText = `
+          position: absolute;
+          right: -2px;
+          top: 0;
+          bottom: 0;
+          width: 4px;
+          cursor: col-resize;
+          background: transparent;
+          z-index: 10;
+        `;
+        
+        handle.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          startColumnResize(e as any, index.toString());
+        });
+        
+        handle.addEventListener('mouseenter', () => {
+          handle.style.background = 'hsl(var(--primary) / 0.3)';
+        });
+        
+        handle.addEventListener('mouseleave', () => {
+          handle.style.background = 'transparent';
+        });
+        
+        cell.appendChild(handle);
+      });
+
+      // Add time slot resize handle
+      const timeGutter = calendarRef.current?.querySelector('.rbc-time-gutter');
+      if (timeGutter && !timeGutter.querySelector('.timeslot-resize-handle')) {
+        const handle = document.createElement('div');
+        handle.className = 'timeslot-resize-handle';
+        handle.style.cssText = `
+          position: absolute;
+          bottom: -2px;
+          left: 0;
+          right: 0;
+          height: 4px;
+          cursor: row-resize;
+          background: transparent;
+          z-index: 10;
+        `;
+        
+        handle.addEventListener('mousedown', (e) => {
+          startTimeSlotResize(e as any);
+        });
+        
+        handle.addEventListener('mouseenter', () => {
+          handle.style.background = 'hsl(var(--primary) / 0.3)';
+        });
+        
+        handle.addEventListener('mouseleave', () => {
+          handle.style.background = 'transparent';
+        });
+        
+        timeGutter.appendChild(handle);
+      }
+    };
+
+    // Add handles after a short delay to ensure calendar is rendered
+    const timer = setTimeout(addResizeHandles, 100);
+    
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [currentView, currentDate]);
+
   return (
     <div 
       ref={resizeRef}
@@ -319,55 +489,57 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
     >
       <div className="relative h-full">
         <WorkingHoursBackground />
-        <DragAndDropCalendar
-          localizer={localizer}
-          events={events}
-          startAccessor="start"
-          endAccessor="end"
-          style={{ height: '100%' }}
-          onSelectEvent={onSelectEvent}
-          onSelectSlot={onSelectSlot}
-          selectable
-          popup
-          eventPropGetter={eventStyleGetter}
-          components={{
-            event: CustomEvent,
-          }}
-          views={['week', 'day']}
-          view={currentView}
-          onView={handleViewChange}
-          date={currentDate}
-          onNavigate={handleNavigate}
-          step={15}
-          timeslots={4}
-          showMultiDayTimes={true}
-          allDayAccessor="allDay"
-          className="todo-calendar resizable-calendar"
-          onEventDrop={handleEventDrop}
-          onEventResize={handleEventResize}
-          draggableAccessor={() => true}
-          resizable={true}
-          min={workingHours ? 
-            new Date(0, 0, 0, parseInt(workingHours.start_time.split(':')[0]) - 1, 0, 0) : 
-            new Date(0, 0, 0, 6, 0, 0)}
-          max={workingHours ? 
-            new Date(0, 0, 0, parseInt(workingHours.end_time.split(':')[0]) + 2, 0, 0) : 
-            new Date(0, 0, 0, 22, 0, 0)}
-          scrollToTime={workingHours ? 
-            new Date(0, 0, 0, parseInt(workingHours.start_time.split(':')[0]), 0, 0) : 
-            new Date(0, 0, 0, 8, 0, 0)}
-          formats={{
-            timeGutterFormat: 'h:mm A',
-            eventTimeRangeFormat: ({ start, end }, culture, localizer) =>
-              localizer?.format(start, 'h:mm A', culture) + ' - ' + localizer?.format(end, 'h:mm A', culture),
-            agendaTimeRangeFormat: ({ start, end }, culture, localizer) =>
-              localizer?.format(start, 'h:mm A', culture) + ' - ' + localizer?.format(end, 'h:mm A', culture),
-          }}
-        />
+        <div ref={calendarRef} className="h-full">
+          <DragAndDropCalendar
+            localizer={localizer}
+            events={events}
+            startAccessor="start"
+            endAccessor="end"
+            style={{ height: '100%' }}
+            onSelectEvent={onSelectEvent}
+            onSelectSlot={onSelectSlot}
+            selectable
+            popup
+            eventPropGetter={eventStyleGetter}
+            components={{
+              event: CustomEvent,
+            }}
+            views={['week', 'day']}
+            view={currentView}
+            onView={handleViewChange}
+            date={currentDate}
+            onNavigate={handleNavigate}
+            step={15}
+            timeslots={4}
+            showMultiDayTimes={true}
+            allDayAccessor="allDay"
+            className="todo-calendar resizable-calendar"
+            onEventDrop={handleEventDrop}
+            onEventResize={handleEventResize}
+            draggableAccessor={() => true}
+            resizable={true}
+            min={workingHours ? 
+              new Date(0, 0, 0, parseInt(workingHours.start_time.split(':')[0]) - 1, 0, 0) : 
+              new Date(0, 0, 0, 6, 0, 0)}
+            max={workingHours ? 
+              new Date(0, 0, 0, parseInt(workingHours.end_time.split(':')[0]) + 2, 0, 0) : 
+              new Date(0, 0, 0, 22, 0, 0)}
+            scrollToTime={workingHours ? 
+              new Date(0, 0, 0, parseInt(workingHours.start_time.split(':')[0]), 0, 0) : 
+              new Date(0, 0, 0, 8, 0, 0)}
+            formats={{
+              timeGutterFormat: 'h:mm A',
+              eventTimeRangeFormat: ({ start, end }, culture, localizer) =>
+                localizer?.format(start, 'h:mm A', culture) + ' - ' + localizer?.format(end, 'h:mm A', culture),
+              agendaTimeRangeFormat: ({ start, end }, culture, localizer) =>
+                localizer?.format(start, 'h:mm A', culture) + ' - ' + localizer?.format(end, 'h:mm A', culture),
+            }}
+          />
+        </div>
         <TimeIndicator />
       </div>
       
-      {/* Resize handle */}
+      {/* Resize handle for calendar height */}
       <div 
         className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-8 h-3 bg-muted rounded-t cursor-row-resize flex items-center justify-center"
         onMouseDown={startResize}
