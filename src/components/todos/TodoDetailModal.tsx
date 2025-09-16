@@ -11,19 +11,23 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { CalendarIcon, Clock, User, Save, Trash2, MessageSquare, Activity, ExternalLink } from 'lucide-react';
+import { CalendarIcon, Clock, User, Save, Trash2, MessageSquare, Activity, ExternalLink, Timer } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
+import { DurationInput } from '@/components/ui/duration-input';
 
 interface Todo {
   id: string;
   title: string;
   description?: string;
   due_date?: string;
+  due_time?: string;
+  duration?: number;
+  contact_id?: string;
   priority?: string;
   status: 'pending' | 'in_progress' | 'completed';
   assigned_to?: string;
@@ -38,6 +42,7 @@ interface Todo {
   assigned_profile?: { first_name: string; last_name: string; id: string } | null;
   created_by_profile?: { first_name: string; last_name: string; id: string } | null;
   todo_types?: { name: string; color: string; icon: string } | null;
+  contact?: { first_name: string; last_name: string; id: string } | null;
 }
 
 interface TodoDetailModalProps {
@@ -72,6 +77,7 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
   const [saving, setSaving] = useState(false);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [todoTypes, setTodoTypes] = useState<any[]>([]);
+  const [contacts, setContacts] = useState<any[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [newNote, setNewNote] = useState('');
   const [addingNote, setAddingNote] = useState(false);
@@ -79,15 +85,45 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
 
   useEffect(() => {
     if (todo) {
-      setEditedTodo({ ...todo });
+      // Fetch complete todo data with relationships
+      fetchCompleteToDoData();
       if (currentTenant?.id) {
         fetchProfiles();
         fetchTodoTypes();
+        fetchContacts();
         fetchActivityLogs();
         fetchLinkedEntity();
       }
     }
   }, [todo, currentTenant?.id]);
+
+  const fetchCompleteToDoData = async () => {
+    if (!todo?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('todos')
+        .select(`
+          *,
+          contact:contacts(id, first_name, last_name),
+          assigned_profile:profiles!assigned_to(id, first_name, last_name),
+          created_by_profile:profiles!created_by(id, first_name, last_name),
+          todo_types(name, color, icon)
+        `)
+        .eq('id', todo.id)
+        .single();
+      
+      if (error) throw error;
+      
+      if (data) {
+        setEditedTodo(data);
+      }
+    } catch (error) {
+      console.error('Error fetching complete todo data:', error);
+      // Fallback to the provided todo data
+      setEditedTodo({ ...todo });
+    }
+  };
 
   const fetchProfiles = async () => {
     try {
@@ -118,6 +154,22 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
       }
     } catch (error) {
       console.error('Error fetching todo types:', error);
+    }
+  };
+
+  const fetchContacts = async () => {
+    try {
+      const { data } = await supabase
+        .from('contacts')
+        .select('id, first_name, last_name')
+        .eq('tenant_id', currentTenant?.id)
+        .order('first_name');
+      
+      if (data) {
+        setContacts(data);
+      }
+    } catch (error) {
+      console.error('Error fetching contacts:', error);
     }
   };
 
@@ -260,6 +312,9 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
           title: editedTodo.title,
           description: editedTodo.description,
           due_date: editedTodo.due_date,
+          due_time: editedTodo.due_time,
+          duration: editedTodo.duration,
+          contact_id: editedTodo.contact_id,
           priority: editedTodo.priority as 'high' | 'medium' | 'low' | 'urgent',
           status: editedTodo.status,
           assigned_to: editedTodo.assigned_to,
@@ -429,6 +484,38 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
                 </div>
 
                 <div>
+                  <Label>Due Time</Label>
+                  <Input
+                    type="time"
+                    value={editedTodo.due_time || ''}
+                    onChange={(e) => setEditedTodo({ ...editedTodo, due_time: e.target.value || undefined })}
+                    disabled={!canEdit}
+                  />
+                </div>
+
+                <div>
+                  <Label>Duration</Label>
+                  {canEdit ? (
+                    <DurationInput
+                      value={editedTodo.duration || 10}
+                      onChange={(minutes) => setEditedTodo({ ...editedTodo, duration: minutes })}
+                    />
+                  ) : (
+                    <div className="p-2 bg-muted rounded-md text-sm">
+                      {editedTodo.duration ? (
+                        editedTodo.duration >= 1440 
+                          ? `${Math.round(editedTodo.duration / 1440)} day${Math.round(editedTodo.duration / 1440) > 1 ? 's' : ''}`
+                          : editedTodo.duration >= 60 
+                          ? `${Math.round(editedTodo.duration / 60)} hour${Math.round(editedTodo.duration / 60) > 1 ? 's' : ''}`
+                          : `${editedTodo.duration} minute${editedTodo.duration > 1 ? 's' : ''}`
+                      ) : (
+                        '10 minutes (default)'
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div>
                   <Label>Status</Label>
                   <Select
                     value={editedTodo.status}
@@ -514,6 +601,30 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
                   </Select>
                 </div>
 
+                <div>
+                  <Label>Contact</Label>
+                  <Select
+                    value={editedTodo.contact_id || 'none'}
+                    onValueChange={(value) => setEditedTodo({ 
+                      ...editedTodo, 
+                      contact_id: value === 'none' ? undefined : value 
+                    })}
+                    disabled={!canEdit}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select contact" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No contact</SelectItem>
+                      {contacts.map((contact) => (
+                        <SelectItem key={contact.id} value={contact.id}>
+                          {contact.first_name} {contact.last_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 {linkedEntity && (
                   <div>
                     <Label>Linked Entity</Label>
@@ -538,11 +649,34 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
                       {editedTodo.priority || 'medium'} priority
                     </Badge>
                   </div>
-                  <div className="text-sm text-muted-foreground">
+                  <div className="text-sm text-muted-foreground space-y-1">
                     <div>Created: {format(new Date(editedTodo.created_at), 'PPP')}</div>
                     <div>Updated: {format(new Date(editedTodo.updated_at), 'PPP')}</div>
                     {editedTodo.completed_at && (
                       <div>Completed: {format(new Date(editedTodo.completed_at), 'PPP')}</div>
+                    )}
+                    {editedTodo.due_time && (
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        Due at: {editedTodo.due_time}
+                      </div>
+                    )}
+                    {editedTodo.duration && (
+                      <div className="flex items-center gap-1">
+                        <Timer className="h-3 w-3" />
+                        Duration: {editedTodo.duration >= 1440 
+                          ? `${Math.round(editedTodo.duration / 1440)} day${Math.round(editedTodo.duration / 1440) > 1 ? 's' : ''}`
+                          : editedTodo.duration >= 60 
+                          ? `${Math.round(editedTodo.duration / 60)} hour${Math.round(editedTodo.duration / 60) > 1 ? 's' : ''}`
+                          : `${editedTodo.duration} minute${editedTodo.duration > 1 ? 's' : ''}`
+                        }
+                      </div>
+                    )}
+                    {editedTodo.contact && (
+                      <div className="flex items-center gap-1">
+                        <User className="h-3 w-3" />
+                        Contact: {editedTodo.contact.first_name} {editedTodo.contact.last_name}
+                      </div>
                     )}
                   </div>
                 </div>
