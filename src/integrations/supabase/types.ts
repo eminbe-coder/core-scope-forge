@@ -3536,6 +3536,7 @@ export type Database = {
           notes: string | null
           payment_term_id: string | null
           priority: Database["public"]["Enums"]["todo_priority"]
+          start_time: string | null
           status: Database["public"]["Enums"]["todo_status"]
           tenant_id: string
           title: string
@@ -3559,6 +3560,7 @@ export type Database = {
           notes?: string | null
           payment_term_id?: string | null
           priority?: Database["public"]["Enums"]["todo_priority"]
+          start_time?: string | null
           status?: Database["public"]["Enums"]["todo_status"]
           tenant_id: string
           title: string
@@ -3582,6 +3584,7 @@ export type Database = {
           notes?: string | null
           payment_term_id?: string | null
           priority?: Database["public"]["Enums"]["todo_priority"]
+          start_time?: string | null
           status?: Database["public"]["Enums"]["todo_status"]
           tenant_id?: string
           title?: string

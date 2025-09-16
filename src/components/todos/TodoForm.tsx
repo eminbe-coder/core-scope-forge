@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -22,6 +22,7 @@ const todoSchema = z.object({
   assigned_to: z.string().optional(),
   due_date: z.string().optional(),
   due_time: z.string().optional(),
+  start_time: z.string().optional(),
   duration: z.number().min(1).optional().default(10),
   priority: z.string().optional().default('medium'),
   type_id: z.string().optional(),
@@ -48,7 +49,7 @@ export const TodoForm = ({
 }: TodoFormProps) => {
   const { currentTenant } = useTenant();
   const { user } = useAuth();
-  const { calculateStartTime } = useWorkingHours();
+  const { calculateStartTime, workingHours } = useWorkingHours();
   const [open, setOpen] = useState(defaultOpen);
   const [todoTypes, setTodoTypes] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -64,6 +65,7 @@ export const TodoForm = ({
         assigned_to: user?.id || 'unassigned',
         due_date: '',
         due_time: '',
+        start_time: '',
         duration: 10,
         priority: 'medium',
         type_id: '',
@@ -82,6 +84,7 @@ export const TodoForm = ({
         assigned_to: user?.id || 'unassigned',
         due_date: '',
         due_time: '',
+        start_time: '',
         duration: 10,
         priority: 'medium',
         type_id: '',
@@ -145,6 +148,74 @@ export const TodoForm = ({
     }
   };
 
+  // Auto-calculation functions
+  const calculateDueTime = (startTime: string, durationMinutes: number, date: string): string => {
+    if (!startTime || !durationMinutes || !date) return '';
+    
+    const startDateTime = new Date(`${date}T${startTime}`);
+    const endDateTime = new Date(startDateTime.getTime() + durationMinutes * 60 * 1000);
+    
+    return endDateTime.toTimeString().slice(0, 5); // HH:MM format
+  };
+
+  const calculateStartTimeFromDue = (dueTime: string, durationMinutes: number, date: string): string => {
+    if (!dueTime || !durationMinutes || !date) return '';
+    
+    const dueDateTime = new Date(`${date}T${dueTime}`);
+    if (workingHours) {
+      const startDateTime = calculateStartTime(dueDateTime, durationMinutes);
+      return startDateTime.toTimeString().slice(0, 5); // HH:MM format
+    } else {
+      // Fallback: simple subtraction
+      const startDateTime = new Date(dueDateTime.getTime() - durationMinutes * 60 * 1000);
+      return startDateTime.toTimeString().slice(0, 5);
+    }
+  };
+
+  const calculateDurationFromTimes = (startTime: string, dueTime: string): number => {
+    if (!startTime || !dueTime) return 10;
+    
+    const start = new Date(`2000-01-01T${startTime}`);
+    const due = new Date(`2000-01-01T${dueTime}`);
+    const diffMs = due.getTime() - start.getTime();
+    
+    return Math.max(5, Math.round(diffMs / (1000 * 60))); // Minimum 5 minutes
+  };
+
+  // Watch for changes and auto-calculate
+  const watchedValues = form.watch();
+  
+  React.useEffect(() => {
+    const { start_time, due_time, duration, due_date } = watchedValues;
+    
+    // Only auto-calculate if we have a date
+    if (!due_date) return;
+
+    // Calculate due_time when start_time or duration changes
+    if (start_time && duration && !due_time) {
+      const calculatedDueTime = calculateDueTime(start_time, duration, due_date);
+      if (calculatedDueTime !== due_time) {
+        form.setValue('due_time', calculatedDueTime, { shouldValidate: false });
+      }
+    }
+    
+    // Calculate start_time when due_time or duration changes
+    else if (due_time && duration && !start_time) {
+      const calculatedStartTime = calculateStartTimeFromDue(due_time, duration, due_date);
+      if (calculatedStartTime !== start_time) {
+        form.setValue('start_time', calculatedStartTime, { shouldValidate: false });
+      }
+    }
+    
+    // Calculate duration when both times are set
+    else if (start_time && due_time && (!duration || duration === 10)) {
+      const calculatedDuration = calculateDurationFromTimes(start_time, due_time);
+      if (calculatedDuration !== duration) {
+        form.setValue('duration', calculatedDuration, { shouldValidate: false });
+      }
+    }
+  }, [watchedValues.start_time, watchedValues.due_time, watchedValues.duration, watchedValues.due_date, form, workingHours]);
+
   const onSubmit = async (values: any) => {
     if (!currentTenant?.id) return;
 
@@ -170,6 +241,7 @@ export const TodoForm = ({
           description: values.description || null,
           due_date: values.due_date || null,
           due_time: values.due_time || null,
+          start_time: values.start_time || null,
           duration: values.duration || 10,
           priority: values.priority || 'medium',
           status: 'pending',
@@ -313,15 +385,29 @@ export const TodoForm = ({
               )}
             />
 
+            <FormField
+              control={form.control}
+              name="due_date"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Due Date</FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="due_date"
+                name="start_time"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Due Date</FormLabel>
+                    <FormLabel>Start Time</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <Input type="time" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
