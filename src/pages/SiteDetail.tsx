@@ -489,31 +489,48 @@ const SiteDetail = () => {
                 <p className="text-sm font-medium">Address</p>
                 <p className="text-sm text-muted-foreground">{site.address}</p>
               </div>
-              {(site.city || site.state || site.country) && (
+              {site.city && (
                 <div>
-                  <p className="text-sm font-medium">Location</p>
-                  <p className="text-sm text-muted-foreground">
-                    {[site.city, site.state, site.country].filter(Boolean).join(', ')}
-                  </p>
+                  <p className="text-sm font-medium">City</p>
+                  <p className="text-sm text-muted-foreground">{site.city}</p>
                 </div>
               )}
+              {site.state && (
+                <div>
+                  <p className="text-sm font-medium">State/Province</p>
+                  <p className="text-sm text-muted-foreground">{site.state}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-sm font-medium">Country</p>
+                <p className="text-sm text-muted-foreground">{site.country}</p>
+              </div>
               {site.postal_code && (
                 <div>
                   <p className="text-sm font-medium">Postal Code</p>
                   <p className="text-sm text-muted-foreground">{site.postal_code}</p>
                 </div>
               )}
-              {(site.latitude && site.longitude) && (
+              {site.latitude && site.longitude && (
                 <div>
                   <p className="text-sm font-medium">Coordinates</p>
-                  <p className="text-sm text-muted-foreground">
-                    {site.latitude}, {site.longitude}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{site.latitude}, {site.longitude}</p>
                 </div>
               )}
             </CardContent>
           </Card>
+        </div>
 
+        {/* Map Display */}
+        <MapDisplay
+          latitude={site.latitude || 0}
+          longitude={site.longitude || 0}
+          siteName={site.name}
+          address={site.address}
+        />
+
+        {/* Site Information */}
+        <div className="grid gap-6 md:grid-cols-2">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

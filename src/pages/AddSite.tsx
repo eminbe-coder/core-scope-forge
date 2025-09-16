@@ -19,6 +19,7 @@ import { MapPin, Building, Upload, Download, Camera, X } from 'lucide-react';
 import { parseSiteCSV, importSites, downloadSiteTemplate } from '@/lib/site-import';
 import { EntityRelationshipSelector, EntityRelationship } from '@/components/forms/EntityRelationshipSelector';
 import { saveEntityRelationships, EntityRelationshipData } from '@/utils/entity-relationships';
+import { LocationPicker } from '@/components/ui/location-picker';
 
 // GCC Countries list
 const GCC_COUNTRIES = [
@@ -409,6 +410,7 @@ const AddSite = () => {
                               placeholder="Latitude"
                               {...field}
                               onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                              readOnly
                             />
                           </FormControl>
                           <FormMessage />
@@ -429,6 +431,7 @@ const AddSite = () => {
                               placeholder="Longitude"
                               {...field}
                               onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                              readOnly
                             />
                           </FormControl>
                           <FormMessage />
@@ -438,6 +441,18 @@ const AddSite = () => {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Location Picker */}
+              <div className="md:col-span-2">
+                <LocationPicker
+                  latitude={form.getValues('latitude')}
+                  longitude={form.getValues('longitude')}
+                  onLocationChange={(lat, lng) => {
+                    form.setValue('latitude', lat);
+                    form.setValue('longitude', lng);
+                  }}
+                />
+              </div>
 
               {/* Company Relationships */}
               <div className="md:col-span-2">

@@ -15,6 +15,7 @@ import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
 import { MapPin } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { LocationPicker } from '@/components/ui/location-picker';
 
 const siteSchema = z.object({
   name: z.string().min(1, 'Site name is required'),
@@ -331,7 +332,8 @@ const EditSite = () => {
                             type="number" 
                             step="any" 
                             placeholder="Enter latitude" 
-                            {...field} 
+                            {...field}
+                            readOnly
                           />
                         </FormControl>
                         <FormMessage />
@@ -350,12 +352,25 @@ const EditSite = () => {
                             type="number" 
                             step="any" 
                             placeholder="Enter longitude" 
-                            {...field} 
+                            {...field}
+                            readOnly
                           />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
+                  />
+                </div>
+
+                {/* Location Picker */}
+                <div className="mt-6">
+                  <LocationPicker
+                    latitude={parseFloat(form.getValues('latitude') || '0')}
+                    longitude={parseFloat(form.getValues('longitude') || '0')}
+                    onLocationChange={(lat, lng) => {
+                      form.setValue('latitude', lat.toString());
+                      form.setValue('longitude', lng.toString());
+                    }}
                   />
                 </div>
 
