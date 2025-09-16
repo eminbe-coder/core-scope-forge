@@ -44,6 +44,7 @@ import Projects from "./pages/Projects";
 import Activities from "./pages/Activities";
 import Todos from "./pages/Todos";
 import MyTodos from "./pages/MyTodos";
+import MobileHome from "./pages/MobileHome";
 import Settings from "./pages/Settings";
 import CRMSettings from "./pages/CRMSettings";
 import TodoEngineSettings from "./pages/TodoEngineSettings";
@@ -76,7 +77,8 @@ const App = () => (
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/accept-invitation" element={<AcceptInvitation />} />
                   <Route path="/set-password" element={<SetPassword />} />
-                  <Route path="/" element={<Index />} />
+                  <Route path="/" element={<ProtectedRoute><MobileHome /></ProtectedRoute>} />
+                  <Route path="/dashboard" element={<ProtectedRoute><Index /></ProtectedRoute>} />
                   <Route path="/companies" element={
                     <ProtectedRoute>
                       <Companies />

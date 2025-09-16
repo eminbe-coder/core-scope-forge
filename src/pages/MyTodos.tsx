@@ -1,4 +1,5 @@
-import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { MobileLayout } from '@/components/layout/MobileLayout';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { TodoList } from '@/components/todos/TodoList';
 import { TodoForm } from '@/components/todos/TodoForm';
 import { TodoCalendarView } from '@/components/todos/TodoCalendarView';
@@ -13,6 +14,7 @@ import { useTodoPreferences } from '@/hooks/use-todo-preferences';
 import { useUrlState } from '@/hooks/use-url-state';
 
 const MyTodos = () => {
+  const isMobile = useIsMobile();
   const { currentTenant } = useTenant();
   const { preferences, updatePreference } = useTodoPreferences();
   const [selectedTodoId, setSelectedTodoId] = useUrlState('todo', '');
@@ -126,16 +128,54 @@ const MyTodos = () => {
   };
 
   return (
-    <DashboardLayout>
+    <MobileLayout headerTitle={isMobile ? "My To-Dos" : undefined}>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">My To-Dos</h1>
-            <p className="text-muted-foreground">
-              Manage all your to-do items across the platform
-            </p>
+        {!isMobile && (
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold">My To-Dos</h1>
+              <p className="text-muted-foreground">
+                Manage all your to-do items across the platform
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex bg-muted rounded-md p-1">
+                <Button
+                  variant={preferences.view_type === 'list' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => updatePreference('view_type', 'list')}
+                  className="h-8"
+                >
+                  <List className="h-4 w-4 mr-1" />
+                  List
+                </Button>
+                <Button
+                  variant={preferences.view_type === 'calendar' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => updatePreference('view_type', 'calendar')}
+                  className="h-8"
+                >
+                  <Calendar className="h-4 w-4 mr-1" />
+                  Calendar
+                </Button>
+              </div>
+              <TodoForm
+                entityType="general"
+                entityId=""
+                trigger={
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Quick Add To-Do
+                  </Button>
+                }
+                onSuccess={fetchStats}
+              />
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+        )}
+
+        {isMobile && (
+          <div className="flex items-center justify-between mb-4">
             <div className="flex bg-muted rounded-md p-1">
               <Button
                 variant={preferences.view_type === 'list' ? 'default' : 'ghost'}
@@ -160,18 +200,18 @@ const MyTodos = () => {
               entityType="general"
               entityId=""
               trigger={
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Quick Add To-Do
+                <Button size="sm">
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add
                 </Button>
               }
               onSuccess={fetchStats}
             />
           </div>
-        </div>
+        )}
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className={`grid gap-4 ${isMobile ? 'grid-cols-2' : 'grid-cols-1 md:grid-cols-5'}`}>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total</CardTitle>
@@ -266,7 +306,7 @@ const MyTodos = () => {
           canEdit={true}
         />
       </div>
-    </DashboardLayout>
+    </MobileLayout>
   );
 };
 
