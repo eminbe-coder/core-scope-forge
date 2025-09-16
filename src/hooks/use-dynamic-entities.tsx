@@ -61,7 +61,7 @@ export function useDynamicCompanies(options: EntityHookOptions = {}) {
         query = query.ilike('name', `%${searchTerm.trim()}%`);
       }
 
-      if (limit) {
+      if (limit && limit > 0) {
         query = query.limit(limit);
       }
 
@@ -140,7 +140,7 @@ export function useDynamicContacts(options: EntityHookOptions = {}) {
         query = query.or(`first_name.ilike.%${searchTerm.trim()}%,last_name.ilike.%${searchTerm.trim()}%,email.ilike.%${searchTerm.trim()}%`);
       }
 
-      if (limit) {
+      if (limit && limit > 0) {
         query = query.limit(limit);
       }
 

@@ -14,9 +14,8 @@ import { EnhancedSourceSelect, SourceValues } from '@/components/ui/enhanced-sou
 import { QuickAddCompanyModal } from '@/components/modals/QuickAddCompanyModal';
 import { UnifiedQuickAddContactModal } from '@/components/modals/UnifiedQuickAddContactModal';
 import { QuickAddSiteModal } from '@/components/modals/QuickAddSiteModal';
-import { CompanyRelationshipSelector, CompanyRelationship } from '@/components/forms/CompanyRelationshipSelector';
-import { convertLeadToDeal } from '@/utils/lead-conversion';
-import { saveEntityRelationships } from '@/utils/entity-relationships';
+import { EntityRelationshipSelector, EntityRelationship } from '@/components/forms/EntityRelationshipSelector';
+import { saveEntityRelationships, EntityRelationshipData } from '@/utils/entity-relationships';
 import { SolutionCategorySelect } from '@/components/ui/solution-category-select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { supabase } from '@/integrations/supabase/client';
@@ -127,7 +126,7 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
   const [linkedCompanies, setLinkedCompanies] = useState<{ id: string; name: string }[]>([]);
   const [linkedContacts, setLinkedContacts] = useState<{ id: string; name: string; first_name?: string; last_name?: string }[]>([]);
   const [leadData, setLeadData] = useState<any>(null);
-  const [companyRelationships, setCompanyRelationships] = useState<CompanyRelationship[]>([]);
+  const [companyRelationships, setCompanyRelationships] = useState<EntityRelationshipData[]>([]);
   const [sourceValues, setSourceValues] = useState<SourceValues>({
     sourceCategory: '',
     companySource: '',
@@ -1014,7 +1013,7 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
               </div>
 
               {/* Company Relationships */}
-              <CompanyRelationshipSelector
+              <EntityRelationshipSelector
                 relationships={companyRelationships}
                 onChange={setCompanyRelationships}
                 title="Company Relationships"

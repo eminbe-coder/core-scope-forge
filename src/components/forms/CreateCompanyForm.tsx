@@ -15,8 +15,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
-import { CompanyRelationshipSelector, CompanyRelationship } from '@/components/forms/CompanyRelationshipSelector';
-import { saveEntityRelationships } from '@/utils/entity-relationships';
+import { EntityRelationshipSelector, EntityRelationship } from '@/components/forms/EntityRelationshipSelector';
+import { saveEntityRelationships, EntityRelationshipData } from '@/utils/entity-relationships';
 import { useNavigate } from 'react-router-dom';
 import { SolutionCategorySelect } from '@/components/ui/solution-category-select';
 
@@ -60,7 +60,7 @@ export const CreateCompanyForm = ({ isLead = false, createMode = 'new', onSucces
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [companyRelationships, setCompanyRelationships] = useState<CompanyRelationship[]>([]);
+  const [companyRelationships, setCompanyRelationships] = useState<EntityRelationshipData[]>([]);
   const [leadStages, setLeadStages] = useState<LeadStage[]>([]);
   const [leadQualities, setLeadQualities] = useState<LeadQuality[]>([]);
   const [dealSources, setDealSources] = useState<Array<{ id: string; name: string }>>([]);
@@ -594,7 +594,7 @@ export const CreateCompanyForm = ({ isLead = false, createMode = 'new', onSucces
             )}
 
             {/* Company Relationships */}
-            <CompanyRelationshipSelector
+            <EntityRelationshipSelector
               relationships={companyRelationships}
               onChange={setCompanyRelationships}
               title="Company Relationships"

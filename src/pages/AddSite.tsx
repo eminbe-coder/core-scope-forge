@@ -17,8 +17,8 @@ import { toast } from 'sonner';
 import { validateSiteData } from '@/lib/site-validation';
 import { MapPin, Building, Upload, Download, Camera, X } from 'lucide-react';
 import { parseSiteCSV, importSites, downloadSiteTemplate } from '@/lib/site-import';
-import { CompanyRelationshipSelector, CompanyRelationship } from '@/components/forms/CompanyRelationshipSelector';
-import { saveEntityRelationships } from '@/utils/entity-relationships';
+import { EntityRelationshipSelector, EntityRelationship } from '@/components/forms/EntityRelationshipSelector';
+import { saveEntityRelationships, EntityRelationshipData } from '@/utils/entity-relationships';
 
 // GCC Countries list
 const GCC_COUNTRIES = [
@@ -51,7 +51,7 @@ const AddSite = () => {
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [uploadedImages, setUploadedImages] = useState<File[]>([]);
-  const [relationships, setRelationships] = useState<CompanyRelationship[]>([]);
+  const [relationships, setRelationships] = useState<EntityRelationshipData[]>([]);
 
   const form = useForm<SiteFormData>({
     resolver: zodResolver(siteSchema),
@@ -441,11 +441,11 @@ const AddSite = () => {
 
               {/* Company Relationships */}
               <div className="md:col-span-2">
-                <CompanyRelationshipSelector
+                <EntityRelationshipSelector
                   relationships={relationships}
                   onChange={setRelationships}
-                  title="Company Relationships"
-                  description="Add companies and contacts with their specific roles for this site"
+                  title="Site Relationships" 
+                  description="Add companies or contacts related to this site (e.g., contractors, consultants, etc.)"
                 />
               </div>
 

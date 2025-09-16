@@ -12,8 +12,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
-import { CompanyRelationshipSelector, CompanyRelationship } from '@/components/forms/CompanyRelationshipSelector';
-import { saveEntityRelationships } from '@/utils/entity-relationships';
+import { EntityRelationshipSelector, EntityRelationship } from '@/components/forms/EntityRelationshipSelector';
+import { saveEntityRelationships, EntityRelationshipData } from '@/utils/entity-relationships';
 import { EnhancedSourceSelect, SourceValues } from '@/components/ui/enhanced-source-select';
 import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
@@ -58,7 +58,7 @@ export const CreateSiteForm = ({ isLead = false, createMode = 'new', onSuccess }
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [companyRelationships, setCompanyRelationships] = useState<CompanyRelationship[]>([]);
+  const [companyRelationships, setCompanyRelationships] = useState<EntityRelationshipData[]>([]);
   const [leadStages, setLeadStages] = useState<LeadStage[]>([]);
   const [leadQualities, setLeadQualities] = useState<LeadQuality[]>([]);
   const [defaultQualityId, setDefaultQualityId] = useState<string | null>(null);
@@ -547,12 +547,12 @@ export const CreateSiteForm = ({ isLead = false, createMode = 'new', onSuccess }
              </div>
 
              {/* Company Relationships */}
-             <CompanyRelationshipSelector
-               relationships={companyRelationships}
-               onChange={setCompanyRelationships}
-               title="Company Relationships"
-               description="Link companies with specific roles (e.g., Consultant, Contractor, etc.)"
-             />
+              <EntityRelationshipSelector
+                relationships={companyRelationships}
+                onChange={setCompanyRelationships}
+                title="Company Relationships"
+                description="Link companies with specific roles (e.g., Consultant, Contractor, etc.)"
+              />
 
              <FormField
               control={form.control}
