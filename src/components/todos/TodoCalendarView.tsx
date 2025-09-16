@@ -38,6 +38,14 @@ interface TodoCalendarViewProps {
   onTodoClick?: (todo: Todo) => void;
   onViewChange?: (view: View) => void;
   defaultView?: View;
+  preferences?: {
+    calendar_height?: number;
+    calendar_view?: string;
+    calendar_date?: string;
+    column_widths?: { [key: string]: number };
+    time_slot_height?: number;
+  };
+  onPreferencesChange?: (preferences: any) => void;
 }
 
 interface CalendarEvent extends Event {
@@ -52,12 +60,14 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
   onTodoClick,
   onViewChange,
   defaultView = 'week',
+  preferences,
+  onPreferencesChange,
 }) => {
-  const [currentView, setCurrentView] = useState<View>(defaultView);
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [calendarHeight, setCalendarHeight] = useState(700);
-  const [columnWidths, setColumnWidths] = useState<{ [key: string]: number }>({});
-  const [timeSlotHeight, setTimeSlotHeight] = useState(30);
+  const [currentView, setCurrentView] = useState<View>(preferences?.calendar_view as View || defaultView);
+  const [currentDate, setCurrentDate] = useState(preferences?.calendar_date ? new Date(preferences.calendar_date) : new Date());
+  const [calendarHeight, setCalendarHeight] = useState(preferences?.calendar_height || 700);
+  const [columnWidths, setColumnWidths] = useState<{ [key: string]: number }>(preferences?.column_widths || {});
+  const [timeSlotHeight, setTimeSlotHeight] = useState(preferences?.time_slot_height || 30);
   const { workingHours, calculateStartTime, isWorkingTime } = useWorkingHours();
   const resizeRef = useRef<HTMLDivElement>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
@@ -202,6 +212,9 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
 
   const handleViewChange = (view: View) => {
     setCurrentView(view);
+    onPreferencesChange?.({
+      calendar_view: view
+    });
     if (onViewChange) {
       onViewChange(view);
     }
@@ -209,6 +222,9 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
 
   const handleNavigate = (date: Date) => {
     setCurrentDate(date);
+    onPreferencesChange?.({
+      calendar_date: date.toISOString()
+    });
   };
 
   // Working hours background component
@@ -302,6 +318,10 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
       const rect = resizeRef.current.getBoundingClientRect();
       const newHeight = Math.max(400, e.clientY - rect.top);
       setCalendarHeight(newHeight);
+      // Save preferences when calendar height is resized
+      onPreferencesChange?.({
+        calendar_height: newHeight
+      });
     }
   };
 
@@ -326,11 +346,18 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
     const maxWidth = 400;
     const newWidth = Math.max(minWidth, Math.min(maxWidth, relativeX));
     
-    setColumnWidths(prev => ({
-      ...prev,
-      [columnIndex]: newWidth
-    }));
-  }, [isResizingColumn]);
+    setColumnWidths(prev => {
+      const newWidths = {
+        ...prev,
+        [columnIndex]: newWidth
+      };
+      // Save preferences when column is resized
+      onPreferencesChange?.({
+        column_widths: newWidths
+      });
+      return newWidths;
+    });
+  }, [isResizingColumn, onPreferencesChange]);
 
   const startColumnResize = (e: React.MouseEvent, columnIndex: string) => {
     e.preventDefault();
@@ -355,8 +382,13 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
     if (!isResizingTimeSlot) return;
     
     const deltaY = e.movementY;
-    setTimeSlotHeight(prev => Math.max(15, Math.min(60, prev + deltaY)));
-  }, [isResizingTimeSlot]);
+    const newHeight = Math.max(15, Math.min(60, timeSlotHeight + deltaY));
+    setTimeSlotHeight(newHeight);
+    // Save preferences when time slot is resized
+    onPreferencesChange?.({
+      time_slot_height: newHeight
+    });
+  }, [isResizingTimeSlot, timeSlotHeight, onPreferencesChange]);
 
   const startTimeSlotResize = (e: React.MouseEvent) => {
     e.preventDefault();

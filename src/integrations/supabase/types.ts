@@ -3893,6 +3893,10 @@ export type Database = {
       }
       user_todo_preferences: {
         Row: {
+          calendar_date: string | null
+          calendar_height: number | null
+          calendar_view: string | null
+          column_widths: Json | null
           created_at: string
           filter_assigned: string | null
           filter_category: string | null
@@ -3904,11 +3908,16 @@ export type Database = {
           sort_by: string | null
           sort_order: string | null
           tenant_id: string
+          time_slot_height: number | null
           updated_at: string
           user_id: string
           view_type: string
         }
         Insert: {
+          calendar_date?: string | null
+          calendar_height?: number | null
+          calendar_view?: string | null
+          column_widths?: Json | null
           created_at?: string
           filter_assigned?: string | null
           filter_category?: string | null
@@ -3920,11 +3929,16 @@ export type Database = {
           sort_by?: string | null
           sort_order?: string | null
           tenant_id: string
+          time_slot_height?: number | null
           updated_at?: string
           user_id: string
           view_type?: string
         }
         Update: {
+          calendar_date?: string | null
+          calendar_height?: number | null
+          calendar_view?: string | null
+          column_widths?: Json | null
           created_at?: string
           filter_assigned?: string | null
           filter_category?: string | null
@@ -3936,6 +3950,7 @@ export type Database = {
           sort_by?: string | null
           sort_order?: string | null
           tenant_id?: string
+          time_slot_height?: number | null
           updated_at?: string
           user_id?: string
           view_type?: string

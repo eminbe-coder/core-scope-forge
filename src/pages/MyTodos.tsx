@@ -165,6 +165,12 @@ const MyTodos = () => {
     setSelectedTodoId('');
   };
 
+  const handleCalendarPreferencesChange = (newPreferences: any) => {
+    Object.entries(newPreferences).forEach(([key, value]) => {
+      updatePreference(key as keyof typeof preferences, value);
+    });
+  };
+
   const handleEventDrop = async (args: { event: any; start: Date; end: Date }) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -387,6 +393,8 @@ const MyTodos = () => {
                   onSelectEvent={(event) => {
                     console.log('Selected event:', event);
                   }}
+                  preferences={preferences}
+                  onPreferencesChange={handleCalendarPreferencesChange}
                 />
               </CardContent>
             </Card>

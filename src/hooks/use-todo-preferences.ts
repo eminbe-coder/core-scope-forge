@@ -13,6 +13,11 @@ interface TodoPreferences {
   filter_due_date: string;
   sort_by: string;
   sort_order: 'asc' | 'desc';
+  calendar_height?: number;
+  calendar_view?: string;
+  calendar_date?: string;
+  column_widths?: { [key: string]: number };
+  time_slot_height?: number;
 }
 
 const defaultPreferences: TodoPreferences = {
@@ -25,6 +30,10 @@ const defaultPreferences: TodoPreferences = {
   filter_due_date: 'all',
   sort_by: 'created_at',
   sort_order: 'desc',
+  calendar_height: 700,
+  calendar_view: 'week',
+  column_widths: {},
+  time_slot_height: 30,
 };
 
 export const useTodoPreferences = () => {
@@ -66,6 +75,11 @@ export const useTodoPreferences = () => {
           filter_due_date: data.filter_due_date || 'all',
           sort_by: data.sort_by || 'created_at',
           sort_order: (data.sort_order as 'asc' | 'desc') || 'desc',
+          calendar_height: data.calendar_height || 700,
+          calendar_view: data.calendar_view || 'week',
+          calendar_date: data.calendar_date,
+          column_widths: (typeof data.column_widths === 'object' && data.column_widths) ? data.column_widths as { [key: string]: number } : {},
+          time_slot_height: data.time_slot_height || 30,
         });
       }
     } catch (error) {
