@@ -143,10 +143,43 @@
 .todo-calendar .rbc-addons-dnd-drag-preview {
   opacity: 0.8;
   z-index: 1000;
+  pointer-events: none;
+  transform: rotate(3deg);
+  box-shadow: 0 8px 25px -8px hsl(var(--shadow) / 0.3);
 }
 
 .todo-calendar .rbc-addons-dnd-dragged-event {
-  opacity: 0.5;
+  opacity: 0.3;
+  transform: scale(0.95);
+  transition: transform 0.1s ease, opacity 0.1s ease;
+}
+
+.todo-calendar .rbc-addons-dnd-over {
+  background: hsl(var(--primary) / 0.1);
+  transition: background-color 0.1s ease;
+}
+
+/* Smooth drag transitions */
+.todo-calendar .rbc-event {
+  transition: transform 0.1s ease, opacity 0.1s ease;
+  will-change: transform, opacity;
+}
+
+.todo-calendar .rbc-event:active {
+  transform: scale(1.02);
+}
+
+/* Resize handles for events */
+.todo-calendar .rbc-addons-dnd-resize-ns-anchor {
+  height: 4px;
+  cursor: row-resize;
+  background: hsl(var(--primary) / 0.6);
+  border-radius: 2px;
+}
+
+.todo-calendar .rbc-addons-dnd-resize-ns-anchor:hover {
+  background: hsl(var(--primary));
+  height: 6px;
 }
 
 /* Enhanced resizable columns and time slots */

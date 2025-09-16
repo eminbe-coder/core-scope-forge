@@ -196,19 +196,59 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
     );
   };
 
-  const handleEventDrop = (args: { event: any; start: Date; end: Date }) => {
-    console.log('Event drop detected:', args);
-    if (onEventDrop) {
-      onEventDrop(args);
+  const snapToTimeSlot = (date: Date, snapToMinutes: number = 5): Date => {
+    const newDate = new Date(date);
+    const minutes = newDate.getMinutes();
+    const remainder = minutes % snapToMinutes;
+    
+    if (remainder < snapToMinutes / 2) {
+      newDate.setMinutes(minutes - remainder);
+    } else {
+      newDate.setMinutes(minutes + (snapToMinutes - remainder));
     }
+    newDate.setSeconds(0);
+    newDate.setMilliseconds(0);
+    return newDate;
   };
 
-  const handleEventResize = (args: { event: any; start: Date; end: Date }) => {
-    console.log('Event resize detected:', args);
+  const handleEventDrop = useCallback((args: { event: any; start: Date; end: Date }) => {
+    // Snap to 5-minute intervals for smoother movement
+    const snappedStart = snapToTimeSlot(args.start, 5);
+    const snappedEnd = snapToTimeSlot(args.end, 5);
+    
     if (onEventDrop) {
-      onEventDrop(args);
+      onEventDrop({
+        ...args,
+        start: snappedStart,
+        end: snappedEnd
+      });
     }
-  };
+  }, [onEventDrop]);
+
+  const handleEventResize = useCallback((args: { event: any; start: Date; end: Date }) => {
+    // Snap to 5-minute intervals and calculate duration
+    const snappedStart = snapToTimeSlot(args.start, 5);
+    const snappedEnd = snapToTimeSlot(args.end, 5);
+    
+    // Calculate duration in minutes
+    const durationMs = snappedEnd.getTime() - snappedStart.getTime();
+    const durationMinutes = Math.max(5, Math.round(durationMs / (1000 * 60)));
+    
+    // Update the event with new duration
+    const updatedEvent = {
+      ...args,
+      start: snappedStart,
+      end: snappedEnd,
+      resource: {
+        ...args.event.resource,
+        duration: durationMinutes
+      }
+    };
+    
+    if (onEventDrop) {
+      onEventDrop(updatedEvent);
+    }
+  }, [onEventDrop]);
 
   const handleViewChange = (view: View) => {
     setCurrentView(view);
@@ -541,8 +581,8 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
             onView={handleViewChange}
             date={currentDate}
             onNavigate={handleNavigate}
-            step={15}
-            timeslots={4}
+            step={5}
+            timeslots={12}
             showMultiDayTimes={true}
             allDayAccessor="allDay"
             className="todo-calendar resizable-calendar"
