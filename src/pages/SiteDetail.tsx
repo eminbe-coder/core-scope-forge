@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { SiteRelationships } from '@/components/site-details/SiteRelationships';
 import { SiteTodos } from '@/components/site-details/SiteTodos';
+import { MapDisplay } from '@/components/ui/map-display';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
