@@ -1,9 +1,10 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Calendar, momentLocalizer, Event, View } from 'react-big-calendar';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import moment from 'moment';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { useWorkingHours } from '@/hooks/use-working-hours';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import './calendar-styles.css';
@@ -18,6 +19,7 @@ interface Todo {
   description?: string;
   due_date?: string;
   due_time?: string;
+  duration?: number; // Duration in minutes
   priority?: string;
   status: 'pending' | 'in_progress' | 'completed';
   assigned_to?: string;
@@ -53,6 +55,9 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
 }) => {
   const [currentView, setCurrentView] = useState<View>(defaultView);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [calendarHeight, setCalendarHeight] = useState(700);
+  const { workingHours, calculateStartTime, isWorkingTime } = useWorkingHours();
+  const resizeRef = useRef<HTMLDivElement>(null);
   const events: CalendarEvent[] = useMemo(() => {
     return todos
       .filter(todo => todo.due_date)
@@ -63,8 +68,16 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
         if (todo.due_time) {
           // Combine date and time for timed events
           const dateTimeString = `${todo.due_date}T${todo.due_time}`;
-          startDate = new Date(dateTimeString);
-          endDate = new Date(startDate.getTime() + 60 * 60 * 1000); // Add 1 hour default duration
+          endDate = new Date(dateTimeString);
+          
+          // Calculate start time based on duration and working hours
+          const durationMinutes = todo.duration || 10;
+          if (calculateStartTime) {
+            startDate = calculateStartTime(endDate, durationMinutes);
+          } else {
+            // Fallback: simple subtraction
+            startDate = new Date(endDate.getTime() - durationMinutes * 60 * 1000);
+          }
         } else {
           // All day event - show at top of calendar
           startDate = new Date(todo.due_date!);
@@ -82,7 +95,7 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
           resource: todo,
         };
       });
-  }, [todos]);
+  }, [todos, calculateStartTime]);
 
   const eventStyleGetter = (event: CalendarEvent) => {
     const todo = event.resource;
@@ -193,69 +206,174 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
     setCurrentDate(date);
   };
 
-  // Custom time indicator
-  const TimeIndicator = () => {
-    const now = new Date();
-    const isToday = moment(currentDate).isSame(now, 'day');
+  // Working hours background component
+  const WorkingHoursBackground = () => {
+    if (!workingHours || currentView === 'month') return null;
     
-    if (!isToday || currentView === 'month') return null;
-    
-    const hour = now.getHours();
-    const minute = now.getMinutes();
-    const topPercentage = ((hour - 6) * 60 + minute) / (16 * 60) * 100; // 6am to 10pm = 16 hours
+    const startHour = parseInt(workingHours.start_time.split(':')[0]);
+    const endHour = parseInt(workingHours.end_time.split(':')[0]);
+    const totalHours = 16; // 6am to 10pm
+    const workingStartPercent = ((startHour - 6) / totalHours) * 100;
+    const workingEndPercent = ((endHour - 6) / totalHours) * 100;
     
     return (
-      <div 
-        className="absolute left-0 right-0 border-t-2 border-red-500 z-10 pointer-events-none"
-        style={{ top: `${topPercentage}%` }}
-      >
-        <div className="w-3 h-3 bg-red-500 rounded-full -mt-1.5 -ml-1.5"></div>
+      <div className="absolute inset-0 pointer-events-none z-0">
+        {/* Working hours highlight */}
+        <div 
+          className="absolute left-0 right-0 bg-green-50 opacity-30"
+          style={{ 
+            top: `${workingStartPercent}%`, 
+            height: `${workingEndPercent - workingStartPercent}%` 
+          }}
+        />
+        {/* Non-working hours fade */}
+        <div 
+          className="absolute left-0 right-0 bg-gray-100 opacity-50"
+          style={{ 
+            top: '0%', 
+            height: `${workingStartPercent}%` 
+          }}
+        />
+        <div 
+          className="absolute left-0 right-0 bg-gray-100 opacity-50"
+          style={{ 
+            top: `${workingEndPercent}%`, 
+            height: `${100 - workingEndPercent}%` 
+          }}
+        />
       </div>
     );
   };
 
+  // Enhanced time indicator with current day and time
+  const TimeIndicator = () => {
+    const now = new Date();
+    const [currentTime, setCurrentTime] = useState(now);
+    
+    useEffect(() => {
+      const timer = setInterval(() => {
+        setCurrentTime(new Date());
+      }, 60000); // Update every minute
+      
+      return () => clearInterval(timer);
+    }, []);
+    
+    if (currentView === 'month') return null;
+    
+    const hour = currentTime.getHours();
+    const minute = currentTime.getMinutes();
+    const topPercentage = ((hour - 6) * 60 + minute) / (16 * 60) * 100; // 6am to 10pm = 16 hours
+    
+    // Current day indicator (vertical line)
+    const todayCol = currentView === 'week' && moment(currentDate).isSame(currentTime, 'week');
+    const isToday = moment(currentDate).isSame(currentTime, 'day');
+    
+    return (
+      <>
+        {/* Current time horizontal line */}
+        {isToday && (
+          <div 
+            className="absolute left-0 right-0 border-t-2 border-red-500 z-20 pointer-events-none"
+            style={{ top: `${topPercentage}%` }}
+          >
+            <div className="w-3 h-3 bg-red-500 rounded-full -mt-1.5 -ml-1.5"></div>
+            <div className="text-xs text-red-500 bg-white px-1 ml-4 -mt-3">
+              {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </div>
+          </div>
+        )}
+        
+        {/* Current day vertical line for week view */}
+        {todayCol && currentView === 'week' && (
+          <div className="absolute top-0 bottom-0 border-l-2 border-red-300 opacity-50 z-10 pointer-events-none">
+          </div>
+        )}
+      </>
+    );
+  };
+
+  const handleResize = (e: MouseEvent) => {
+    if (resizeRef.current) {
+      const rect = resizeRef.current.getBoundingClientRect();
+      const newHeight = Math.max(400, e.clientY - rect.top);
+      setCalendarHeight(newHeight);
+    }
+  };
+
+  const startResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    document.addEventListener('mousemove', handleResize);
+    document.addEventListener('mouseup', stopResize);
+  };
+
+  const stopResize = () => {
+    document.removeEventListener('mousemove', handleResize);
+    document.removeEventListener('mouseup', stopResize);
+  };
+
   return (
-    <div className="h-[700px] bg-background rounded-lg border p-4 relative">
-      <DragAndDropCalendar
-        localizer={localizer}
-        events={events}
-        startAccessor="start"
-        endAccessor="end"
-        style={{ height: '100%' }}
-        onSelectEvent={onSelectEvent}
-        onSelectSlot={onSelectSlot}
-        selectable
-        popup
-        eventPropGetter={eventStyleGetter}
-        components={{
-          event: CustomEvent,
-        }}
-        views={['week', 'day']}
-        view={currentView}
-        onView={handleViewChange}
-        date={currentDate}
-        onNavigate={handleNavigate}
-        step={15}
-        timeslots={4}
-        showMultiDayTimes={true}
-        allDayAccessor="allDay"
-        className="todo-calendar"
-        onEventDrop={handleEventDrop}
-        onEventResize={handleEventResize}
-        draggableAccessor={() => true}
-        resizable={true}
-        min={new Date(0, 0, 0, 6, 0, 0)}
-        max={new Date(0, 0, 0, 22, 0, 0)}
-        scrollToTime={new Date(0, 0, 0, 8, 0, 0)}
-        formats={{
-          timeGutterFormat: 'h:mm A',
-          eventTimeRangeFormat: ({ start, end }, culture, localizer) =>
-            localizer?.format(start, 'h:mm A', culture) + ' - ' + localizer?.format(end, 'h:mm A', culture),
-          agendaTimeRangeFormat: ({ start, end }, culture, localizer) =>
-            localizer?.format(start, 'h:mm A', culture) + ' - ' + localizer?.format(end, 'h:mm A', culture),
-        }}
-      />
-      <TimeIndicator />
+    <div 
+      ref={resizeRef}
+      className="bg-background rounded-lg border p-4 relative resize-y overflow-auto"
+      style={{ height: `${calendarHeight}px`, minHeight: '400px' }}
+    >
+      <div className="relative h-full">
+        <WorkingHoursBackground />
+        <DragAndDropCalendar
+          localizer={localizer}
+          events={events}
+          startAccessor="start"
+          endAccessor="end"
+          style={{ height: '100%' }}
+          onSelectEvent={onSelectEvent}
+          onSelectSlot={onSelectSlot}
+          selectable
+          popup
+          eventPropGetter={eventStyleGetter}
+          components={{
+            event: CustomEvent,
+          }}
+          views={['week', 'day']}
+          view={currentView}
+          onView={handleViewChange}
+          date={currentDate}
+          onNavigate={handleNavigate}
+          step={15}
+          timeslots={4}
+          showMultiDayTimes={true}
+          allDayAccessor="allDay"
+          className="todo-calendar resizable-calendar"
+          onEventDrop={handleEventDrop}
+          onEventResize={handleEventResize}
+          draggableAccessor={() => true}
+          resizable={true}
+          min={workingHours ? 
+            new Date(0, 0, 0, parseInt(workingHours.start_time.split(':')[0]) - 1, 0, 0) : 
+            new Date(0, 0, 0, 6, 0, 0)}
+          max={workingHours ? 
+            new Date(0, 0, 0, parseInt(workingHours.end_time.split(':')[0]) + 2, 0, 0) : 
+            new Date(0, 0, 0, 22, 0, 0)}
+          scrollToTime={workingHours ? 
+            new Date(0, 0, 0, parseInt(workingHours.start_time.split(':')[0]), 0, 0) : 
+            new Date(0, 0, 0, 8, 0, 0)}
+          formats={{
+            timeGutterFormat: 'h:mm A',
+            eventTimeRangeFormat: ({ start, end }, culture, localizer) =>
+              localizer?.format(start, 'h:mm A', culture) + ' - ' + localizer?.format(end, 'h:mm A', culture),
+            agendaTimeRangeFormat: ({ start, end }, culture, localizer) =>
+              localizer?.format(start, 'h:mm A', culture) + ' - ' + localizer?.format(end, 'h:mm A', culture),
+          }}
+        />
+        <TimeIndicator />
+      </div>
+      
+      {/* Resize handle */}
+      <div 
+        className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-8 h-3 bg-muted rounded-t cursor-row-resize flex items-center justify-center"
+        onMouseDown={startResize}
+      >
+        <div className="w-4 h-0.5 bg-muted-foreground rounded"></div>
+      </div>
     </div>
   );
 };

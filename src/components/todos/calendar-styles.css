@@ -149,6 +149,77 @@
   opacity: 0.5;
 }
 
+/* Resizable columns */
+.resizable-calendar .rbc-time-header-cell {
+  border-right: 1px solid hsl(var(--border));
+  min-width: 120px;
+  resize: horizontal;
+  overflow: auto;
+  position: relative;
+}
+
+.resizable-calendar .rbc-day-slot {
+  border-right: 1px solid hsl(var(--border));
+  min-width: 120px;
+  position: relative;
+}
+
+/* Column resize handle */
+.resizable-calendar .rbc-time-header-cell::after {
+  content: '';
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  cursor: col-resize;
+  background: transparent;
+  z-index: 10;
+}
+
+.resizable-calendar .rbc-time-header-cell:hover::after {
+  background: hsl(var(--primary) / 0.3);
+}
+
+/* Working hours styling */
+.working-hours-bg {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--success) / 0.1) 0%,
+    hsl(var(--success) / 0.05) 100%
+  );
+}
+
+.non-working-hours-bg {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted) / 0.3) 0%,
+    hsl(var(--muted) / 0.1) 100%
+  );
+}
+
+/* Enhanced time slots */
+.resizable-calendar .rbc-time-slot {
+  border-top: 1px solid hsl(var(--border) / 0.2);
+  min-height: 15px;
+  transition: background-color 0.2s;
+}
+
+.resizable-calendar .rbc-time-slot:hover {
+  background: hsl(var(--accent) / 0.1);
+}
+
+/* Current time indicator enhancements */
+.resizable-calendar .rbc-current-time-indicator {
+  background-color: hsl(var(--destructive));
+  height: 2px;
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  box-shadow: 0 0 4px hsl(var(--destructive) / 0.5);
+}
+
 /* Time gutter improvements */
 .todo-calendar .rbc-time-gutter {
   border-right: 1px solid hsl(var(--border));

@@ -3529,6 +3529,7 @@ export type Database = {
           description: string | null
           due_date: string | null
           due_time: string | null
+          duration: number | null
           entity_id: string
           entity_type: string
           id: string
@@ -3551,6 +3552,7 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           due_time?: string | null
+          duration?: number | null
           entity_id: string
           entity_type: string
           id?: string
@@ -3573,6 +3575,7 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           due_time?: string | null
+          duration?: number | null
           entity_id?: string
           entity_type?: string
           id?: string
@@ -3936,6 +3939,45 @@ export type Database = {
           updated_at?: string
           user_id?: string
           view_type?: string
+        }
+        Relationships: []
+      }
+      user_working_hours: {
+        Row: {
+          created_at: string
+          custom_holidays: string[] | null
+          end_time: string
+          id: string
+          start_time: string
+          tenant_id: string
+          timezone: string
+          updated_at: string
+          user_id: string
+          working_days: number[]
+        }
+        Insert: {
+          created_at?: string
+          custom_holidays?: string[] | null
+          end_time?: string
+          id?: string
+          start_time?: string
+          tenant_id: string
+          timezone?: string
+          updated_at?: string
+          user_id: string
+          working_days?: number[]
+        }
+        Update: {
+          created_at?: string
+          custom_holidays?: string[] | null
+          end_time?: string
+          id?: string
+          start_time?: string
+          tenant_id?: string
+          timezone?: string
+          updated_at?: string
+          user_id?: string
+          working_days?: number[]
         }
         Relationships: []
       }

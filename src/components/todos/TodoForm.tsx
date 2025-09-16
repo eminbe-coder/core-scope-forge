@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus } from 'lucide-react';
+import { DurationInput } from '@/components/ui/duration-input';
+import { useWorkingHours } from '@/hooks/use-working-hours';
 
 const todoSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -20,6 +22,7 @@ const todoSchema = z.object({
   assigned_to: z.string().optional(),
   due_date: z.string().optional(),
   due_time: z.string().optional(),
+  duration: z.number().min(1).optional().default(10),
   priority: z.string().optional().default('medium'),
   type_id: z.string().optional(),
   payment_term_id: z.string().optional(),
@@ -45,6 +48,7 @@ export const TodoForm = ({
 }: TodoFormProps) => {
   const { currentTenant } = useTenant();
   const { user } = useAuth();
+  const { calculateStartTime } = useWorkingHours();
   const [open, setOpen] = useState(defaultOpen);
   const [todoTypes, setTodoTypes] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -60,6 +64,7 @@ export const TodoForm = ({
         assigned_to: user?.id || 'unassigned',
         due_date: '',
         due_time: '',
+        duration: 10,
         priority: 'medium',
         type_id: '',
         payment_term_id: paymentTermId || 'none',
@@ -77,6 +82,7 @@ export const TodoForm = ({
         assigned_to: user?.id || 'unassigned',
         due_date: '',
         due_time: '',
+        duration: 10,
         priority: 'medium',
         type_id: '',
         payment_term_id: paymentTermId || 'none',
@@ -164,6 +170,7 @@ export const TodoForm = ({
           description: values.description || null,
           due_date: values.due_date || null,
           due_time: values.due_time || null,
+          duration: values.duration || 10,
           priority: values.priority || 'medium',
           status: 'pending',
           assigned_to: values.assigned_to === 'unassigned' ? null : values.assigned_to || null,
@@ -287,6 +294,24 @@ export const TodoForm = ({
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="duration"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Duration</FormLabel>
+                  <FormControl>
+                    <DurationInput
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="Task duration"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="grid grid-cols-2 gap-4">
               <FormField

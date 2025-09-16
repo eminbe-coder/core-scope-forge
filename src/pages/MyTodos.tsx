@@ -6,7 +6,9 @@ import { TodoCalendarView } from '@/components/todos/TodoCalendarView';
 import { TodoDetailModal } from '@/components/todos/TodoDetailModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, CheckCircle, Clock, AlertTriangle, List, Calendar, Save } from 'lucide-react';
+import { Plus, CheckCircle, Clock, AlertTriangle, List, Calendar, Save, Users } from 'lucide-react';
+import { WorkingHoursSettings } from '@/components/todos/WorkingHoursSettings';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
@@ -28,12 +30,21 @@ const MyTodos = () => {
   const [todos, setTodos] = useState<any[]>([]);
   const [selectedTodo, setSelectedTodo] = useState<any>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [profiles, setProfiles] = useState<any[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<string>('');
 
   useEffect(() => {
     if (currentTenant?.id) {
       fetchStats();
+      fetchProfiles();
     }
   }, [currentTenant?.id]);
+
+  useEffect(() => {
+    if (currentTenant?.id && selectedUserId) {
+      fetchUserTodos();
+    }
+  }, [currentTenant?.id, selectedUserId]);
 
   // Handle URL state for selected todo
   useEffect(() => {
@@ -48,6 +59,39 @@ const MyTodos = () => {
       setIsDetailModalOpen(false);
     }
   }, [selectedTodoId, todos]);
+
+  const fetchProfiles = async () => {
+    try {
+      const { data: profilesData } = await supabase
+        .from('user_tenant_memberships')
+        .select(`
+          user_id,
+          profiles:user_id (
+            id,
+            first_name,
+            last_name,
+            email
+          )
+        `)
+        .eq('tenant_id', currentTenant?.id)
+        .eq('active', true);
+
+      if (profilesData) {
+        const profilesList = profilesData
+          .map((membership: any) => membership.profiles)
+          .filter(Boolean);
+        setProfiles(profilesList);
+        
+        // Set current user as default selection
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.id) {
+          setSelectedUserId(user.id);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching profiles:', error);
+    }
+  };
 
   const fetchStats = async () => {
     try {
@@ -93,6 +137,26 @@ const MyTodos = () => {
     }
   };
 
+  const fetchUserTodos = async () => {
+    try {
+      const { data: todosData } = await supabase
+        .from('todos')
+        .select(`
+          *,
+          assigned_profile:profiles!assigned_to(first_name, last_name),
+          todo_types(name, color, icon)
+        `)
+        .eq('tenant_id', currentTenant?.id)
+        .eq('assigned_to', selectedUserId);
+
+      if (todosData) {
+        setTodos(todosData);
+      }
+    } catch (error) {
+      console.error('Error fetching user todos:', error);
+    }
+  };
+
   const handleTodoClick = (todo: any) => {
     setSelectedTodoId(todo.id);
   };
@@ -116,8 +180,7 @@ const MyTodos = () => {
           due_date: newDueDate,
           due_time: newDueTime
         })
-        .eq('id', todoId)
-        .eq('assigned_to', user.id);
+        .eq('id', todoId);
 
       if (error) {
         console.error('Error updating todo due date:', error);
@@ -125,7 +188,11 @@ const MyTodos = () => {
       }
 
       // Refresh data
-      fetchStats();
+      if (selectedUserId) {
+        fetchUserTodos();
+      } else {
+        fetchStats();
+      }
     } catch (error) {
       console.error('Error updating todo due date:', error);
     }
@@ -163,6 +230,7 @@ const MyTodos = () => {
                   Calendar
                 </Button>
               </div>
+              <WorkingHoursSettings />
               <Button
                 variant="outline"
                 size="sm"
@@ -293,8 +361,23 @@ const MyTodos = () => {
         ) : (
           <div className="space-y-4">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
                 <CardTitle>Calendar View</CardTitle>
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Select user" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {profiles.map((profile) => (
+                        <SelectItem key={profile.id} value={profile.id}>
+                          {profile.first_name} {profile.last_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </CardHeader>
               <CardContent>
                 <TodoCalendarView
