@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { DurationInput } from '@/components/ui/duration-input';
+import { useWorkingHours } from '@/hooks/use-working-hours';
 
 interface Todo {
   id: string;
@@ -26,6 +27,7 @@ interface Todo {
   description?: string;
   due_date?: string;
   due_time?: string;
+  start_time?: string;
   duration?: number;
   contact_id?: string;
   priority?: string;
@@ -73,6 +75,7 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
 }) => {
   const { currentTenant } = useTenant();
   const navigate = useNavigate();
+  const { calculateStartTime, workingHours } = useWorkingHours();
   const [editedTodo, setEditedTodo] = useState<Todo | null>(null);
   const [saving, setSaving] = useState(false);
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -301,6 +304,71 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
     }
   };
 
+  // Auto-calculation functions
+  const calculateDueTime = (startTime: string, durationMinutes: number, date: string): string => {
+    if (!startTime || !durationMinutes || !date) return '';
+    
+    const startDateTime = new Date(`${date}T${startTime}`);
+    const endDateTime = new Date(startDateTime.getTime() + durationMinutes * 60 * 1000);
+    
+    return endDateTime.toTimeString().slice(0, 5); // HH:MM format
+  };
+
+  const calculateStartTimeFromDue = (dueTime: string, durationMinutes: number, date: string): string => {
+    if (!dueTime || !durationMinutes || !date) return '';
+    
+    const dueDateTime = new Date(`${date}T${dueTime}`);
+    if (workingHours) {
+      const startDateTime = calculateStartTime(dueDateTime, durationMinutes);
+      return startDateTime.toTimeString().slice(0, 5); // HH:MM format
+    } else {
+      // Fallback: simple subtraction
+      const startDateTime = new Date(dueDateTime.getTime() - durationMinutes * 60 * 1000);
+      return startDateTime.toTimeString().slice(0, 5);
+    }
+  };
+
+  const calculateDurationFromTimes = (startTime: string, dueTime: string): number => {
+    if (!startTime || !dueTime) return 10;
+    
+    const start = new Date(`2000-01-01T${startTime}`);
+    const due = new Date(`2000-01-01T${dueTime}`);
+    const diffMs = due.getTime() - start.getTime();
+    
+    return Math.max(5, Math.round(diffMs / (1000 * 60))); // Minimum 5 minutes
+  };
+
+  // Watch for changes and auto-calculate
+  React.useEffect(() => {
+    if (!editedTodo || !editedTodo.due_date) return;
+
+    const { start_time, due_time, duration, due_date } = editedTodo;
+    
+    // Calculate due_time when start_time or duration changes
+    if (start_time && duration && !due_time) {
+      const calculatedDueTime = calculateDueTime(start_time, duration, due_date);
+      if (calculatedDueTime !== due_time) {
+        setEditedTodo({ ...editedTodo, due_time: calculatedDueTime });
+      }
+    }
+    
+    // Calculate start_time when due_time or duration changes
+    else if (due_time && duration && !start_time) {
+      const calculatedStartTime = calculateStartTimeFromDue(due_time, duration, due_date);
+      if (calculatedStartTime !== start_time) {
+        setEditedTodo({ ...editedTodo, start_time: calculatedStartTime });
+      }
+    }
+    
+    // Calculate duration when both times are set
+    else if (start_time && due_time && (!duration || duration === 10)) {
+      const calculatedDuration = calculateDurationFromTimes(start_time, due_time);
+      if (calculatedDuration !== duration) {
+        setEditedTodo({ ...editedTodo, duration: calculatedDuration });
+      }
+    }
+  }, [editedTodo?.start_time, editedTodo?.due_time, editedTodo?.duration, editedTodo?.due_date, workingHours]);
+
   const handleSave = async () => {
     if (!editedTodo || !canEdit) return;
 
@@ -313,6 +381,7 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
           description: editedTodo.description,
           due_date: editedTodo.due_date,
           due_time: editedTodo.due_time,
+          start_time: editedTodo.start_time,
           duration: editedTodo.duration,
           contact_id: editedTodo.contact_id,
           priority: editedTodo.priority as 'high' | 'medium' | 'low' | 'urgent',
@@ -494,6 +563,16 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
                 </div>
 
                 <div>
+                  <Label>Start Time</Label>
+                  <Input
+                    type="time"
+                    value={editedTodo.start_time || ''}
+                    onChange={(e) => setEditedTodo({ ...editedTodo, start_time: e.target.value || undefined })}
+                    disabled={!canEdit}
+                  />
+                </div>
+
+                <div>
                   <Label>Duration</Label>
                   {canEdit ? (
                     <DurationInput
@@ -659,6 +738,12 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
                       <div className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
                         Due at: {editedTodo.due_time}
+                      </div>
+                    )}
+                    {editedTodo.start_time && (
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        Starts at: {editedTodo.start_time}
                       </div>
                     )}
                     {editedTodo.duration && (
