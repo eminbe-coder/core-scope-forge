@@ -214,10 +214,17 @@ export const LeadActivities = ({ entityId, entityType, entityName }: LeadActivit
                 <Plus className="h-4 w-4 mr-1" />
                 Log Activity
               </Button>
-              <Button size="sm" onClick={() => setTodoModalOpen(true)}>
-                <Plus className="h-4 w-4 mr-1" />
-                Add To-Do
-              </Button>
+              <TodoForm
+                entityType={entityType}
+                entityId={entityId}
+                onSuccess={fetchActivities}
+                trigger={
+                  <Button size="sm">
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add To-Do
+                  </Button>
+                }
+              />
             </div>
           </div>
         </CardHeader>
@@ -318,12 +325,6 @@ export const LeadActivities = ({ entityId, entityType, entityName }: LeadActivit
         entityType={entityType}
         entityId={entityId}
         onSuccess={fetchActivities}
-        trigger={
-          <Button variant="outline" onClick={() => setTodoModalOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add To-Do
-          </Button>
-        }
         defaultOpen={todoModalOpen}
       />
 

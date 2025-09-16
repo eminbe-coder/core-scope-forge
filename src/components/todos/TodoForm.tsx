@@ -22,6 +22,7 @@ const todoSchema = z.object({
   priority: z.string().optional().default('medium'),
   type_id: z.string().optional(),
   payment_term_id: z.string().optional(),
+  contact_id: z.string().optional(),
 });
 
 interface TodoFormProps {
@@ -47,18 +48,20 @@ export const TodoForm = ({
   const [todoTypes, setTodoTypes] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [paymentTerms, setPaymentTerms] = useState<any[]>([]);
+  const [contacts, setContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(todoSchema),
     defaultValues: {
-      title: '',
-      description: '',
-      assigned_to: user?.id || 'unassigned',
-      due_date: '',
-      priority: 'medium',
-      type_id: '',
-      payment_term_id: paymentTermId || 'none',
+        title: '',
+        description: '',
+        assigned_to: user?.id || 'unassigned',
+        due_date: '',
+        priority: 'medium',
+        type_id: '',
+        payment_term_id: paymentTermId || 'none',
+        contact_id: 'none',
     },
   });
 
@@ -74,13 +77,14 @@ export const TodoForm = ({
         priority: 'medium',
         type_id: '',
         payment_term_id: paymentTermId || 'none',
+        contact_id: 'none',
       });
     }
   }, [open, currentTenant?.id, entityType, entityId, user?.id]);
 
   const fetchFormData = async () => {
     try {
-      const [todoTypesRes, profilesRes, paymentTermsRes] = await Promise.all([
+      const [todoTypesRes, profilesRes, contactsRes, paymentTermsRes] = await Promise.all([
         supabase
           .from('todo_types')
           .select('*')
@@ -98,6 +102,13 @@ export const TodoForm = ({
           )
         `).eq('tenant_id', currentTenant?.id).eq('active', true),
 
+        supabase
+          .from('contacts')
+          .select('id, first_name, last_name, email')
+          .eq('tenant_id', currentTenant?.id)
+          .eq('active', true)
+          .order('first_name'),
+
         // Conditionally fetch payment terms for contracts
         ...(entityType === 'contract' ? [
           supabase
@@ -110,9 +121,11 @@ export const TodoForm = ({
 
       if (todoTypesRes.error) throw todoTypesRes.error;
       if (profilesRes.error) throw profilesRes.error;
+      if (contactsRes.error) throw contactsRes.error;
 
       setTodoTypes(todoTypesRes.data || []);
       setProfiles((profilesRes.data || []).map((membership: any) => membership.profiles).filter(Boolean));
+      setContacts(contactsRes.data || []);
       
       if (entityType === 'contract' && paymentTermsRes && !paymentTermsRes.error) {
         setPaymentTerms(paymentTermsRes.data || []);
@@ -151,6 +164,7 @@ export const TodoForm = ({
           status: 'pending',
           assigned_to: values.assigned_to === 'unassigned' ? null : values.assigned_to || null,
           payment_term_id: values.payment_term_id === 'none' ? null : values.payment_term_id || null,
+          contact_id: values.contact_id === 'none' ? null : values.contact_id || null,
           type_id: typeId,
           created_by: user.id,
         });
@@ -301,6 +315,33 @@ export const TodoForm = ({
                       {profiles.map((profile) => (
                         <SelectItem key={profile.id} value={profile.id}>
                           {profile.first_name} {profile.last_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Contact dropdown */}
+            <FormField
+              control={form.control}
+              name="contact_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Related Contact (Optional)</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select contact" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="bg-background border border-border shadow-md z-50">
+                      <SelectItem value="none">No contact</SelectItem>
+                      {contacts.map((contact) => (
+                        <SelectItem key={contact.id} value={contact.id}>
+                          {contact.first_name} {contact.last_name} {contact.email && `(${contact.email})`}
                         </SelectItem>
                       ))}
                     </SelectContent>

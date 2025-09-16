@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
 import { TodoWidget } from '@/components/todos/TodoWidget';
+import { ContactTodos } from '@/components/contact/ContactTodos';
 import { EntityRelationships } from '@/components/entity-relationships/EntityRelationships';
 import { DynamicCompanySelect } from '@/components/ui/dynamic-searchable-select';
 import { DynamicSiteSelect } from '@/components/ui/dynamic-searchable-select';
@@ -603,14 +604,23 @@ const ContactDetail = () => {
 
         {/* Activity Section */}
         <div className="space-y-6">
-          <div>
-            <h2 className="text-2xl font-bold mb-4">Activities & Tasks</h2>
-            <TodoWidget
-              entityType="contact"
-              entityId={id!}
-              canEdit={true}
-              compact={false}
-            />
+          <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+            <div>
+              <h2 className="text-2xl font-bold mb-4">Activities & Tasks</h2>
+              <TodoWidget
+                entityType="contact"
+                entityId={id!}
+                canEdit={true}
+                compact={false}
+              />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold mb-4">Related Tasks</h2>
+              <ContactTodos
+                contactId={id!}
+                contactName={contact ? `${contact.first_name} ${contact.last_name}` : 'Contact'}
+              />
+            </div>
           </div>
         </div>
       </div>

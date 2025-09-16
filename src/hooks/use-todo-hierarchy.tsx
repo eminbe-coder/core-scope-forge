@@ -12,6 +12,7 @@ export interface Todo {
   assigned_to?: string;
   completed_by?: string;
   payment_term_id?: string;
+  contact_id?: string;
   created_at: string;
   completed_at?: string;
   type_id?: string;
@@ -21,6 +22,7 @@ export interface Todo {
   completed_by_profile?: { first_name: string; last_name: string } | null;
   created_by_profile?: { first_name: string; last_name: string } | null;
   todo_types?: { name: string; color: string; icon: string } | null;
+  contact_profile?: { first_name: string; last_name: string } | null;
   // Hierarchy metadata
   source_entity_type?: string;
   source_entity_name?: string;
@@ -67,7 +69,8 @@ export const useTodoHierarchy = ({
             assigned_profile:profiles!todos_assigned_to_fkey (first_name, last_name),
             completed_by_profile:profiles!todos_completed_by_fkey (first_name, last_name),
             created_by_profile:profiles!todos_created_by_fkey (first_name, last_name),
-            todo_types (name, color, icon)
+            todo_types (name, color, icon),
+            contact_profile:contacts!todos_contact_id_fkey (first_name, last_name)
           `)
           .eq('tenant_id', currentTenant.id)
           .eq('entity_type', entityType)
@@ -103,7 +106,8 @@ export const useTodoHierarchy = ({
             assigned_profile:profiles!todos_assigned_to_fkey (first_name, last_name),
             completed_by_profile:profiles!todos_completed_by_fkey (first_name, last_name),
             created_by_profile:profiles!todos_created_by_fkey (first_name, last_name),
-            todo_types (name, color, icon)
+            todo_types (name, color, icon),
+            contact_profile:contacts!todos_contact_id_fkey (first_name, last_name)
           `)
           .eq('tenant_id', currentTenant.id)
           .eq('entity_type', entityType)
