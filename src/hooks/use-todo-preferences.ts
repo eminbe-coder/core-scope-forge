@@ -105,7 +105,12 @@ export const useTodoPreferences = () => {
   };
 
   const updatePreference = (key: keyof TodoPreferences, value: any) => {
-    savePreferences({ [key]: value });
+    // Update local state only, don't auto-save
+    setPreferences(prev => ({ ...prev, [key]: value }));
+  };
+
+  const saveCurrentPreferences = () => {
+    savePreferences({});
   };
 
   return {
@@ -113,5 +118,6 @@ export const useTodoPreferences = () => {
     loading,
     updatePreference,
     savePreferences,
+    saveCurrentPreferences,
   };
 };

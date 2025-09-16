@@ -19,6 +19,7 @@ const todoSchema = z.object({
   description: z.string().optional(),
   assigned_to: z.string().optional(),
   due_date: z.string().optional(),
+  due_time: z.string().optional(),
   priority: z.string().optional().default('medium'),
   type_id: z.string().optional(),
   payment_term_id: z.string().optional(),
@@ -58,6 +59,7 @@ export const TodoForm = ({
         description: '',
         assigned_to: user?.id || 'unassigned',
         due_date: '',
+        due_time: '',
         priority: 'medium',
         type_id: '',
         payment_term_id: paymentTermId || 'none',
@@ -74,6 +76,7 @@ export const TodoForm = ({
         description: '',
         assigned_to: user?.id || 'unassigned',
         due_date: '',
+        due_time: '',
         priority: 'medium',
         type_id: '',
         payment_term_id: paymentTermId || 'none',
@@ -160,6 +163,7 @@ export const TodoForm = ({
           title: values.title,
           description: values.description || null,
           due_date: values.due_date || null,
+          due_time: values.due_time || null,
           priority: values.priority || 'medium',
           status: 'pending',
           assigned_to: values.assigned_to === 'unassigned' ? null : values.assigned_to || null,
@@ -212,10 +216,10 @@ export const TodoForm = ({
                   </FormControl>
                   <FormMessage />
                 </FormItem>
-              )}
-            />
+                  )}
+                />
 
-            <FormField
+                <FormField
               control={form.control}
               name="description"
               render={({ field }) => (
@@ -284,19 +288,35 @@ export const TodoForm = ({
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="due_date"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Due Date</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="due_date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Due Date</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="due_time"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Due Time</FormLabel>
+                    <FormControl>
+                      <Input type="time" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <FormField
               control={form.control}

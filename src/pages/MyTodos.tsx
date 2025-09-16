@@ -6,7 +6,7 @@ import { TodoCalendarView } from '@/components/todos/TodoCalendarView';
 import { TodoDetailModal } from '@/components/todos/TodoDetailModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, CheckCircle, Clock, AlertTriangle, List, Calendar } from 'lucide-react';
+import { Plus, CheckCircle, Clock, AlertTriangle, List, Calendar, Save } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
@@ -16,7 +16,7 @@ import { useUrlState } from '@/hooks/use-url-state';
 const MyTodos = () => {
   const isMobile = useIsMobile();
   const { currentTenant } = useTenant();
-  const { preferences, updatePreference } = useTodoPreferences();
+  const { preferences, updatePreference, saveCurrentPreferences } = useTodoPreferences();
   const [selectedTodoId, setSelectedTodoId] = useUrlState('todo', '');
   const [stats, setStats] = useState({
     total: 0,
@@ -108,10 +108,14 @@ const MyTodos = () => {
 
       const todoId = args.event.id;
       const newDueDate = args.start.toISOString().split('T')[0];
+      const newDueTime = args.start.toTimeString().split(' ')[0];
 
       const { error } = await supabase
         .from('todos')
-        .update({ due_date: newDueDate })
+        .update({ 
+          due_date: newDueDate,
+          due_time: newDueTime
+        })
         .eq('id', todoId)
         .eq('assigned_to', user.id);
 
@@ -159,6 +163,15 @@ const MyTodos = () => {
                   Calendar
                 </Button>
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={saveCurrentPreferences}
+                className="h-8"
+              >
+                <Save className="h-4 w-4 mr-1" />
+                Save View
+              </Button>
               <TodoForm
                 entityType="general"
                 entityId=""

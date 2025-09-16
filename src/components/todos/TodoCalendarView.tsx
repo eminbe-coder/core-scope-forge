@@ -1,10 +1,14 @@
 import React, { useMemo } from 'react';
 import { Calendar, momentLocalizer, Event } from 'react-big-calendar';
+import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import moment from 'moment';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
+import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import './calendar-styles.css';
+
+const DragAndDropCalendar = withDragAndDrop(Calendar);
 
 const localizer = momentLocalizer(moment);
 
@@ -13,6 +17,7 @@ interface Todo {
   title: string;
   description?: string;
   due_date?: string;
+  due_time?: string;
   priority?: string;
   status: 'pending' | 'in_progress' | 'completed';
   assigned_to?: string;
@@ -46,15 +51,26 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
     return todos
       .filter(todo => todo.due_date)
       .map(todo => {
-        const dueDate = new Date(todo.due_date!);
-        const isOverdue = dueDate < new Date() && todo.status !== 'completed';
+        let startDate: Date;
+        let endDate: Date;
+        
+        if (todo.due_time) {
+          // Combine date and time
+          const dateTimeString = `${todo.due_date}T${todo.due_time}`;
+          startDate = new Date(dateTimeString);
+          endDate = new Date(startDate.getTime() + 60 * 60 * 1000); // Add 1 hour
+        } else {
+          // All day event
+          startDate = new Date(todo.due_date!);
+          endDate = new Date(todo.due_date!);
+        }
         
         return {
           id: todo.id,
           title: todo.title,
-          start: dueDate,
-          end: dueDate,
-          allDay: true,
+          start: startDate,
+          end: endDate,
+          allDay: !todo.due_time,
           resource: todo,
         };
       });
@@ -152,7 +168,7 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
 
   return (
     <div className="h-[600px] bg-background rounded-lg border p-4">
-      <Calendar
+      <DragAndDropCalendar
         localizer={localizer}
         events={events}
         startAccessor="start"
@@ -166,14 +182,18 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
         components={{
           event: CustomEvent,
         }}
-        views={['month', 'week', 'day']}
-        defaultView="month"
-        step={60}
+        views={['week', 'day']}
+        defaultView="week"
+        step={15}
+        timeslots={4}
         showMultiDayTimes
         className="todo-calendar"
-        // Enable drag and drop if handler provided
         onEventDrop={onEventDrop ? handleEventDrop : undefined}
+        onEventResize={onEventDrop ? handleEventDrop : undefined}
         draggableAccessor={() => !!onEventDrop}
+        resizable={!!onEventDrop}
+        min={new Date(0, 0, 0, 6, 0, 0)}
+        max={new Date(0, 0, 0, 22, 0, 0)}
       />
     </div>
   );

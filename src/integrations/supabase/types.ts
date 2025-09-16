@@ -3528,6 +3528,7 @@ export type Database = {
           created_by: string
           description: string | null
           due_date: string | null
+          due_time: string | null
           entity_id: string
           entity_type: string
           id: string
@@ -3549,6 +3550,7 @@ export type Database = {
           created_by: string
           description?: string | null
           due_date?: string | null
+          due_time?: string | null
           entity_id: string
           entity_type: string
           id?: string
@@ -3570,6 +3572,7 @@ export type Database = {
           created_by?: string
           description?: string | null
           due_date?: string | null
+          due_time?: string | null
           entity_id?: string
           entity_type?: string
           id?: string
