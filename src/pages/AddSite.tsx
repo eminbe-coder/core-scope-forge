@@ -1,15 +1,13 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SearchableSelect } from '@/components/ui/searchable-select';
-import { DynamicCompanySelect, DynamicContactSelect, DynamicSiteSelect } from '@/components/ui/dynamic-searchable-select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,10 +15,10 @@ import { useTenant } from '@/hooks/use-tenant';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { validateSiteData } from '@/lib/site-validation';
-import { MapPin, Building, User, Upload, Download, FileSpreadsheet, Plus, Camera, X } from 'lucide-react';
+import { MapPin, Building, Upload, Download, Camera, X } from 'lucide-react';
 import { parseSiteCSV, importSites, downloadSiteTemplate } from '@/lib/site-import';
-import { UnifiedQuickAddContactModal } from '@/components/modals/UnifiedQuickAddContactModal';
-import { QuickAddCompanyModal } from '@/components/modals/QuickAddCompanyModal';
+import { CompanyRelationshipSelector, CompanyRelationship } from '@/components/forms/CompanyRelationshipSelector';
+import { saveEntityRelationships } from '@/utils/entity-relationships';
 
 // GCC Countries list
 const GCC_COUNTRIES = [
@@ -39,9 +37,6 @@ const siteSchema = z.object({
   state: z.string().optional(),
   country: z.string().min(1, 'Country is required'),
   postal_code: z.string().optional(),
-  customer_id: z.string().optional(),
-  contact_id: z.string().optional(),
-  company_id: z.string().optional(),
   is_lead: z.boolean(),
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),
@@ -50,35 +45,13 @@ const siteSchema = z.object({
 
 type SiteFormData = z.infer<typeof siteSchema>;
 
-interface Customer {
-  id: string;
-  name: string;
-}
-
-interface Contact {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email?: string;
-}
-
-interface Company {
-  id: string;
-  name: string;
-}
-
 const AddSite = () => {
   const { currentTenant } = useTenant();
   const navigate = useNavigate();
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [uploadedImages, setUploadedImages] = useState<File[]>([]);
-  const [imageUploading, setImageUploading] = useState(false);
-  const [showContactModal, setShowContactModal] = useState(false);
-  const [showCompanyModal, setShowCompanyModal] = useState(false);
+  const [relationships, setRelationships] = useState<CompanyRelationship[]>([]);
 
   const form = useForm<SiteFormData>({
     resolver: zodResolver(siteSchema),
@@ -89,61 +62,12 @@ const AddSite = () => {
       state: '',
       country: '',
       postal_code: '',
-      customer_id: undefined,
-      contact_id: undefined,
-      company_id: undefined,
       is_lead: false,
       latitude: undefined,
       longitude: undefined,
       notes: '',
     },
   });
-
-  const fetchData = async () => {
-    if (!currentTenant) return;
-
-    try {
-      // Fetch customers
-      const { data: customersData, error: customersError } = await supabase
-        .from('customers')
-        .select('id, name')
-        .eq('tenant_id', currentTenant.id)
-        .eq('active', true)
-        .order('name');
-
-      if (customersError) throw customersError;
-      setCustomers(customersData || []);
-
-      // Fetch contacts
-      const { data: contactsData, error: contactsError } = await supabase
-        .from('contacts')
-        .select('id, first_name, last_name, email')
-        .eq('tenant_id', currentTenant.id)
-        .eq('active', true)
-        .order('first_name');
-
-      if (contactsError) throw contactsError;
-      setContacts(contactsData || []);
-
-      // Fetch companies
-      const { data: companiesData, error: companiesError } = await supabase
-        .from('companies')
-        .select('id, name')
-        .eq('tenant_id', currentTenant.id)
-        .eq('active', true)
-        .order('name');
-
-      if (companiesError) throw companiesError;
-      setCompanies(companiesData || []);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      toast.error('Failed to load data');
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, [currentTenant]);
 
   const uploadImages = async (): Promise<string[]> => {
     if (!currentTenant || uploadedImages.length === 0) return [];
@@ -201,9 +125,6 @@ const AddSite = () => {
       // Prepare data for submission
       const submitData = {
         ...data,
-        customer_id: data.customer_id === 'none' ? null : data.customer_id,
-        contact_id: data.contact_id === 'none' ? null : data.contact_id,
-        company_id: data.company_id === 'none' ? null : data.company_id,
         images: imageUrls.length > 0 ? imageUrls : null,
         tenant_id: currentTenant.id,
         active: true
@@ -217,6 +138,11 @@ const AddSite = () => {
         .single();
 
       if (error) throw error;
+
+      // Save entity relationships if any exist
+      if (relationships.length > 0) {
+        await saveEntityRelationships('site', siteData.id, relationships, currentTenant.id);
+      }
 
       toast.success('Site created successfully');
       navigate('/sites');
@@ -292,16 +218,6 @@ const AddSite = () => {
     setUploadedImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleContactCreated = (contact: { id: string; first_name: string; last_name: string; email?: string }) => {
-    setContacts(prev => [...prev, contact]);
-    form.setValue('contact_id', contact.id);
-  };
-
-  const handleCompanyCreated = (company: { id: string; name: string }) => {
-    setCompanies(prev => [...prev, company]);
-    form.setValue('company_id', company.id);
-  };
-
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -357,77 +273,6 @@ const AddSite = () => {
                         <FormControl>
                           <Input placeholder="Enter site name" {...field} />
                         </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="customer_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Customer (Optional)</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a customer" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="none">No customer</SelectItem>
-                            {customers.map((customer) => (
-                              <SelectItem key={customer.id} value={customer.id}>
-                                {customer.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="contact_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Contact (Optional)</FormLabel>
-                        <FormControl>
-                           <DynamicContactSelect
-                             value={field.value}
-                             onValueChange={field.onChange}
-                             placeholder="Search and select contact..."
-                             searchPlaceholder="Search contacts..."
-                             emptyText="No contacts found."
-                             renderOption={(contact) => `${contact.first_name} ${contact.last_name}${contact.email ? ` (${contact.email})` : ''}`}
-                             onAddNew={() => setShowContactModal(true)}
-                             addNewLabel="Add Contact"
-                           />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="company_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Company (Optional)</FormLabel>
-                        <FormControl>
-                           <DynamicCompanySelect
-                             value={field.value}
-                             onValueChange={field.onChange}
-                             placeholder="Search and select company..."
-                             searchPlaceholder="Search companies..."
-                             emptyText="No companies found."
-                             onAddNew={() => setShowCompanyModal(true)}
-                             addNewLabel="Add Company"
-                            />
-                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -503,7 +348,7 @@ const AddSite = () => {
                         <FormItem>
                           <FormLabel>State/Province</FormLabel>
                           <FormControl>
-                            <Input placeholder="State/Province" {...field} />
+                            <Input placeholder="State or Province" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -511,57 +356,45 @@ const AddSite = () => {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                     <FormField
-                       control={form.control}
-                       name="country"
-                       render={({ field }) => (
-                         <FormItem>
-                           <FormLabel>Country *</FormLabel>
-                           <Select onValueChange={field.onChange} value={field.value}>
-                             <FormControl>
-                               <SelectTrigger>
-                                 <SelectValue placeholder="Select a country" />
-                               </SelectTrigger>
-                             </FormControl>
-                             <SelectContent>
-                               {GCC_COUNTRIES.map((country) => (
-                                 <SelectItem key={country} value={country}>
-                                   {country}
-                                 </SelectItem>
-                               ))}
-                             </SelectContent>
-                           </Select>
-                           <FormMessage />
-                         </FormItem>
-                       )}
-                     />
-
-                    <FormField
-                      control={form.control}
-                      name="postal_code"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Postal Code</FormLabel>
+                  <FormField
+                    control={form.control}
+                    name="country"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Country *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
-                            <Input placeholder="Postal Code" {...field} />
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select country" />
+                            </SelectTrigger>
                           </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                          <SelectContent>
+                            {GCC_COUNTRIES.map((country) => (
+                              <SelectItem key={country} value={country}>
+                                {country}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-            {/* Coordinates and Notes */}
-            <div className="grid gap-6 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Coordinates (Optional)</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="postal_code"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Postal Code</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Postal code" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -570,10 +403,10 @@ const AddSite = () => {
                         <FormItem>
                           <FormLabel>Latitude</FormLabel>
                           <FormControl>
-                            <Input 
-                              type="number" 
+                            <Input
+                              type="number"
                               step="any"
-                              placeholder="40.7128" 
+                              placeholder="Latitude"
                               {...field}
                               onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                             />
@@ -590,10 +423,10 @@ const AddSite = () => {
                         <FormItem>
                           <FormLabel>Longitude</FormLabel>
                           <FormControl>
-                            <Input 
-                              type="number" 
+                            <Input
+                              type="number"
                               step="any"
-                              placeholder="-74.0060" 
+                              placeholder="Longitude"
                               {...field}
                               onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                             />
@@ -606,72 +439,84 @@ const AddSite = () => {
                 </CardContent>
               </Card>
 
-               <Card>
-                 <CardHeader>
-                   <CardTitle>Site Images</CardTitle>
-                 </CardHeader>
-                 <CardContent className="space-y-4">
-                   <div>
-                     <div className="flex items-center gap-2 mb-4">
-                       <div className="relative">
-                         <input
-                           type="file"
-                           accept="image/*"
-                           multiple
-                           onChange={handleImageUpload}
-                           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                         />
-                         <Button variant="outline" type="button">
-                           <Camera className="mr-2 h-4 w-4" />
-                           Attach Pictures
-                         </Button>
-                       </div>
-                       <span className="text-sm text-muted-foreground">
-                         Upload images of the site
-                       </span>
-                     </div>
-                     
-                     {uploadedImages.length > 0 && (
-                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                         {uploadedImages.map((file, index) => (
-                           <div key={index} className="relative group">
-                             <img
-                               src={URL.createObjectURL(file)}
-                               alt={`Site image ${index + 1}`}
-                               className="w-full h-24 object-cover rounded-md border"
-                             />
-                             <Button
-                               type="button"
-                               variant="destructive"
-                               size="sm"
-                               className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                               onClick={() => removeImage(index)}
-                             >
-                               <X className="h-3 w-3" />
-                             </Button>
-                           </div>
-                         ))}
-                       </div>
-                     )}
-                   </div>
-                 </CardContent>
-               </Card>
+              {/* Company Relationships */}
+              <div className="md:col-span-2">
+                <CompanyRelationshipSelector
+                  relationships={relationships}
+                  onChange={setRelationships}
+                  title="Company Relationships"
+                  description="Add companies and contacts with their specific roles for this site"
+                />
+              </div>
 
-               <Card>
-                 <CardHeader>
-                   <CardTitle>Additional Information</CardTitle>
-                 </CardHeader>
-                 <CardContent>
+              {/* Images */}
+              <Card className="md:col-span-2">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Camera className="h-5 w-5" />
+                    Images
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-center w-full">
+                    <label htmlFor="image-upload" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        <Camera className="w-8 h-8 mb-4 text-gray-500" />
+                        <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Click to upload</span> site images</p>
+                        <p className="text-xs text-gray-500">PNG, JPG or JPEG (MAX. 5MB each)</p>
+                      </div>
+                      <input
+                        id="image-upload"
+                        type="file"
+                        className="hidden"
+                        multiple
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                      />
+                    </label>
+                  </div>
+
+                  {uploadedImages.length > 0 && (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {uploadedImages.map((image, index) => (
+                        <div key={index} className="relative">
+                          <img
+                            src={URL.createObjectURL(image)}
+                            alt={`Preview ${index + 1}`}
+                            className="w-full h-24 object-cover rounded-lg"
+                          />
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
+                            onClick={() => removeImage(index)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Notes */}
+              <Card className="md:col-span-2">
+                <CardHeader>
+                  <CardTitle>Additional Notes</CardTitle>
+                </CardHeader>
+                <CardContent>
                   <FormField
                     control={form.control}
                     name="notes"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Notes</FormLabel>
                         <FormControl>
-                          <Textarea 
-                            placeholder="Add any additional notes about this site..."
-                            className="min-h-[100px]"
+                          <Textarea
+                            placeholder="Enter any additional notes about this site..."
+                            className="resize-none"
+                            rows={4}
                             {...field}
                           />
                         </FormControl>
@@ -684,11 +529,7 @@ const AddSite = () => {
             </div>
 
             <div className="flex justify-end gap-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => navigate('/sites')}
-              >
+              <Button type="button" variant="outline" onClick={() => navigate('/sites')}>
                 Cancel
               </Button>
               <Button type="submit" disabled={loading}>
@@ -697,19 +538,6 @@ const AddSite = () => {
             </div>
           </form>
         </Form>
-
-        {/* Quick Add Modals */}
-        <UnifiedQuickAddContactModal
-          open={showContactModal}
-          onClose={() => setShowContactModal(false)}
-          onContactCreated={handleContactCreated}
-        />
-        
-        <QuickAddCompanyModal
-          open={showCompanyModal}
-          onClose={() => setShowCompanyModal(false)}
-          onCompanyCreated={handleCompanyCreated}
-        />
       </div>
     </DashboardLayout>
   );
