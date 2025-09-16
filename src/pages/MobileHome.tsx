@@ -230,7 +230,7 @@ export default function MobileHome() {
 
   if (!isMobile) {
     // Redirect to regular dashboard for desktop
-    navigate('/');
+    navigate('/dashboard');
     return null;
   }
 

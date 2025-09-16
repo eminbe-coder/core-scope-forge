@@ -121,6 +121,7 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
 
   const refreshTenants = async () => {
     if (!user) return;
+    console.log('refreshTenants called for user:', user.id);
 
     try {
       // Check if user is a super admin by querying their memberships
@@ -194,6 +195,7 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
         .eq('user_id', user.id)
         .eq('active', true);
 
+      console.log('User tenant memberships query result:', { data, error });
       if (error) throw error;
 
       setUserTenants(data || []);
@@ -208,6 +210,7 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
       }
     } catch (error) {
       console.error('Error fetching tenants:', error);
+      console.log('User ID when error occurred:', user?.id);
     } finally {
       setLoading(false);
     }
