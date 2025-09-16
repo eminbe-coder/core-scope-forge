@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MapPin, Calendar, FileText, CheckSquare, Building2, Users, Plus, Search, X } from 'lucide-react';
+import { MapPin, Calendar, FileText, CheckSquare, Building2, Users, Plus, Search, X, FileSignature, UserCheck } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { SiteRelationships } from '@/components/site-details/SiteRelationships';
+import { SiteTodos } from '@/components/site-details/SiteTodos';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
@@ -61,6 +62,23 @@ interface Company {
   notes?: string;
 }
 
+interface Contract {
+  id: string;
+  name: string;
+  value: number;
+  status: string;
+  created_at: string;
+}
+
+interface Lead {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email?: string;
+  stage_id?: string;
+  created_at: string;
+}
+
 const SiteDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { currentTenant } = useTenant();
@@ -68,6 +86,8 @@ const SiteDetail = () => {
   const navigate = useNavigate();
   const [site, setSite] = useState<Site | null>(null);
   const [deals, setDeals] = useState<Deal[]>([]);
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
@@ -122,6 +142,27 @@ const SiteDetail = () => {
 
       if (dealsQuery.error) throw dealsQuery.error;
       setDeals(dealsQuery.data || []);
+
+      // Fetch contracts connected to this site
+      const contractsQuery = await supabase
+        .from('contracts')
+        .select('id, name, value, status, created_at')
+        .eq('site_id', id)
+        .eq('tenant_id', currentTenant?.id);
+
+      if (contractsQuery.error) throw contractsQuery.error;
+      setContracts(contractsQuery.data || []);
+
+      // Fetch leads connected to this site
+      const leadsQuery = await supabase
+        .from('contacts')
+        .select('id, first_name, last_name, email, stage_id, created_at')
+        .eq('tenant_id', currentTenant?.id)
+        .eq('is_lead', true)
+        .or(`id.in.(${JSON.stringify([id])}),notes.ilike.%${id}%`);
+
+      if (leadsQuery.error) throw leadsQuery.error;
+      setLeads(leadsQuery.data || []);
 
       // Fetch linked contacts with notes
       const contactLinksQuery = await supabase
@@ -514,12 +555,24 @@ const SiteDetail = () => {
           </Card>
         </div>
 
-        {/* Deals, Contacts, and Companies Tabs */}
-        <Tabs defaultValue="deals" className="space-y-4">
-          <TabsList>
+        {/* Site Data Tabs */}
+        <Tabs defaultValue="todos" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-6">
+            <TabsTrigger value="todos" className="flex items-center gap-2">
+              <CheckSquare className="h-4 w-4" />
+              Todos
+            </TabsTrigger>
             <TabsTrigger value="deals" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
               Deals ({deals.length})
+            </TabsTrigger>
+            <TabsTrigger value="contracts" className="flex items-center gap-2">
+              <FileSignature className="h-4 w-4" />
+              Contracts ({contracts.length})
+            </TabsTrigger>
+            <TabsTrigger value="leads" className="flex items-center gap-2">
+              <UserCheck className="h-4 w-4" />
+              Leads ({leads.length})
             </TabsTrigger>
             <TabsTrigger value="contacts" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
@@ -529,11 +582,18 @@ const SiteDetail = () => {
               <Building2 className="h-4 w-4" />
               Companies ({companies.length})
             </TabsTrigger>
-            <TabsTrigger value="relationships" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Relationships
-            </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="todos" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Site Todos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <SiteTodos siteId={site.id} siteName={site.name} />
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="deals" className="space-y-4">
             <Card>
@@ -786,8 +846,79 @@ const SiteDetail = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="relationships" className="space-y-4">
-            <SiteRelationships siteId={site.id} />
+          <TabsContent value="contracts" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Connected Contracts</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {contracts.length > 0 ? (
+                  <div className="space-y-4">
+                    {contracts.map((contract) => (
+                      <div
+                        key={contract.id}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent cursor-pointer"
+                        onClick={() => navigate(`/contracts/edit/${contract.id}`)}
+                      >
+                        <div>
+                          <h4 className="font-medium">{contract.name}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Contract
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">${contract.value?.toLocaleString() || 'N/A'}</p>
+                          <p className="text-sm text-muted-foreground capitalize">
+                            {contract.status.replace('_', ' ')}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-center py-8">
+                    No contracts connected to this site yet.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="leads" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Connected Leads</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {leads.length > 0 ? (
+                  <div className="space-y-4">
+                    {leads.map((lead) => (
+                      <div
+                        key={lead.id}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent cursor-pointer"
+                        onClick={() => navigate(`/leads/edit/${lead.id}`)}
+                      >
+                        <div>
+                          <h4 className="font-medium">{lead.first_name} {lead.last_name}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {lead.email || 'No email'}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-muted-foreground">
+                            Lead Contact
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-center py-8">
+                    No leads connected to this site yet.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
