@@ -40,7 +40,7 @@ import ContractDetail from "./pages/ContractDetail";
 import EditContract from "./pages/EditContract";
 import NotificationCenter from "./pages/NotificationCenter";
 import { ContractTestDashboard } from "./components/testing/ContractTestDashboard";
-import Projects from "./pages/Projects";
+import DesignCreation from "./pages/DesignCreation";
 import Activities from "./pages/Activities";
 import Todos from "./pages/Todos";
 import MyTodos from "./pages/MyTodos";
@@ -49,7 +49,7 @@ import Settings from "./pages/Settings";
 import CRMSettings from "./pages/CRMSettings";
 import TodoEngineSettings from "./pages/TodoEngineSettings";
 import Admin from "./pages/Admin";
-import GlobalAdmin from "./pages/GlobalAdmin";
+import CorePlatform from "./pages/GlobalAdmin";
 import UsersRoles from "./pages/UsersRoles";
 import Reports from "./pages/Reports";
 import ReportBuilder from "./pages/ReportBuilder";
@@ -221,7 +221,7 @@ const App = () => (
                     } />
                   <Route path="/projects" element={
                     <ProtectedRoute>
-                      <Projects />
+                      <DesignCreation />
                     </ProtectedRoute>
                   } />
                   <Route path="/activities" element={
@@ -261,7 +261,7 @@ const App = () => (
                   } />
                   <Route path="/global-admin" element={
                     <ProtectedRoute>
-                      <GlobalAdmin />
+                      <CorePlatform />
                     </ProtectedRoute>
                   } />
                   <Route path="/users-roles" element={

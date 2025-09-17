@@ -8,12 +8,14 @@ import { useTenant } from '@/hooks/use-tenant';
 import { useAuth } from '@/hooks/use-auth';
 import { supabase } from '@/integrations/supabase/client';
 import { useEffect, useState } from 'react';
-import { Search, Users, Building2, Plus, Edit, Trash2 } from 'lucide-react';
+import { Search, Users, Building2, Plus, Edit, Trash2, Shield, Smartphone, Settings } from 'lucide-react';
 import { CreateTenantForm } from '@/components/forms/CreateTenantForm';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { EditUserModal } from '@/components/forms/EditUserModal';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import DeviceTemplatesManager from '@/components/settings/DeviceTemplatesManager';
+import GlobalUsersManager from '@/components/settings/GlobalUsersManager';
 
 interface User {
   id: string;
@@ -50,7 +52,7 @@ interface Tenant {
   updated_at: string;
 }
 
-const GlobalAdmin = () => {
+const CorePlatform = () => {
   const { isSuperAdmin } = useTenant();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -143,17 +145,95 @@ const GlobalAdmin = () => {
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Global Admin</h1>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Shield className="h-8 w-8 text-primary" />
+            Core Platform
+          </h1>
           <p className="text-muted-foreground">
-            Manage all tenants, users, and global system settings
+            Global system administration, templates, and tenant management
           </p>
         </div>
 
-        <Tabs defaultValue="users" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="users">Users Management</TabsTrigger>
-            <TabsTrigger value="tenants">Tenants Management</TabsTrigger>
+        <Tabs defaultValue="tenants" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="tenants">Tenants</TabsTrigger>
+            <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="global-users">Global Users</TabsTrigger>
+            <TabsTrigger value="device-templates">Device Templates</TabsTrigger>
+            <TabsTrigger value="system-settings">System Settings</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="tenants" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Building2 className="h-5 w-5" />
+                      Tenant Organizations
+                    </CardTitle>
+                    <CardDescription>
+                      Manage all tenant organizations in the system
+                    </CardDescription>
+                  </div>
+                  <Button onClick={() => setShowCreateTenant(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Tenant
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Slug</TableHead>
+                        <TableHead>Domain</TableHead>
+                        <TableHead>Location</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {loading ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8">
+                            Loading...
+                          </TableCell>
+                        </TableRow>
+                      ) : allTenants.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                            No tenants found
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        allTenants.map((tenant) => (
+                          <TableRow key={tenant.id}>
+                            <TableCell className="font-medium">{tenant.name}</TableCell>
+                            <TableCell>{tenant.slug}</TableCell>
+                            <TableCell>{tenant.domain || '-'}</TableCell>
+                            <TableCell>{tenant.company_location || '-'}</TableCell>
+                            <TableCell>
+                              <Badge variant={tenant.active ? 'default' : 'secondary'}>
+                                {tenant.active ? 'Active' : 'Inactive'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Button variant="ghost" size="sm">
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="users" className="space-y-6">
             <Card>
@@ -162,10 +242,10 @@ const GlobalAdmin = () => {
                   <div>
                     <CardTitle className="flex items-center gap-2">
                       <Users className="h-5 w-5" />
-                      All Users
+                      Tenant Users
                     </CardTitle>
                     <CardDescription>
-                      Manage users across all tenants
+                      Manage user memberships across all tenant organizations
                     </CardDescription>
                   </div>
                   <Button onClick={() => setEditingUser({} as TenantMembership)}>
@@ -278,73 +358,30 @@ const GlobalAdmin = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="tenants" className="space-y-6">
+          <TabsContent value="global-users" className="space-y-6">
+            <GlobalUsersManager />
+          </TabsContent>
+
+          <TabsContent value="device-templates" className="space-y-6">
+            <DeviceTemplatesManager />
+          </TabsContent>
+
+          <TabsContent value="system-settings" className="space-y-6">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Building2 className="h-5 w-5" />
-                      All Tenants
-                    </CardTitle>
-                    <CardDescription>
-                      Manage all tenant organizations
-                    </CardDescription>
-                  </div>
-                  <Button onClick={() => setShowCreateTenant(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Tenant
-                  </Button>
-                </div>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="h-5 w-5" />
+                  System Settings
+                </CardTitle>
+                <CardDescription>
+                  Configure global system settings and defaults
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Slug</TableHead>
-                        <TableHead>Domain</TableHead>
-                        <TableHead>Location</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {loading ? (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center py-8">
-                            Loading...
-                          </TableCell>
-                        </TableRow>
-                      ) : allTenants.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                            No tenants found
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        allTenants.map((tenant) => (
-                          <TableRow key={tenant.id}>
-                            <TableCell className="font-medium">{tenant.name}</TableCell>
-                            <TableCell>{tenant.slug}</TableCell>
-                            <TableCell>{tenant.domain || '-'}</TableCell>
-                            <TableCell>{tenant.company_location || '-'}</TableCell>
-                            <TableCell>
-                              <Badge variant={tenant.active ? 'default' : 'secondary'}>
-                                {tenant.active ? 'Active' : 'Inactive'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Button variant="ghost" size="sm">
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
+                <div className="space-y-4">
+                  <p className="text-muted-foreground">
+                    System-wide configuration options will be available here.
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -391,4 +428,4 @@ const GlobalAdmin = () => {
   );
 };
 
-export default GlobalAdmin;
+export default CorePlatform;

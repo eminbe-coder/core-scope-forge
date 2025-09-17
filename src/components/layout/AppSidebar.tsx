@@ -45,7 +45,23 @@ interface NavigationModule {
   items: NavigationItem[];
 }
 
-const navigationModules: NavigationModule[] = [
+// Navigation for Super Admins (Core Platform)
+const corePlatformModules: NavigationModule[] = [
+  {
+    title: 'Core Platform',
+    items: [
+      {
+        title: 'Core Platform',
+        url: '/global-admin',
+        icon: Shield,
+        permission: 'super_admin.access',
+      },
+    ]
+  },
+];
+
+// Navigation for Tenant Users
+const tenantModules: NavigationModule[] = [
   {
     title: 'Dashboard',
     items: [
@@ -140,14 +156,19 @@ const navigationModules: NavigationModule[] = [
     ]
   },
   {
-    title: 'Project Creation Module',
+    title: 'Design Module',
     items: [
       {
-        title: 'Projects',
+        title: 'Design Creation',
         url: '/projects',
         icon: FolderOpen,
         permission: 'projects.read',
       },
+    ]
+  },
+  {
+    title: 'Device Management',
+    items: [
       {
         title: 'Devices',
         url: '/devices',
@@ -183,12 +204,6 @@ const navigationModules: NavigationModule[] = [
         icon: CheckSquare,
         permission: 'admin.access',
       },
-      {
-        title: 'Global Admin',
-        url: '/global-admin',
-        icon: Shield,
-        permission: 'super_admin.access',
-      },
     ]
   },
 ];
@@ -216,15 +231,20 @@ export function AppSidebar() {
   const filterModuleItems = (items: NavigationItem[]) => {
     return items.filter(item => {
       if (item.permission === 'super_admin.access') {
-        // Show Global Admin only for super admins
         return isSuperAdmin;
       }
       if (item.permission === 'admin.access') {
         return isAdmin;
       }
+      if (item.permission) {
+        return hasPermission(item.permission);
+      }
       return true;
     });
   };
+
+  // Choose navigation based on user role
+  const navigationModules = isSuperAdmin ? corePlatformModules : tenantModules;
 
   return (
     <Sidebar className="border-r border-sidebar-border bg-sidebar">

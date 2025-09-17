@@ -45,7 +45,7 @@ const typeColors = {
   home_automation: 'bg-pink-500',
 };
 
-const Projects = () => {
+const DesignCreation = () => {
   const { currentTenant } = useTenant();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -98,14 +98,14 @@ const Projects = () => {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold">Projects</h1>
+            <h1 className="text-3xl font-bold">Design Creation</h1>
             <p className="text-muted-foreground">
-              Manage your projects and deliverables
+              Create and manage your design projects and deliverables
             </p>
           </div>
           <Button onClick={() => setIsCreateDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
-            Add Project
+            New Design Project
           </Button>
         </div>
 
@@ -125,13 +125,13 @@ const Projects = () => {
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-16">
               <FolderKanban className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No projects found</h3>
+              <h3 className="text-lg font-semibold mb-2">No design projects found</h3>
               <p className="text-muted-foreground text-center max-w-sm">
-                Start managing your work by creating your first project.
+                Start creating your designs by adding your first project.
               </p>
-              <Button className="mt-4">
+              <Button className="mt-4" onClick={() => setIsCreateDialogOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
-                Add Project
+                New Design Project
               </Button>
             </CardContent>
           </Card>
@@ -211,4 +211,4 @@ const Projects = () => {
   );
 };
 
-export default Projects;
+export default DesignCreation;
