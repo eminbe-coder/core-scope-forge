@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useEffect, useState } from 'react';
 import { Search, Users, Building2, Plus, Edit, Trash2, Shield, Smartphone, Settings } from 'lucide-react';
 import { CreateTenantForm } from '@/components/forms/CreateTenantForm';
+import { TenantEditModal } from '@/components/modals/TenantEditModal';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { EditUserModal } from '@/components/forms/EditUserModal';
 import { useToast } from '@/hooks/use-toast';
@@ -48,12 +49,15 @@ interface Tenant {
   tax_number?: string;
   contact_email?: string;
   contact_phone?: string;
+  contact_phone_country_code?: string;
+  contact_phone_number?: string;
+  default_currency_id?: string;
   created_at: string;
   updated_at: string;
 }
 
 const CorePlatform = () => {
-  const { isSuperAdmin } = useTenant();
+  const { hasGlobalAccess } = useTenant();
   const { user } = useAuth();
   const { toast } = useToast();
   const [allMemberships, setAllMemberships] = useState<TenantMembership[]>([]);
@@ -64,12 +68,14 @@ const CorePlatform = () => {
   const [selectedRole, setSelectedRole] = useState<string>('all');
   const [editingUser, setEditingUser] = useState<TenantMembership | null>(null);
   const [showCreateTenant, setShowCreateTenant] = useState(false);
+  const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
+  const [showEditTenant, setShowEditTenant] = useState(false);
 
   useEffect(() => {
-    if (isSuperAdmin) {
+    if (hasGlobalAccess) {
       fetchAllData();
     }
-  }, [isSuperAdmin]);
+  }, [hasGlobalAccess]);
 
   const fetchAllData = async () => {
     try {
@@ -124,7 +130,7 @@ const CorePlatform = () => {
     new Set(allMemberships.map(m => m.role))
   );
 
-  if (!isSuperAdmin) {
+  if (!hasGlobalAccess) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-[400px]">
@@ -132,7 +138,7 @@ const CorePlatform = () => {
             <CardHeader>
               <CardTitle className="text-center">Access Denied</CardTitle>
               <CardDescription className="text-center">
-                You need super admin privileges to access this page.
+                You need global access privileges to use the Core Platform.
               </CardDescription>
             </CardHeader>
           </Card>
@@ -221,7 +227,14 @@ const CorePlatform = () => {
                               </Badge>
                             </TableCell>
                             <TableCell>
-                              <Button variant="ghost" size="sm">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => {
+                                  setEditingTenant(tenant);
+                                  setShowEditTenant(true);
+                                }}
+                              >
                                 <Edit className="h-4 w-4" />
                               </Button>
                             </TableCell>
@@ -403,6 +416,13 @@ const CorePlatform = () => {
             }}
           />
         )}
+
+        <TenantEditModal
+          tenant={editingTenant}
+          open={showEditTenant}
+          onOpenChange={setShowEditTenant}
+          onSuccess={fetchAllData}
+        />
 
         {showCreateTenant && (
           <Dialog open={showCreateTenant} onOpenChange={setShowCreateTenant}>

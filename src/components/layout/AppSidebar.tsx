@@ -211,7 +211,7 @@ const tenantModules: NavigationModule[] = [
 export function AppSidebar() {
   const location = useLocation();
   const { hasPermission, isAdmin } = usePermissions();
-  const { isSuperAdmin, userRole } = useTenant();
+  const { hasGlobalAccess, currentTenant } = useTenant();
   const currentPath = location.pathname;
 
   const isActive = (path: string) => {
@@ -231,7 +231,7 @@ export function AppSidebar() {
   const filterModuleItems = (items: NavigationItem[]) => {
     return items.filter(item => {
       if (item.permission === 'super_admin.access') {
-        return isSuperAdmin;
+        return hasGlobalAccess;
       }
       if (item.permission === 'admin.access') {
         return isAdmin;
@@ -243,8 +243,12 @@ export function AppSidebar() {
     });
   };
 
-  // Choose navigation based on user role
-  const navigationModules = isSuperAdmin ? corePlatformModules : tenantModules;
+  // Determine which navigation to show based on context
+  // Show Core Platform navigation only when on /global-admin route AND user has global access
+  const showCorePlatform = location.pathname === '/global-admin' && hasGlobalAccess;
+  
+  // Show tenant modules when in tenant context (not on global-admin route)
+  const navigationModules = showCorePlatform ? corePlatformModules : tenantModules;
 
   return (
     <Sidebar className="border-r border-sidebar-border bg-sidebar">

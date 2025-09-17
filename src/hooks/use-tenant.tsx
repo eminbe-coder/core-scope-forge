@@ -38,6 +38,7 @@ interface TenantContextType {
   loading: boolean;
   isAdmin: boolean;
   isSuperAdmin: boolean;
+  hasGlobalAccess: boolean;
   setCurrentTenant: (tenant: Tenant) => void;
   refreshTenants: () => void;
   refreshCurrentTenant: () => void;
@@ -50,6 +51,7 @@ const TenantContext = createContext<TenantContextType>({
   loading: true,
   isAdmin: false,
   isSuperAdmin: false,
+  hasGlobalAccess: false,
   setCurrentTenant: () => {},
   refreshTenants: () => {},
   refreshCurrentTenant: () => {},
@@ -73,6 +75,11 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
   // Check if user is admin or super admin
   const isAdmin = userRole === 'admin' || userRole === 'super_admin';
   const isSuperAdmin = userRole === 'super_admin';
+  
+  // Check if user has global system access (separate from tenant-based super admin)
+  const hasGlobalAccess = userTenants.some(membership => 
+    membership.role === 'super_admin' && userTenants.length > 1
+  );
 
   const setCurrentTenant = async (tenant: Tenant) => {
     setCurrentTenantState(tenant);
@@ -235,6 +242,7 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
       loading,
       isAdmin,
       isSuperAdmin,
+      hasGlobalAccess,
       setCurrentTenant,
       refreshTenants,
       refreshCurrentTenant
