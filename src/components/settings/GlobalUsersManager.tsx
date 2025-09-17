@@ -123,7 +123,7 @@ export default function GlobalUsersManager() {
         .from('global_user_tenant_relationships')
         .select(`
           *,
-          global_user:global_users(id, email, first_name, last_name, user_type, company_name),
+          global_user:global_users(*),
           tenant:tenants(id, name)
         `)
         .order('created_at', { ascending: false });
@@ -136,7 +136,8 @@ export default function GlobalUsersManager() {
         status: rel.status as GlobalUserTenantRelationship['status'],
         global_user: {
           ...rel.global_user,
-          user_type: rel.global_user.user_type as GlobalUser['user_type']
+          user_type: rel.global_user.user_type as GlobalUser['user_type'],
+          status: rel.global_user.status as GlobalUser['status']
         }
       }));
       setRelationships(mappedRelationships);
