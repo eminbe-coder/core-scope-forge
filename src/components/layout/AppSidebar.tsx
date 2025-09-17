@@ -230,6 +230,11 @@ export function AppSidebar() {
 
   const filterModuleItems = (items: NavigationItem[]) => {
     return items.filter(item => {
+      // Always show dashboard
+      if (item.url === '/') {
+        return true;
+      }
+      
       if (item.permission === 'super_admin.access') {
         return hasGlobalAccess;
       }

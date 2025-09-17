@@ -127,10 +127,15 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const refreshTenants = async () => {
-    if (!user) return;
+    if (!user) {
+      console.log('No user, skipping tenant refresh');
+      return;
+    }
     console.log('refreshTenants called for user:', user.id);
 
     try {
+      setLoading(true);
+      
       // Check if user is a super admin by querying their memberships
       const { data: superAdminCheck, error: superAdminError } = await supabase
         .from('user_tenant_memberships')
@@ -140,13 +145,16 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
         .eq('active', true)
         .limit(1);
 
+      console.log('Super admin check result:', { superAdminCheck, superAdminError });
       if (superAdminError) throw superAdminError;
 
       // If user is super admin, load all tenants
       if (superAdminCheck && superAdminCheck.length > 0) {
+        console.log('User is super admin, loading all tenants');
         const { data: allTenants, error: allTenantsError } = await supabase
           .rpc('get_all_tenants_for_super_admin');
         
+        console.log('All tenants for super admin:', { allTenants, allTenantsError });
         if (allTenantsError) throw allTenantsError;
         
         const mappedTenants = allTenants?.map(tenant => ({
@@ -173,6 +181,7 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
           }
         })) || [];
         
+        console.log('Mapped super admin tenants:', mappedTenants);
         setUserTenants(mappedTenants);
         setUserRole('super_admin');
         
@@ -185,6 +194,7 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
       }
       
       // Regular users - fetch their tenant memberships with all tenant fields
+      console.log('Fetching regular user tenant memberships');
       const { data, error } = await supabase
         .from('user_tenant_memberships')
         .select(`
@@ -205,19 +215,44 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
       console.log('User tenant memberships query result:', { data, error });
       if (error) throw error;
 
-      setUserTenants(data || []);
+      if (!data || data.length === 0) {
+        console.warn('No tenant memberships found for user:', user.id);
+        setUserTenants([]);
+        setLoading(false);
+        return;
+      }
 
-      // Set current tenant if not set
-      if (data && data.length > 0 && !currentTenant) {
+      setUserTenants(data);
+
+      // Set current tenant and role if not set
+      if (!currentTenant) {
         const savedTenantId = localStorage.getItem('currentTenantId');
         const savedTenant = data.find(m => m.tenant_id === savedTenantId);
         const tenantToSet = savedTenant || data[0];
-        setUserRole(tenantToSet.role); // Set user role for this tenant
-        await setCurrentTenant(tenantToSet.tenant);
+        
+        console.log('Setting current tenant and role:', { 
+          tenant: tenantToSet.tenant, 
+          role: tenantToSet.role 
+        });
+        
+        setUserRole(tenantToSet.role);
+        setCurrentTenantState(tenantToSet.tenant);
+        localStorage.setItem('currentTenantId', tenantToSet.tenant.id);
+      } else {
+        // Update role for current tenant if not set
+        const currentMembership = data.find(m => m.tenant_id === currentTenant.id);
+        if (currentMembership && !userRole) {
+          console.log('Setting user role for current tenant:', currentMembership.role);
+          setUserRole(currentMembership.role);
+        }
       }
     } catch (error) {
       console.error('Error fetching tenants:', error);
       console.log('User ID when error occurred:', user?.id);
+      // Set empty state to prevent infinite loading
+      setUserTenants([]);
+      setUserRole(null);
+      setCurrentTenantState(null);
     } finally {
       setLoading(false);
     }
