@@ -19,7 +19,7 @@ const editUserSchema = z.object({
   first_name: z.string().min(1, 'First name is required'),
   last_name: z.string().min(1, 'Last name is required'),
   role: z.string().min(1, 'Role is required'),
-  custom_role_id: z.string().optional(),
+  custom_role_id: z.string().nullable().optional(),
   active: z.boolean(),
   password: z.string().optional(),
 });
