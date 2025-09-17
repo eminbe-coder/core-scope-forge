@@ -2039,6 +2039,100 @@ export type Database = {
           },
         ]
       }
+      device_template_properties: {
+        Row: {
+          created_at: string
+          id: string
+          is_required: boolean
+          property_name: string
+          property_options: Json | null
+          property_type: string
+          sort_order: number
+          template_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_required?: boolean
+          property_name: string
+          property_options?: Json | null
+          property_type: string
+          sort_order?: number
+          template_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_required?: boolean
+          property_name?: string
+          property_options?: Json | null
+          property_type?: string
+          sort_order?: number
+          template_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_template_properties_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "device_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      device_templates: {
+        Row: {
+          active: boolean
+          category: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_global: boolean
+          name: string
+          properties_schema: Json
+          tenant_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          category: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_global?: boolean
+          name: string
+          properties_schema?: Json
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_global?: boolean
+          name?: string
+          properties_schema?: Json
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_templates_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       devices: {
         Row: {
           active: boolean
@@ -2047,9 +2141,12 @@ export type Database = {
           created_at: string
           currency_id: string | null
           id: string
+          is_global: boolean
           model: string | null
           name: string
           specifications: Json | null
+          template_id: string | null
+          template_properties: Json | null
           tenant_id: string
           unit_price: number | null
           updated_at: string
@@ -2061,9 +2158,12 @@ export type Database = {
           created_at?: string
           currency_id?: string | null
           id?: string
+          is_global?: boolean
           model?: string | null
           name: string
           specifications?: Json | null
+          template_id?: string | null
+          template_properties?: Json | null
           tenant_id: string
           unit_price?: number | null
           updated_at?: string
@@ -2075,9 +2175,12 @@ export type Database = {
           created_at?: string
           currency_id?: string | null
           id?: string
+          is_global?: boolean
           model?: string | null
           name?: string
           specifications?: Json | null
+          template_id?: string | null
+          template_properties?: Json | null
           tenant_id?: string
           unit_price?: number | null
           updated_at?: string
@@ -2088,6 +2191,13 @@ export type Database = {
             columns: ["currency_id"]
             isOneToOne: false
             referencedRelation: "currencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "devices_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "device_templates"
             referencedColumns: ["id"]
           },
           {
@@ -2159,6 +2269,99 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      global_user_tenant_relationships: {
+        Row: {
+          created_at: string
+          global_user_id: string
+          id: string
+          relationship_type: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          global_user_id: string
+          id?: string
+          relationship_type: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          global_user_id?: string
+          id?: string
+          relationship_type?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "global_user_tenant_relationships_global_user_id_fkey"
+            columns: ["global_user_id"]
+            isOneToOne: false
+            referencedRelation: "global_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "global_user_tenant_relationships_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      global_users: {
+        Row: {
+          company_name: string | null
+          country: string | null
+          created_at: string
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+          phone: string | null
+          status: string
+          updated_at: string
+          user_type: string
+          verification_token: string | null
+          verified_at: string | null
+        }
+        Insert: {
+          company_name?: string | null
+          country?: string | null
+          created_at?: string
+          email: string
+          first_name: string
+          id?: string
+          last_name: string
+          phone?: string | null
+          status?: string
+          updated_at?: string
+          user_type: string
+          verification_token?: string | null
+          verified_at?: string | null
+        }
+        Update: {
+          company_name?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          phone?: string | null
+          status?: string
+          updated_at?: string
+          user_type?: string
+          verification_token?: string | null
+          verified_at?: string | null
+        }
+        Relationships: []
       }
       lead_files: {
         Row: {
