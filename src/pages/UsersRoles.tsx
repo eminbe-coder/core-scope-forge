@@ -51,7 +51,7 @@ interface CustomRole {
 }
 
 const UsersRoles = () => {
-  const { currentTenant, isAdmin } = useTenant();
+  const { currentTenant, isAdmin, refreshTenants } = useTenant();
   const { toast } = useToast();
   const [tenantUsers, setTenantUsers] = useState<TenantUser[]>([]);
   const [customRoles, setCustomRoles] = useState<CustomRole[]>([]);
@@ -513,6 +513,7 @@ const UsersRoles = () => {
             onSuccess={() => {
               setEditingUser(null);
               fetchTenantData();
+              refreshTenants(); // Refresh tenant context to update permissions
             }}
             onDelete={() => {
               setEditingUser(null);

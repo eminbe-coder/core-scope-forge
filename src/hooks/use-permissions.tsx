@@ -38,13 +38,52 @@ export const usePermissions = () => {
 
 export const PermissionsProvider = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
-  const { currentTenant, userRole } = useTenant();
+  const { currentTenant, userRole, userTenants } = useTenant();
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Check if user is admin (admin or super_admin)
   const isAdmin = userRole === 'admin' || userRole === 'super_admin';
+
+  // Map custom role permissions to database permission format
+  const mapCustomRolePermissions = (customPermissions: any): string[] => {
+    const mappedPermissions: string[] = [];
+    
+    if (!customPermissions || typeof customPermissions !== 'object') {
+      return mappedPermissions;
+    }
+
+    // Map from custom role format to database permission format
+    const moduleMap = {
+      'companies': 'crm.customers',
+      'customers': 'crm.customers', 
+      'contacts': 'crm.contacts',
+      'leads': 'crm.contacts',
+      'deals': 'crm.deals',
+      'sites': 'crm.sites',
+      'activities': 'crm.activities',
+      'projects': 'projects',
+      'devices': 'devices',
+      'reports': 'reports'
+    };
+
+    Object.keys(customPermissions).forEach(module => {
+      const modulePerms = customPermissions[module];
+      const dbModule = moduleMap[module as keyof typeof moduleMap];
+      
+      if (dbModule && modulePerms && typeof modulePerms === 'object') {
+        Object.keys(modulePerms).forEach(action => {
+          if (modulePerms[action] === true && action !== 'visibility') {
+            const dbAction = action === 'read' ? 'view' : action;
+            mappedPermissions.push(`${dbModule}.${dbAction}`);
+          }
+        });
+      }
+    });
+
+    return mappedPermissions;
+  };
 
   const fetchPermissions = async () => {
     if (!user || !currentTenant || !userRole) {
@@ -68,7 +107,30 @@ export const PermissionsProvider = ({ children }: { children: React.ReactNode })
         return;
       }
 
-      // For non-admin users, fetch role-based permissions
+      // Check if user has a custom role assigned
+      const currentMembership = userTenants.find(m => m.tenant_id === currentTenant.id);
+      
+      if (currentMembership?.custom_role_id) {
+        // User has a custom role, fetch permissions from custom role
+        const { data: customRole, error: customRoleError } = await supabase
+          .from('custom_roles')
+          .select('permissions')
+          .eq('id', currentMembership.custom_role_id)
+          .eq('active', true)
+          .maybeSingle();
+
+        if (customRoleError) throw customRoleError;
+
+        if (customRole) {
+          const mappedPermissions = mapCustomRolePermissions(customRole.permissions);
+          setPermissions([]); // Custom roles don't need full permission objects
+          setUserPermissions(mappedPermissions);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // For regular role-based permissions (member, admin roles)
       const { data: rolePermissions, error } = await supabase
         .from('role_permissions')
         .select(`
@@ -102,7 +164,7 @@ export const PermissionsProvider = ({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     fetchPermissions();
-  }, [user, currentTenant, userRole]);
+  }, [user, currentTenant, userRole, userTenants]);
 
   const hasPermission = (permissionName: string): boolean => {
     return isAdmin || userPermissions.includes(permissionName);

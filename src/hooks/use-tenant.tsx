@@ -27,6 +27,7 @@ interface UserTenantMembership {
   user_id: string;
   tenant_id: string;
   role: 'owner' | 'admin' | 'member' | 'super_admin';
+  custom_role_id?: string;
   active: boolean;
   tenant: Tenant;
 }
@@ -202,6 +203,7 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
           user_id,
           tenant_id,
           role,
+          custom_role_id,
           active,
           tenant:tenants(
             id, name, slug, domain, active, country, company_location, 

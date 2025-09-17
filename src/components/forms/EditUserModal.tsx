@@ -235,9 +235,13 @@ export function EditUserModal({ open, onClose, membership, onSuccess, onDelete }
   const onSubmit = async (data: EditUserFormData) => {
     if (!membership) return;
     
+    console.log('EditUserModal: Starting form submission with data:', data);
+    console.log('EditUserModal: Custom roles available:', customRoles);
+    
     setIsLoading(true);
     try {
       // Update user profile
+      console.log('EditUserModal: Updating user profile...');
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
@@ -247,12 +251,15 @@ export function EditUserModal({ open, onClose, membership, onSuccess, onDelete }
         .eq('id', membership.user_id);
 
       if (profileError) throw profileError;
+      console.log('EditUserModal: Profile updated successfully');
 
       // Determine if this is a custom role or system role
       const isCustomRole = customRoles.some(role => role.id === data.role);
       const updatePayload = isCustomRole 
         ? { role: 'member' as const, custom_role_id: data.role, active: data.active }
         : { role: data.role as 'super_admin' | 'admin' | 'member', custom_role_id: null, active: data.active };
+
+      console.log('EditUserModal: Role update payload:', { isCustomRole, updatePayload });
 
       // Update membership role and status
       const { error: membershipError } = await supabase
@@ -261,10 +268,12 @@ export function EditUserModal({ open, onClose, membership, onSuccess, onDelete }
         .eq('id', membership.id);
 
       if (membershipError) throw membershipError;
+      console.log('EditUserModal: Membership updated successfully');
 
       // Update branch assignment
       const normalizedSelectedBranch = selectedBranch === 'no-branch' ? null : selectedBranch;
       if (normalizedSelectedBranch !== currentAssignments.branch) {
+        console.log('EditUserModal: Updating branch assignment...');
         // Remove current assignment
         if (currentAssignments.branch) {
           await supabase
@@ -286,6 +295,7 @@ export function EditUserModal({ open, onClose, membership, onSuccess, onDelete }
 
           if (branchError) throw branchError;
         }
+        console.log('EditUserModal: Branch assignment updated');
       }
 
       // Update department assignments
@@ -341,6 +351,7 @@ export function EditUserModal({ open, onClose, membership, onSuccess, onDelete }
         description: 'User updated successfully',
       });
 
+      console.log('EditUserModal: User update completed successfully');
       onSuccess();
       onClose();
     } catch (error: any) {
