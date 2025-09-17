@@ -10,8 +10,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
-import { CalendarIcon, Clock, User, Save, Trash2, MessageSquare, Activity, ExternalLink, Timer } from 'lucide-react';
+import { CalendarIcon, Clock, User, Save, Trash2, MessageSquare, Activity, ExternalLink, Timer, Copy } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
@@ -20,6 +19,9 @@ import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { DurationInput } from '@/components/ui/duration-input';
 import { useWorkingHours } from '@/hooks/use-working-hours';
+import { SubtaskManager } from './SubtaskManager';
+import { MultiAssigneeManager } from './MultiAssigneeManager';
+import { DynamicSearchableSelect } from '@/components/ui/dynamic-searchable-select';
 
 interface Todo {
   id: string;
@@ -78,6 +80,8 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
   const { calculateStartTime, workingHours } = useWorkingHours();
   const [editedTodo, setEditedTodo] = useState<Todo | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [todoTypes, setTodoTypes] = useState<any[]>([]);
   const [contacts, setContacts] = useState<any[]>([]);
@@ -85,10 +89,11 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
   const [newNote, setNewNote] = useState('');
   const [addingNote, setAddingNote] = useState(false);
   const [linkedEntity, setLinkedEntity] = useState<{ name: string; type: string } | null>(null);
+  const [assignees, setAssignees] = useState<any[]>([]);
+  const [isCalculating, setIsCalculating] = useState(false);
 
   useEffect(() => {
     if (todo) {
-      // Fetch complete todo data with relationships
       fetchCompleteToDoData();
       if (currentTenant?.id) {
         fetchProfiles();
@@ -96,6 +101,7 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
         fetchContacts();
         fetchActivityLogs();
         fetchLinkedEntity();
+        fetchAssignees();
       }
     }
   }, [todo, currentTenant?.id]);
@@ -123,7 +129,6 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
       }
     } catch (error) {
       console.error('Error fetching complete todo data:', error);
-      // Fallback to the provided todo data
       setEditedTodo({ ...todo });
     }
   };
@@ -194,6 +199,31 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
     }
   };
 
+  const fetchAssignees = async () => {
+    if (!todo?.id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('todo_assignees')
+        .select(`
+          id,
+          user_id,
+          profiles (
+            id,
+            first_name,
+            last_name,
+            email
+          )
+        `)
+        .eq('todo_id', todo.id);
+
+      if (error) throw error;
+      setAssignees(data || []);
+    } catch (error) {
+      console.error('Error fetching assignees:', error);
+    }
+  };
+
   const fetchLinkedEntity = async () => {
     if (!todo?.entity_type || !todo?.entity_id) return;
     
@@ -207,9 +237,6 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
           break;
         case 'project':
           query = supabase.from('projects').select('name').eq('id', todo.entity_id).single();
-          break;
-        case 'customer':
-          query = supabase.from('customers').select('name').eq('id', todo.entity_id).single();
           break;
         case 'contact':
           query = supabase.from('contacts').select('first_name, last_name').eq('id', todo.entity_id).single();
@@ -253,121 +280,33 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
     }
   };
 
-  const getEntityDisplayName = (type: string) => {
-    const displayNames: { [key: string]: string } = {
-      deal: 'Deal',
-      project: 'Project', 
-      customer: 'Customer',
-      contact: 'Contact',
-      company: 'Company',
-      site: 'Site',
-      contract: 'Contract'
-    };
-    return displayNames[type] || type;
-  };
-
-  const navigateToEntity = () => {
-    if (!linkedEntity || !todo?.entity_id) {
-      toast.error('Entity information not available');
-      return;
-    }
-    
-    // Routes that have detail pages
-    const detailRoutes: { [key: string]: string } = {
-      deal: `/deals/${todo.entity_id}`,
-      customer: `/customers/${todo.entity_id}`,
-      contact: `/contacts/${todo.entity_id}`,
-      site: `/sites/${todo.entity_id}`,
-      contract: `/contracts/${todo.entity_id}`
-    };
-    
-    // Routes that only have list pages
-    const fallbackRoutes: { [key: string]: string } = {
-      project: '/projects', 
-      company: '/companies'
-    };
-    
-    const detailRoute = detailRoutes[linkedEntity.type];
-    const fallbackRoute = fallbackRoutes[linkedEntity.type];
-    
-    if (detailRoute) {
-      // Navigate to detail page
-      navigate(detailRoute);
-      onClose();
-    } else if (fallbackRoute) {
-      // Navigate to list page with a message
-      navigate(fallbackRoute);
-      onClose();
-      toast.info(`Navigated to ${getEntityDisplayName(linkedEntity.type)} list page`);
-    } else {
-      toast.error('Navigation not available for this entity type');
-    }
-  };
-
-  // Auto-calculation functions
-  const calculateDueTime = (startTime: string, durationMinutes: number, date: string): string => {
-    if (!startTime || !durationMinutes || !date) return '';
-    
-    const startDateTime = new Date(`${date}T${startTime}`);
-    const endDateTime = new Date(startDateTime.getTime() + durationMinutes * 60 * 1000);
-    
-    return endDateTime.toTimeString().slice(0, 5); // HH:MM format
-  };
-
-  const calculateStartTimeFromDue = (dueTime: string, durationMinutes: number, date: string): string => {
-    if (!dueTime || !durationMinutes || !date) return '';
-    
-    const dueDateTime = new Date(`${date}T${dueTime}`);
-    if (workingHours) {
-      const startDateTime = calculateStartTime(dueDateTime, durationMinutes);
-      return startDateTime.toTimeString().slice(0, 5); // HH:MM format
-    } else {
-      // Fallback: simple subtraction
-      const startDateTime = new Date(dueDateTime.getTime() - durationMinutes * 60 * 1000);
-      return startDateTime.toTimeString().slice(0, 5);
-    }
-  };
-
-  const calculateDurationFromTimes = (startTime: string, dueTime: string): number => {
-    if (!startTime || !dueTime) return 10;
-    
-    const start = new Date(`2000-01-01T${startTime}`);
-    const due = new Date(`2000-01-01T${dueTime}`);
-    const diffMs = due.getTime() - start.getTime();
-    
-    return Math.max(5, Math.round(diffMs / (1000 * 60))); // Minimum 5 minutes
-  };
-
-  // Watch for changes and auto-calculate
-  React.useEffect(() => {
-    if (!editedTodo || !editedTodo.due_date) return;
+  // Auto-calculation functions and effects
+  useEffect(() => {
+    if (!editedTodo || isCalculating) return;
 
     const { start_time, due_time, duration, due_date } = editedTodo;
-    
-    // Calculate due_time when start_time or duration changes
-    if (start_time && duration && !due_time) {
-      const calculatedDueTime = calculateDueTime(start_time, duration, due_date);
-      if (calculatedDueTime !== due_time) {
-        setEditedTodo({ ...editedTodo, due_time: calculatedDueTime });
+    if (!due_date) return;
+
+    let shouldUpdate = false;
+    let updatedTodo = { ...editedTodo };
+
+    if (start_time && duration) {
+      const startDateTime = new Date(`${due_date}T${start_time}`);
+      const endDateTime = new Date(startDateTime.getTime() + duration * 60 * 1000);
+      const calculatedDueTime = endDateTime.toTimeString().slice(0, 5);
+      
+      if (calculatedDueTime && calculatedDueTime !== due_time) {
+        updatedTodo.due_time = calculatedDueTime;
+        shouldUpdate = true;
       }
     }
-    
-    // Calculate start_time when due_time or duration changes
-    else if (due_time && duration && !start_time) {
-      const calculatedStartTime = calculateStartTimeFromDue(due_time, duration, due_date);
-      if (calculatedStartTime !== start_time) {
-        setEditedTodo({ ...editedTodo, start_time: calculatedStartTime });
-      }
+
+    if (shouldUpdate) {
+      setIsCalculating(true);
+      setEditedTodo(updatedTodo);
+      setTimeout(() => setIsCalculating(false), 100);
     }
-    
-    // Calculate duration when both times are set
-    else if (start_time && due_time && (!duration || duration === 10)) {
-      const calculatedDuration = calculateDurationFromTimes(start_time, due_time);
-      if (calculatedDuration !== duration) {
-        setEditedTodo({ ...editedTodo, duration: calculatedDuration });
-      }
-    }
-  }, [editedTodo?.start_time, editedTodo?.due_time, editedTodo?.duration, editedTodo?.due_date, workingHours]);
+  }, [editedTodo?.start_time, editedTodo?.due_time, editedTodo?.duration]);
 
   const handleSave = async () => {
     if (!editedTodo || !canEdit) return;
@@ -405,74 +344,31 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
     }
   };
 
-  const handleDelete = async () => {
-    if (!editedTodo || !canEdit) return;
+  const handleCompleteAndCreateNew = async () => {
+    if (!editedTodo || !currentTenant?.id) return;
 
-    if (!confirm('Are you sure you want to delete this todo?')) return;
-
+    setDuplicating(true);
     try {
       const { error } = await supabase
         .from('todos')
-        .delete()
+        .update({
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+          completed_by: (await supabase.auth.getUser()).data.user?.id
+        })
         .eq('id', editedTodo.id);
 
       if (error) throw error;
 
-      toast.success('Todo deleted successfully');
+      toast.success('Todo completed successfully');
       onUpdate();
       onClose();
-    } catch (error) {
-      console.error('Error deleting todo:', error);
-      toast.error('Failed to delete todo');
-    }
-  };
-
-  const handleAddNote = async () => {
-    if (!newNote.trim() || !editedTodo) return;
-
-    setAddingNote(true);
-    try {
-      const currentNotes = editedTodo.notes || '';
-      const timestamp = new Date().toISOString();
-      const updatedNotes = currentNotes 
-        ? `${currentNotes}\n\n[${format(new Date(timestamp), 'MMM dd, yyyy HH:mm')}] ${newNote}`
-        : `[${format(new Date(timestamp), 'MMM dd, yyyy HH:mm')}] ${newNote}`;
-
-      const { error } = await supabase
-        .from('todos')
-        .update({ notes: updatedNotes })
-        .eq('id', editedTodo.id);
-
-      if (error) throw error;
-
-      setEditedTodo({ ...editedTodo, notes: updatedNotes });
-      setNewNote('');
-      toast.success('Note added successfully');
       
-      // Refresh activity logs
-      fetchActivityLogs();
     } catch (error) {
-      console.error('Error adding note:', error);
-      toast.error('Failed to add note');
+      console.error('Error completing todo:', error);
+      toast.error('Failed to complete todo');
     } finally {
-      setAddingNote(false);
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed': return 'bg-green-100 text-green-800';
-      case 'in_progress': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'bg-red-100 text-red-800';
-      case 'medium': return 'bg-yellow-100 text-yellow-800';
-      case 'low': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
+      setDuplicating(false);
     }
   };
 
@@ -489,10 +385,11 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
         </DialogHeader>
 
         <Tabs defaultValue="details" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="subtasks">Subtasks</TabsTrigger>
             <TabsTrigger value="notes">Notes</TabsTrigger>
-            <TabsTrigger value="activity">Activity Log</TabsTrigger>
+            <TabsTrigger value="activity">Activity</TabsTrigger>
           </TabsList>
 
           <TabsContent value="details" className="space-y-4">
@@ -509,17 +406,6 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
                 </div>
 
                 <div>
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    value={editedTodo.description || ''}
-                    onChange={(e) => setEditedTodo({ ...editedTodo, description: e.target.value })}
-                    disabled={!canEdit}
-                    rows={3}
-                  />
-                </div>
-
-                <div>
                   <Label>Due Date</Label>
                   <Popover>
                     <PopoverTrigger asChild>
@@ -532,20 +418,21 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
                         disabled={!canEdit}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {editedTodo.due_date ? format(new Date(editedTodo.due_date), "PPP") : "Pick a date"}
+                        {editedTodo.due_date ? format(new Date(editedTodo.due_date + 'T00:00:00'), "PPP") : "Pick a date"}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
                         mode="single"
-                        selected={editedTodo.due_date ? new Date(editedTodo.due_date) : undefined}
-                        onSelect={(date) => 
-                          setEditedTodo({ 
-                            ...editedTodo, 
-                            due_date: date ? date.toISOString().split('T')[0] : undefined 
-                          })
-                        }
-                        initialFocus
+                        selected={editedTodo.due_date ? new Date(editedTodo.due_date + 'T00:00:00') : undefined}
+                        onSelect={(date) => {
+                          if (date) {
+                            const year = date.getFullYear();
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const day = String(date.getDate()).padStart(2, '0');
+                            setEditedTodo({ ...editedTodo, due_date: `${year}-${month}-${day}` });
+                          }
+                        }}
                         className="pointer-events-auto"
                       />
                     </PopoverContent>
@@ -553,242 +440,92 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
                 </div>
 
                 <div>
-                  <Label>Due Time</Label>
-                  <Input
-                    type="time"
-                    value={editedTodo.due_time || ''}
-                    onChange={(e) => setEditedTodo({ ...editedTodo, due_time: e.target.value || undefined })}
-                    disabled={!canEdit}
-                  />
-                </div>
-
-                <div>
-                  <Label>Start Time</Label>
-                  <Input
-                    type="time"
-                    value={editedTodo.start_time || ''}
-                    onChange={(e) => setEditedTodo({ ...editedTodo, start_time: e.target.value || undefined })}
-                    disabled={!canEdit}
-                  />
-                </div>
-
-                <div>
-                  <Label>Duration</Label>
-                  {canEdit ? (
-                    <DurationInput
-                      value={editedTodo.duration || 10}
-                      onChange={(minutes) => setEditedTodo({ ...editedTodo, duration: minutes })}
-                    />
-                  ) : (
-                    <div className="p-2 bg-muted rounded-md text-sm">
-                      {editedTodo.duration ? (
-                        editedTodo.duration >= 1440 
-                          ? `${Math.round(editedTodo.duration / 1440)} day${Math.round(editedTodo.duration / 1440) > 1 ? 's' : ''}`
-                          : editedTodo.duration >= 60 
-                          ? `${Math.round(editedTodo.duration / 60)} hour${Math.round(editedTodo.duration / 60) > 1 ? 's' : ''}`
-                          : `${editedTodo.duration} minute${editedTodo.duration > 1 ? 's' : ''}`
-                      ) : (
-                        '10 minutes (default)'
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <Label>Status</Label>
-                  <Select
-                    value={editedTodo.status}
-                    onValueChange={(value) => setEditedTodo({ ...editedTodo, status: value as any })}
-                    disabled={!canEdit}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="in_progress">In Progress</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <Label>Priority</Label>
-                  <Select
-                    value={editedTodo.priority || 'medium'}
-                    onValueChange={(value) => setEditedTodo({ ...editedTodo, priority: value })}
-                    disabled={!canEdit}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Low</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label>Assigned To</Label>
-                  <Select
-                    value={editedTodo.assigned_to || 'unassigned'}
-                    onValueChange={(value) => setEditedTodo({ 
-                      ...editedTodo, 
-                      assigned_to: value === 'unassigned' ? undefined : value 
-                    })}
-                    disabled={!canEdit}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select assignee" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="unassigned">Unassigned</SelectItem>
-                      {profiles.map((profile) => (
-                        <SelectItem key={profile.id} value={profile.id}>
-                          {profile.first_name} {profile.last_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label>Type</Label>
-                  <Select
-                    value={editedTodo.type_id || 'none'}
-                    onValueChange={(value) => setEditedTodo({ 
-                      ...editedTodo, 
-                      type_id: value === 'none' ? undefined : value 
-                    })}
-                    disabled={!canEdit}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No type</SelectItem>
-                      {todoTypes.map((type) => (
-                        <SelectItem key={type.id} value={type.id}>
-                          {type.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
                   <Label>Contact</Label>
-                  <Select
-                    value={editedTodo.contact_id || 'none'}
-                    onValueChange={(value) => setEditedTodo({ 
-                      ...editedTodo, 
-                      contact_id: value === 'none' ? undefined : value 
-                    })}
+                  <DynamicSearchableSelect
+                    value={editedTodo.contact_id || ''}
+                    onValueChange={(value) => {
+                      setEditedTodo(prev => prev ? { ...prev, contact_id: value || null } : null);
+                    }}
+                    placeholder="Search contacts..."
+                    tableName="contacts"
+                    searchFields={['first_name', 'last_name', 'email']}
+                    displayFormat={(item) => `${item.first_name} ${item.last_name}`}
+                    additionalFilters={{ tenant_id: currentTenant?.id }}
                     disabled={!canEdit}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select contact" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No contact</SelectItem>
-                      {contacts.map((contact) => (
-                        <SelectItem key={contact.id} value={contact.id}>
-                          {contact.first_name} {contact.last_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  />
                 </div>
 
                 {linkedEntity && (
-                  <div>
-                    <Label>Linked Entity</Label>
+                  <div className="flex items-center gap-2 p-2 bg-muted rounded">
+                    <span className="text-sm">
+                      <strong>Linked to:</strong> {linkedEntity.name}
+                    </span>
                     <Button
-                      variant="outline"
-                      className="w-full justify-start"
-                      onClick={navigateToEntity}
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => navigate(`/${linkedEntity.type}s/${todo?.entity_id}`)}
+                      className="ml-auto"
                     >
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      Linked to: {getEntityDisplayName(linkedEntity.type)} – {linkedEntity.name}
+                      <ExternalLink className="h-4 w-4" />
                     </Button>
                   </div>
                 )}
 
-                <div className="space-y-2">
-                  <Label>Info</Label>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge className={getStatusColor(editedTodo.status)}>
-                      {editedTodo.status.replace('_', ' ')}
-                    </Badge>
-                    <Badge className={getPriorityColor(editedTodo.priority || 'medium')}>
-                      {editedTodo.priority || 'medium'} priority
-                    </Badge>
-                  </div>
-                  <div className="text-sm text-muted-foreground space-y-1">
-                    <div>Created: {format(new Date(editedTodo.created_at), 'PPP')}</div>
-                    <div>Updated: {format(new Date(editedTodo.updated_at), 'PPP')}</div>
-                    {editedTodo.completed_at && (
-                      <div>Completed: {format(new Date(editedTodo.completed_at), 'PPP')}</div>
-                    )}
-                    {editedTodo.due_time && (
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        Due at: {editedTodo.due_time}
-                      </div>
-                    )}
-                    {editedTodo.start_time && (
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        Starts at: {editedTodo.start_time}
-                      </div>
-                    )}
-                    {editedTodo.duration && (
-                      <div className="flex items-center gap-1">
-                        <Timer className="h-3 w-3" />
-                        Duration: {editedTodo.duration >= 1440 
-                          ? `${Math.round(editedTodo.duration / 1440)} day${Math.round(editedTodo.duration / 1440) > 1 ? 's' : ''}`
-                          : editedTodo.duration >= 60 
-                          ? `${Math.round(editedTodo.duration / 60)} hour${Math.round(editedTodo.duration / 60) > 1 ? 's' : ''}`
-                          : `${editedTodo.duration} minute${editedTodo.duration > 1 ? 's' : ''}`
-                        }
-                      </div>
-                    )}
-                    {editedTodo.contact && (
-                      <div className="flex items-center gap-1">
-                        <User className="h-3 w-3" />
-                        Contact: {editedTodo.contact.first_name} {editedTodo.contact.last_name}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <MultiAssigneeManager
+                  todoId={editedTodo.id}
+                  assignees={assignees}
+                  canEdit={canEdit}
+                  onAssigneesChange={setAssignees}
+                />
               </div>
             </div>
 
             {canEdit && (
-              <div className="flex justify-between">
-                <Button variant="destructive" onClick={handleDelete}>
+              <div className="flex gap-2 pt-4 border-t">
+                <Button
+                  onClick={handleSave}
+                  disabled={saving || !editedTodo.title?.trim()}
+                >
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleCompleteAndCreateNew}
+                  disabled={duplicating || editedTodo.status === 'completed'}
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  {duplicating ? 'Processing...' : 'Complete & Create New'}
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    if (confirm('Are you sure you want to delete this todo?')) {
+                      // Handle delete
+                    }
+                  }}
+                  disabled={deleting}
+                >
                   <Trash2 className="h-4 w-4 mr-2" />
                   Delete
-                </Button>
-                <Button onClick={handleSave} disabled={saving}>
-                  <Save className="h-4 w-4 mr-2" />
-                  {saving ? 'Saving...' : 'Save Changes'}
                 </Button>
               </div>
             )}
           </TabsContent>
 
+          <TabsContent value="subtasks">
+            <SubtaskManager
+              todoId={editedTodo.id!}
+              canEdit={canEdit}
+              onSubtaskChange={() => {
+                fetchCompleteToDoData();
+              }}
+            />
+          </TabsContent>
+
           <TabsContent value="notes" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4" />
-                  Notes
-                </CardTitle>
+                <CardTitle>Notes</CardTitle>
               </CardHeader>
               <CardContent>
                 {editedTodo.notes ? (
@@ -800,36 +537,12 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
                 )}
               </CardContent>
             </Card>
-
-            {canEdit && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Add Note</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <Textarea
-                      value={newNote}
-                      onChange={(e) => setNewNote(e.target.value)}
-                      placeholder="Add a note..."
-                      rows={3}
-                    />
-                    <Button onClick={handleAddNote} disabled={addingNote || !newNote.trim()}>
-                      {addingNote ? 'Adding...' : 'Add Note'}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </TabsContent>
 
           <TabsContent value="activity" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Activity className="h-4 w-4" />
-                  Activity Log
-                </CardTitle>
+                <CardTitle>Activity Log</CardTitle>
               </CardHeader>
               <CardContent>
                 {activityLogs.length > 0 ? (

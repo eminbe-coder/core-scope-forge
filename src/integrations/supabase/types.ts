@@ -3600,6 +3600,58 @@ export type Database = {
           },
         ]
       }
+      todo_assignees: {
+        Row: {
+          assigned_by: string | null
+          created_at: string
+          id: string
+          tenant_id: string
+          todo_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          created_at?: string
+          id?: string
+          tenant_id: string
+          todo_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assigned_by?: string | null
+          created_at?: string
+          id?: string
+          tenant_id?: string
+          todo_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "todo_assignees_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "todo_assignees_todo_id_fkey"
+            columns: ["todo_id"]
+            isOneToOne: false
+            referencedRelation: "todos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "todo_assignees_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       todo_assignments: {
         Row: {
           assigned_at: string
@@ -3737,6 +3789,7 @@ export type Database = {
           entity_type: string
           id: string
           notes: string | null
+          parent_todo_id: string | null
           payment_term_id: string | null
           priority: Database["public"]["Enums"]["todo_priority"]
           start_time: string | null
@@ -3761,6 +3814,7 @@ export type Database = {
           entity_type: string
           id?: string
           notes?: string | null
+          parent_todo_id?: string | null
           payment_term_id?: string | null
           priority?: Database["public"]["Enums"]["todo_priority"]
           start_time?: string | null
@@ -3785,6 +3839,7 @@ export type Database = {
           entity_type?: string
           id?: string
           notes?: string | null
+          parent_todo_id?: string | null
           payment_term_id?: string | null
           priority?: Database["public"]["Enums"]["todo_priority"]
           start_time?: string | null
@@ -3821,6 +3876,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "todos_parent_todo_id_fkey"
+            columns: ["parent_todo_id"]
+            isOneToOne: false
+            referencedRelation: "todos"
             referencedColumns: ["id"]
           },
           {
