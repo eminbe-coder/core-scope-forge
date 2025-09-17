@@ -1,8 +1,8 @@
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { TodoList } from '@/components/todos/TodoList';
-import { TodoForm } from '@/components/todos/TodoForm';
+import { TodoListEnhanced } from '@/components/todos/TodoListEnhanced';
 import { TodoCalendarView } from '@/components/todos/TodoCalendarView';
+import { TodoForm } from '@/components/todos/TodoForm';
 import { TodoDetailModal } from '@/components/todos/TodoDetailModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -352,16 +352,7 @@ const MyTodos = () => {
 
         {/* Main Todo Content */}
         {preferences.view_type === 'list' ? (
-          <TodoList
-            showFilters={true}
-            showStats={false}
-            title="All My To-Dos"
-            canEdit={true}
-            entityType="user"
-            entityId="current"
-            onUpdate={fetchStats}
-            preferences={preferences}
-            onPreferenceChange={updatePreference}
+          <TodoListEnhanced
             onTodoClick={handleTodoClick}
           />
         ) : (

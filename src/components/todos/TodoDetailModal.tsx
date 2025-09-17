@@ -441,18 +441,25 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
 
                 <div>
                   <Label>Contact</Label>
-                  <DynamicSearchableSelect
-                    value={editedTodo.contact_id || ''}
+                  <Select
+                    value={editedTodo.contact_id || 'none'}
                     onValueChange={(value) => {
-                      setEditedTodo(prev => prev ? { ...prev, contact_id: value || null } : null);
+                      setEditedTodo(prev => prev ? { ...prev, contact_id: value === 'none' ? null : value } : null);
                     }}
-                    placeholder="Search contacts..."
-                    tableName="contacts"
-                    searchFields={['first_name', 'last_name', 'email']}
-                    displayFormat={(item) => `${item.first_name} ${item.last_name}`}
-                    additionalFilters={{ tenant_id: currentTenant?.id }}
                     disabled={!canEdit}
-                  />
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select contact" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No contact</SelectItem>
+                      {contacts.map(contact => (
+                        <SelectItem key={contact.id} value={contact.id}>
+                          {contact.first_name} {contact.last_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {linkedEntity && (
