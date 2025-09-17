@@ -24,6 +24,8 @@ const editUserSchema = z.object({
   password: z.string().optional(),
 });
 
+console.log('EditUserModal: Schema defined');
+
 type EditUserFormData = z.infer<typeof editUserSchema>;
 
 interface CustomRole {
@@ -163,6 +165,14 @@ export function EditUserModal({ open, onClose, membership, onSuccess, onDelete }
           active: membership.active,
           password: '',
         });
+        
+        console.log('EditUserModal: Form reset with values:', {
+          first_name: membership.user_profile.first_name || '',
+          last_name: membership.user_profile.last_name || '',
+          role: currentRole,
+          custom_role_id: membership.custom_role_id,
+          active: membership.active,
+        });
 
         // Load current assignments
         try {
@@ -233,10 +243,14 @@ export function EditUserModal({ open, onClose, membership, onSuccess, onDelete }
   };
 
   const onSubmit = async (data: EditUserFormData) => {
-    if (!membership) return;
+    if (!membership) {
+      console.error('EditUserModal: No membership found');
+      return;
+    }
     
     console.log('EditUserModal: Starting form submission with data:', data);
     console.log('EditUserModal: Custom roles available:', customRoles);
+    console.log('EditUserModal: Form validation errors:', form.formState.errors);
     
     setIsLoading(true);
     try {
@@ -380,7 +394,11 @@ export function EditUserModal({ open, onClose, membership, onSuccess, onDelete }
           </DialogHeader>
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={(e) => {
+              console.log('EditUserModal: Form submit event triggered', e);
+              console.log('EditUserModal: Form state:', form.formState);
+              return form.handleSubmit(onSubmit)(e);
+            }} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -547,7 +565,7 @@ export function EditUserModal({ open, onClose, membership, onSuccess, onDelete }
                   <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={isLoading}>
+                  <Button type="submit" disabled={isLoading} onClick={() => console.log('EditUserModal: Update button clicked', form.formState.isValid, form.formState.errors)}>
                     {isLoading ? 'Updating...' : 'Update User'}
                   </Button>
                 </div>
