@@ -9,6 +9,7 @@ import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
 import { EntityListing } from '@/components/entity-listing';
 import { DeleteConfirmationModal } from '@/components/modals/DeleteConfirmationModal';
+import { DealFilters, DealFilterOptions } from '@/components/deals/DealFilters';
 
 interface Deal {
   id: string;
@@ -47,6 +48,10 @@ interface Deal {
     title: string;
     due_date: string;
   } | null;
+  task_counts: {
+    total: number;
+    overdue: number;
+  };
   created_at: string;
   updated_at: string;
 }
@@ -68,6 +73,15 @@ const Deals = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showArchived, setShowArchived] = useState(false);
+  const [filters, setFilters] = useState<DealFilterOptions>({
+    selectedStages: [],
+    selectedStatuses: [],
+    selectedAssignees: [],
+    showOverdueTasks: false,
+    showNoTasks: false,
+    sortBy: 'created_at',
+    sortOrder: 'desc',
+  });
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; deal: Deal | null }>({
     open: false,
     deal: null,
@@ -78,7 +92,8 @@ const Deals = () => {
     if (!currentTenant) return;
 
     try {
-      const { data: dealsData, error } = await supabase
+      // Build the query with all necessary joins
+      let query = supabase
         .from('deals')
         .select(`
           *,
@@ -89,36 +104,114 @@ const Deals = () => {
           assigned_user:profiles!deals_assigned_to_fkey(first_name, last_name, email)
         `)
         .eq('tenant_id', currentTenant.id)
-        .eq('is_converted', showArchived)
-        .order('created_at', { ascending: false });
+        .eq('is_converted', showArchived);
+
+      // Apply filters
+      if (filters.selectedStages.length > 0) {
+        query = query.in('stage_id', filters.selectedStages);
+      }
+      
+      if (filters.selectedStatuses.length > 0) {
+        query = query.in('status', filters.selectedStatuses as ('lead' | 'qualified' | 'proposal' | 'negotiation' | 'won' | 'lost')[]);
+      }
+      
+      if (filters.selectedAssignees.length > 0) {
+        query = query.in('assigned_to', filters.selectedAssignees);
+      }
+
+      // Apply sorting
+      const getSortColumn = (sortBy: string) => {
+        switch (sortBy) {
+          case 'expected_close_date': return 'expected_close_date';
+          case 'value': return 'value';
+          case 'name': return 'name';
+          case 'created_at': return 'created_at';
+          default: return 'created_at';
+        }
+      };
+
+      const sortColumn = getSortColumn(filters.sortBy);
+      if (!['next_task_date'].includes(filters.sortBy)) {
+        query = query.order(sortColumn, { 
+          ascending: filters.sortOrder === 'asc',
+          nullsFirst: false 
+        });
+      }
+
+      const { data: dealsData, error } = await query;
 
       if (error) throw error;
 
-      // Fetch next tasks for all deals in one query
+      // Fetch next tasks and task counts for all deals in one query
       const dealIds = (dealsData || []).map(d => d.id);
       let nextByDeal: Record<string, { title: string; due_date: string } | null> = {};
+      let taskCountsByDeal: Record<string, { total: number; overdue: number }> = {};
+      
       if (dealIds.length > 0) {
+        // Fetch all tasks
         const { data: tasks } = await supabase
           .from('activities')
           .select('id, title, due_date, completed, type, deal_id')
           .in('deal_id', dealIds)
-          .eq('type', 'task')
-          .eq('completed', false)
-          .order('due_date', { ascending: true, nullsFirst: false });
+          .eq('type', 'task');
 
-        // pick earliest due task per deal
+        const now = new Date().toISOString();
+        
+        // Process tasks to get counts and next steps
         for (const task of tasks || []) {
-          if (!task.deal_id || !task.due_date) continue;
-          if (!nextByDeal[task.deal_id]) {
+          if (!task.deal_id) continue;
+          
+          // Initialize counts
+          if (!taskCountsByDeal[task.deal_id]) {
+            taskCountsByDeal[task.deal_id] = { total: 0, overdue: 0 };
+          }
+          
+          taskCountsByDeal[task.deal_id].total++;
+          
+          // Count overdue tasks
+          if (!task.completed && task.due_date && task.due_date < now) {
+            taskCountsByDeal[task.deal_id].overdue++;
+          }
+          
+          // Find next step (earliest uncompleted task)
+          if (!task.completed && task.due_date && !nextByDeal[task.deal_id]) {
+            nextByDeal[task.deal_id] = { title: task.title, due_date: task.due_date };
+          } else if (!task.completed && task.due_date && nextByDeal[task.deal_id] && 
+                     task.due_date < nextByDeal[task.deal_id]!.due_date) {
             nextByDeal[task.deal_id] = { title: task.title, due_date: task.due_date };
           }
         }
       }
 
-      const processedDeals = (dealsData || []).map(deal => ({
+      let processedDeals = (dealsData || []).map(deal => ({
         ...deal,
         next_step: nextByDeal[deal.id] || null,
+        task_counts: taskCountsByDeal[deal.id] || { total: 0, overdue: 0 },
       }));
+
+      // Apply task-based filters
+      if (filters.showOverdueTasks) {
+        processedDeals = processedDeals.filter(deal => deal.task_counts.overdue > 0);
+      }
+      
+      if (filters.showNoTasks) {
+        processedDeals = processedDeals.filter(deal => deal.task_counts.total === 0);
+      }
+
+      // Apply task-based sorting
+      if (filters.sortBy === 'next_task_date') {
+        processedDeals.sort((a, b) => {
+          const aDate = a.next_step?.due_date;
+          const bDate = b.next_step?.due_date;
+          
+          if (!aDate && !bDate) return 0;
+          if (!aDate) return 1;
+          if (!bDate) return -1;
+          
+          const comparison = new Date(aDate).getTime() - new Date(bDate).getTime();
+          return filters.sortOrder === 'asc' ? comparison : -comparison;
+        });
+      }
       
       setDeals(processedDeals);
     } catch (error) {
@@ -130,7 +223,7 @@ const Deals = () => {
 
   useEffect(() => {
     fetchDeals();
-  }, [currentTenant, showArchived]);
+  }, [currentTenant, showArchived, filters]);
 
   const handleEdit = (deal: Deal) => {
     navigate(`/deals/edit/${deal.id}`);
@@ -190,6 +283,12 @@ const Deals = () => {
           {showArchived ? 'Hide Archived' : 'Show Archived'}
         </Button>
       </div>
+
+      <DealFilters
+        filters={filters}
+        onFiltersChange={setFilters}
+        totalResults={filteredDeals.length}
+      />
       
       <EntityListing
         title={showArchived ? "Archived Deals" : "Active Deals"}
