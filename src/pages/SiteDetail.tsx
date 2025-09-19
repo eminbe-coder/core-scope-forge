@@ -88,6 +88,15 @@ const SiteDetail = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  const [site, setSite] = useState<Site | null>(null);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [leads, setLeads] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [selectedTodo, setSelectedTodo] = useState<any>(null);
+  const [todoDetailOpen, setTodoDetailOpen] = useState(false);
+
   // UUID validation helper
   const isValidUUID = (uuid: string): boolean => {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -718,7 +727,14 @@ const SiteDetail = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <SiteTodos siteId={site.id} siteName={site.name} />
+          <SiteTodos 
+            siteId={site.id} 
+            siteName={site.name} 
+            onTodoClick={(todo) => {
+              setSelectedTodo(todo);
+              setTodoDetailOpen(true);
+            }}
+          />
           </CardContent>
         </Card>
 
@@ -957,6 +973,22 @@ const SiteDetail = () => {
           <SiteActivityTimeline siteId={site.id} />
         </div>
       </div>
+
+      {/* Todo Detail Modal */}
+      {selectedTodo && (
+        <TodoDetailModal
+          todo={selectedTodo}
+          isOpen={todoDetailOpen}
+          onClose={() => {
+            setTodoDetailOpen(false);
+            setSelectedTodo(null);
+          }}
+          onUpdate={() => {
+            // Refresh todo data
+            fetchSiteData();
+          }}
+        />
+      )}
     </DashboardLayout>
   );
 };

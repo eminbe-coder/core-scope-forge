@@ -10,6 +10,7 @@ interface TodoWidgetProps {
   compact?: boolean;
   onUpdate?: () => void;
   includeChildren?: boolean;
+  onTodoClick?: (todo: any) => void;
 }
 
 export const TodoWidget = ({ 
@@ -19,7 +20,8 @@ export const TodoWidget = ({
   canEdit = true,
   compact = false,
   onUpdate,
-  includeChildren = true
+  includeChildren = true,
+  onTodoClick
 }: TodoWidgetProps) => {
   const { todos, loading, error, refreshTodos } = useTodoHierarchy({
     entityType,
@@ -54,6 +56,7 @@ export const TodoWidget = ({
         compact={compact}
         canEdit={canEdit}
         onUpdate={handleUpdate}
+        onTodoClick={onTodoClick}
       />
     </div>
   );

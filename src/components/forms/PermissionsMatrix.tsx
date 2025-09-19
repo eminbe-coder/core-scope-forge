@@ -19,6 +19,7 @@ const MODULES = [
   { key: 'activities', label: 'Activities' },
   { key: 'projects', label: 'Projects' },
   { key: 'devices', label: 'Devices' },
+  { key: 'todos', label: 'Todos' },
   { key: 'settings', label: 'Settings' },
 ];
 

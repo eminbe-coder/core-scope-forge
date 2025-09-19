@@ -4,6 +4,7 @@ import { TodoWidget } from '@/components/todos/TodoWidget';
 interface SiteTodosProps {
   siteId: string;
   siteName: string;
+  onTodoClick?: (todo: any) => void;
 }
 
 export interface SiteTodosRef {
@@ -12,7 +13,8 @@ export interface SiteTodosRef {
 
 export const SiteTodos = forwardRef<SiteTodosRef, SiteTodosProps>(({
   siteId,
-  siteName
+  siteName,
+  onTodoClick
 }, ref) => {
   useImperativeHandle(ref, () => ({
     refresh: () => {
@@ -27,6 +29,7 @@ export const SiteTodos = forwardRef<SiteTodosRef, SiteTodosProps>(({
       canEdit={true}
       compact={false}
       includeChildren={true}
+      onTodoClick={onTodoClick}
     />
   );
 });

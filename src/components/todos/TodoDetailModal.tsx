@@ -10,7 +10,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CalendarIcon, Clock, User, Save, Trash2, MessageSquare, Activity, ExternalLink, Timer, Copy } from 'lucide-react';
+import { CalendarIcon, Clock, User, Save, Trash2, MessageSquare, Activity, ExternalLink, Timer, Copy, CheckCircle, CalendarClock } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
@@ -22,6 +22,8 @@ import { useWorkingHours } from '@/hooks/use-working-hours';
 import { SubtaskManager } from './SubtaskManager';
 import { MultiAssigneeManager } from './MultiAssigneeManager';
 import { DynamicSearchableSelect } from '@/components/ui/dynamic-searchable-select';
+import { PostponeDialog } from './PostponeDialog';
+import { TodoFormModal } from './TodoFormModal';
 
 interface Todo {
   id: string;
@@ -37,6 +39,7 @@ interface Todo {
   assigned_to?: string;
   created_by: string;
   type_id?: string;
+  payment_term_id?: string;
   entity_type: string;
   entity_id: string;
   notes?: string;
@@ -91,6 +94,8 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
   const [linkedEntity, setLinkedEntity] = useState<{ name: string; type: string } | null>(null);
   const [assignees, setAssignees] = useState<any[]>([]);
   const [isCalculating, setIsCalculating] = useState(false);
+  const [postponeDialogOpen, setPostponeDialogOpen] = useState(false);
+  const [newTodoFormOpen, setNewTodoFormOpen] = useState(false);
 
   useEffect(() => {
     if (todo) {
@@ -349,6 +354,7 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
 
     setDuplicating(true);
     try {
+      // First mark the current todo as completed
       const { error } = await supabase
         .from('todos')
         .update({
@@ -364,11 +370,69 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
       onUpdate();
       onClose();
       
+      // Open the new todo form with pre-populated data
+      setNewTodoFormOpen(true);
+      
     } catch (error) {
       console.error('Error completing todo:', error);
       toast.error('Failed to complete todo');
     } finally {
       setDuplicating(false);
+    }
+  };
+
+  const handleMarkComplete = async () => {
+    if (!editedTodo) return;
+
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('todos')
+        .update({
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+          completed_by: (await supabase.auth.getUser()).data.user?.id
+        })
+        .eq('id', editedTodo.id);
+
+      if (error) throw error;
+
+      toast.success('Todo marked as completed');
+      onUpdate();
+      onClose();
+    } catch (error) {
+      console.error('Error completing todo:', error);
+      toast.error('Failed to complete todo');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handlePostpone = async (newDate: string, newTime: string, reason: string) => {
+    if (!editedTodo) return;
+
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('todos')
+        .update({
+          due_date: newDate,
+          due_time: newTime || null,
+          notes: editedTodo.notes ? `${editedTodo.notes}\n\n[${new Date().toLocaleString()}] Postponed: ${reason}` : `[${new Date().toLocaleString()}] Postponed: ${reason}`
+        })
+        .eq('id', editedTodo.id);
+
+      if (error) throw error;
+
+      toast.success('Todo postponed successfully');
+      setPostponeDialogOpen(false);
+      onUpdate();
+      onClose();
+    } catch (error) {
+      console.error('Error postponing todo:', error);
+      toast.error('Failed to postpone todo');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -488,7 +552,7 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
             </div>
 
             {canEdit && (
-              <div className="flex gap-2 pt-4 border-t">
+              <div className="flex gap-2 pt-4 border-t flex-wrap">
                 <Button
                   onClick={handleSave}
                   disabled={saving || !editedTodo.title?.trim()}
@@ -497,11 +561,29 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
                 </Button>
                 <Button
                   variant="outline"
+                  onClick={handleMarkComplete}
+                  disabled={saving || editedTodo.status === 'completed'}
+                  className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Mark Complete
+                </Button>
+                <Button
+                  variant="outline"
                   onClick={handleCompleteAndCreateNew}
                   disabled={duplicating || editedTodo.status === 'completed'}
                 >
                   <Copy className="h-4 w-4 mr-2" />
                   {duplicating ? 'Processing...' : 'Complete & Create New'}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setPostponeDialogOpen(true)}
+                  disabled={saving || editedTodo.status === 'completed'}
+                  className="bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200"
+                >
+                  <CalendarClock className="h-4 w-4 mr-2" />
+                  Postpone
                 </Button>
                 <Button
                   variant="destructive"
@@ -580,6 +662,41 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
           </TabsContent>
         </Tabs>
       </DialogContent>
+
+      {/* Postpone Dialog */}
+      <PostponeDialog
+        open={postponeDialogOpen}
+        onOpenChange={setPostponeDialogOpen}
+        onConfirm={handlePostpone}
+        currentDate={editedTodo?.due_date}
+        currentTime={editedTodo?.due_time}
+        loading={saving}
+      />
+
+      {/* New Todo Form Modal */}
+      <TodoFormModal
+        open={newTodoFormOpen}
+        onOpenChange={setNewTodoFormOpen}
+        onSuccess={() => {
+          setNewTodoFormOpen(false);
+          onUpdate();
+        }}
+        entityType={editedTodo?.entity_type || ''}
+        entityId={editedTodo?.entity_id || ''}
+        paymentTermId={editedTodo?.payment_term_id || undefined}
+        initialData={{
+          title: editedTodo?.title,
+          description: editedTodo?.description,
+          assigned_to: editedTodo?.assigned_to,
+          due_date: editedTodo?.due_date,
+          due_time: editedTodo?.due_time,
+          start_time: editedTodo?.start_time,
+          duration: editedTodo?.duration,
+          priority: editedTodo?.priority,
+          type_id: editedTodo?.type_id,
+          contact_id: editedTodo?.contact_id,
+        }}
+      />
     </Dialog>
   );
 };
