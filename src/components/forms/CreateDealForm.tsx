@@ -1318,6 +1318,6 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
         onClose={() => setShowSiteModal(false)}
         onSiteCreated={handleSiteCreated}
       />
-    </Form>
+    </>
   );
 }
