@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { RewardPointsModal } from '@/components/modals/RewardPointsModal';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -42,6 +43,7 @@ export function AppHeader({
   const { currentTenant, isSuperAdmin } = useTenant();
   const { totalPoints, currentPoints, targetPoints, achieved } = useRewardPoints();
   const navigate = useNavigate();
+  const [rewardModalOpen, setRewardModalOpen] = useState(false);
 
   const getUserInitials = () => {
     if (!user?.email) return 'U';
@@ -93,7 +95,12 @@ export function AppHeader({
           <NotificationDropdown />
           
           {/* Reward Points Trophy */}
-          <div className="flex items-center space-x-1 px-3 py-1.5 bg-secondary/30 rounded-full border border-border/50">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setRewardModalOpen(true)}
+            className="flex items-center space-x-1 px-3 py-1.5 bg-secondary/30 rounded-full border border-border/50 hover:bg-secondary/50 transition-colors"
+          >
             {achieved ? (
               <div className="h-4 w-4 rounded-full bg-gradient-to-r from-yellow-400 to-yellow-600 flex items-center justify-center">
                 <span className="text-xs text-white font-bold">🏅</span>
@@ -107,7 +114,7 @@ export function AppHeader({
             <span className="text-sm font-medium text-foreground sm:hidden">
               {currentPoints}/{targetPoints}
             </span>
-          </div>
+          </Button>
           
           {/* Theme Switcher */}
           <Select value={theme} onValueChange={setTheme}>
@@ -166,6 +173,11 @@ export function AppHeader({
           </DropdownMenu>
         </div>
       </div>
+      
+      <RewardPointsModal 
+        open={rewardModalOpen} 
+        onOpenChange={setRewardModalOpen} 
+      />
     </header>
   );
 }

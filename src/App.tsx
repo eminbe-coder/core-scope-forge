@@ -40,6 +40,7 @@ import ContractDetail from "./pages/ContractDetail";
 import EditContract from "./pages/EditContract";
 import NotificationCenter from "./pages/NotificationCenter";
 import RecycleBin from "./pages/RecycleBin";
+import RewardHistory from "./pages/RewardHistory";
 import { ContractTestDashboard } from "./components/testing/ContractTestDashboard";
 import DesignCreation from "./pages/DesignCreation";
 import Activities from "./pages/Activities";
@@ -267,11 +268,16 @@ const App = () => (
                        <RewardSystem />
                      </ProtectedRoute>
                    } />
-                   <Route path="/recycle-bin" element={
-                     <ProtectedRoute>
-                       <RecycleBin />
-                     </ProtectedRoute>
-                   } />
+                    <Route path="/recycle-bin" element={
+                      <ProtectedRoute>
+                        <RecycleBin />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/reward-history" element={
+                      <ProtectedRoute>
+                        <RewardHistory />
+                      </ProtectedRoute>
+                    } />
                    <Route path="/global-admin" element={
                     <ProtectedRoute>
                       <CorePlatform />

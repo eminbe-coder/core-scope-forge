@@ -3,6 +3,32 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { useTenant } from '@/hooks/use-tenant';
 
+interface RewardConfiguration {
+  id: string;
+  action_name: string;
+  action_description: string;
+  points_value: number;
+  active: boolean;
+}
+
+interface PointTransaction {
+  id: string;
+  action_name: string;
+  points_earned: number;
+  entity_type: string;
+  entity_id: string;
+  notes: string;
+  created_at: string;
+}
+
+interface PeriodCycle {
+  id: string;
+  period_type: string;
+  start_date: string;
+  end_date: string;
+  is_current: boolean;
+}
+
 export const useRewardPoints = () => {
   const { user } = useAuth();
   const { currentTenant } = useTenant();
@@ -125,6 +151,78 @@ export const useRewardPoints = () => {
     }
   };
 
+  const loadAvailableActions = async (): Promise<RewardConfiguration[]> => {
+    if (!currentTenant?.id) return [];
+
+    try {
+      const { data, error } = await supabase
+        .from('reward_configurations')
+        .select('*')
+        .eq('tenant_id', currentTenant.id)
+        .eq('active', true)
+        .order('action_name');
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error loading available actions:', error);
+      return [];
+    }
+  };
+
+  const loadTransactionHistory = async (cycleId?: string): Promise<PointTransaction[]> => {
+    if (!user?.id || !currentTenant?.id) return [];
+
+    try {
+      let query = supabase
+        .from('reward_point_transactions')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('tenant_id', currentTenant.id)
+        .order('created_at', { ascending: false });
+
+      // If cycleId is provided, filter by date range
+      if (cycleId) {
+        const { data: cycle } = await supabase
+          .from('reward_period_cycles')
+          .select('start_date, end_date')
+          .eq('id', cycleId)
+          .single();
+
+        if (cycle) {
+          query = query
+            .gte('created_at', cycle.start_date)
+            .lte('created_at', cycle.end_date);
+        }
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error loading transaction history:', error);
+      return [];
+    }
+  };
+
+  const loadPeriodCycles = async (): Promise<PeriodCycle[]> => {
+    if (!currentTenant?.id) return [];
+
+    try {
+      const { data, error } = await supabase
+        .from('reward_period_cycles')
+        .select('*')
+        .eq('tenant_id', currentTenant.id)
+        .order('start_date', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error loading period cycles:', error);
+      return [];
+    }
+  };
+
   return {
     totalPoints,
     currentPoints,
@@ -132,6 +230,9 @@ export const useRewardPoints = () => {
     achieved,
     loading,
     awardPoints,
-    refreshPoints: loadUserPoints
+    refreshPoints: loadUserPoints,
+    loadAvailableActions,
+    loadTransactionHistory,
+    loadPeriodCycles
   };
 };
