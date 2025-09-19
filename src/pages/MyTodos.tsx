@@ -39,11 +39,11 @@ const MyTodos = () => {
       fetchStats();
       fetchProfiles();
     }
-  }, [currentTenant?.id]);
+  }, [currentTenant?.id, selectedUserId]); // Added selectedUserId to dependency array
 
   useEffect(() => {
     if (currentTenant?.id && selectedUserId) {
-      fetchUserTodos();
+      fetchStats(); // Use the main fetch function instead
     }
   }, [currentTenant?.id, selectedUserId]);
 
@@ -83,10 +83,10 @@ const MyTodos = () => {
           .filter(Boolean);
         setProfiles(profilesList);
         
-        // Set current user as default selection
+        // Set default selection to "All" instead of current user
         const { data: { user } } = await supabase.auth.getUser();
         if (user?.id) {
-          setSelectedUserId(user.id);
+          setSelectedUserId(''); // Start with "All" selected
         }
       }
     } catch (error) {
@@ -101,15 +101,21 @@ const MyTodos = () => {
 
       setUser(user); // Store user in state
 
-      const { data: todosData } = await supabase
+      let query = supabase
         .from('todos')
         .select(`
           *,
           assigned_profile:profiles!assigned_to(first_name, last_name),
           todo_types(name, color, icon)
         `)
-        .eq('tenant_id', currentTenant?.id)
-        .eq('assigned_to', user.id);
+        .eq('tenant_id', currentTenant?.id);
+
+      // Apply assignee filter if a specific user is selected
+      if (selectedUserId) {
+        query = query.eq('assigned_to', selectedUserId);
+      }
+
+      const { data: todosData } = await query;
 
       if (todosData) {
         setTodos(todosData);
@@ -137,26 +143,6 @@ const MyTodos = () => {
       }
     } catch (error) {
       console.error('Error fetching stats:', error);
-    }
-  };
-
-  const fetchUserTodos = async () => {
-    try {
-      const { data: todosData } = await supabase
-        .from('todos')
-        .select(`
-          *,
-          assigned_profile:profiles!assigned_to(first_name, last_name),
-          todo_types(name, color, icon)
-        `)
-        .eq('tenant_id', currentTenant?.id)
-        .eq('assigned_to', selectedUserId);
-
-      if (todosData) {
-        setTodos(todosData);
-      }
-    } catch (error) {
-      console.error('Error fetching user todos:', error);
     }
   };
 
@@ -197,11 +183,7 @@ const MyTodos = () => {
       }
 
       // Refresh data
-      if (selectedUserId) {
-        fetchUserTodos();
-      } else {
-        fetchStats();
-      }
+      fetchStats(); // Use unified function
     } catch (error) {
       console.error('Error updating todo due date:', error);
     }
@@ -355,11 +337,36 @@ const MyTodos = () => {
 
         {/* Main Todo Content */}
         {preferences.view_type === 'list' ? (
-          <TodoListEnhanced
-            assignedTo={user?.id}
-            onTodoClick={handleTodoClick}
-            showAssigneeFilter={!user?.id} // Only show filter if not filtering by specific user
-          />
+          <div className="space-y-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <CardTitle>Task List</CardTitle>
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <Select value={selectedUserId || 'all'} onValueChange={(value) => setSelectedUserId(value === 'all' ? '' : value)}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Select assignee" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Assignees</SelectItem>
+                      {profiles.map((profile) => (
+                        <SelectItem key={profile.id} value={profile.id}>
+                          {profile.first_name} {profile.last_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <TodoListEnhanced
+                  assignedTo={selectedUserId}
+                  onTodoClick={handleTodoClick}
+                  showAssigneeFilter={false} // We have our own filter above
+                />
+              </CardContent>
+            </Card>
+          </div>
         ) : (
           <div className="space-y-4">
             <Card>
@@ -367,11 +374,12 @@ const MyTodos = () => {
                 <CardTitle>Calendar View</CardTitle>
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4 text-muted-foreground" />
-                  <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                  <Select value={selectedUserId || 'all'} onValueChange={(value) => setSelectedUserId(value === 'all' ? '' : value)}>
                     <SelectTrigger className="w-48">
-                      <SelectValue placeholder="Select user" />
+                      <SelectValue placeholder="Select assignee" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="all">All Assignees</SelectItem>
                       {profiles.map((profile) => (
                         <SelectItem key={profile.id} value={profile.id}>
                           {profile.first_name} {profile.last_name}
