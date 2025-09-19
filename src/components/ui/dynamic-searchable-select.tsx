@@ -19,7 +19,10 @@ import {
   useDynamicCompanies, 
   useDynamicContacts, 
   useDynamicSites, 
-  useDynamicCustomers 
+  useDynamicCustomers,
+  useDynamicDeals,
+  useDynamicContracts,
+  useDynamicInstallments
 } from "@/hooks/use-dynamic-entities";
 
 interface Option {
@@ -37,7 +40,7 @@ interface DynamicSearchableSelectProps {
   placeholder: string;
   searchPlaceholder: string;
   emptyText: string;
-  entityType: 'companies' | 'contacts' | 'sites' | 'customers';
+  entityType: 'companies' | 'contacts' | 'sites' | 'customers' | 'deals' | 'contracts' | 'installments';
   renderOption?: (option: Option) => string;
   onAddNew?: () => void;
   addNewLabel?: string;
@@ -86,6 +89,24 @@ export function DynamicSearchableSelect({
     limit: 100
   });
 
+  const dealsHook = useDynamicDeals({ 
+    enabled: open && entityType === 'deals',
+    searchTerm,
+    limit: 100
+  });
+  
+  const contractsHook = useDynamicContracts({ 
+    enabled: open && entityType === 'contracts',
+    searchTerm,
+    limit: 100
+  });
+  
+  const installmentsHook = useDynamicInstallments({ 
+    enabled: open && entityType === 'installments',
+    searchTerm,
+    limit: 100
+  });
+
   // Select the appropriate hook result
   const hookResult = useMemo(() => {
     switch (entityType) {
@@ -117,10 +138,31 @@ export function DynamicSearchableSelect({
           error: customersHook.error,
           refresh: customersHook.refresh
         };
+      case 'deals':
+        return { 
+          options: dealsHook.deals, 
+          loading: dealsHook.loading, 
+          error: dealsHook.error,
+          refresh: dealsHook.refresh
+        };
+      case 'contracts':
+        return { 
+          options: contractsHook.contracts, 
+          loading: contractsHook.loading, 
+          error: contractsHook.error,
+          refresh: contractsHook.refresh
+        };
+      case 'installments':
+        return { 
+          options: installmentsHook.installments, 
+          loading: installmentsHook.loading, 
+          error: installmentsHook.error,
+          refresh: installmentsHook.refresh
+        };
       default:
         return { options: [], loading: false, error: null, refresh: () => {} };
     }
-  }, [entityType, companiesHook, contactsHook, sitesHook, customersHook]);
+  }, [entityType, companiesHook, contactsHook, sitesHook, customersHook, dealsHook, contractsHook, installmentsHook]);
 
   const { options, loading, error, refresh } = hookResult;
 
@@ -256,4 +298,16 @@ export function DynamicSiteSelect(props: Omit<DynamicSearchableSelectProps, 'ent
 
 export function DynamicCustomerSelect(props: Omit<DynamicSearchableSelectProps, 'entityType'>) {
   return <DynamicSearchableSelect {...props} entityType="customers" />;
+}
+
+export function DynamicDealSelect(props: Omit<DynamicSearchableSelectProps, 'entityType'>) {
+  return <DynamicSearchableSelect {...props} entityType="deals" />;
+}
+
+export function DynamicContractSelect(props: Omit<DynamicSearchableSelectProps, 'entityType'>) {
+  return <DynamicSearchableSelect {...props} entityType="contracts" />;
+}
+
+export function DynamicInstallmentSelect(props: Omit<DynamicSearchableSelectProps, 'entityType'>) {
+  return <DynamicSearchableSelect {...props} entityType="installments" />;
 }

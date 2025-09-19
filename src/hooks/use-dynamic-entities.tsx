@@ -29,6 +29,25 @@ interface Customer {
   active?: boolean;
 }
 
+interface Deal {
+  id: string;
+  name: string;
+  value?: number;
+  status?: string;
+}
+
+interface Contract {
+  id: string;
+  name: string;
+  status?: string;
+}
+
+interface Installment {
+  id: string;
+  name: string;
+  due_date?: string;
+}
+
 interface EntityHookOptions {
   enabled?: boolean;
   searchTerm?: string;
@@ -348,5 +367,239 @@ export function useDynamicCustomers(options: EntityHookOptions = {}) {
     loading,
     error,
     refresh: fetchCustomers
+  };
+}
+
+export function useDynamicDeals(options: EntityHookOptions = {}) {
+  const { currentTenant } = useTenant();
+  const { enabled = true, searchTerm = '', limit = 50 } = options;
+  
+  const [deals, setDeals] = useState<Deal[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchDeals = useCallback(async () => {
+    if (!currentTenant?.id || !enabled) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      let query = supabase
+        .from('deals')
+        .select('id, name, value, status')
+        .eq('tenant_id', currentTenant.id)
+        .order('name');
+
+      if (searchTerm.trim()) {
+        query = query.ilike('name', `%${searchTerm.trim()}%`);
+      }
+
+      if (limit) {
+        query = query.limit(limit);
+      }
+
+      const { data, error: fetchError } = await query;
+
+      if (fetchError) throw fetchError;
+      setDeals(data || []);
+    } catch (err) {
+      console.error('Error fetching deals:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch deals');
+    } finally {
+      setLoading(false);
+    }
+  }, [currentTenant?.id, enabled, searchTerm, limit]);
+
+  useEffect(() => {
+    fetchDeals();
+  }, [fetchDeals]);
+
+  // Set up real-time subscription
+  useEffect(() => {
+    if (!currentTenant?.id || !enabled) return;
+
+    const channel = supabase
+      .channel('deals-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'deals',
+          filter: `tenant_id=eq.${currentTenant.id}`
+        },
+        () => {
+          fetchDeals();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentTenant?.id, enabled, fetchDeals]);
+
+  return {
+    deals,
+    loading,
+    error,
+    refresh: fetchDeals
+  };
+}
+
+export function useDynamicContracts(options: EntityHookOptions = {}) {
+  const { currentTenant } = useTenant();
+  const { enabled = true, searchTerm = '', limit = 50 } = options;
+  
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchContracts = useCallback(async () => {
+    if (!currentTenant?.id || !enabled) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      let query = supabase
+        .from('contracts')
+        .select('id, name, status')
+        .eq('tenant_id', currentTenant.id)
+        .order('name');
+
+      if (searchTerm.trim()) {
+        query = query.ilike('name', `%${searchTerm.trim()}%`);
+      }
+
+      if (limit) {
+        query = query.limit(limit);
+      }
+
+      const { data, error: fetchError } = await query;
+
+      if (fetchError) throw fetchError;
+      setContracts(data || []);
+    } catch (err) {
+      console.error('Error fetching contracts:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch contracts');
+    } finally {
+      setLoading(false);
+    }
+  }, [currentTenant?.id, enabled, searchTerm, limit]);
+
+  useEffect(() => {
+    fetchContracts();
+  }, [fetchContracts]);
+
+  // Set up real-time subscription
+  useEffect(() => {
+    if (!currentTenant?.id || !enabled) return;
+
+    const channel = supabase
+      .channel('contracts-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'contracts',
+          filter: `tenant_id=eq.${currentTenant.id}`
+        },
+        () => {
+          fetchContracts();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentTenant?.id, enabled, fetchContracts]);
+
+  return {
+    contracts,
+    loading,
+    error,
+    refresh: fetchContracts
+  };
+}
+
+export function useDynamicInstallments(options: EntityHookOptions = {}) {
+  const { currentTenant } = useTenant();
+  const { enabled = true, searchTerm = '', limit = 50 } = options;
+  
+  const [installments, setInstallments] = useState<Installment[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchInstallments = useCallback(async () => {
+    if (!currentTenant?.id || !enabled) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      let query = supabase
+        .from('contract_payment_terms')
+        .select('id, name, due_date')
+        .eq('tenant_id', currentTenant.id)
+        .order('name');
+
+      if (searchTerm.trim()) {
+        query = query.ilike('name', `%${searchTerm.trim()}%`);
+      }
+
+      if (limit) {
+        query = query.limit(limit);
+      }
+
+      const { data, error: fetchError } = await query;
+
+      if (fetchError) throw fetchError;
+      setInstallments(data || []);
+    } catch (err) {
+      console.error('Error fetching installments:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch installments');
+    } finally {
+      setLoading(false);
+    }
+  }, [currentTenant?.id, enabled, searchTerm, limit]);
+
+  useEffect(() => {
+    fetchInstallments();
+  }, [fetchInstallments]);
+
+  // Set up real-time subscription
+  useEffect(() => {
+    if (!currentTenant?.id || !enabled) return;
+
+    const channel = supabase
+      .channel('installments-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'contract_payment_terms',
+          filter: `tenant_id=eq.${currentTenant.id}`
+        },
+        () => {
+          fetchInstallments();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentTenant?.id, enabled, fetchInstallments]);
+
+  return {
+    installments,
+    loading,
+    error,
+    refresh: fetchInstallments
   };
 }

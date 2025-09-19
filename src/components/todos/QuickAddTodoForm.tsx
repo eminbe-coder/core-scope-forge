@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus } from 'lucide-react';
 import { TodoFormModal } from './TodoFormModal';
-import { DynamicCompanySelect, DynamicContactSelect, DynamicSiteSelect, DynamicCustomerSelect } from '@/components/ui/dynamic-searchable-select';
+import { DynamicCompanySelect, DynamicContactSelect, DynamicSiteSelect, DynamicCustomerSelect, DynamicDealSelect, DynamicContractSelect, DynamicInstallmentSelect } from '@/components/ui/dynamic-searchable-select';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 
@@ -19,6 +19,10 @@ const ENTITY_TYPES = [
   { value: 'contact', label: 'Contact' },
   { value: 'site', label: 'Site' },
   { value: 'customer', label: 'Customer' },
+  { value: 'deal', label: 'Deal' },
+  { value: 'contract', label: 'Contract' },
+  { value: 'installment', label: 'Installment' },
+  { value: 'standalone', label: 'Standalone' },
 ] as const;
 
 export const QuickAddTodoForm = ({ 
@@ -33,7 +37,7 @@ export const QuickAddTodoForm = ({
   const [selectedEntityId, setSelectedEntityId] = useState<string>(defaultEntityId || '');
 
   const handleEntitySelection = () => {
-    if (selectedEntityType && selectedEntityId) {
+    if (selectedEntityType && (selectedEntityId || selectedEntityType === 'standalone')) {
       setOpen(false);
       setTodoModalOpen(true);
     }
@@ -112,6 +116,38 @@ export const QuickAddTodoForm = ({
             emptyText="No customers found"
           />
         );
+      case 'deal':
+        return (
+          <DynamicDealSelect
+            value={selectedEntityId}
+            onValueChange={setSelectedEntityId}
+            placeholder="Select a deal"
+            searchPlaceholder="Search deals..."
+            emptyText="No deals found"
+          />
+        );
+      case 'contract':
+        return (
+          <DynamicContractSelect
+            value={selectedEntityId}
+            onValueChange={setSelectedEntityId}
+            placeholder="Select a contract"
+            searchPlaceholder="Search contracts..."
+            emptyText="No contracts found"
+          />
+        );
+      case 'installment':
+        return (
+          <DynamicInstallmentSelect
+            value={selectedEntityId}
+            onValueChange={setSelectedEntityId}
+            placeholder="Select an installment"
+            searchPlaceholder="Search installments..."
+            emptyText="No installments found"
+          />
+        );
+      case 'standalone':
+        return null; // No entity selection needed for standalone
       default:
         return null;
     }
@@ -150,10 +186,16 @@ export const QuickAddTodoForm = ({
               </Select>
             </div>
 
-            {selectedEntityType && (
+            {selectedEntityType && selectedEntityType !== 'standalone' && (
               <div className="space-y-2">
                 <Label>Select {ENTITY_TYPES.find(t => t.value === selectedEntityType)?.label}</Label>
                 {renderEntitySelect()}
+              </div>
+            )}
+
+            {selectedEntityType === 'standalone' && (
+              <div className="text-sm text-muted-foreground">
+                This todo will not be linked to any specific entity.
               </div>
             )}
 
@@ -166,7 +208,7 @@ export const QuickAddTodoForm = ({
               </Button>
               <Button
                 onClick={handleEntitySelection}
-                disabled={!selectedEntityType || !selectedEntityId}
+                disabled={!selectedEntityType || (!selectedEntityId && selectedEntityType !== 'standalone')}
               >
                 Continue
               </Button>
@@ -179,7 +221,7 @@ export const QuickAddTodoForm = ({
         open={todoModalOpen}
         onOpenChange={handleTodoModalClose}
         entityType={defaultEntityType || selectedEntityType}
-        entityId={defaultEntityId || selectedEntityId}
+        entityId={defaultEntityId || selectedEntityId || (selectedEntityType === 'standalone' ? 'standalone' : '')}
         onSuccess={handleTodoSuccess}
       />
     </>
