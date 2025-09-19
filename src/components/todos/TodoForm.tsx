@@ -56,6 +56,7 @@ export const TodoForm = ({
   const [paymentTerms, setPaymentTerms] = useState<any[]>([]);
   const [contacts, setContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [lastChangedField, setLastChangedField] = useState<'start_time' | 'due_time' | 'duration' | null>(null);
 
   React.useEffect(() => {
     setOpen(defaultOpen);
@@ -189,35 +190,66 @@ export const TodoForm = ({
   // Watch for changes and auto-calculate
   const watchedValues = form.watch();
   
+  // Track field changes
+  const prevValuesRef = React.useRef(watchedValues);
+  
   React.useEffect(() => {
     const { start_time, due_time, duration, due_date } = watchedValues;
+    const prevValues = prevValuesRef.current;
     
     // Only auto-calculate if we have a date
     if (!due_date) return;
-
-    // Calculate due_time when start_time or duration changes
-    if (start_time && duration && !due_time) {
-      const calculatedDueTime = calculateDueTime(start_time, duration, due_date);
-      if (calculatedDueTime !== due_time) {
-        form.setValue('due_time', calculatedDueTime, { shouldValidate: false });
-      }
+    
+    // Determine which field changed
+    let changedField: 'start_time' | 'due_time' | 'duration' | null = null;
+    if (start_time !== prevValues.start_time) changedField = 'start_time';
+    else if (due_time !== prevValues.due_time) changedField = 'due_time';
+    else if (duration !== prevValues.duration) changedField = 'duration';
+    
+    if (changedField) {
+      setLastChangedField(changedField);
     }
     
-    // Calculate start_time when due_time or duration changes
-    else if (due_time && duration && !start_time) {
-      const calculatedStartTime = calculateStartTimeFromDue(due_time, duration, due_date);
-      if (calculatedStartTime !== start_time) {
-        form.setValue('start_time', calculatedStartTime, { shouldValidate: false });
-      }
-    }
+    // Update previous values
+    prevValuesRef.current = watchedValues;
     
-    // Calculate duration when both times are set
-    else if (start_time && due_time && (!duration || duration === 10)) {
-      const calculatedDuration = calculateDurationFromTimes(start_time, due_time);
-      if (calculatedDuration !== duration) {
-        form.setValue('duration', calculatedDuration, { shouldValidate: false });
+    // Debounce calculations
+    const timeoutId = setTimeout(() => {
+      // Priority-based calculations
+      if (changedField === 'duration' || changedField === 'due_time') {
+        // When duration or due_time changes, recalculate start_time
+        if (due_time && duration) {
+          const calculatedStartTime = calculateStartTimeFromDue(due_time, duration, due_date);
+          if (calculatedStartTime !== start_time) {
+            form.setValue('start_time', calculatedStartTime, { shouldValidate: false });
+          }
+        }
+      } else if (changedField === 'start_time') {
+        // When start_time changes, recalculate due_time
+        if (start_time && duration) {
+          const calculatedDueTime = calculateDueTime(start_time, duration, due_date);
+          if (calculatedDueTime !== due_time) {
+            form.setValue('due_time', calculatedDueTime, { shouldValidate: false });
+          }
+        }
+      } else {
+        // Initial calculations when no specific field changed
+        if (start_time && duration && !due_time) {
+          const calculatedDueTime = calculateDueTime(start_time, duration, due_date);
+          form.setValue('due_time', calculatedDueTime, { shouldValidate: false });
+        } else if (due_time && duration && !start_time) {
+          const calculatedStartTime = calculateStartTimeFromDue(due_time, duration, due_date);
+          form.setValue('start_time', calculatedStartTime, { shouldValidate: false });
+        } else if (start_time && due_time && (!duration || duration === 10)) {
+          const calculatedDuration = calculateDurationFromTimes(start_time, due_time);
+          if (calculatedDuration !== duration) {
+            form.setValue('duration', calculatedDuration, { shouldValidate: false });
+          }
+        }
       }
-    }
+    }, 100); // 100ms debounce
+    
+    return () => clearTimeout(timeoutId);
   }, [watchedValues.start_time, watchedValues.due_time, watchedValues.duration, watchedValues.due_date, form, workingHours]);
 
   const onSubmit = async (values: any) => {
