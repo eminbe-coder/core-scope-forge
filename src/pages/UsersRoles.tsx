@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import { Search, Users, Plus, Edit, Trash2, Key, Shield } from 'lucide-react';
 import { EditUserModal } from '@/components/forms/EditUserModal';
 import { CreateUserModal } from '@/components/forms/CreateUserModal';
+import { EditRoleModal } from '@/components/forms/EditRoleModal';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -51,7 +52,7 @@ interface CustomRole {
 }
 
 const UsersRoles = () => {
-  const { currentTenant, isAdmin, refreshTenants } = useTenant();
+  const { currentTenant, isAdmin, userRole, refreshTenants } = useTenant();
   const { toast } = useToast();
   const [tenantUsers, setTenantUsers] = useState<TenantUser[]>([]);
   const [customRoles, setCustomRoles] = useState<CustomRole[]>([]);
@@ -78,7 +79,8 @@ const UsersRoles = () => {
       setLoading(true);
       
       // Fetch tenant users with custom roles
-      const { data: users, error: usersError } = await supabase
+      // Filter out super_admin users if current user is not super_admin
+      let query = supabase
         .from('user_tenant_memberships')
         .select(`
           *,
@@ -87,6 +89,13 @@ const UsersRoles = () => {
         `)
         .eq('tenant_id', currentTenant.id)
         .eq('active', true);
+      
+      // Tenant admins should not see super_admin users
+      if (userRole !== 'super_admin') {
+        query = query.neq('role', 'super_admin');
+      }
+      
+      const { data: users, error: usersError } = await query;
       
       if (usersError) throw usersError;
       
@@ -373,6 +382,59 @@ const UsersRoles = () => {
           </TabsContent>
 
           <TabsContent value="roles" className="space-y-6">
+            {/* System Roles Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Key className="h-5 w-5" />
+                  System Roles
+                </CardTitle>
+                <CardDescription>
+                  Built-in roles with predefined permissions
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead>Permissions</TableHead>
+                        <TableHead>Users</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell className="font-medium">
+                          <Badge variant="default">Admin</Badge>
+                        </TableCell>
+                        <TableCell>Full access to tenant management and all features</TableCell>
+                        <TableCell>
+                          <span className="text-sm text-muted-foreground">All permissions</span>
+                        </TableCell>
+                        <TableCell>
+                          {tenantUsers.filter(u => u.role === 'admin').length} users
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-medium">
+                          <Badge variant="secondary">Member</Badge>
+                        </TableCell>
+                        <TableCell>Standard user with limited access to CRM features</TableCell>
+                        <TableCell>
+                          <span className="text-sm text-muted-foreground">View CRM, Devices, Projects, Reports</span>
+                        </TableCell>
+                        <TableCell>
+                          {tenantUsers.filter(u => u.role === 'member').length} users
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -529,6 +591,18 @@ const UsersRoles = () => {
             tenantId={currentTenant.id}
             onSuccess={() => {
               setShowCreateUser(false);
+              fetchTenantData();
+            }}
+          />
+        )}
+
+        {editingRole && (
+          <EditRoleModal
+            role={editingRole}
+            open={!!editingRole}
+            onClose={() => setEditingRole(null)}
+            onSuccess={() => {
+              setEditingRole(null);
               fetchTenantData();
             }}
           />
