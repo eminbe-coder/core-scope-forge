@@ -63,7 +63,6 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedStatuses, setSelectedStatuses] = useState<string[]>(['pending']);
   const [showCreatedByMe, setShowCreatedByMe] = useState(false);
   const [showDue, setShowDue] = useState(false);
   const [showOverdue, setShowOverdue] = useState(false);
@@ -400,42 +399,63 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
     }
   };
 
-  const toggleStatusFilter = (status: string) => {
-    setSelectedStatuses(prev => 
-      prev.includes(status)
-        ? prev.filter(s => s !== status)
-        : [...prev, status]
-    );
-  };
-
   const filteredAndSortedTodos = useMemo(() => {
-    return todos.filter(todo => {
-      // Search filter
-      const matchesSearch = !searchTerm || 
+    // First apply search filter
+    const searchFiltered = todos.filter(todo => {
+      return !searchTerm || 
         todo.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         todo.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         todo.entity_name?.toLowerCase().includes(searchTerm.toLowerCase());
+    });
 
-      // Status filter
-      const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(todo.status);
+    // Check if any toggles are active
+    const hasActiveToggles = showOverdue || showDue || showPending || showCreatedByMe || showCompleted;
+    
+    // If no toggles are active, show nothing
+    if (!hasActiveToggles) {
+      return [];
+    }
 
-      // Pending filter - show todos with future due dates and not completed
-      const matchesPending = !showPending || (todo.due_date && isFuture(new Date(todo.due_date)) && todo.status !== 'completed');
+    // Build array of todos that match active filters using OR logic
+    const matchingTodos: Todo[] = [];
+    const addedTodoIds = new Set<string>();
 
-      // Due filter - show todos that are due TODAY and not completed
-      const matchesDue = !showDue || (todo.due_date && isToday(new Date(todo.due_date)) && todo.status !== 'completed');
+    // Date-based filters (OR logic) - only add if not completed (except for completed filter)
+    searchFiltered.forEach(todo => {
+      let shouldAdd = false;
 
-      // Overdue filter - show todos that are due BEFORE today and not completed
-      const matchesOverdue = !showOverdue || (todo.due_date && isPast(new Date(todo.due_date)) && !isToday(new Date(todo.due_date)) && todo.status !== 'completed');
+      // Overdue filter
+      if (showOverdue && todo.due_date && isPast(new Date(todo.due_date)) && !isToday(new Date(todo.due_date)) && todo.status !== 'completed') {
+        shouldAdd = true;
+      }
 
-      // Created by me filter - show todos created by current user but not assigned to them
-      const matchesCreatedBy = !showCreatedByMe || (currentUserId && todo.created_by === currentUserId && todo.assigned_to !== currentUserId);
+      // Due today filter  
+      if (showDue && todo.due_date && isToday(new Date(todo.due_date)) && todo.status !== 'completed') {
+        shouldAdd = true;
+      }
 
-      // Completed filter - show only completed todos
-      const matchesCompleted = !showCompleted || todo.status === 'completed';
+      // Pending filter (future dates)
+      if (showPending && todo.due_date && isFuture(new Date(todo.due_date)) && todo.status !== 'completed') {
+        shouldAdd = true;
+      }
 
-      return matchesSearch && matchesStatus && matchesPending && matchesDue && matchesOverdue && matchesCreatedBy && matchesCompleted;
-    }).sort((a, b) => {
+      // Created by me filter (additive)
+      if (showCreatedByMe && currentUserId && todo.created_by === currentUserId && todo.assigned_to !== currentUserId) {
+        shouldAdd = true;
+      }
+
+      // Completed filter (additive)
+      if (showCompleted && todo.status === 'completed') {
+        shouldAdd = true;
+      }
+
+      if (shouldAdd && !addedTodoIds.has(todo.id)) {
+        matchingTodos.push(todo);
+        addedTodoIds.add(todo.id);
+      }
+    });
+
+    return matchingTodos.sort((a, b) => {
       if (sortBy === 'priority') {
         const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 };
         const aPriority = priorityOrder[a.priority as keyof typeof priorityOrder] || 0;
@@ -463,7 +483,7 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
         return aValue < bValue ? 1 : -1;
       }
     });
-  }, [todos, searchTerm, selectedStatuses, showPending, showDue, showOverdue, showCreatedByMe, showCompleted, sortBy, sortOrder, currentUserId]);
+  }, [todos, searchTerm, showOverdue, showDue, showPending, showCreatedByMe, showCompleted, sortBy, sortOrder, currentUserId]);
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -576,17 +596,6 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {['pending'].map(status => (
-              <Button
-                key={status}
-                variant={selectedStatuses.includes(status) ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => toggleStatusFilter(status)}
-              >
-                {status.replace('_', ' ')}
-              </Button>
-            ))}
-            
             <Button
               variant={showOverdue ? 'destructive' : 'outline'}
               size="sm"
