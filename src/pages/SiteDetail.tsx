@@ -10,12 +10,9 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { SearchableSelect } from '@/components/ui/searchable-select';
-import { SiteRelationships } from '@/components/site-details/SiteRelationships';
 import { SiteTodos } from '@/components/site-details/SiteTodos';
 import { SiteStatistics } from '@/components/site-details/SiteStatistics';
-import { SiteBusinessItems } from '@/components/site-details/SiteBusinessItems';
 import { SiteActivityTimeline } from '@/components/site-details/SiteActivityTimeline';
-import { SiteQuickActions } from '@/components/site-details/SiteQuickActions';
 import { MapDisplay } from '@/components/ui/map-display';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
@@ -89,6 +86,30 @@ const SiteDetail = () => {
   const { currentTenant } = useTenant();
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // UUID validation helper
+  const isValidUUID = (uuid: string): boolean => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(uuid);
+  };
+
+  // Validate UUID early
+  if (id && !isValidUUID(id)) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <p className="text-lg font-semibold">Invalid Site ID</p>
+            <p className="text-muted-foreground mb-4">The provided site ID is not valid.</p>
+            <Button onClick={() => navigate('/sites')} className="mt-4">
+              Back to Sites
+            </Button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   const [site, setSite] = useState<Site | null>(null);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
@@ -483,19 +504,48 @@ const SiteDetail = () => {
         {/* Site Statistics Dashboard */}
         <SiteStatistics siteId={site.id} />
 
-        {/* Business Items Overview */}
-        <SiteBusinessItems siteId={site.id} />
-
-        <div className="grid gap-6 md:grid-cols-3">
-          {/* Quick Actions */}
-          <SiteQuickActions siteId={site.id} siteName={site.name} />
-          
-          {/* Activity Timeline */}
-          <div className="md:col-span-2">
-            <SiteActivityTimeline siteId={site.id} />
-          </div>
-        </div>
+        {/* Site Information and Location Details - Side by Side */}
         <div className="grid gap-6 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="h-4 w-4" />
+                Site Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {site.customers && (
+                <div>
+                  <p className="text-sm font-medium">Customer</p>
+                  <button
+                    className="text-sm text-primary hover:underline"
+                    onClick={() => navigate(`/customers/${site.customers?.id}`)}
+                  >
+                    {site.customers.name}
+                  </button>
+                </div>
+              )}
+              <div>
+                <p className="text-sm font-medium">Type</p>
+                <p className="text-sm text-muted-foreground">
+                  {site.is_lead ? 'Lead Site' : 'Customer Site'}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium">Created</p>
+                <p className="text-sm text-muted-foreground">
+                  {new Date(site.created_at).toLocaleDateString()}
+                </p>
+              </div>
+              {site.notes && (
+                <div>
+                  <p className="text-sm font-medium">Notes</p>
+                  <p className="text-sm text-muted-foreground">{site.notes}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -548,68 +598,132 @@ const SiteDetail = () => {
           address={site.address}
         />
 
-        {/* Site Information */}
-        <div className="grid gap-6 md:grid-cols-2">
+        {/* Business Items Lists - Deals, Contracts, Leads */}
+        <div className="grid gap-6 md:grid-cols-3">
+          {/* Deals */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Building2 className="h-4 w-4" />
-                Site Information
+                <FileText className="h-4 w-4" />
+                Deals ({deals.length})
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {site.customers && (
-                <div>
-                  <p className="text-sm font-medium">Customer</p>
-                  <button
-                    className="text-sm text-primary hover:underline"
-                    onClick={() => navigate(`/customers/${site.customers?.id}`)}
-                  >
-                    {site.customers.name}
-                  </button>
+            <CardContent className="max-h-96 overflow-y-auto">
+              {deals.length > 0 ? (
+                <div className="space-y-3">
+                  {deals.map((deal) => (
+                    <div
+                      key={deal.id}
+                      className="p-3 border rounded-lg hover:bg-accent cursor-pointer transition-colors"
+                      onClick={() => navigate(`/deals/edit/${deal.id}`)}
+                    >
+                      <h4 className="font-medium text-sm">{deal.name}</h4>
+                      <p className="text-xs text-muted-foreground capitalize">
+                        {deal.status.replace('_', ' ')}
+                      </p>
+                      <p className="text-sm font-semibold mt-1">
+                        ${deal.value?.toLocaleString() || '0'}
+                      </p>
+                    </div>
+                  ))}
                 </div>
+              ) : (
+                <p className="text-muted-foreground text-sm text-center py-4">
+                  No deals yet
+                </p>
               )}
-              <div>
-                <p className="text-sm font-medium">Type</p>
-                <p className="text-sm text-muted-foreground">
-                  {site.is_lead ? 'Lead Site' : 'Customer Site'}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm font-medium">Created</p>
-                <p className="text-sm text-muted-foreground">
-                  {new Date(site.created_at).toLocaleDateString()}
-                </p>
-              </div>
-              {site.notes && (
-                <div>
-                  <p className="text-sm font-medium">Notes</p>
-                  <p className="text-sm text-muted-foreground">{site.notes}</p>
+            </CardContent>
+          </Card>
+
+          {/* Contracts */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileSignature className="h-4 w-4" />
+                Contracts ({contracts.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="max-h-96 overflow-y-auto">
+              {contracts.length > 0 ? (
+                <div className="space-y-3">
+                  {contracts.map((contract) => (
+                    <div
+                      key={contract.id}
+                      className="p-3 border rounded-lg hover:bg-accent cursor-pointer transition-colors"
+                      onClick={() => navigate(`/contracts/edit/${contract.id}`)}
+                    >
+                      <h4 className="font-medium text-sm">{contract.name}</h4>
+                      <p className="text-xs text-muted-foreground capitalize">
+                        {contract.status.replace('_', ' ')}
+                      </p>
+                      <p className="text-sm font-semibold mt-1">
+                        ${contract.value?.toLocaleString() || '0'}
+                      </p>
+                    </div>
+                  ))}
                 </div>
+              ) : (
+                <p className="text-muted-foreground text-sm text-center py-4">
+                  No contracts yet
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Leads */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <UserCheck className="h-4 w-4" />
+                Leads ({leads.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="max-h-96 overflow-y-auto">
+              {leads.length > 0 ? (
+                <div className="space-y-3">
+                  {leads.map((lead) => (
+                    <div
+                      key={lead.id}
+                      className="p-3 border rounded-lg hover:bg-accent cursor-pointer transition-colors"
+                      onClick={() => navigate(`/leads/edit/${lead.id}`)}
+                    >
+                      <h4 className="font-medium text-sm">
+                        {lead.first_name} {lead.last_name}
+                      </h4>
+                      <p className="text-xs text-muted-foreground">
+                        {lead.email || 'No email'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(lead.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-sm text-center py-4">
+                  No leads yet
+                </p>
               )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Site Data Tabs */}
-        <Tabs defaultValue="todos" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="todos" className="flex items-center gap-2">
+        {/* Todos Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
               <CheckSquare className="h-4 w-4" />
-              Todos
-            </TabsTrigger>
-            <TabsTrigger value="deals" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Deals ({deals.length})
-            </TabsTrigger>
-            <TabsTrigger value="contracts" className="flex items-center gap-2">
-              <FileSignature className="h-4 w-4" />
-              Contracts ({contracts.length})
-            </TabsTrigger>
-            <TabsTrigger value="leads" className="flex items-center gap-2">
-              <UserCheck className="h-4 w-4" />
-              Leads ({leads.length})
-            </TabsTrigger>
+              Site Todos
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <SiteTodos siteId={site.id} siteName={site.name} />
+          </CardContent>
+        </Card>
+
+        {/* Contacts and Companies Tabs */}
+        <Tabs defaultValue="contacts" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="contacts" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               Contacts ({contacts.length})
@@ -619,55 +733,6 @@ const SiteDetail = () => {
               Companies ({companies.length})
             </TabsTrigger>
           </TabsList>
-
-          <TabsContent value="todos" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Site Todos</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <SiteTodos siteId={site.id} siteName={site.name} />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="deals" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Connected Deals</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {deals.length > 0 ? (
-                  <div className="space-y-4">
-                    {deals.map((deal) => (
-                      <div
-                        key={deal.id}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent cursor-pointer"
-                        onClick={() => navigate(`/deals/edit/${deal.id}`)}
-                      >
-                        <div>
-                          <h4 className="font-medium">{deal.name}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            Deal
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-medium">${deal.value.toLocaleString()}</p>
-                          <p className="text-sm text-muted-foreground capitalize">
-                            {deal.status.replace('_', ' ')}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground text-center py-8">
-                    No deals connected to this site yet.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           <TabsContent value="contacts" className="space-y-4">
             <Card>
@@ -881,82 +946,12 @@ const SiteDetail = () => {
               </CardContent>
             </Card>
           </TabsContent>
-
-          <TabsContent value="contracts" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Connected Contracts</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {contracts.length > 0 ? (
-                  <div className="space-y-4">
-                    {contracts.map((contract) => (
-                      <div
-                        key={contract.id}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent cursor-pointer"
-                        onClick={() => navigate(`/contracts/edit/${contract.id}`)}
-                      >
-                        <div>
-                          <h4 className="font-medium">{contract.name}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            Contract
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-medium">${contract.value?.toLocaleString() || 'N/A'}</p>
-                          <p className="text-sm text-muted-foreground capitalize">
-                            {contract.status.replace('_', ' ')}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground text-center py-8">
-                    No contracts connected to this site yet.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="leads" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Connected Leads</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {leads.length > 0 ? (
-                  <div className="space-y-4">
-                    {leads.map((lead) => (
-                      <div
-                        key={lead.id}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent cursor-pointer"
-                        onClick={() => navigate(`/leads/edit/${lead.id}`)}
-                      >
-                        <div>
-                          <h4 className="font-medium">{lead.first_name} {lead.last_name}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            {lead.email || 'No email'}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm text-muted-foreground">
-                            Lead Contact
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground text-center py-8">
-                    No leads connected to this site yet.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
         </Tabs>
+
+        {/* Activity Timeline */}
+        <div className="mt-6">
+          <SiteActivityTimeline siteId={site.id} />
+        </div>
       </div>
     </DashboardLayout>
   );
