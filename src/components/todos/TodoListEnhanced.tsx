@@ -63,17 +63,28 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedStatuses, setSelectedStatuses] = useState<string[]>(['pending', 'in_progress']);
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>(['pending']);
   const [showCreatedByMe, setShowCreatedByMe] = useState(false);
   const [showDue, setShowDue] = useState(false);
   const [showOverdue, setShowOverdue] = useState(false);
+  const [showPending, setShowPending] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
   const [sortBy, setSortBy] = useState('due_date');
   const [sortOrder, setSortOrder] = useState('asc');
   const [filterAssignee, setFilterAssignee] = useState(assignedTo || 'all');
   const [profiles, setProfiles] = useState<any[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const { currentTenant } = useTenant();
   const { getVisibilityLevel, isAdmin } = usePermissions();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUserId(user?.id || null);
+    };
+    getCurrentUser();
+  }, []);
 
   useEffect(() => {
     if (currentTenant?.id) {
@@ -408,16 +419,22 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
       // Status filter
       const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(todo.status);
 
-      // Due filter - show todos that have a due date and are not completed
-      const matchesDue = !showDue || (todo.due_date && todo.status !== 'completed');
+      // Pending filter - show todos with future due dates and not completed
+      const matchesPending = !showPending || (todo.due_date && isFuture(new Date(todo.due_date)) && todo.status !== 'completed');
 
-      // Overdue filter - show todos that are past their due date and not completed
+      // Due filter - show todos that are due TODAY and not completed
+      const matchesDue = !showDue || (todo.due_date && isToday(new Date(todo.due_date)) && todo.status !== 'completed');
+
+      // Overdue filter - show todos that are due BEFORE today and not completed
       const matchesOverdue = !showOverdue || (todo.due_date && isPast(new Date(todo.due_date)) && !isToday(new Date(todo.due_date)) && todo.status !== 'completed');
 
-      // Created by me filter - simplified for now
-      const matchesCreatedBy = !showCreatedByMe || true; // Will be implemented properly later
+      // Created by me filter - show todos created by current user but not assigned to them
+      const matchesCreatedBy = !showCreatedByMe || (currentUserId && todo.created_by === currentUserId && todo.assigned_to !== currentUserId);
 
-      return matchesSearch && matchesStatus && matchesDue && matchesOverdue && matchesCreatedBy;
+      // Completed filter - show only completed todos
+      const matchesCompleted = !showCompleted || todo.status === 'completed';
+
+      return matchesSearch && matchesStatus && matchesPending && matchesDue && matchesOverdue && matchesCreatedBy && matchesCompleted;
     }).sort((a, b) => {
       if (sortBy === 'priority') {
         const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 };
@@ -446,7 +463,7 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
         return aValue < bValue ? 1 : -1;
       }
     });
-  }, [todos, searchTerm, selectedStatuses, showDue, showOverdue, showCreatedByMe, sortBy, sortOrder]);
+  }, [todos, searchTerm, selectedStatuses, showPending, showDue, showOverdue, showCreatedByMe, showCompleted, sortBy, sortOrder, currentUserId]);
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -559,7 +576,7 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {['pending', 'in_progress', 'completed'].map(status => (
+            {['pending'].map(status => (
               <Button
                 key={status}
                 variant={selectedStatuses.includes(status) ? 'default' : 'outline'}
@@ -571,21 +588,33 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
             ))}
             
             <Button
-              variant={showDue ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setShowDue(!showDue)}
-            >
-              <Calendar className="h-4 w-4 mr-1" />
-              Due
-            </Button>
-
-            <Button
-              variant={showOverdue ? 'default' : 'outline'}
+              variant={showOverdue ? 'destructive' : 'outline'}
               size="sm"
               onClick={() => setShowOverdue(!showOverdue)}
+              className={showOverdue ? 'bg-red-500 hover:bg-red-600' : 'border-red-200 text-red-600 hover:bg-red-50'}
             >
               <AlertTriangle className="h-4 w-4 mr-1" />
               Overdue
+            </Button>
+
+            <Button
+              variant={showDue ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setShowDue(!showDue)}
+              className={showDue ? 'bg-orange-500 hover:bg-orange-600' : 'border-orange-200 text-orange-600 hover:bg-orange-50'}
+            >
+              <Calendar className="h-4 w-4 mr-1" />
+              Due Today
+            </Button>
+
+            <Button
+              variant={showPending ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setShowPending(!showPending)}
+              className={showPending ? 'bg-yellow-500 hover:bg-yellow-600 text-black' : 'border-yellow-200 text-yellow-600 hover:bg-yellow-50'}
+            >
+              <Clock className="h-4 w-4 mr-1" />
+              Pending
             </Button>
             
             <Button
@@ -593,7 +622,18 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
               size="sm"
               onClick={() => setShowCreatedByMe(!showCreatedByMe)}
             >
+              <User className="h-4 w-4 mr-1" />
               Created by me
+            </Button>
+
+            <Button
+              variant={showCompleted ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setShowCompleted(!showCompleted)}
+              className={showCompleted ? 'bg-green-500 hover:bg-green-600' : 'border-green-200 text-green-600 hover:bg-green-50'}
+            >
+              <CheckCircle className="h-4 w-4 mr-1" />
+              Completed
             </Button>
 
             {showAssigneeFilter && profiles.length > 0 && (
