@@ -124,7 +124,7 @@ export const useTodoPreferences = () => {
   };
 
   const saveCurrentPreferences = () => {
-    savePreferences({});
+    savePreferences(preferences);
   };
 
   return {

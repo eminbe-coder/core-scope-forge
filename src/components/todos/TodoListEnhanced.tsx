@@ -31,6 +31,15 @@ interface Todo {
   assigned_profile?: { first_name: string; last_name: string };
   contact?: { first_name: string; last_name: string };
   entity_name?: string;
+  todo_assignees?: Array<{
+    id: string;
+    user_id: string;
+    profiles: {
+      id: string;
+      first_name: string;
+      last_name: string;
+    };
+  }>;
 }
 
 interface TodoListEnhancedProps {
@@ -39,6 +48,7 @@ interface TodoListEnhancedProps {
   assignedTo?: string;
   showFilters?: boolean;
   onTodoClick?: (todo: Todo) => void;
+  showAssigneeFilter?: boolean;
 }
 
 export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
@@ -46,7 +56,8 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
   entityId,
   assignedTo,
   showFilters = true,
-  onTodoClick
+  onTodoClick,
+  showAssigneeFilter = true
 }) => {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(false);
@@ -55,14 +66,19 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
   const [showCreatedByMe, setShowCreatedByMe] = useState(false);
   const [sortBy, setSortBy] = useState('due_date');
   const [sortOrder, setSortOrder] = useState('asc');
+  const [filterAssignee, setFilterAssignee] = useState(assignedTo || 'all');
+  const [profiles, setProfiles] = useState<any[]>([]);
   const { currentTenant } = useTenant();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (currentTenant?.id) {
       fetchTodos();
+      if (showAssigneeFilter) {
+        fetchProfiles();
+      }
     }
-  }, [currentTenant?.id, entityType, entityId, assignedTo]);
+  }, [currentTenant?.id, entityType, entityId, assignedTo, filterAssignee]);
 
   // Real-time subscription for live updates
   useEffect(() => {
@@ -90,6 +106,33 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
     };
   }, [currentTenant?.id]);
 
+  const fetchProfiles = async () => {
+    try {
+      const { data: profilesData } = await supabase
+        .from('user_tenant_memberships')
+        .select(`
+          user_id,
+          profiles:user_id (
+            id,
+            first_name,
+            last_name,
+            email
+          )
+        `)
+        .eq('tenant_id', currentTenant?.id)
+        .eq('active', true);
+
+      if (profilesData) {
+        const profilesList = profilesData
+          .map((membership: any) => membership.profiles)
+          .filter(Boolean);
+        setProfiles(profilesList);
+      }
+    } catch (error) {
+      console.error('Error fetching profiles:', error);
+    }
+  };
+
   const fetchTodos = async () => {
     if (!currentTenant?.id) return;
 
@@ -112,6 +155,8 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
       // Filter by assigned user if specified
       if (assignedTo) {
         query = query.eq('assigned_to', assignedTo);
+      } else if (filterAssignee && filterAssignee !== 'all') {
+        query = query.eq('assigned_to', filterAssignee);
       }
 
       const { data, error } = await query.order('created_at', { ascending: false });
@@ -385,6 +430,22 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
             >
               Created by me
             </Button>
+
+            {showAssigneeFilter && profiles.length > 0 && (
+              <Select value={filterAssignee} onValueChange={setFilterAssignee}>
+                <SelectTrigger className="w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Assignees</SelectItem>
+                  {profiles.map((profile) => (
+                    <SelectItem key={profile.id} value={profile.id}>
+                      {profile.first_name} {profile.last_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </div>
       )}
@@ -548,12 +609,26 @@ const TodoCard: React.FC<TodoCardProps> = ({
                     </div>
                   )}
 
-                  {todo.assigned_profile && (
+                  {/* Show assignees - prioritize todo_assignees over assigned_profile */}
+                  {todo.todo_assignees && todo.todo_assignees.length > 0 ? (
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <User className="h-3 w-3" />
+                      {todo.todo_assignees.length === 1 ? (
+                        <span>
+                          {todo.todo_assignees[0].profiles.first_name} {todo.todo_assignees[0].profiles.last_name}
+                        </span>
+                      ) : (
+                        <span>
+                          {todo.todo_assignees.length} assignees
+                        </span>
+                      )}
+                    </div>
+                  ) : todo.assigned_profile ? (
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <User className="h-3 w-3" />
                       {todo.assigned_profile.first_name} {todo.assigned_profile.last_name}
                     </div>
-                  )}
+                  ) : null}
                 </div>
 
                 {todo.entity_name && (

@@ -413,6 +413,11 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
 
     setSaving(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const oldDate = editedTodo.due_date;
+      const oldTime = editedTodo.due_time;
+
+      // Update the todo
       const { error } = await supabase
         .from('todos')
         .update({
@@ -423,6 +428,27 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
         .eq('id', editedTodo.id);
 
       if (error) throw error;
+
+      // Create audit log entry for postponement
+      await supabase
+        .from('todo_audit_logs')
+        .insert({
+          todo_id: editedTodo.id,
+          tenant_id: currentTenant?.id,
+          action: 'todo_postponed',
+          field_name: 'due_date_time',
+          old_value: JSON.stringify({ 
+            due_date: oldDate, 
+            due_time: oldTime 
+          }),
+          new_value: JSON.stringify({ 
+            due_date: newDate, 
+            due_time: newTime 
+          }),
+          user_id: user?.id,
+          user_name: user ? `${user.user_metadata?.first_name || ''} ${user.user_metadata?.last_name || ''}`.trim() : 'Unknown',
+          notes: `Postponed from ${oldDate || 'no date'} ${oldTime || ''} to ${newDate} ${newTime || ''}. Reason: ${reason}`
+        });
 
       toast.success('Todo postponed successfully');
       setPostponeDialogOpen(false);

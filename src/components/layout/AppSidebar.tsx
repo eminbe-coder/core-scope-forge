@@ -125,7 +125,7 @@ const tenantModules: NavigationModule[] = [
         permission: 'crm.activities.view',
       },
       {
-        title: 'My To-Dos',
+        title: 'To-Dos',
         url: '/my-todos',
         icon: CheckSquare,
         permission: 'crm.activities.view',

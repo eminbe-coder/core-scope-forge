@@ -49,22 +49,35 @@ export const MultiAssigneeManager: React.FC<MultiAssigneeManagerProps> = ({
     if (!currentTenant?.id) return;
 
     try {
+      const { data: memberships, error: membershipError } = await supabase
+        .from('user_tenant_memberships')
+        .select('user_id')
+        .eq('tenant_id', currentTenant.id)
+        .eq('active', true);
+
+      if (membershipError) throw membershipError;
+
+      const userIds = memberships?.map(m => m.user_id) || [];
+      
+      if (userIds.length === 0) {
+        setProfiles([]);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('profiles')
         .select('id, first_name, last_name, email')
-        .in('id', 
-          await supabase
-            .from('user_tenant_memberships')
-            .select('user_id')
-            .eq('tenant_id', currentTenant.id)
-            .eq('active', true)
-            .then(({ data }) => data?.map(m => m.user_id) || [])
-        );
+        .in('id', userIds);
 
       if (error) throw error;
       setProfiles(data || []);
     } catch (error) {
       console.error('Error fetching profiles:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load users",
+        variant: "destructive",
+      });
     }
   };
 

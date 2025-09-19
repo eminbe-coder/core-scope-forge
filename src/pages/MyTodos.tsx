@@ -208,12 +208,12 @@ const MyTodos = () => {
   };
 
   return (
-    <MobileLayout headerTitle={isMobile ? "My To-Dos" : undefined}>
+    <MobileLayout headerTitle={isMobile ? "To-Dos" : undefined}>
       <div className="space-y-6">
         {!isMobile && (
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold">My To-Dos</h1>
+              <h1 className="text-3xl font-bold">To-Dos</h1>
               <p className="text-muted-foreground">
                 Manage all your to-do items across the platform
               </p>
@@ -358,6 +358,7 @@ const MyTodos = () => {
           <TodoListEnhanced
             assignedTo={user?.id}
             onTodoClick={handleTodoClick}
+            showAssigneeFilter={!user?.id} // Only show filter if not filtering by specific user
           />
         ) : (
           <div className="space-y-4">
