@@ -239,7 +239,17 @@ const MyTodos = () => {
         setTodos(todosData);
         
         const today = new Date().toISOString().split('T')[0];
-        const completed = todosData.filter(t => t.status === 'completed').length;
+        const currentMonth = new Date();
+        const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).toISOString().split('T')[0];
+        const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).toISOString().split('T')[0];
+        
+        const totalActive = todosData.filter(t => t.status !== 'completed').length;
+        const completedThisMonth = todosData.filter(t => 
+          t.status === 'completed' && 
+          t.completed_at && 
+          t.completed_at >= monthStart && 
+          t.completed_at <= monthEnd + 'T23:59:59'
+        ).length;
         const pending = todosData.filter(t => t.status !== 'completed').length;
         const overdue = todosData.filter(t => 
           t.status !== 'completed' && 
@@ -252,8 +262,8 @@ const MyTodos = () => {
         ).length;
 
         setStats({
-          total: todosData.length,
-          completed,
+          total: totalActive,
+          completed: completedThisMonth,
           pending,
           overdue,
           dueToday
@@ -400,7 +410,7 @@ const MyTodos = () => {
         <div className={`grid gap-4 ${isMobile ? 'grid-cols-2' : 'grid-cols-1 md:grid-cols-5'}`}>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Active</CardTitle>
               <CheckCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -410,7 +420,7 @@ const MyTodos = () => {
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Completed</CardTitle>
+              <CardTitle className="text-sm font-medium">Completed This Month</CardTitle>
               <CheckCircle className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
@@ -459,7 +469,15 @@ const MyTodos = () => {
                   <Users className="h-4 w-4 text-muted-foreground" />
                   <Select value={selectedUserId || 'all'} onValueChange={(value) => setSelectedUserId(value === 'all' ? '' : value)}>
                     <SelectTrigger className="w-48">
-                      <SelectValue placeholder="Select assignee" />
+                      <SelectValue placeholder="Select assignee">
+                        {selectedUserId ? 
+                          (() => {
+                            const selectedProfile = profiles.find(p => p.id === selectedUserId);
+                            return selectedProfile ? `${selectedProfile.first_name} ${selectedProfile.last_name}` : 'All Assignees';
+                          })() : 
+                          'All Assignees'
+                        }
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Assignees</SelectItem>
