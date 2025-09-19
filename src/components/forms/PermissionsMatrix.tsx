@@ -42,6 +42,7 @@ const VISIBILITY_MODULES = [
   { key: 'deals', label: 'Deals' },
   { key: 'leads', label: 'Leads' },
   { key: 'activities', label: 'Activities' },
+  { key: 'todos', label: 'Todos' },
 ];
 
 const ASSIGNMENT_MODULES = [

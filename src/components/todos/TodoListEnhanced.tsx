@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar, CheckCircle, Circle, Clock, ExternalLink, Filter, Search, Trash2, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
+import { usePermissions } from '@/hooks/use-permissions';
 import { toast } from '@/hooks/use-toast';
 import { format, isToday, isPast, isTomorrow, isThisWeek } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -69,6 +70,7 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
   const [filterAssignee, setFilterAssignee] = useState(assignedTo || 'all');
   const [profiles, setProfiles] = useState<any[]>([]);
   const { currentTenant } = useTenant();
+  const { getVisibilityLevel, isAdmin } = usePermissions();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -149,6 +151,9 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
 
     setLoading(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       let query = supabase
         .from('todos')
         .select(`
@@ -157,6 +162,66 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
           contact:contacts(first_name, last_name)
         `)
         .eq('tenant_id', currentTenant.id);
+
+      // Apply visibility filtering (admin gets full access automatically)
+      if (!isAdmin && !entityType && !entityId) { // Only apply visibility filtering for general todo views
+        const visibilityLevel = await getVisibilityLevel('todos');
+        
+        switch (visibilityLevel) {
+          case 'own':
+            query = query.eq('assigned_to', user.id);
+            break;
+          case 'department':
+            // Get user's department colleagues
+            const { data: deptUsers } = await supabase
+              .from('user_department_assignments')
+              .select(`
+                user_id,
+                department:departments!inner(
+                  user_assignments:user_department_assignments(user_id)
+                )
+              `)
+              .eq('user_id', user.id)
+              .eq('tenant_id', currentTenant?.id);
+            
+            if (deptUsers?.[0]?.department?.user_assignments) {
+              const deptUserIds = deptUsers[0].department.user_assignments.map((u: any) => u.user_id);
+              query = query.in('assigned_to', deptUserIds);
+            } else {
+              query = query.eq('assigned_to', user.id); // Fallback to own
+            }
+            break;
+          case 'branch':
+            // Get user's branch colleagues
+            const { data: branchUsers } = await supabase
+              .from('user_department_assignments')
+              .select(`
+                user_id,
+                departments!inner(
+                  branch_id,
+                  branch_departments:departments!branch_id(
+                    user_assignments:user_department_assignments(user_id)
+                  )
+                )
+              `)
+              .eq('user_id', user.id)
+              .eq('tenant_id', currentTenant?.id);
+            
+            if (branchUsers?.[0]?.departments?.branch_departments) {
+              const branchUserIds = branchUsers[0].departments.branch_departments
+                .flatMap((d: any) => d.user_assignments.map((u: any) => u.user_id));
+              query = query.in('assigned_to', branchUserIds);
+            } else {
+              query = query.eq('assigned_to', user.id); // Fallback to own
+            }
+            break;
+          case 'all':
+            // No additional filtering needed
+            break;
+          default:
+            query = query.eq('assigned_to', user.id); // Default to own
+        }
+      }
 
       // Filter by entity if specified
       if (entityType && entityId) {

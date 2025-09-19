@@ -14,11 +14,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useTodoPreferences } from '@/hooks/use-todo-preferences';
 import { useUrlState } from '@/hooks/use-url-state';
+import { usePermissions } from '@/hooks/use-permissions';
 
 const MyTodos = () => {
   const isMobile = useIsMobile();
   const { currentTenant } = useTenant();
   const { preferences, updatePreference, saveCurrentPreferences } = useTodoPreferences();
+  const { getVisibilityLevel, isAdmin } = usePermissions();
   const [selectedTodoId, setSelectedTodoId] = useUrlState('todo', '');
   const [stats, setStats] = useState({
     total: 0,
@@ -109,6 +111,66 @@ const MyTodos = () => {
           todo_types(name, color, icon)
         `)
         .eq('tenant_id', currentTenant?.id);
+
+      // Apply visibility filtering (admin gets full access automatically)
+      if (!isAdmin) {
+        const visibilityLevel = await getVisibilityLevel('todos');
+        
+        switch (visibilityLevel) {
+          case 'own':
+            query = query.eq('assigned_to', user.id);
+            break;
+          case 'department':
+            // Get user's department colleagues
+            const { data: deptUsers } = await supabase
+              .from('user_department_assignments')
+              .select(`
+                user_id,
+                department:departments!inner(
+                  user_assignments:user_department_assignments(user_id)
+                )
+              `)
+              .eq('user_id', user.id)
+              .eq('tenant_id', currentTenant?.id);
+            
+            if (deptUsers?.[0]?.department?.user_assignments) {
+              const deptUserIds = deptUsers[0].department.user_assignments.map((u: any) => u.user_id);
+              query = query.in('assigned_to', deptUserIds);
+            } else {
+              query = query.eq('assigned_to', user.id); // Fallback to own
+            }
+            break;
+          case 'branch':
+            // Get user's branch colleagues
+            const { data: branchUsers } = await supabase
+              .from('user_department_assignments')
+              .select(`
+                user_id,
+                departments!inner(
+                  branch_id,
+                  branch_departments:departments!branch_id(
+                    user_assignments:user_department_assignments(user_id)
+                  )
+                )
+              `)
+              .eq('user_id', user.id)
+              .eq('tenant_id', currentTenant?.id);
+            
+            if (branchUsers?.[0]?.departments?.branch_departments) {
+              const branchUserIds = branchUsers[0].departments.branch_departments
+                .flatMap((d: any) => d.user_assignments.map((u: any) => u.user_id));
+              query = query.in('assigned_to', branchUserIds);
+            } else {
+              query = query.eq('assigned_to', user.id); // Fallback to own
+            }
+            break;
+          case 'all':
+            // No additional filtering needed
+            break;
+          default:
+            query = query.eq('assigned_to', user.id); // Default to own
+        }
+      }
 
       // Apply assignee filter if a specific user is selected
       if (selectedUserId) {

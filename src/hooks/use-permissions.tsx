@@ -73,6 +73,7 @@ export const PermissionsProvider = ({ children }: { children: React.ReactNode })
       'activities': 'crm.activities',
       'projects': 'projects',
       'devices': 'devices',
+      'todos': 'todos',
       'reports': 'reports'
     };
 
