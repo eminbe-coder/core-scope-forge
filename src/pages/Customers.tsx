@@ -51,6 +51,7 @@ const Customers = () => {
         .select('*')
         .eq('tenant_id', currentTenant.id)
         .eq('active', true)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -75,21 +76,22 @@ const Customers = () => {
   };
 
   const confirmDelete = async () => {
-    if (!deleteModal.customer) return;
+    if (!deleteModal.customer || !currentTenant?.id) return;
 
     setIsDeleting(true);
     try {
-      const { error } = await supabase
-        .from('customers')
-        .delete()
-        .eq('id', deleteModal.customer.id);
+      const { error } = await supabase.rpc('soft_delete_entity', {
+        _table_name: 'customers',
+        _entity_id: deleteModal.customer.id,
+        _tenant_id: currentTenant.id
+      });
 
       if (error) throw error;
 
       await fetchCustomers();
       toast({
         title: 'Success',
-        description: 'Customer deleted successfully',
+        description: 'Customer moved to recycle bin',
       });
       setDeleteModal({ open: false, customer: null });
     } catch (error: any) {

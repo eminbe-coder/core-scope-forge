@@ -55,6 +55,7 @@ const Sites = () => {
         `)
         .eq('tenant_id', currentTenant.id)
         .eq('active', true)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -102,21 +103,22 @@ const Sites = () => {
   };
 
   const confirmDelete = async () => {
-    if (!deleteModal.site) return;
+    if (!deleteModal.site || !currentTenant?.id) return;
 
     setIsDeleting(true);
     try {
-      const { error } = await supabase
-        .from('sites')
-        .delete()
-        .eq('id', deleteModal.site.id);
+      const { error } = await supabase.rpc('soft_delete_entity', {
+        _table_name: 'sites',
+        _entity_id: deleteModal.site.id,
+        _tenant_id: currentTenant.id
+      });
 
       if (error) throw error;
 
       await fetchSites();
       toast({
         title: 'Success',
-        description: 'Site deleted successfully',
+        description: 'Site moved to recycle bin',
       });
       setDeleteModal({ open: false, site: null });
     } catch (error: any) {

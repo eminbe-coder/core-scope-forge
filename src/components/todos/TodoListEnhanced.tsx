@@ -243,7 +243,8 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
           assigned_profile:profiles!assigned_to(first_name, last_name),
           contact:contacts(first_name, last_name)
         `)
-        .eq('tenant_id', currentTenant.id);
+        .eq('tenant_id', currentTenant.id)
+        .is('deleted_at', null);
 
       // Apply visibility filtering (admin gets full access automatically)
       if (!isAdmin && !entityType && !entityId) { // Only apply visibility filtering for general todo views
@@ -426,13 +427,15 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
   };
 
   const deleteTodo = async (todoId: string) => {
+    if (!currentTenant?.id) return;
     if (!confirm('Are you sure you want to delete this todo?')) return;
 
     try {
-      const { error } = await supabase
-        .from('todos')
-        .delete()
-        .eq('id', todoId);
+      const { error } = await supabase.rpc('soft_delete_entity', {
+        _table_name: 'todos',
+        _entity_id: todoId,
+        _tenant_id: currentTenant.id
+      });
 
       if (error) throw error;
 
@@ -441,7 +444,7 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
 
       toast({
         title: "Success",
-        description: "Todo deleted successfully",
+        description: "Todo moved to recycle bin",
       });
     } catch (error) {
       console.error('Error deleting todo:', error);

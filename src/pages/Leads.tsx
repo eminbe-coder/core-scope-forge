@@ -97,7 +97,8 @@ const Leads = () => {
         `)
         .eq('tenant_id', currentTenant.id)
         .eq('is_lead', !showArchived)
-        .eq('active', true);
+        .eq('active', true)
+        .is('deleted_at', null);
 
       // Apply visibility filtering
       if (visibilityLevel === 'own') {
@@ -140,7 +141,8 @@ const Leads = () => {
         `)
         .eq('tenant_id', currentTenant.id)
         .eq('is_lead', !showArchived)
-        .eq('active', true);
+        .eq('active', true)
+        .is('deleted_at', null);
 
       // Apply visibility filtering
       if (visibilityLevel === 'own') {
@@ -188,7 +190,8 @@ const Leads = () => {
         `)
         .eq('tenant_id', currentTenant.id)
         .eq('is_lead', !showArchived)
-        .eq('active', true);
+        .eq('active', true)
+        .is('deleted_at', null);
 
       // Apply visibility filtering  
       if (visibilityLevel === 'own') {
@@ -268,24 +271,25 @@ const Leads = () => {
   };
 
   const confirmDelete = async () => {
-    if (!deleteModal.lead) return;
+    if (!deleteModal.lead || !currentTenant?.id) return;
 
     setIsDeleting(true);
     try {
       const tableName = deleteModal.lead.type === 'contact' ? 'contacts' : 
                        deleteModal.lead.type === 'company' ? 'companies' : 'sites';
       
-      const { error } = await supabase
-        .from(tableName)
-        .delete()
-        .eq('id', deleteModal.lead.id);
+      const { error } = await supabase.rpc('soft_delete_entity', {
+        _table_name: tableName,
+        _entity_id: deleteModal.lead.id,
+        _tenant_id: currentTenant.id
+      });
 
       if (error) throw error;
 
       await fetchLeads();
       toast({
         title: 'Success',
-        description: 'Lead deleted successfully',
+        description: 'Lead moved to recycle bin',
       });
       setDeleteModal({ open: false, lead: null });
     } catch (error: any) {

@@ -65,6 +65,7 @@ export const SubtaskManager: React.FC<SubtaskManagerProps> = ({
         .select('*')
         .eq('parent_todo_id', todoId)
         .eq('tenant_id', currentTenant.id)
+        .is('deleted_at', null)
         .order('created_at', { ascending: true });
 
       if (subtasksError) {
@@ -176,13 +177,14 @@ export const SubtaskManager: React.FC<SubtaskManagerProps> = ({
   };
 
   const handleDeleteSubtask = async (subtaskId: string) => {
-    if (!canEdit) return;
+    if (!canEdit || !currentTenant?.id) return;
 
     try {
-      const { error } = await supabase
-        .from('todos')
-        .delete()
-        .eq('id', subtaskId);
+      const { error } = await supabase.rpc('soft_delete_entity', {
+        _table_name: 'todos',
+        _entity_id: subtaskId,
+        _tenant_id: currentTenant.id
+      });
 
       if (error) throw error;
 
@@ -191,7 +193,7 @@ export const SubtaskManager: React.FC<SubtaskManagerProps> = ({
 
       toast({
         title: "Success",
-        description: "Subtask deleted successfully",
+        description: "Subtask moved to recycle bin",
       });
     } catch (error) {
       console.error('Error deleting subtask:', error);

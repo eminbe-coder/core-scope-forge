@@ -170,7 +170,8 @@ export const TodoList = ({
           created_by_profile:profiles!todos_created_by_fkey (first_name, last_name),
           todo_types (name, color, icon)
         `)
-        .eq('tenant_id', currentTenant.id);
+        .eq('tenant_id', currentTenant.id)
+        .is('deleted_at', null);
       
       // Filter by entity if provided and not "user"
       if (entityType && entityId && entityType !== 'user') {
@@ -236,15 +237,18 @@ export const TodoList = ({
   };
 
   const deleteTodo = async (todoId: string) => {
+    if (!currentTenant?.id) return;
+
     try {
-      const { error } = await supabase
-        .from('todos')
-        .delete()
-        .eq('id', todoId);
+      const { error } = await supabase.rpc('soft_delete_entity', {
+        _table_name: 'todos',
+        _entity_id: todoId,
+        _tenant_id: currentTenant.id
+      });
 
       if (error) throw error;
 
-      toast.success('To-do item deleted successfully');
+      toast.success('To-do item moved to recycle bin');
       if (propTodos) {
         // If using provided todos, call onUpdate to refresh the parent
         onUpdate?.();

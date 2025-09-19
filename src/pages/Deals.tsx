@@ -111,6 +111,7 @@ const Deals = () => {
           assigned_user:profiles!deals_assigned_to_fkey(first_name, last_name, email)
         `)
         .eq('tenant_id', currentTenant.id)
+        .is('deleted_at', null)
         .eq('is_converted', showArchived);
 
       // Apply visibility-based filtering
@@ -318,21 +319,22 @@ const Deals = () => {
   };
 
   const confirmDelete = async () => {
-    if (!deleteModal.deal) return;
+    if (!deleteModal.deal || !currentTenant?.id) return;
 
     setIsDeleting(true);
     try {
-      const { error } = await supabase
-        .from('deals')
-        .delete()
-        .eq('id', deleteModal.deal.id);
+      const { error } = await supabase.rpc('soft_delete_entity', {
+        _table_name: 'deals',
+        _entity_id: deleteModal.deal.id,
+        _tenant_id: currentTenant.id
+      });
 
       if (error) throw error;
 
       await fetchDeals();
       toast({
         title: 'Success',
-        description: 'Deal deleted successfully',
+        description: 'Deal moved to recycle bin',
       });
       setDeleteModal({ open: false, deal: null });
     } catch (error: any) {
