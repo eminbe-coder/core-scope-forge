@@ -2990,6 +2990,75 @@ export type Database = {
         }
         Relationships: []
       }
+      reward_configurations: {
+        Row: {
+          action_description: string | null
+          action_name: string
+          active: boolean
+          created_at: string
+          id: string
+          points_value: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          action_description?: string | null
+          action_name: string
+          active?: boolean
+          created_at?: string
+          id?: string
+          points_value?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          action_description?: string | null
+          action_name?: string
+          active?: boolean
+          created_at?: string
+          id?: string
+          points_value?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      reward_point_transactions: {
+        Row: {
+          action_name: string
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          notes: string | null
+          points_earned: number
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          action_name: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          notes?: string | null
+          points_earned?: number
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          action_name?: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          notes?: string | null
+          points_earned?: number
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       role_permissions: {
         Row: {
           created_at: string
@@ -4137,6 +4206,60 @@ export type Database = {
           },
         ]
       }
+      user_reward_participation: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_reward_points: {
+        Row: {
+          created_at: string
+          id: string
+          tenant_id: string
+          total_points: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          tenant_id: string
+          total_points?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          tenant_id?: string
+          total_points?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_tenant_memberships: {
         Row: {
           active: boolean
@@ -4332,6 +4455,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      award_points: {
+        Args: {
+          _action_name: string
+          _entity_id?: string
+          _entity_type?: string
+          _notes?: string
+          _tenant_id: string
+          _user_id: string
+        }
+        Returns: undefined
+      }
       can_user_assign_to: {
         Args: {
           _assignee_id: string

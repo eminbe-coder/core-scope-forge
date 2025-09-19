@@ -1,0 +1,560 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useTenant } from '@/hooks/use-tenant';
+import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Trophy, Users, Settings, History, Plus, Edit, Save, X } from 'lucide-react';
+
+interface RewardConfiguration {
+  id: string;
+  action_name: string;
+  action_description: string;
+  points_value: number;
+  active: boolean;
+}
+
+interface UserParticipation {
+  id: string;
+  user_id: string;
+  active: boolean;
+  user_profile: {
+    first_name: string;
+    last_name: string;
+    email: string;
+  };
+  total_points?: number;
+}
+
+interface PointTransaction {
+  id: string;
+  user_id: string;
+  action_name: string;
+  points_earned: number;
+  created_at: string;
+  entity_type?: string;
+  notes?: string;
+  user_profile: {
+    first_name: string;
+    last_name: string;
+  };
+}
+
+export const RewardSystemManager = () => {
+  const { currentTenant } = useTenant();
+  const { toast } = useToast();
+  const [configurations, setConfigurations] = useState<RewardConfiguration[]>([]);
+  const [participants, setParticipants] = useState<UserParticipation[]>([]);
+  const [transactions, setTransactions] = useState<PointTransaction[]>([]);
+  const [availableUsers, setAvailableUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [editingConfig, setEditingConfig] = useState<RewardConfiguration | null>(null);
+  const [isAddingUser, setIsAddingUser] = useState(false);
+
+  useEffect(() => {
+    if (currentTenant?.id) {
+      loadConfigurations();
+      loadParticipants();
+      loadTransactions();
+      loadAvailableUsers();
+    }
+  }, [currentTenant?.id]);
+
+  const loadConfigurations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('reward_configurations')
+        .select('*')
+        .eq('tenant_id', currentTenant?.id)
+        .order('action_name');
+
+      if (error) throw error;
+      setConfigurations(data || []);
+    } catch (error) {
+      console.error('Error loading configurations:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load reward configurations",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const loadParticipants = async () => {
+    try {
+      // Get participants with their point totals
+      const { data: participantData, error: participantError } = await supabase
+        .from('user_reward_participation')
+        .select(`
+          *,
+          user_reward_points(total_points)
+        `)
+        .eq('tenant_id', currentTenant?.id);
+
+      if (participantError) throw participantError;
+
+      // Get user profiles
+      const userIds = participantData?.map(p => p.user_id) || [];
+      if (userIds.length > 0) {
+        const { data: profiles, error: profileError } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, email')
+          .in('id', userIds);
+
+        if (profileError) throw profileError;
+
+        const participantsWithProfiles = participantData?.map(p => ({
+          ...p,
+          user_profile: profiles?.find(profile => profile.id === p.user_id) || {
+            first_name: 'Unknown',
+            last_name: 'User',
+            email: 'unknown@example.com'
+          },
+          total_points: Array.isArray(p.user_reward_points) ? p.user_reward_points[0]?.total_points || 0 : 0
+        })) || [];
+
+        setParticipants(participantsWithProfiles);
+      }
+    } catch (error) {
+      console.error('Error loading participants:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load participants",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const loadTransactions = async () => {
+    try {
+      const { data: transactionData, error: transactionError } = await supabase
+        .from('reward_point_transactions')
+        .select('*')
+        .eq('tenant_id', currentTenant?.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (transactionError) throw transactionError;
+
+      // Get user profiles for transactions
+      const userIds = [...new Set(transactionData?.map(t => t.user_id) || [])];
+      if (userIds.length > 0) {
+        const { data: profiles, error: profileError } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name')
+          .in('id', userIds);
+
+        if (profileError) throw profileError;
+
+        const transactionsWithProfiles = transactionData?.map(t => ({
+          ...t,
+          user_profile: profiles?.find(profile => profile.id === t.user_id) || {
+            first_name: 'Unknown',
+            last_name: 'User'
+          }
+        })) || [];
+
+        setTransactions(transactionsWithProfiles);
+      }
+    } catch (error) {
+      console.error('Error loading transactions:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load point transactions",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const loadAvailableUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('user_tenant_memberships')
+        .select(`
+          user_id,
+          profiles(id, first_name, last_name, email)
+        `)
+        .eq('tenant_id', currentTenant?.id)
+        .eq('active', true);
+
+      if (error) throw error;
+      setAvailableUsers(data?.map(u => u.profiles).filter(Boolean) || []);
+    } catch (error) {
+      console.error('Error loading users:', error);
+    }
+  };
+
+  const updateConfiguration = async (config: RewardConfiguration) => {
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('reward_configurations')
+        .update({
+          points_value: config.points_value,
+          active: config.active,
+          action_description: config.action_description
+        })
+        .eq('id', config.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Reward configuration updated successfully",
+      });
+
+      loadConfigurations();
+      setEditingConfig(null);
+    } catch (error) {
+      console.error('Error updating configuration:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update configuration",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addParticipant = async (userId: string) => {
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('user_reward_participation')
+        .insert({
+          user_id: userId,
+          tenant_id: currentTenant?.id,
+          active: true
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "User added to reward system",
+      });
+
+      loadParticipants();
+      setIsAddingUser(false);
+    } catch (error) {
+      console.error('Error adding participant:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add user to reward system",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleParticipant = async (participantId: string, active: boolean) => {
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('user_reward_participation')
+        .update({ active })
+        .eq('id', participantId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `User ${active ? 'activated' : 'deactivated'} in reward system`,
+      });
+
+      loadParticipants();
+    } catch (error) {
+      console.error('Error updating participant:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update participant status",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2">
+        <Trophy className="h-6 w-6 text-primary" />
+        <h2 className="text-2xl font-bold">Reward System</h2>
+      </div>
+
+      <Tabs defaultValue="configurations" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="configurations" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Action Points
+          </TabsTrigger>
+          <TabsTrigger value="participants" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Participants
+          </TabsTrigger>
+          <TabsTrigger value="history" className="flex items-center gap-2">
+            <History className="h-4 w-4" />
+            Point History
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="configurations">
+          <Card>
+            <CardHeader>
+              <CardTitle>Action Point Values</CardTitle>
+              <CardDescription>
+                Configure how many points users earn for different actions
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Action</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Points</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {configurations.map((config) => (
+                    <TableRow key={config.id}>
+                      <TableCell className="font-medium">
+                        {config.action_name.replace(/_/g, ' ')}
+                      </TableCell>
+                      <TableCell>{config.action_description}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{config.points_value} pts</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={config.active ? "default" : "secondary"}>
+                          {config.active ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditingConfig(config)}
+                          disabled={loading}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="participants">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Reward Participants</CardTitle>
+                <CardDescription>
+                  Manage which users participate in the reward system
+                </CardDescription>
+              </div>
+              <Dialog open={isAddingUser} onOpenChange={setIsAddingUser}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add User
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add User to Reward System</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    {availableUsers
+                      .filter(user => !participants.some(p => p.user_id === user.id))
+                      .map((user) => (
+                        <div key={user.id} className="flex items-center justify-between p-3 border rounded">
+                          <div>
+                            <p className="font-medium">{user.first_name} {user.last_name}</p>
+                            <p className="text-sm text-muted-foreground">{user.email}</p>
+                          </div>
+                          <Button
+                            onClick={() => addParticipant(user.id)}
+                            disabled={loading}
+                          >
+                            Add
+                          </Button>
+                        </div>
+                      ))}
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Total Points</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {participants.map((participant) => (
+                    <TableRow key={participant.id}>
+                      <TableCell className="font-medium">
+                        {participant.user_profile.first_name} {participant.user_profile.last_name}
+                      </TableCell>
+                      <TableCell>{participant.user_profile.email}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">
+                          <Trophy className="h-3 w-3 mr-1" />
+                          {participant.total_points || 0}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={participant.active ? "default" : "secondary"}>
+                          {participant.active ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Switch
+                          checked={participant.active}
+                          onCheckedChange={(checked) => 
+                            toggleParticipant(participant.id, checked)
+                          }
+                          disabled={loading}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="history">
+          <Card>
+            <CardHeader>
+              <CardTitle>Point Transaction History</CardTitle>
+              <CardDescription>
+                Recent point earnings across all users
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>User</TableHead>
+                    <TableHead>Action</TableHead>
+                    <TableHead>Points</TableHead>
+                    <TableHead>Type</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {transactions.map((transaction) => (
+                    <TableRow key={transaction.id}>
+                      <TableCell>
+                        {new Date(transaction.created_at).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {transaction.user_profile.first_name} {transaction.user_profile.last_name}
+                      </TableCell>
+                      <TableCell>{transaction.action_name.replace(/_/g, ' ')}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">+{transaction.points_earned}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {transaction.entity_type && (
+                          <Badge variant="outline">{transaction.entity_type}</Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Edit Configuration Dialog */}
+      <Dialog open={!!editingConfig} onOpenChange={() => setEditingConfig(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Action Configuration</DialogTitle>
+          </DialogHeader>
+          {editingConfig && (
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="points">Points Value</Label>
+                <Input
+                  id="points"
+                  type="number"
+                  value={editingConfig.points_value}
+                  onChange={(e) => setEditingConfig({
+                    ...editingConfig,
+                    points_value: parseInt(e.target.value) || 0
+                  })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={editingConfig.action_description || ''}
+                  onChange={(e) => setEditingConfig({
+                    ...editingConfig,
+                    action_description: e.target.value
+                  })}
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="active"
+                  checked={editingConfig.active}
+                  onCheckedChange={(checked) => setEditingConfig({
+                    ...editingConfig,
+                    active: checked
+                  })}
+                />
+                <Label htmlFor="active">Active</Label>
+              </div>
+              <div className="flex justify-end space-x-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setEditingConfig(null)}
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => updateConfiguration(editingConfig)}
+                  disabled={loading}
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Changes
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};

@@ -21,9 +21,10 @@ import { useAuth } from '@/hooks/use-auth';
 import { useTheme } from '@/hooks/use-theme';
 import { useTenant } from '@/hooks/use-tenant';
 import { usePermissions } from '@/hooks/use-permissions';
+import { useRewardPoints } from '@/hooks/use-reward-points';
 import { TenantSwitcher } from './TenantSwitcher';
 import { NotificationDropdown } from '@/components/notifications/NotificationDropdown';
-import { LogOut, User, Palette, Home } from 'lucide-react';
+import { LogOut, User, Palette, Home, Trophy } from 'lucide-react';
 
 interface AppHeaderProps {
   title?: string;
@@ -39,6 +40,7 @@ export function AppHeader({
   const { user, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
   const { currentTenant, isSuperAdmin } = useTenant();
+  const { totalPoints } = useRewardPoints();
   const navigate = useNavigate();
 
   const getUserInitials = () => {
@@ -89,6 +91,17 @@ export function AppHeader({
           
           {/* Notification Center */}
           <NotificationDropdown />
+          
+          {/* Reward Points Trophy */}
+          <div className="flex items-center space-x-1 px-3 py-1.5 bg-secondary/30 rounded-full border border-border/50">
+            <Trophy className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium text-foreground hidden sm:inline">
+              {totalPoints}
+            </span>
+            <span className="text-sm font-medium text-foreground sm:hidden">
+              {totalPoints}
+            </span>
+          </div>
           
           {/* Theme Switcher */}
           <Select value={theme} onValueChange={setTheme}>
