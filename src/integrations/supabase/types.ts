@@ -3951,6 +3951,39 @@ export type Database = {
           },
         ]
       }
+      user_assignment_permissions: {
+        Row: {
+          assignment_scope: string
+          created_at: string
+          entity_type: string
+          id: string
+          selected_user_ids: string[] | null
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assignment_scope: string
+          created_at?: string
+          entity_type: string
+          id?: string
+          selected_user_ids?: string[] | null
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assignment_scope?: string
+          created_at?: string
+          entity_type?: string
+          id?: string
+          selected_user_ids?: string[] | null
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_branch_assignments: {
         Row: {
           branch_id: string
@@ -4299,6 +4332,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_user_assign_to: {
+        Args: {
+          _assignee_id: string
+          _assigner_id: string
+          _entity_type: string
+          _tenant_id: string
+        }
+        Returns: boolean
+      }
       create_notification: {
         Args: {
           _entity_id: string
@@ -4349,6 +4391,10 @@ export type Database = {
           entity_type: string
           input_tenant_id: string
         }
+        Returns: string
+      }
+      get_user_assignment_scope: {
+        Args: { _entity_type: string; _tenant_id: string; _user_id: string }
         Returns: string
       }
       get_user_tenant_memberships: {

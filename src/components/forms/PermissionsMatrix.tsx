@@ -19,6 +19,7 @@ const MODULES = [
   { key: 'activities', label: 'Activities' },
   { key: 'projects', label: 'Projects' },
   { key: 'devices', label: 'Devices' },
+  { key: 'settings', label: 'Settings' },
 ];
 
 const CRUD_PERMISSIONS = [
@@ -39,6 +40,22 @@ const REPORT_PERMISSIONS = [
 const VISIBILITY_MODULES = [
   { key: 'deals', label: 'Deals' },
   { key: 'leads', label: 'Leads' },
+  { key: 'activities', label: 'Activities' },
+];
+
+const ASSIGNMENT_MODULES = [
+  { key: 'deals', label: 'Deal Assignment' },
+  { key: 'leads', label: 'Lead Assignment' },
+  { key: 'todos', label: 'Todo Assignment' },
+  { key: 'activities', label: 'Activity Assignment' },
+];
+
+const ASSIGNMENT_OPTIONS = [
+  { value: 'own', label: 'Only Self' },
+  { value: 'department', label: 'Department Team' },
+  { value: 'branch', label: 'Branch Team' },
+  { value: 'selected_users', label: 'Selected Users' },
+  { value: 'all', label: 'All Users' },
 ];
 
 const VISIBILITY_OPTIONS = [
@@ -80,12 +97,28 @@ export const PermissionsMatrix = ({ permissions, onChange }: PermissionsMatrixPr
     onChange(updatedPermissions);
   };
 
+  const handleAssignmentChange = (module: string, value: string) => {
+    const updatedPermissions = {
+      ...localPermissions,
+      [module]: {
+        ...localPermissions[module],
+        assignment_scope: value
+      }
+    };
+    setLocalPermissions(updatedPermissions);
+    onChange(updatedPermissions);
+  };
+
   const isChecked = (module: string, permission: string) => {
     return localPermissions[module]?.[permission] || false;
   };
 
   const getVisibility = (module: string) => {
     return localPermissions[module]?.visibility || 'own';
+  };
+
+  const getAssignmentScope = (module: string) => {
+    return localPermissions[module]?.assignment_scope || 'own';
   };
 
   return (
@@ -190,6 +223,40 @@ export const PermissionsMatrix = ({ permissions, onChange }: PermissionsMatrixPr
                 <Label htmlFor={`reports-${permission.key}`} className="text-sm font-medium">
                   {permission.label} Reports
                 </Label>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Assignment Permissions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Assignment Permissions</CardTitle>
+          <CardDescription>
+            Configure who users can assign entities to. This controls the scope of users available in assignment dropdowns.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {ASSIGNMENT_MODULES.map(module => (
+              <div key={module.key} className="flex items-center justify-between p-3 border rounded-md">
+                <Label className="font-medium">{module.label}</Label>
+                <Select 
+                  value={getAssignmentScope(module.key)} 
+                  onValueChange={(value) => handleAssignmentChange(module.key, value)}
+                >
+                  <SelectTrigger className="w-48">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ASSIGNMENT_OPTIONS.map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             ))}
           </div>

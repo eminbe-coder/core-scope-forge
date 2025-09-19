@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
+import { usePermissions } from '@/hooks/use-permissions';
+import { useAuth } from '@/hooks/use-auth';
 import { Plus, Search, Activity, Phone, Mail, Calendar, CheckSquare, FileText } from 'lucide-react';
 
 interface ActivityItem {
@@ -65,15 +67,20 @@ const activityColors = {
 
 const Activities = () => {
   const { currentTenant } = useTenant();
+  const { user } = useAuth();
+  const { getVisibilityLevel } = usePermissions();
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
   const fetchActivities = async () => {
-    if (!currentTenant) return;
+    if (!currentTenant || !user) return;
 
     try {
-      const { data, error } = await supabase
+      // Get user's visibility level for activities
+      const visibilityLevel = await getVisibilityLevel('activities');
+      
+      let query = supabase
         .from('activities')
         .select(`
           *,
@@ -81,7 +88,19 @@ const Activities = () => {
           deals(name),
           projects(name)
         `)
-        .order('created_at', { ascending: false });
+        .eq('tenant_id', currentTenant.id);
+
+      // Apply visibility filtering
+      if (visibilityLevel === 'own') {
+        query = query.eq('created_by', user.id);
+      } else if (visibilityLevel === 'department') {
+        // Add department filtering when available
+      } else if (visibilityLevel === 'branch') {
+        // Add branch filtering when available
+      }
+      // 'all' and 'selected_users' show all records for now
+
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) throw error;
       setActivities(data || []);
@@ -94,7 +113,7 @@ const Activities = () => {
 
   useEffect(() => {
     fetchActivities();
-  }, [currentTenant]);
+  }, [currentTenant, user]);
 
   const filteredActivities = activities.filter(activity =>
     activity.title.toLowerCase().includes(searchTerm.toLowerCase()) ||

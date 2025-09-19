@@ -17,6 +17,8 @@ interface PermissionsContextType {
   hasAnyPermission: (permissionNames: string[]) => boolean;
   getVisibilityLevel: (entityType: string) => Promise<string>;
   canViewEntity: (entityType: string, entityUserId: string, entityUserDepartment?: string, entityUserBranch?: string) => Promise<boolean>;
+  getAssignmentScope: (entityType: string) => Promise<string>;
+  canAssignTo: (entityType: string, targetUserId: string) => Promise<boolean>;
   isAdmin: boolean;
   loading: boolean;
 }
@@ -28,6 +30,8 @@ const PermissionsContext = createContext<PermissionsContextType>({
   hasAnyPermission: () => false,
   getVisibilityLevel: async () => 'own',
   canViewEntity: async () => false,
+  getAssignmentScope: async () => 'own',
+  canAssignTo: async () => false,
   isAdmin: false,
   loading: true,
 });
@@ -297,6 +301,66 @@ export const PermissionsProvider = ({ children }: { children: React.ReactNode })
     }
   };
 
+  const getAssignmentScope = async (entityType: string): Promise<string> => {
+    if (!user || !currentTenant) return 'own';
+    
+    // Check if user has custom role with assignment permissions
+    const currentMembership = userTenants.find(m => m.tenant_id === currentTenant.id);
+    
+    if (currentMembership?.custom_role_id) {
+      const { data: customRole, error } = await supabase
+        .from('custom_roles')
+        .select('permissions')
+        .eq('id', currentMembership.custom_role_id)
+        .eq('active', true)
+        .maybeSingle();
+      
+      if (!error && customRole?.permissions[entityType]?.assignment_scope) {
+        return customRole.permissions[entityType].assignment_scope;
+      }
+    }
+    
+    // Fall back to database function
+    try {
+      const { data, error } = await supabase.rpc('get_user_assignment_scope', {
+        _user_id: user.id,
+        _tenant_id: currentTenant.id,
+        _entity_type: entityType,
+      });
+      
+      if (error) throw error;
+      return data || 'own';
+    } catch (error) {
+      console.error('Error getting assignment scope:', error);
+      return 'own';
+    }
+  };
+
+  const canAssignTo = async (entityType: string, targetUserId: string): Promise<boolean> => {
+    if (!user || !currentTenant) return false;
+    
+    // Admin can assign to anyone
+    if (isAdmin) return true;
+    
+    // Can always assign to self
+    if (user.id === targetUserId) return true;
+    
+    try {
+      const { data, error } = await supabase.rpc('can_user_assign_to', {
+        _assigner_id: user.id,
+        _assignee_id: targetUserId,
+        _tenant_id: currentTenant.id,
+        _entity_type: entityType,
+      });
+      
+      if (error) throw error;
+      return data || false;
+    } catch (error) {
+      console.error('Error checking assignment permission:', error);
+      return false;
+    }
+  };
+
   return (
     <PermissionsContext.Provider
       value={{
@@ -306,6 +370,8 @@ export const PermissionsProvider = ({ children }: { children: React.ReactNode })
         hasAnyPermission,
         getVisibilityLevel,
         canViewEntity,
+        getAssignmentScope,
+        canAssignTo,
         isAdmin,
         loading,
       }}

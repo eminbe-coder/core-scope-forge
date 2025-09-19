@@ -8,12 +8,14 @@ import { BranchesManager } from '@/components/settings/BranchesManager';
 import { DepartmentsManager } from '@/components/settings/DepartmentsManager';
 import { TenantForm } from '@/components/forms/TenantForm';
 import { useTenant } from '@/hooks/use-tenant';
+import { usePermissions } from '@/hooks/use-permissions';
 import { useState, useEffect } from 'react';
 
 const SettingsPage = () => {
   const [activeSection, setActiveSection] = useState<string>('general');
   const [isEditingTenant, setIsEditingTenant] = useState(false);
   const { currentTenant, refreshTenants, refreshCurrentTenant } = useTenant();
+  const { hasPermission } = usePermissions();
 
   // Check URL params for tab
   useEffect(() => {
@@ -43,51 +45,61 @@ const SettingsPage = () => {
         <div className="flex gap-6">
           {/* Sidebar */}
           <div className="w-64 space-y-2">
-            <Button
-              variant={activeSection === 'general' ? 'default' : 'ghost'}
-              className="w-full justify-start"
-              onClick={() => setActiveSection('general')}
-            >
-              <Settings className="mr-2 h-4 w-4" />
-              Tenant & Account
-            </Button>
-            <Button
-              variant={activeSection === 'currency' ? 'default' : 'ghost'}
-              className="w-full justify-start"
-              onClick={() => setActiveSection('currency')}
-            >
-              <DollarSign className="mr-2 h-4 w-4" />
-              Currency Settings
-            </Button>
-            <Button
-              variant={activeSection === 'branches' ? 'default' : 'ghost'}
-              className="w-full justify-start"
-              onClick={() => setActiveSection('branches')}
-            >
-              <Building2 className="mr-2 h-4 w-4" />
-              Branches
-            </Button>
-            <Button
-              variant={activeSection === 'departments' ? 'default' : 'ghost'}
-              className="w-full justify-start"
-              onClick={() => setActiveSection('departments')}
-            >
-              <Users className="mr-2 h-4 w-4" />
-              Departments
-            </Button>
-            <Button
-              variant={activeSection === 'cloud' ? 'default' : 'ghost'}
-              className="w-full justify-start"
-              onClick={() => setActiveSection('cloud')}
-            >
-              <Cloud className="mr-2 h-4 w-4" />
-              Cloud Storage
-            </Button>
+            {hasPermission('settings_read') && (
+              <Button
+                variant={activeSection === 'general' ? 'default' : 'ghost'}
+                className="w-full justify-start"
+                onClick={() => setActiveSection('general')}
+              >
+                <Settings className="mr-2 h-4 w-4" />
+                Tenant & Account
+              </Button>
+            )}
+            {hasPermission('settings_read') && (
+              <Button
+                variant={activeSection === 'currency' ? 'default' : 'ghost'}
+                className="w-full justify-start"
+                onClick={() => setActiveSection('currency')}
+              >
+                <DollarSign className="mr-2 h-4 w-4" />
+                Currency Settings
+              </Button>
+            )}
+            {hasPermission('settings_read') && (
+              <Button
+                variant={activeSection === 'branches' ? 'default' : 'ghost'}
+                className="w-full justify-start"
+                onClick={() => setActiveSection('branches')}
+              >
+                <Building2 className="mr-2 h-4 w-4" />
+                Branches
+              </Button>
+            )}
+            {hasPermission('settings_read') && (
+              <Button
+                variant={activeSection === 'departments' ? 'default' : 'ghost'}
+                className="w-full justify-start"
+                onClick={() => setActiveSection('departments')}
+              >
+                <Users className="mr-2 h-4 w-4" />
+                Departments
+              </Button>
+            )}
+            {hasPermission('settings_read') && (
+              <Button
+                variant={activeSection === 'cloud' ? 'default' : 'ghost'}
+                className="w-full justify-start"
+                onClick={() => setActiveSection('cloud')}
+              >
+                <Cloud className="mr-2 h-4 w-4" />
+                Cloud Storage
+              </Button>
+            )}
           </div>
 
           {/* Main Content */}
           <div className="flex-1">
-            {activeSection === 'general' && (
+            {activeSection === 'general' && hasPermission('settings_read') && (
               <div className="grid gap-6 md:grid-cols-2">
                 <Card>
                   <CardHeader>
@@ -177,13 +189,24 @@ const SettingsPage = () => {
               </div>
             )}
 
-            {activeSection === 'currency' && <CurrencySettings />}
+            {activeSection === 'currency' && hasPermission('settings_read') && <CurrencySettings />}
 
-            {activeSection === 'branches' && <BranchesManager />}
+            {activeSection === 'branches' && hasPermission('settings_read') && <BranchesManager />}
 
-            {activeSection === 'departments' && <DepartmentsManager />}
+            {activeSection === 'departments' && hasPermission('settings_read') && <DepartmentsManager />}
 
-            {activeSection === 'cloud' && <OneDriveSettings />}
+            {activeSection === 'cloud' && hasPermission('settings_read') && <OneDriveSettings />}
+
+            {!hasPermission('settings_read') && (
+              <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                  <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
+                  <p className="text-muted-foreground">
+                    You don't have permission to access settings.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

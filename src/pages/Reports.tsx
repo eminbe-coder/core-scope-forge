@@ -251,7 +251,7 @@ export default function Reports() {
                             Add to My Dashboard
                           </Button>
                           
-                          {hasPermission('admin') && (
+                          {hasPermission('reports_create') && (
                             <Button
                               onClick={() => handleCreateWidget(report.id, report.name, true)}
                               variant="outline"

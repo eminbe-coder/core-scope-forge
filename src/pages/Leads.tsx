@@ -8,6 +8,8 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
+import { usePermissions } from '@/hooks/use-permissions';
+import { useAuth } from '@/hooks/use-auth';
 import { Target, Search, Building2, User, MapPin, Mail, Phone, Globe, MessageSquare, CheckSquare, Archive } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EntityListing } from '@/components/entity-listing';
@@ -35,6 +37,8 @@ interface Lead {
 const Leads = () => {
   const { currentTenant } = useTenant();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { getVisibilityLevel, canViewEntity } = usePermissions();
   const navigate = useNavigate();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,11 +53,14 @@ const Leads = () => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchLeads = async () => {
-    if (!currentTenant) return;
+    if (!currentTenant || !user) return;
 
     try {
       setLoading(true);
       const allLeads: Lead[] = [];
+      
+      // Get user's visibility level for leads
+      const visibilityLevel = await getVisibilityLevel('leads');
 
       // Fetch all stages and qualities first
       const [stagesResult, qualitiesResult] = await Promise.all([
@@ -72,8 +79,8 @@ const Leads = () => {
       const stagesMap = new Map(stagesResult.data?.map(s => [s.id, s.name]) || []);
       const qualitiesMap = new Map(qualitiesResult.data?.map(q => [q.id, q.name]) || []);
 
-      // Fetch contact leads
-      const { data: contactLeads, error: contactError } = await supabase
+      // Build contact leads query based on visibility
+      let contactQuery = supabase
         .from('contacts')
         .select(`
           id, 
@@ -91,6 +98,18 @@ const Leads = () => {
         .eq('tenant_id', currentTenant.id)
         .eq('is_lead', !showArchived)
         .eq('active', true);
+
+      // Apply visibility filtering
+      if (visibilityLevel === 'own') {
+        // Add filter when we have source_user_id or similar field
+      } else if (visibilityLevel === 'department') {
+        // Add department filtering when available
+      } else if (visibilityLevel === 'branch') {
+        // Add branch filtering when available
+      }
+      // 'all' and 'selected_users' show all records for now
+
+      const { data: contactLeads, error: contactError } = await contactQuery;
 
       if (contactError) throw contactError;
 
@@ -112,8 +131,8 @@ const Leads = () => {
         });
       });
 
-      // Fetch company leads
-      const { data: companyLeads, error: companyError } = await supabase
+      // Build company leads query based on visibility
+      let companyQuery = supabase
         .from('companies')
         .select(`
           id, name, email, phone, website, headquarters, industry, 
@@ -122,6 +141,17 @@ const Leads = () => {
         .eq('tenant_id', currentTenant.id)
         .eq('is_lead', !showArchived)
         .eq('active', true);
+
+      // Apply visibility filtering
+      if (visibilityLevel === 'own') {
+        // Add filter when we have source_user_id or similar field
+      } else if (visibilityLevel === 'department') {
+        // Add department filtering when available
+      } else if (visibilityLevel === 'branch') {
+        // Add branch filtering when available
+      }
+
+      const { data: companyLeads, error: companyError } = await companyQuery;
 
       if (companyError) throw companyError;
 
@@ -141,8 +171,8 @@ const Leads = () => {
         });
       });
 
-      // Fetch site leads
-      const { data: siteLeads, error: siteError } = await supabase
+      // Build site leads query based on visibility
+      let siteQuery = supabase
         .from('sites')
         .select(`
           id, 
@@ -159,6 +189,17 @@ const Leads = () => {
         .eq('tenant_id', currentTenant.id)
         .eq('is_lead', !showArchived)
         .eq('active', true);
+
+      // Apply visibility filtering  
+      if (visibilityLevel === 'own') {
+        // Add filter when we have source_user_id or similar field
+      } else if (visibilityLevel === 'department') {
+        // Add department filtering when available
+      } else if (visibilityLevel === 'branch') {
+        // Add branch filtering when available
+      }
+
+      const { data: siteLeads, error: siteError } = await siteQuery;
 
       if (siteError) throw siteError;
 
@@ -192,7 +233,7 @@ const Leads = () => {
 
   useEffect(() => {
     fetchLeads();
-  }, [currentTenant, showArchived]);
+  }, [currentTenant, showArchived, user]);
 
   const filteredLeads = leads.filter(lead => {
     const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
