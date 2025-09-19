@@ -81,6 +81,8 @@ export const RewardSystemManager = () => {
   const [editingConfig, setEditingConfig] = useState<RewardConfiguration | null>(null);
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [editingTarget, setEditingTarget] = useState<{ userId: string; targetPoints: number } | null>(null);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [newUserTargetPoints, setNewUserTargetPoints] = useState<number>(100);
 
   useEffect(() => {
     if (currentTenant?.id) {
@@ -90,6 +92,8 @@ export const RewardSystemManager = () => {
       loadAvailableUsers();
       loadPeriods();
       loadCurrentCycle();
+      // Create missing user_reward_points records for existing participants
+      createMissingPointsRecords();
     }
   }, [currentTenant?.id]);
 
@@ -115,16 +119,25 @@ export const RewardSystemManager = () => {
 
   const loadParticipants = async () => {
     try {
-      // Get participants with their point totals and current targets
+      // Get participants - use LEFT JOIN approach to handle missing user_reward_points
       const { data: participantData, error: participantError } = await supabase
         .from('user_reward_participation')
-        .select(`
-          *,
-          user_reward_points(total_points)
-        `)
+        .select('*')
         .eq('tenant_id', currentTenant?.id);
 
       if (participantError) throw participantError;
+
+      // Get user reward points separately with LEFT JOIN logic
+      const userIds = participantData?.map(p => p.user_id) || [];
+      let pointsData: any[] = [];
+      if (userIds.length > 0) {
+        const { data: points } = await supabase
+          .from('user_reward_points')
+          .select('user_id, total_points')
+          .in('user_id', userIds)
+          .eq('tenant_id', currentTenant?.id);
+        pointsData = points || [];
+      }
 
       // Get current cycle to fetch targets
       const { data: cycleData } = await supabase
@@ -135,7 +148,6 @@ export const RewardSystemManager = () => {
         .single();
 
       // Get user profiles and targets
-      const userIds = participantData?.map(p => p.user_id) || [];
       if (userIds.length > 0) {
         const [profilesResult, targetsResult] = await Promise.all([
           supabase
@@ -158,7 +170,7 @@ export const RewardSystemManager = () => {
             last_name: 'User',
             email: 'unknown@example.com'
           },
-          total_points: Array.isArray(p.user_reward_points) ? p.user_reward_points[0]?.total_points || 0 : 0,
+          total_points: pointsData.find(pt => pt.user_id === p.user_id)?.total_points || 0,
           current_target: targetsResult.data?.find(t => t.user_id === p.user_id) || null
         })) || [];
 
@@ -263,6 +275,49 @@ export const RewardSystemManager = () => {
     }
   };
 
+  // Data cleanup function to create missing user_reward_points records
+  const createMissingPointsRecords = async () => {
+    try {
+      // Get all participants
+      const { data: participants } = await supabase
+        .from('user_reward_participation')
+        .select('user_id')
+        .eq('tenant_id', currentTenant?.id);
+
+      if (!participants?.length) return;
+
+      // Get existing points records
+      const { data: existingPoints } = await supabase
+        .from('user_reward_points')
+        .select('user_id')
+        .eq('tenant_id', currentTenant?.id);
+
+      const existingUserIds = existingPoints?.map(p => p.user_id) || [];
+      const missingUserIds = participants
+        .map(p => p.user_id)
+        .filter(userId => !existingUserIds.includes(userId));
+
+      // Create missing records
+      if (missingUserIds.length > 0) {
+        const missingRecords = missingUserIds.map(userId => ({
+          user_id: userId,
+          tenant_id: currentTenant?.id,
+          total_points: 0
+        }));
+
+        const { error } = await supabase
+          .from('user_reward_points')
+          .insert(missingRecords);
+
+        if (error) throw error;
+        
+        console.log(`Created ${missingUserIds.length} missing user_reward_points records`);
+      }
+    } catch (error) {
+      console.error('Error creating missing points records:', error);
+    }
+  };
+
   const updateConfiguration = async (config: RewardConfiguration) => {
     try {
       setLoading(true);
@@ -296,9 +351,28 @@ export const RewardSystemManager = () => {
     }
   };
 
-  const addParticipant = async (userId: string) => {
+  const addParticipant = async (userId: string, targetPoints: number = 100) => {
     try {
       setLoading(true);
+      
+      // Check for duplicates
+      const { data: existing } = await supabase
+        .from('user_reward_participation')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('tenant_id', currentTenant?.id)
+        .single();
+
+      if (existing) {
+        toast({
+          title: "Error",
+          description: "User is already in the reward system",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Use transaction-like approach with multiple inserts
       const { error: participantError } = await supabase
         .from('user_reward_participation')
         .insert({
@@ -309,6 +383,17 @@ export const RewardSystemManager = () => {
 
       if (participantError) throw participantError;
 
+      // Create user_reward_points record (required for joins)
+      const { error: pointsError } = await supabase
+        .from('user_reward_points')
+        .insert({
+          user_id: userId,
+          tenant_id: currentTenant?.id,
+          total_points: 0
+        });
+
+      if (pointsError) throw pointsError;
+
       // Create target for current cycle if exists
       if (currentCycle) {
         const { error: targetError } = await supabase
@@ -317,7 +402,7 @@ export const RewardSystemManager = () => {
             user_id: userId,
             tenant_id: currentTenant?.id,
             period_cycle_id: currentCycle.id,
-            target_points: 100,
+            target_points: targetPoints,
             current_points: 0
           });
 
@@ -326,11 +411,13 @@ export const RewardSystemManager = () => {
 
       toast({
         title: "Success",
-        description: "User added to reward system",
+        description: "User added to reward system successfully",
       });
 
       loadParticipants();
       setIsAddingUser(false);
+      setSelectedUser(null);
+      setNewUserTargetPoints(100);
     } catch (error) {
       console.error('Error adding participant:', error);
       toast({
@@ -579,22 +666,68 @@ export const RewardSystemManager = () => {
                     <DialogTitle>Add User to Reward System</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
-                    {availableUsers
-                      .filter(user => !participants.some(p => p.user_id === user.id))
-                      .map((user) => (
-                        <div key={user.id} className="flex items-center justify-between p-3 border rounded">
-                          <div>
-                            <p className="font-medium">{user.first_name} {user.last_name}</p>
-                            <p className="text-sm text-muted-foreground">{user.email}</p>
-                          </div>
+                    {!selectedUser ? (
+                      <>
+                        <p className="text-sm text-muted-foreground">
+                          Select a user to add to the reward system
+                        </p>
+                        {availableUsers
+                          .filter(user => !participants.some(p => p.user_id === user.id))
+                          .map((user) => (
+                            <div key={user.id} className="flex items-center justify-between p-3 border rounded hover:bg-muted/50 cursor-pointer"
+                                 onClick={() => setSelectedUser(user)}>
+                              <div>
+                                <p className="font-medium">{user.first_name} {user.last_name}</p>
+                                <p className="text-sm text-muted-foreground">{user.email}</p>
+                              </div>
+                              <Button variant="ghost" size="sm">
+                                Select
+                              </Button>
+                            </div>
+                          ))}
+                      </>
+                    ) : (
+                      <>
+                        <div className="p-4 bg-muted rounded-lg">
+                          <h4 className="font-medium">Selected User</h4>
+                          <p className="text-sm">{selectedUser.first_name} {selectedUser.last_name}</p>
+                          <p className="text-sm text-muted-foreground">{selectedUser.email}</p>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="targetPoints">Target Points for Current Period</Label>
+                          <Input
+                            id="targetPoints"
+                            type="number"
+                            value={newUserTargetPoints}
+                            onChange={(e) => setNewUserTargetPoints(parseInt(e.target.value) || 100)}
+                            min="1"
+                            max="10000"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Set the target points this user should achieve in the current reward period
+                          </p>
+                        </div>
+
+                        <div className="flex justify-end space-x-2">
                           <Button
-                            onClick={() => addParticipant(user.id)}
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedUser(null);
+                              setNewUserTargetPoints(100);
+                            }}
+                          >
+                            Back
+                          </Button>
+                          <Button
+                            onClick={() => addParticipant(selectedUser.id, newUserTargetPoints)}
                             disabled={loading}
                           >
-                            Add
+                            Add to Reward System
                           </Button>
                         </div>
-                      ))}
+                      </>
+                    )}
                   </div>
                 </DialogContent>
               </Dialog>
