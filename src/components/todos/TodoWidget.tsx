@@ -1,6 +1,8 @@
 import { TodoList } from './TodoList';
-import { TodoForm } from './TodoForm';
+import { QuickAddTodoForm } from './QuickAddTodoForm';
 import { useTodoHierarchy } from '@/hooks/use-todo-hierarchy';
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
 
 interface TodoWidgetProps {
   entityType: string;
@@ -39,11 +41,16 @@ export const TodoWidget = ({
     <div className="space-y-4">
       {canEdit && (
         <div className="flex justify-end">
-          <TodoForm 
-            entityType={entityType}
-            entityId={entityId}
-            paymentTermId={paymentTermId}
+          <QuickAddTodoForm 
             onSuccess={handleUpdate}
+            defaultEntityType={entityType}
+            defaultEntityId={entityId}
+            trigger={
+              <Button size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Add To-Do
+              </Button>
+            }
           />
         </div>
       )}

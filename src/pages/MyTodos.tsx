@@ -2,7 +2,7 @@ import { MobileLayout } from '@/components/layout/MobileLayout';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { TodoListEnhanced } from '@/components/todos/TodoListEnhanced';
 import { TodoCalendarView } from '@/components/todos/TodoCalendarView';
-import { TodoForm } from '@/components/todos/TodoForm';
+import { QuickAddTodoForm } from '@/components/todos/QuickAddTodoForm';
 import { TodoDetailModal } from '@/components/todos/TodoDetailModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -293,16 +293,14 @@ const MyTodos = () => {
                 <Save className="h-4 w-4 mr-1" />
                 Save View
               </Button>
-              <TodoForm
-                entityType="general"
-                entityId=""
+              <QuickAddTodoForm
+                onSuccess={fetchStats}
                 trigger={
                   <Button>
                     <Plus className="h-4 w-4 mr-2" />
                     Quick Add To-Do
                   </Button>
                 }
-                onSuccess={fetchStats}
               />
             </div>
           </div>
@@ -330,16 +328,14 @@ const MyTodos = () => {
                 Calendar
               </Button>
             </div>
-            <TodoForm
-              entityType="general"
-              entityId=""
+            <QuickAddTodoForm
+              onSuccess={fetchStats}
               trigger={
                 <Button size="sm">
                   <Plus className="h-4 w-4 mr-1" />
                   Add
                 </Button>
               }
-              onSuccess={fetchStats}
             />
           </div>
         )}
