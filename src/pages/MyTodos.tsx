@@ -1,27 +1,23 @@
+import React, { useState, useEffect } from 'react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
-import { useIsMobile } from '@/hooks/use-mobile';
 import { TodoListEnhanced } from '@/components/todos/TodoListEnhanced';
 import { TodoCalendarView } from '@/components/todos/TodoCalendarView';
-import { QuickAddTodoForm } from '@/components/todos/QuickAddTodoForm';
 import { TodoDetailModal } from '@/components/todos/TodoDetailModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, CheckCircle, Clock, AlertTriangle, List, Calendar, Save, Users } from 'lucide-react';
+import { Plus, CheckCircle, Clock, AlertTriangle, ListTodo, Calendar, CalendarCheck } from 'lucide-react';
 import { WorkingHoursSettings } from '@/components/todos/WorkingHoursSettings';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useState, useEffect } from 'react';
+import { AssigneeFilter } from '@/components/todos/AssigneeFilter';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useTodoPreferences } from '@/hooks/use-todo-preferences';
-import { useUrlState } from '@/hooks/use-url-state';
 import { usePermissions } from '@/hooks/use-permissions';
 
 const MyTodos = () => {
-  const isMobile = useIsMobile();
   const { currentTenant } = useTenant();
-  const { preferences, updatePreference, saveCurrentPreferences } = useTodoPreferences();
-  const { getVisibilityLevel, isAdmin } = usePermissions();
-  const [selectedTodoId, setSelectedTodoId] = useUrlState('todo', '');
+  const { getVisibilityLevel, canViewEntity } = usePermissions();
+  const { preferences, updatePreference } = useTodoPreferences();
+  const [todos, setTodos] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
     completed: 0,
@@ -29,423 +25,252 @@ const MyTodos = () => {
     overdue: 0,
     dueToday: 0
   });
-  const [todos, setTodos] = useState<any[]>([]);
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [selectedTodo, setSelectedTodo] = useState<any>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [profiles, setProfiles] = useState<any[]>([]);
-  const [selectedUserId, setSelectedUserId] = useState<string>('');
-  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
     if (currentTenant?.id) {
       fetchStats();
-      fetchProfiles();
     }
-  }, [currentTenant?.id, selectedUserId]);
-
-  // Handle URL state for selected todo
-  useEffect(() => {
-    if (selectedTodoId && todos.length > 0) {
-      const todo = todos.find(t => t.id === selectedTodoId);
-      if (todo) {
-        setSelectedTodo(todo);
-        setIsDetailModalOpen(true);
-      }
-    } else {
-      setSelectedTodo(null);
-      setIsDetailModalOpen(false);
-    }
-  }, [selectedTodoId, todos]);
-
-  const fetchProfiles = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      let profilesQuery = supabase
-        .from('user_tenant_memberships')
-        .select(`
-          user_id,
-          profiles:user_id (
-            id,
-            first_name,
-            last_name,
-            email
-          )
-        `)
-        .eq('tenant_id', currentTenant?.id)
-        .eq('active', true);
-
-      // Apply same visibility rules as todos
-      if (!isAdmin) {
-        const visibilityLevel = await getVisibilityLevel('todos');
-        
-        switch (visibilityLevel) {
-          case 'own':
-            profilesQuery = profilesQuery.eq('user_id', user.id);
-            break;
-          case 'department':
-            const { data: deptUsers } = await supabase
-              .from('user_department_assignments')
-              .select(`
-                user_id,
-                department:departments!inner(
-                  user_assignments:user_department_assignments(user_id)
-                )
-              `)
-              .eq('user_id', user.id)
-              .eq('tenant_id', currentTenant?.id);
-            
-            if (deptUsers?.[0]?.department?.user_assignments) {
-              const deptUserIds = deptUsers[0].department.user_assignments.map((u: any) => u.user_id);
-              profilesQuery = profilesQuery.in('user_id', deptUserIds);
-            } else {
-              profilesQuery = profilesQuery.eq('user_id', user.id);
-            }
-            break;
-          case 'branch':
-            const { data: branchUsers } = await supabase
-              .from('user_department_assignments')
-              .select(`
-                user_id,
-                departments!inner(
-                  branch_id,
-                  branch_departments:departments!branch_id(
-                    user_assignments:user_department_assignments(user_id)
-                  )
-                )
-              `)
-              .eq('user_id', user.id)
-              .eq('tenant_id', currentTenant?.id);
-            
-            if (branchUsers?.[0]?.departments?.branch_departments) {
-              const branchUserIds = branchUsers[0].departments.branch_departments
-                .flatMap((dept: any) => dept.user_assignments.map((u: any) => u.user_id));
-              profilesQuery = profilesQuery.in('user_id', branchUserIds);
-            } else {
-              profilesQuery = profilesQuery.eq('user_id', user.id);
-            }
-            break;
-          // 'all' case doesn't need additional filtering
-        }
-      }
-
-      const { data: profilesData } = await profilesQuery;
-
-      if (profilesData) {
-        const profilesList = profilesData
-          .map((membership: any) => membership.profiles)
-          .filter(Boolean);
-        setProfiles(profilesList);
-        
-        // Set default selection to "All" instead of current user
-        setSelectedUserId(''); // Start with "All" selected
-      }
-    } catch (error) {
-      console.error('Error fetching profiles:', error);
-    }
-  };
+  }, [currentTenant?.id, selectedUserIds]);
 
   const fetchStats = async () => {
+    if (!currentTenant?.id) return;
+
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      setUser(user); // Store user in state
-
+      const visibilityLevel = await getVisibilityLevel('todos');
+      
       let query = supabase
         .from('todos')
         .select(`
           *,
-          assigned_profile:profiles!assigned_to(first_name, last_name),
-          todo_types(name, color, icon)
+          assignees:todo_assignees(
+            user_id,
+            profiles(id, first_name, last_name)
+          )
         `)
-        .eq('tenant_id', currentTenant?.id);
+        .eq('tenant_id', currentTenant.id);
 
-      // Apply visibility filtering (admin gets full access automatically)
-      if (!isAdmin) {
-        const visibilityLevel = await getVisibilityLevel('todos');
-        
-        switch (visibilityLevel) {
-          case 'own':
-            query = query.eq('assigned_to', user.id);
-            break;
-          case 'department':
-            // Get user's department colleagues
-            const { data: deptUsers } = await supabase
-              .from('user_department_assignments')
-              .select(`
-                user_id,
-                department:departments!inner(
-                  user_assignments:user_department_assignments(user_id)
-                )
-              `)
-              .eq('user_id', user.id)
-              .eq('tenant_id', currentTenant?.id);
-            
-            if (deptUsers?.[0]?.department?.user_assignments) {
-              const deptUserIds = deptUsers[0].department.user_assignments.map((u: any) => u.user_id);
-              query = query.in('assigned_to', deptUserIds);
-            } else {
-              query = query.eq('assigned_to', user.id); // Fallback to own
-            }
-            break;
-          case 'branch':
-            // Get user's branch colleagues
-            const { data: branchUsers } = await supabase
-              .from('user_department_assignments')
-              .select(`
-                user_id,
-                departments!inner(
-                  branch_id,
-                  branch_departments:departments!branch_id(
-                    user_assignments:user_department_assignments(user_id)
-                  )
-                )
-              `)
-              .eq('user_id', user.id)
-              .eq('tenant_id', currentTenant?.id);
-            
-            if (branchUsers?.[0]?.departments?.branch_departments) {
-              const branchUserIds = branchUsers[0].departments.branch_departments
-                .flatMap((d: any) => d.user_assignments.map((u: any) => u.user_id));
-              query = query.in('assigned_to', branchUserIds);
-            } else {
-              query = query.eq('assigned_to', user.id); // Fallback to own
-            }
-            break;
-          case 'all':
-            // No additional filtering needed
-            break;
-          default:
-            query = query.eq('assigned_to', user.id); // Default to own
+      // Apply visibility filtering based on user permissions
+      if (visibilityLevel === 'own') {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          query = query.or(`assigned_to.eq.${user.id},todo_assignees.user_id.eq.${user.id}`);
         }
       }
 
-      // Apply assignee filter if a specific user is selected
-      if (selectedUserId) {
-        query = query.eq('assigned_to', selectedUserId);
+      const { data: todos, error } = await query;
+
+      if (error) {
+        console.error('Error fetching todos:', error);
+        return;
       }
 
-      const { data: todosData } = await query;
+      if (!todos) return;
 
-      if (todosData) {
-        setTodos(todosData);
-        
-        const today = new Date().toISOString().split('T')[0];
-        const currentMonth = new Date();
-        const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).toISOString().split('T')[0];
-        const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).toISOString().split('T')[0];
-        
-        const totalActive = todosData.filter(t => t.status !== 'completed').length;
-        const completedThisMonth = todosData.filter(t => 
-          t.status === 'completed' && 
-          t.completed_at && 
-          t.completed_at >= monthStart && 
-          t.completed_at <= monthEnd + 'T23:59:59'
-        ).length;
-        const pending = todosData.filter(t => t.status !== 'completed').length;
-        const overdue = todosData.filter(t => 
-          t.status !== 'completed' && 
-          t.due_date && 
-          t.due_date < today
-        ).length;
-        const dueToday = todosData.filter(t => 
-          t.status !== 'completed' && 
-          t.due_date === today
-        ).length;
+      // Filter todos based on visibility and user permissions
+      let filteredTodos = [];
+      for (const todo of todos) {
+        if (visibilityLevel === 'own') {
+          filteredTodos.push(todo);
+        } else {
+          const canView = await canViewEntity('todos', todo.created_by || '', undefined, undefined);
+          if (canView) {
+            filteredTodos.push(todo);
+          }
+        }
+      }
 
-        setStats({
-          total: totalActive,
-          completed: completedThisMonth,
-          pending,
-          overdue,
-          dueToday
+      // Apply user-based filtering if selectedUserIds is provided and not empty
+      let userFilteredTodos = filteredTodos;
+      if (selectedUserIds.length > 0) {
+        userFilteredTodos = filteredTodos.filter(todo => {
+          // Check main assignee
+          if (todo.assigned_to && selectedUserIds.includes(todo.assigned_to)) return true;
+          
+          // Check assignees array
+          if (todo.assignees && todo.assignees.some((a: any) => selectedUserIds.includes(a.user_id))) {
+            return true;
+          }
+          
+          return false;
         });
       }
+
+      setTodos(userFilteredTodos);
+
+      // Calculate stats from filtered todos
+      const now = new Date();
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000 - 1);
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+      const totalActive = userFilteredTodos.filter(todo => todo.status !== 'completed').length;
+      const completedThisMonth = userFilteredTodos.filter(todo => {
+        if (todo.status !== 'completed' || !todo.completed_at) return false;
+        const completedDate = new Date(todo.completed_at);
+        return completedDate >= startOfMonth && completedDate <= endOfMonth;
+      }).length;
+      const pending = userFilteredTodos.filter(todo => todo.status === 'pending').length;
+      const overdue = userFilteredTodos.filter(todo => {
+        if (todo.status === 'completed') return false;
+        if (!todo.due_date) return false;
+        const dueDate = new Date(todo.due_date);
+        return dueDate < startOfDay;
+      }).length;
+      const dueToday = userFilteredTodos.filter(todo => {
+        if (todo.status === 'completed') return false;
+        if (!todo.due_date) return false;
+        const dueDate = new Date(todo.due_date);
+        return dueDate >= startOfDay && dueDate <= endOfDay;
+      }).length;
+
+      setStats({
+        total: totalActive,
+        completed: completedThisMonth,
+        pending,
+        overdue,
+        dueToday
+      });
+
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      console.error('Error in fetchStats:', error);
     }
   };
 
   const handleTodoClick = (todo: any) => {
-    setSelectedTodoId(todo.id);
+    setSelectedTodo(todo);
+    setIsDetailModalOpen(true);
   };
 
   const handleDetailModalClose = () => {
-    setSelectedTodoId('');
+    setSelectedTodo(null);
+    setIsDetailModalOpen(false);
   };
 
   const handleCalendarPreferencesChange = (newPreferences: any) => {
-    Object.entries(newPreferences).forEach(([key, value]) => {
-      updatePreference(key as keyof typeof preferences, value);
+    Object.keys(newPreferences).forEach(key => {
+      updatePreference(key as any, newPreferences[key]);
     });
   };
 
   const handleEventDrop = async (args: { event: any; start: Date; end: Date }) => {
+    const { event, start } = args;
+    
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const todoId = args.event.id;
-      const newDueDate = args.start.toISOString().split('T')[0];
-      const newDueTime = args.start.toTimeString().split(' ')[0];
-
       const { error } = await supabase
         .from('todos')
-        .update({ 
-          due_date: newDueDate,
-          due_time: newDueTime
+        .update({
+          due_date: start.toISOString().split('T')[0],
+          due_time: start.toTimeString().split(' ')[0]
         })
-        .eq('id', todoId);
+        .eq('id', event.id);
 
-      if (error) {
-        console.error('Error updating todo due date:', error);
-        return;
-      }
+      if (error) throw error;
 
-      // Refresh data
-      fetchStats(); // Use unified function
+      // Refresh the todos
+      fetchStats();
     } catch (error) {
-      console.error('Error updating todo due date:', error);
+      console.error('Error updating todo:', error);
     }
   };
 
+  // Get user-filtered todos for calendar view
+  const userFilteredTodos = selectedUserIds.length > 0 
+    ? todos.filter((todo: any) => {
+        // Check main assignee
+        if (todo.assigned_to && selectedUserIds.includes(todo.assigned_to)) return true;
+        
+        // Check assignees array
+        if (todo.assignees && todo.assignees.some((a: any) => selectedUserIds.includes(a.user_id))) {
+          return true;
+        }
+        
+        return false;
+      })
+    : todos;
+
   return (
-    <MobileLayout headerTitle={isMobile ? "To-Dos" : undefined}>
-      <div className="space-y-6">
-        {!isMobile && (
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">To-Dos</h1>
-              <p className="text-muted-foreground">
-                Manage all your to-do items across the platform
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex bg-muted rounded-md p-1">
-                <Button
-                  variant={preferences.view_type === 'list' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => updatePreference('view_type', 'list')}
-                  className="h-8"
-                >
-                  <List className="h-4 w-4 mr-1" />
-                  List
-                </Button>
-                <Button
-                  variant={preferences.view_type === 'calendar' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => updatePreference('view_type', 'calendar')}
-                  className="h-8"
-                >
-                  <Calendar className="h-4 w-4 mr-1" />
-                  Calendar
-                </Button>
-              </div>
-              <WorkingHoursSettings />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={saveCurrentPreferences}
-                className="h-8"
-              >
-                <Save className="h-4 w-4 mr-1" />
-                Save View
-              </Button>
-              <QuickAddTodoForm
-                onSuccess={fetchStats}
-                trigger={
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Quick Add To-Do
-                  </Button>
-                }
-              />
-            </div>
+    <MobileLayout>
+      <div className="max-w-7xl mx-auto p-6 space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">My Tasks</h1>
+            <p className="text-muted-foreground mt-1">
+              Manage and track your personal to-do items
+            </p>
           </div>
-        )}
-
-        {isMobile && (
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex bg-muted rounded-md p-1">
-              <Button
-                variant={preferences.view_type === 'list' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => updatePreference('view_type', 'list')}
-                className="h-8"
-              >
-                <List className="h-4 w-4 mr-1" />
-                List
-              </Button>
-              <Button
-                variant={preferences.view_type === 'calendar' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => updatePreference('view_type', 'calendar')}
-                className="h-8"
-              >
-                <Calendar className="h-4 w-4 mr-1" />
-                Calendar
-              </Button>
-            </div>
-            <QuickAddTodoForm
-              onSuccess={fetchStats}
-              trigger={
-                <Button size="sm">
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add
-                </Button>
-              }
-            />
+          
+          <div className="flex items-center gap-2">
+            <Button
+              variant={preferences.view_type === 'list' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => updatePreference('view_type', 'list')}
+            >
+              <ListTodo className="h-4 w-4 mr-2" />
+              List
+            </Button>
+            <Button
+              variant={preferences.view_type === 'calendar' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => updatePreference('view_type', 'calendar')}
+            >
+              <Calendar className="h-4 w-4 mr-2" />
+              Calendar
+            </Button>
+            <WorkingHoursSettings />
           </div>
-        )}
+        </div>
 
-        {/* Stats Overview */}
-        <div className={`grid gap-4 ${isMobile ? 'grid-cols-2' : 'grid-cols-1 md:grid-cols-5'}`}>
+        {/* Statistics Overview */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Active</CardTitle>
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
+              <ListTodo className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.total}</div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Completed This Month</CardTitle>
-              <CheckCircle className="h-4 w-4 text-green-600" />
+              <CheckCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Pending</CardTitle>
-              <Clock className="h-4 w-4 text-yellow-600" />
+              <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Due Today</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-orange-600" />
+              <CalendarCheck className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-orange-600">{stats.dueToday}</div>
+              <div className="text-2xl font-bold text-blue-600">{stats.dueToday}</div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Overdue</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-red-600" />
+              <AlertTriangle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-red-600">{stats.overdue}</div>
@@ -459,34 +284,14 @@ const MyTodos = () => {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0">
                 <CardTitle>Task List</CardTitle>
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  <Select value={selectedUserId || 'all'} onValueChange={(value) => setSelectedUserId(value === 'all' ? '' : value)}>
-                    <SelectTrigger className="w-48">
-                      <SelectValue>
-                        {selectedUserId && selectedUserId !== '' ? 
-                          (() => {
-                            const selectedProfile = profiles.find(p => p.id === selectedUserId);
-                            return selectedProfile ? `${selectedProfile.first_name} ${selectedProfile.last_name}` : 'All Assignees';
-                          })() : 
-                          'All Assignees'
-                        }
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Assignees</SelectItem>
-                      {profiles.map((profile) => (
-                        <SelectItem key={profile.id} value={profile.id}>
-                          {profile.first_name} {profile.last_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <AssigneeFilter 
+                  selectedUserIds={selectedUserIds}
+                  onSelectionChange={setSelectedUserIds}
+                />
               </CardHeader>
               <CardContent>
                 <TodoListEnhanced
-                  assignedTo={selectedUserId}
+                  assignedTo={selectedUserIds.length === 1 ? selectedUserIds[0] : undefined}
                   onTodoClick={handleTodoClick}
                   showAssigneeFilter={false} // We have our own filter above
                 />
@@ -498,47 +303,34 @@ const MyTodos = () => {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0">
                 <CardTitle>Calendar View</CardTitle>
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  <Select value={selectedUserId || 'all'} onValueChange={(value) => setSelectedUserId(value === 'all' ? '' : value)}>
-                    <SelectTrigger className="w-48">
-                      <SelectValue placeholder="Select assignee" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Assignees</SelectItem>
-                      {profiles.map((profile) => (
-                        <SelectItem key={profile.id} value={profile.id}>
-                          {profile.first_name} {profile.last_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <AssigneeFilter 
+                  selectedUserIds={selectedUserIds}
+                  onSelectionChange={setSelectedUserIds}
+                />
               </CardHeader>
               <CardContent>
-                <TodoCalendarView
-                  todos={todos}
-                  onEventDrop={handleEventDrop}
-                  onTodoClick={handleTodoClick}
-                  onSelectEvent={(event) => {
-                    console.log('Selected event:', event);
-                  }}
-                  preferences={preferences}
-                  onPreferencesChange={handleCalendarPreferencesChange}
-                />
+                <div className="h-[700px]">
+                  <TodoCalendarView
+                    todos={userFilteredTodos}
+                    onEventDrop={handleEventDrop}
+                    onTodoClick={handleTodoClick}
+                    preferences={preferences}
+                  />
+                </div>
               </CardContent>
             </Card>
           </div>
         )}
 
         {/* Todo Detail Modal */}
-        <TodoDetailModal
-          todo={selectedTodo}
-          isOpen={isDetailModalOpen}
-          onClose={handleDetailModalClose}
-          onUpdate={fetchStats}
-          canEdit={true}
-        />
+        {selectedTodo && (
+          <TodoDetailModal
+            todo={selectedTodo}
+            isOpen={isDetailModalOpen}
+            onClose={handleDetailModalClose}
+            onUpdate={fetchStats}
+          />
+        )}
       </div>
     </MobileLayout>
   );
