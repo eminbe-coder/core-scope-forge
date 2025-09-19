@@ -211,6 +211,22 @@ export const PermissionsProvider = ({ children }: { children: React.ReactNode })
       }
     }
 
+    // For todos, check if user has broader entity permissions
+    if (entityType === 'todos') {
+      const broadEntityTypes = ['companies', 'contacts', 'deals', 'sites', 'projects'];
+      for (const broadType of broadEntityTypes) {
+        if (hasPermission(`${broadType}.visibility.all`)) {
+          return 'all';
+        }
+        if (hasPermission(`${broadType}.visibility.branch`)) {
+          return 'branch';
+        }
+        if (hasPermission(`${broadType}.visibility.department`)) {
+          return 'department';
+        }
+      }
+    }
+
     return 'own'; // Default to own only
   };
 

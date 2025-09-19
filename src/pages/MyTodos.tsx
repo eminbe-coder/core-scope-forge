@@ -65,7 +65,10 @@ const MyTodos = () => {
 
   const fetchProfiles = async () => {
     try {
-      const { data: profilesData } = await supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      let profilesQuery = supabase
         .from('user_tenant_memberships')
         .select(`
           user_id,
@@ -79,6 +82,62 @@ const MyTodos = () => {
         .eq('tenant_id', currentTenant?.id)
         .eq('active', true);
 
+      // Apply same visibility rules as todos
+      if (!isAdmin) {
+        const visibilityLevel = await getVisibilityLevel('todos');
+        
+        switch (visibilityLevel) {
+          case 'own':
+            profilesQuery = profilesQuery.eq('user_id', user.id);
+            break;
+          case 'department':
+            const { data: deptUsers } = await supabase
+              .from('user_department_assignments')
+              .select(`
+                user_id,
+                department:departments!inner(
+                  user_assignments:user_department_assignments(user_id)
+                )
+              `)
+              .eq('user_id', user.id)
+              .eq('tenant_id', currentTenant?.id);
+            
+            if (deptUsers?.[0]?.department?.user_assignments) {
+              const deptUserIds = deptUsers[0].department.user_assignments.map((u: any) => u.user_id);
+              profilesQuery = profilesQuery.in('user_id', deptUserIds);
+            } else {
+              profilesQuery = profilesQuery.eq('user_id', user.id);
+            }
+            break;
+          case 'branch':
+            const { data: branchUsers } = await supabase
+              .from('user_department_assignments')
+              .select(`
+                user_id,
+                departments!inner(
+                  branch_id,
+                  branch_departments:departments!branch_id(
+                    user_assignments:user_department_assignments(user_id)
+                  )
+                )
+              `)
+              .eq('user_id', user.id)
+              .eq('tenant_id', currentTenant?.id);
+            
+            if (branchUsers?.[0]?.departments?.branch_departments) {
+              const branchUserIds = branchUsers[0].departments.branch_departments
+                .flatMap((dept: any) => dept.user_assignments.map((u: any) => u.user_id));
+              profilesQuery = profilesQuery.in('user_id', branchUserIds);
+            } else {
+              profilesQuery = profilesQuery.eq('user_id', user.id);
+            }
+            break;
+          // 'all' case doesn't need additional filtering
+        }
+      }
+
+      const { data: profilesData } = await profilesQuery;
+
       if (profilesData) {
         const profilesList = profilesData
           .map((membership: any) => membership.profiles)
@@ -86,10 +145,7 @@ const MyTodos = () => {
         setProfiles(profilesList);
         
         // Set default selection to "All" instead of current user
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user?.id) {
-          setSelectedUserId(''); // Start with "All" selected
-        }
+        setSelectedUserId(''); // Start with "All" selected
       }
     } catch (error) {
       console.error('Error fetching profiles:', error);
