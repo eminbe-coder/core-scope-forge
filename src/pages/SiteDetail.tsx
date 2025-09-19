@@ -19,6 +19,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
 
+import { TodoDetailModal } from '@/components/todos/TodoDetailModal';
+
 interface Site {
   id: string;
   name: string;
@@ -94,8 +96,16 @@ const SiteDetail = () => {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [leads, setLeads] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedTodo, setSelectedTodo] = useState<any>(null);
   const [todoDetailOpen, setTodoDetailOpen] = useState(false);
+  const [deals, setDeals] = useState<Deal[]>([]);
+  const [linkContactDialog, setLinkContactDialog] = useState(false);
+  const [linkCompanyDialog, setLinkCompanyDialog] = useState(false);
+  const [selectedContact, setSelectedContact] = useState<string>('');
+  const [selectedCompany, setSelectedCompany] = useState<string>('');
+  const [contactNote, setContactNote] = useState('');
+  const [companyNote, setCompanyNote] = useState('');
 
   // UUID validation helper
   const isValidUUID = (uuid: string): boolean => {
@@ -119,20 +129,6 @@ const SiteDetail = () => {
       </DashboardLayout>
     );
   }
-
-  const [site, setSite] = useState<Site | null>(null);
-  const [deals, setDeals] = useState<Deal[]>([]);
-  const [contracts, setContracts] = useState<Contract[]>([]);
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [linkContactDialog, setLinkContactDialog] = useState(false);
-  const [linkCompanyDialog, setLinkCompanyDialog] = useState(false);
-  const [selectedContact, setSelectedContact] = useState<string>('');
-  const [selectedCompany, setSelectedCompany] = useState<string>('');
-  const [contactNote, setContactNote] = useState('');
-  const [companyNote, setCompanyNote] = useState('');
   const [availableContacts, setAvailableContacts] = useState<any[]>([]);
   const [availableCompanies, setAvailableCompanies] = useState<any[]>([]);
 
