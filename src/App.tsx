@@ -61,6 +61,8 @@ import Pricing from "./pages/Pricing";
 import Devices from "./pages/Devices";
 import NotFound from "./pages/NotFound";
 
+import RewardSystem from "./pages/RewardSystem";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -254,11 +256,16 @@ const App = () => (
                       <CRMSettings />
                     </ProtectedRoute>
                   } />
-                  <Route path="/todo-engine-settings" element={
-                    <ProtectedRoute>
-                      <TodoEngineSettings />
-                    </ProtectedRoute>
-                  } />
+                   <Route path="/todo-engine-settings" element={
+                     <ProtectedRoute>
+                       <TodoEngineSettings />
+                     </ProtectedRoute>
+                   } />
+                   <Route path="/reward-system" element={
+                     <ProtectedRoute>
+                       <RewardSystem />
+                     </ProtectedRoute>
+                   } />
                   <Route path="/global-admin" element={
                     <ProtectedRoute>
                       <CorePlatform />

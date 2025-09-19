@@ -3023,6 +3023,82 @@ export type Database = {
         }
         Relationships: []
       }
+      reward_period_cycles: {
+        Row: {
+          created_at: string
+          end_date: string
+          id: string
+          is_current: boolean
+          period_type: string
+          start_date: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          id?: string
+          is_current?: boolean
+          period_type: string
+          start_date: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          id?: string
+          is_current?: boolean
+          period_type?: string
+          start_date?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reward_period_cycles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reward_periods: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          period_type: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          period_type: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          period_type?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reward_periods_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reward_point_transactions: {
         Row: {
           action_name: string
@@ -4259,6 +4335,57 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_reward_targets: {
+        Row: {
+          achieved: boolean
+          created_at: string
+          current_points: number
+          id: string
+          period_cycle_id: string
+          target_points: number
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          achieved?: boolean
+          created_at?: string
+          current_points?: number
+          id?: string
+          period_cycle_id: string
+          target_points?: number
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          achieved?: boolean
+          created_at?: string
+          current_points?: number
+          id?: string
+          period_cycle_id?: string
+          target_points?: number
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_reward_targets_period_cycle_id_fkey"
+            columns: ["period_cycle_id"]
+            isOneToOne: false
+            referencedRelation: "reward_period_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_reward_targets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_tenant_memberships: {
         Row: {

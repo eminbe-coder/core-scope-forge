@@ -30,7 +30,8 @@ import {
   BarChart3,
   Calendar,
   FileText,
-  Bell
+  Bell,
+  Trophy
 } from 'lucide-react';
 
 interface NavigationItem {
@@ -202,6 +203,12 @@ const tenantModules: NavigationModule[] = [
         title: 'To-Do Engine Settings',
         url: '/todo-engine-settings',
         icon: CheckSquare,
+        permission: 'admin.access',
+      },
+      {
+        title: 'Reward System',
+        url: '/reward-system',
+        icon: Trophy,
         permission: 'admin.access',
       },
     ]

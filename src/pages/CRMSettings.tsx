@@ -28,7 +28,6 @@ import { LeadQualityManager } from '@/components/settings/LeadQualityManager';
 import { DealSourcesManager } from '@/components/settings/DealSourcesManager';
 import { DealStatusesManager } from '@/components/settings/DealStatusesManager';
 import { SolutionCategoriesManager } from '@/components/settings/SolutionCategoriesManager';
-import { RewardSystemManager } from '@/components/settings/RewardSystemManager';
 
 const CRMSettingsPage = () => {
   const [activeSection, setActiveSection] = useState<string>('deal-stages');
@@ -99,12 +98,6 @@ const CRMSettingsPage = () => {
       label: 'Relationship Roles',
       icon: Network,
       component: RelationshipRolesSettings
-    },
-    {
-      id: 'reward-system',
-      label: 'Reward System',
-      icon: Trophy,
-      component: RewardSystemManager
     }
   ];
 

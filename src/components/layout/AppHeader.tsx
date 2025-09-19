@@ -40,7 +40,7 @@ export function AppHeader({
   const { user, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
   const { currentTenant, isSuperAdmin } = useTenant();
-  const { totalPoints } = useRewardPoints();
+  const { totalPoints, currentPoints, targetPoints, achieved } = useRewardPoints();
   const navigate = useNavigate();
 
   const getUserInitials = () => {
@@ -94,12 +94,18 @@ export function AppHeader({
           
           {/* Reward Points Trophy */}
           <div className="flex items-center space-x-1 px-3 py-1.5 bg-secondary/30 rounded-full border border-border/50">
-            <Trophy className="h-4 w-4 text-primary" />
+            {achieved ? (
+              <div className="h-4 w-4 rounded-full bg-gradient-to-r from-yellow-400 to-yellow-600 flex items-center justify-center">
+                <span className="text-xs text-white font-bold">🏅</span>
+              </div>
+            ) : (
+              <Trophy className="h-4 w-4 text-primary" />
+            )}
             <span className="text-sm font-medium text-foreground hidden sm:inline">
-              {totalPoints}
+              {currentPoints}/{targetPoints}
             </span>
             <span className="text-sm font-medium text-foreground sm:hidden">
-              {totalPoints}
+              {currentPoints}/{targetPoints}
             </span>
           </div>
           
