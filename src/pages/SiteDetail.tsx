@@ -12,6 +12,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { SiteRelationships } from '@/components/site-details/SiteRelationships';
 import { SiteTodos } from '@/components/site-details/SiteTodos';
+import { SiteStatistics } from '@/components/site-details/SiteStatistics';
+import { SiteBusinessItems } from '@/components/site-details/SiteBusinessItems';
+import { SiteActivityTimeline } from '@/components/site-details/SiteActivityTimeline';
+import { SiteQuickActions } from '@/components/site-details/SiteQuickActions';
 import { MapDisplay } from '@/components/ui/map-display';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
@@ -476,7 +480,21 @@ const SiteDetail = () => {
           </Button>
         </div>
 
-        {/* Site Overview */}
+        {/* Site Statistics Dashboard */}
+        <SiteStatistics siteId={site.id} />
+
+        {/* Business Items Overview */}
+        <SiteBusinessItems siteId={site.id} />
+
+        <div className="grid gap-6 md:grid-cols-3">
+          {/* Quick Actions */}
+          <SiteQuickActions siteId={site.id} siteName={site.name} />
+          
+          {/* Activity Timeline */}
+          <div className="md:col-span-2">
+            <SiteActivityTimeline siteId={site.id} />
+          </div>
+        </div>
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
             <CardHeader>

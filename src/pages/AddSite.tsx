@@ -1,7 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -42,6 +42,7 @@ const siteSchema = z.object({
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),
   notes: z.string().optional(),
+  customer_id: z.string().optional(), // Site Owner
 });
 
 type SiteFormData = z.infer<typeof siteSchema>;
@@ -53,6 +54,8 @@ const AddSite = () => {
   const [importing, setImporting] = useState(false);
   const [uploadedImages, setUploadedImages] = useState<File[]>([]);
   const [relationships, setRelationships] = useState<EntityRelationshipData[]>([]);
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [contacts, setContacts] = useState<any[]>([]);
 
   const form = useForm<SiteFormData>({
     resolver: zodResolver(siteSchema),
@@ -67,8 +70,43 @@ const AddSite = () => {
       latitude: undefined,
       longitude: undefined,
       notes: '',
+      customer_id: '',
     },
   });
+
+  useEffect(() => {
+    if (currentTenant) {
+      loadEntities();
+    }
+  }, [currentTenant]);
+
+  const loadEntities = async () => {
+    try {
+      // Load companies
+      const { data: companyData, error: companyError } = await supabase
+        .from('companies')
+        .select('id, name')
+        .eq('tenant_id', currentTenant?.id)
+        .eq('active', true)
+        .order('name');
+
+      if (companyError) throw companyError;
+      setCompanies(companyData || []);
+
+      // Load contacts
+      const { data: contactData, error: contactError } = await supabase
+        .from('contacts')
+        .select('id, first_name, last_name')
+        .eq('tenant_id', currentTenant?.id)
+        .eq('active', true)
+        .order('first_name');
+
+      if (contactError) throw contactError;
+      setContacts(contactData || []);
+    } catch (error) {
+      console.error('Error loading entities:', error);
+    }
+  };
 
   const uploadImages = async (): Promise<string[]> => {
     if (!currentTenant || uploadedImages.length === 0) return [];
@@ -298,6 +336,40 @@ const AddSite = () => {
                             Mark this site as a potential business lead
                           </p>
                         </div>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="customer_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Site Owner</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select site owner" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="">No owner</SelectItem>
+                            {companies.map((company) => (
+                              <SelectItem key={`company-${company.id}`} value={company.id}>
+                                {company.name} (Company)
+                              </SelectItem>
+                            ))}
+                            {contacts.map((contact) => (
+                              <SelectItem key={`contact-${contact.id}`} value={contact.id}>
+                                {contact.first_name} {contact.last_name} (Contact)
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-sm text-muted-foreground">
+                          Select the company or contact that owns this site
+                        </p>
+                        <FormMessage />
                       </FormItem>
                     )}
                   />

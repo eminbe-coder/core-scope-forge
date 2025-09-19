@@ -600,6 +600,39 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
     };
     setSites(prev => [...prev, newSite]);
     form.setValue('site_id', site.id);
+    setShowSiteModal(false);
+  };
+
+  const handleSiteSelection = async (siteId: string) => {
+    if (!siteId || !currentTenant) return;
+    
+    try {
+      // Fetch the selected site with its owner information 
+      const { data: siteData, error } = await supabase
+        .from('sites')
+        .select('customer_id')
+        .eq('id', siteId)
+        .eq('tenant_id', currentTenant.id)
+        .single();
+
+      if (error) throw error;
+      
+      // If site has an owner, set it as the customer
+      if (siteData?.customer_id) {
+        form.setValue('customer_id', siteData.customer_id);
+        setSelectedCustomerType('existing');
+        
+        toast({
+          title: 'Customer Auto-Selected',
+          description: 'Customer has been automatically selected from site owner',
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching site data:', error); 
+    }
+  };
+    setSites(prev => [...prev, newSite]);
+    form.setValue('site_id', site.id);
   };
 
   const calculatePaymentTerms = (terms: PaymentTerm[], totalValue: number): PaymentTerm[] => {
@@ -883,15 +916,20 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
                     <FormLabel>Site (Optional)</FormLabel>
                     <div className="flex gap-2">
                       <FormControl>
-                         <DynamicSiteSelect
-                           value={field.value || ''}
-                           onValueChange={field.onChange}
-                           placeholder="Select site"
-                           searchPlaceholder="Search sites..."
-                           emptyText="No sites found"
-                           onAddNew={() => setShowSiteModal(true)}
-                           addNewLabel="Add Site"
-                         />
+                          <DynamicSiteSelect
+                            value={field.value || ''}
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              if (value) {
+                                handleSiteSelection(value);
+                              }
+                            }}
+                            placeholder="Select site"
+                            searchPlaceholder="Search sites..."
+                            emptyText="No sites found"
+                            onAddNew={() => setShowSiteModal(true)}
+                            addNewLabel="Add Site"
+                          />
                       </FormControl>
                     </div>
                     <FormMessage />
@@ -1280,6 +1318,6 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
         onClose={() => setShowSiteModal(false)}
         onSiteCreated={handleSiteCreated}
       />
-    </>
+    </Form>
   );
 }

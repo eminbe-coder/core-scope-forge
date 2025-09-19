@@ -38,6 +38,8 @@ const EditSite = () => {
   const { currentTenant } = useTenant();
   const { id } = useParams<{ id: string }>();
   const [customers, setCustomers] = useState<any[]>([]);
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [contacts, setContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const form = useForm<SiteFormData>({
@@ -60,6 +62,7 @@ const EditSite = () => {
     if (currentTenant && id) {
       loadSiteData();
       loadCustomers();
+      loadEntities();
     }
   }, [currentTenant, id]);
 
@@ -97,6 +100,34 @@ const EditSite = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadEntities = async () => {
+    try {
+      // Load companies
+      const { data: companyData, error: companyError } = await supabase
+        .from('companies')
+        .select('id, name')
+        .eq('tenant_id', currentTenant?.id)
+        .eq('active', true)
+        .order('name');
+
+      if (companyError) throw companyError;
+      setCompanies(companyData || []);
+
+      // Load contacts
+      const { data: contactData, error: contactError } = await supabase
+        .from('contacts')
+        .select('id, first_name, last_name')
+        .eq('tenant_id', currentTenant?.id)
+        .eq('active', true)
+        .order('first_name');
+
+      if (contactError) throw contactError;
+      setContacts(contactData || []);
+    } catch (error) {
+      console.error('Error loading entities:', error);
     }
   };
 
@@ -221,31 +252,41 @@ const EditSite = () => {
                     )}
                   />
 
-                  <FormField
-                    control={form.control}
-                    name="customer_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Customer</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select customer" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="none">No customer</SelectItem>
-                            {customers.map((customer) => (
-                              <SelectItem key={customer.id} value={customer.id}>
-                                {customer.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    <FormField
+                      control={form.control}
+                      name="customer_id"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Site Owner</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select site owner" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="none">No owner</SelectItem>
+                              {customers.map((customer) => (
+                                <SelectItem key={customer.id} value={customer.id}>
+                                  {customer.name}
+                                </SelectItem>
+                              ))}
+                              {companies.map((company) => (
+                                <SelectItem key={`company-${company.id}`} value={company.id}>
+                                  {company.name} (Company)
+                                </SelectItem>
+                              ))}
+                              {contacts.map((contact) => (
+                                <SelectItem key={`contact-${contact.id}`} value={contact.id}>
+                                  {contact.first_name} {contact.last_name} (Contact)
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                 </div>
 
                 <FormField
