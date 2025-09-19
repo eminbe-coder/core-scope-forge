@@ -86,13 +86,6 @@ export const QuickAddTodoForm = ({
     }
   };
 
-  // Handle TodoForm open state when defaultOpen changes
-  React.useEffect(() => {
-    if (defaultEntityType && defaultEntityId) {
-      setTodoModalOpen(true);
-    }
-  }, [defaultEntityType, defaultEntityId]);
-
   const defaultTrigger = (
     <Button size="sm">
       <Plus className="h-4 w-4 mr-2" />
@@ -299,12 +292,12 @@ export const QuickAddTodoForm = ({
         </DialogContent>
       </Dialog>
 
-      {(todoModalOpen || (defaultEntityType && defaultEntityId)) && (
+      {todoModalOpen && (
         <TodoForm
           entityType={defaultEntityType || selectedEntityType}
           entityId={defaultEntityId || selectedEntityId || (selectedEntityType === 'standalone' ? 'standalone' : '')}
           onSuccess={handleTodoSuccess}
-          defaultOpen={todoModalOpen || !!(defaultEntityType && defaultEntityId)}
+          defaultOpen={todoModalOpen}
         />
       )}
     </>
