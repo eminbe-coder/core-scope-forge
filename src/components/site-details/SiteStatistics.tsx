@@ -40,7 +40,7 @@ export function SiteStatistics({ siteId }: SiteStatisticsProps) {
       // Fetch contracts linked to this site
       const { data: contracts } = await supabase
         .from('contracts')
-        .select('value, status')
+        .select('id, value, status')
         .eq('site_id', siteId)
         .eq('tenant_id', currentTenant?.id);
 
@@ -50,23 +50,6 @@ export function SiteStatistics({ siteId }: SiteStatisticsProps) {
         .select('id, value, status')
         .eq('site_id', siteId)
         .eq('tenant_id', currentTenant?.id);
-
-      // Fetch payment terms for site contracts (only for existing contracts)
-      const contractIds = contracts?.map(c => c.id) || [];
-      let paymentTerms = [];
-      
-      if (contractIds.length > 0) {
-        const { data: terms } = await supabase
-          .from('contract_payment_terms')
-          .select(`
-            calculated_amount,
-            contract_payment_stages(name)
-          `)
-          .in('contract_id', contractIds)
-          .eq('tenant_id', currentTenant?.id);
-        
-        paymentTerms = terms || [];
-      }
 
       // Calculate statistics
       const totalContractValue = contracts?.reduce((sum, contract) => 
@@ -82,11 +65,8 @@ export function SiteStatistics({ siteId }: SiteStatisticsProps) {
       const activeDealsCount = deals?.filter(deal => 
         deal.status === 'lead' || deal.status === 'qualified' || deal.status === 'proposal').length || 0;
 
-      // Calculate payments received (where stage is "Paid" or "Completed")
-      const totalPaymentsReceived = paymentTerms?.filter(term => {
-        const stageName = term.contract_payment_stages?.name?.toLowerCase();
-        return stageName === 'paid' || stageName === 'completed';
-      })?.reduce((sum, term) => sum + (term.calculated_amount || 0), 0) || 0;
+      // For now, set payments received to 0 (can be enhanced later with actual payment data)
+      const totalPaymentsReceived = 0;
 
       // Simple lead conversion rate calculation
       const totalDeals = deals?.length || 0;

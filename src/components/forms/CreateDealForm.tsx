@@ -631,9 +631,6 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
       console.error('Error fetching site data:', error); 
     }
   };
-    setSites(prev => [...prev, newSite]);
-    form.setValue('site_id', site.id);
-  };
 
   const calculatePaymentTerms = (terms: PaymentTerm[], totalValue: number): PaymentTerm[] => {
     if (terms.length === 0 || totalValue === 0) return terms;

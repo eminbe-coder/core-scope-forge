@@ -42,8 +42,7 @@ export function SiteActivityTimeline({ siteId }: SiteActivityTimelineProps) {
       const { data: siteActivities } = await supabase
         .from('activity_logs')
         .select(`
-          id, title, description, created_at, created_by,
-          profiles:created_by(first_name, last_name)
+          id, title, description, created_at, created_by
         `)
         .eq('entity_type', 'site')
         .eq('entity_id', siteId)
@@ -58,7 +57,7 @@ export function SiteActivityTimeline({ siteId }: SiteActivityTimelineProps) {
             type: 'site',
             title: activity.title,
             description: activity.description,
-            userName: activity.profiles ? `${activity.profiles.first_name} ${activity.profiles.last_name}` : undefined,
+            userName: 'System User', // Will be enhanced later
             createdAt: activity.created_at,
             icon: <FileText className="h-4 w-4" />,
             color: 'bg-blue-100 text-blue-800',
@@ -77,8 +76,7 @@ export function SiteActivityTimeline({ siteId }: SiteActivityTimelineProps) {
         const { data: dealActivities } = await supabase
           .from('activity_logs')
           .select(`
-            id, title, description, created_at, created_by, entity_id,
-            profiles:created_by(first_name, last_name)
+            id, title, description, created_at, created_by, entity_id
           `)
           .eq('entity_type', 'deal')
           .in('entity_id', dealIds.map(d => d.id))
@@ -96,7 +94,7 @@ export function SiteActivityTimeline({ siteId }: SiteActivityTimelineProps) {
               description: activity.description,
               entityName: deal?.name,
               entityId: activity.entity_id,
-              userName: activity.profiles ? `${activity.profiles.first_name} ${activity.profiles.last_name}` : undefined,
+              userName: 'System User', // Will be enhanced later
               createdAt: activity.created_at,
               icon: <DollarSign className="h-4 w-4" />,
               color: 'bg-green-100 text-green-800',

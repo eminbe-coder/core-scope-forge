@@ -52,7 +52,6 @@ export function SiteBusinessItems({ siteId }: SiteBusinessItemsProps) {
         .select(`
           id, name, value, status, created_at,
           deal_stages(name),
-          assigned_profiles:profiles!deals_assigned_to_fkey(first_name, last_name),
           currencies(code)
         `)
         .eq('site_id', siteId)
@@ -67,7 +66,7 @@ export function SiteBusinessItems({ siteId }: SiteBusinessItemsProps) {
             value: deal.value,
             status: deal.status,
             stage: deal.deal_stages?.name,
-            assignedTo: deal.assigned_profiles ? `${deal.assigned_profiles.first_name} ${deal.assigned_profiles.last_name}` : undefined,
+            assignedTo: undefined, // Will be enhanced later
             createdAt: deal.created_at,
             currency: deal.currencies?.code,
             nextAction: getNextAction('deal', deal.status),
@@ -80,7 +79,6 @@ export function SiteBusinessItems({ siteId }: SiteBusinessItemsProps) {
         .from('contracts')
         .select(`
           id, name, value, status, created_at,
-          assigned_profiles:profiles!contracts_assigned_to_fkey(first_name, last_name),
           currencies(code)
         `)
         .eq('site_id', siteId)
@@ -94,7 +92,7 @@ export function SiteBusinessItems({ siteId }: SiteBusinessItemsProps) {
             type: 'contract',
             value: contract.value,
             status: contract.status,
-            assignedTo: contract.assigned_profiles ? `${contract.assigned_profiles.first_name} ${contract.assigned_profiles.last_name}` : undefined,
+            assignedTo: undefined, // Will be enhanced later
             createdAt: contract.created_at,
             currency: contract.currencies?.code,
             nextAction: getNextAction('contract', contract.status),
