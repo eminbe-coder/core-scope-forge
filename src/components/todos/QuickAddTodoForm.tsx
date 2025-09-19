@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus } from 'lucide-react';
-import { TodoFormModal } from './TodoFormModal';
+import { TodoForm } from './TodoForm';
 import { DynamicCompanySelect, DynamicContactSelect, DynamicSiteSelect, DynamicCustomerSelect, DynamicDealSelect, DynamicContractSelect, DynamicInstallmentSelect } from '@/components/ui/dynamic-searchable-select';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -25,6 +25,11 @@ const ENTITY_TYPES = [
   { value: 'standalone', label: 'Standalone' },
 ] as const;
 
+const INSTALLMENT_PARENT_TYPES = [
+  { value: 'deal', label: 'Deal' },
+  { value: 'contract', label: 'Contract' },
+] as const;
+
 export const QuickAddTodoForm = ({ 
   onSuccess, 
   trigger,
@@ -35,9 +40,19 @@ export const QuickAddTodoForm = ({
   const [todoModalOpen, setTodoModalOpen] = useState(false);
   const [selectedEntityType, setSelectedEntityType] = useState<string>(defaultEntityType || '');
   const [selectedEntityId, setSelectedEntityId] = useState<string>(defaultEntityId || '');
+  
+  // For installment selection flow
+  const [installmentParentType, setInstallmentParentType] = useState<string>('');
+  const [installmentParentId, setInstallmentParentId] = useState<string>('');
 
   const handleEntitySelection = () => {
-    if (selectedEntityType && (selectedEntityId || selectedEntityType === 'standalone')) {
+    if (selectedEntityType === 'installment') {
+      // For installments, we need parent type and parent ID, then installment ID
+      if (installmentParentType && installmentParentId && selectedEntityId) {
+        setOpen(false);
+        setTodoModalOpen(true);
+      }
+    } else if (selectedEntityType && (selectedEntityId || selectedEntityType === 'standalone')) {
       setOpen(false);
       setTodoModalOpen(true);
     }
@@ -47,6 +62,8 @@ export const QuickAddTodoForm = ({
     setTodoModalOpen(false);
     setSelectedEntityType(defaultEntityType || '');
     setSelectedEntityId(defaultEntityId || '');
+    setInstallmentParentType('');
+    setInstallmentParentId('');
     onSuccess?.();
   };
 
@@ -55,6 +72,8 @@ export const QuickAddTodoForm = ({
     if (!open) {
       setSelectedEntityType(defaultEntityType || '');
       setSelectedEntityId(defaultEntityId || '');
+      setInstallmentParentType('');
+      setInstallmentParentId('');
     }
   };
 
@@ -66,6 +85,13 @@ export const QuickAddTodoForm = ({
       setOpen(open);
     }
   };
+
+  // Handle TodoForm open state when defaultOpen changes
+  React.useEffect(() => {
+    if (defaultEntityType && defaultEntityId) {
+      setTodoModalOpen(true);
+    }
+  }, [defaultEntityType, defaultEntityId]);
 
   const defaultTrigger = (
     <Button size="sm">
@@ -138,13 +164,63 @@ export const QuickAddTodoForm = ({
         );
       case 'installment':
         return (
-          <DynamicInstallmentSelect
-            value={selectedEntityId}
-            onValueChange={setSelectedEntityId}
-            placeholder="Select an installment"
-            searchPlaceholder="Search installments..."
-            emptyText="No installments found"
-          />
+          <div className="space-y-4">
+            {!installmentParentType && (
+              <div className="space-y-2">
+                <Label>Select Parent Type</Label>
+                <Select value={installmentParentType} onValueChange={setInstallmentParentType}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose Deal or Contract" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {INSTALLMENT_PARENT_TYPES.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            
+            {installmentParentType && !installmentParentId && (
+              <div className="space-y-2">
+                <Label>Select {INSTALLMENT_PARENT_TYPES.find(t => t.value === installmentParentType)?.label}</Label>
+                {installmentParentType === 'deal' ? (
+                  <DynamicDealSelect
+                    value={installmentParentId}
+                    onValueChange={setInstallmentParentId}
+                    placeholder="Select a deal"
+                    searchPlaceholder="Search deals..."
+                    emptyText="No deals found"
+                  />
+                ) : (
+                  <DynamicContractSelect
+                    value={installmentParentId}
+                    onValueChange={setInstallmentParentId}
+                    placeholder="Select a contract"
+                    searchPlaceholder="Search contracts..."
+                    emptyText="No contracts found"
+                  />
+                )}
+              </div>
+            )}
+            
+            {installmentParentType && installmentParentId && (
+              <div className="space-y-2">
+                <Label>Select Installment</Label>
+                <DynamicInstallmentSelect
+                  value={selectedEntityId}
+                  onValueChange={setSelectedEntityId}
+                  placeholder="Select an installment"
+                  searchPlaceholder="Search installments..."
+                  emptyText="No installments found"
+                  contractId={installmentParentType === 'contract' ? installmentParentId : undefined}
+                  dealId={installmentParentType === 'deal' ? installmentParentId : undefined}
+                />
+              </div>
+            )}
+          </div>
         );
       case 'standalone':
         return null; // No entity selection needed for standalone
@@ -171,6 +247,8 @@ export const QuickAddTodoForm = ({
                 onValueChange={(value) => {
                   setSelectedEntityType(value);
                   setSelectedEntityId('');
+                  setInstallmentParentType('');
+                  setInstallmentParentId('');
                 }}
               >
                 <SelectTrigger>
@@ -208,7 +286,11 @@ export const QuickAddTodoForm = ({
               </Button>
               <Button
                 onClick={handleEntitySelection}
-                disabled={!selectedEntityType || (!selectedEntityId && selectedEntityType !== 'standalone')}
+                disabled={
+                  !selectedEntityType || 
+                  (!selectedEntityId && selectedEntityType !== 'standalone') ||
+                  (selectedEntityType === 'installment' && (!installmentParentType || !installmentParentId || !selectedEntityId))
+                }
               >
                 Continue
               </Button>
@@ -217,13 +299,14 @@ export const QuickAddTodoForm = ({
         </DialogContent>
       </Dialog>
 
-      <TodoFormModal
-        open={todoModalOpen}
-        onOpenChange={handleTodoModalClose}
-        entityType={defaultEntityType || selectedEntityType}
-        entityId={defaultEntityId || selectedEntityId || (selectedEntityType === 'standalone' ? 'standalone' : '')}
-        onSuccess={handleTodoSuccess}
-      />
+      {(todoModalOpen || (defaultEntityType && defaultEntityId)) && (
+        <TodoForm
+          entityType={defaultEntityType || selectedEntityType}
+          entityId={defaultEntityId || selectedEntityId || (selectedEntityType === 'standalone' ? 'standalone' : '')}
+          onSuccess={handleTodoSuccess}
+          defaultOpen={todoModalOpen || !!(defaultEntityType && defaultEntityId)}
+        />
+      )}
     </>
   );
 };

@@ -526,9 +526,14 @@ export function useDynamicContracts(options: EntityHookOptions = {}) {
   };
 }
 
-export function useDynamicInstallments(options: EntityHookOptions = {}) {
+interface InstallmentHookOptions extends EntityHookOptions {
+  contractId?: string;
+  dealId?: string;
+}
+
+export function useDynamicInstallments(options: InstallmentHookOptions = {}) {
   const { currentTenant } = useTenant();
-  const { enabled = true, searchTerm = '', limit = 50 } = options;
+  const { enabled = true, searchTerm = '', limit = 50, contractId, dealId } = options;
   
   const [installments, setInstallments] = useState<Installment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -543,12 +548,26 @@ export function useDynamicInstallments(options: EntityHookOptions = {}) {
     try {
       let query = supabase
         .from('contract_payment_terms')
-        .select('id, name, due_date')
-        .eq('tenant_id', currentTenant.id)
-        .order('name');
+        .select(`
+          *,
+          contracts:contract_id (
+            name,
+            deals:deal_id (
+              name
+            )
+          )
+        `)
+        .eq('tenant_id', currentTenant.id);
+
+      // Filter by contract or deal if specified
+      if (contractId) {
+        query = query.eq('contract_id', contractId);
+      } else if (dealId) {
+        query = query.eq('contracts.deal_id', dealId);
+      }
 
       if (searchTerm.trim()) {
-        query = query.ilike('name', `%${searchTerm.trim()}%`);
+        query = query.or(`installment_number::text.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
       }
 
       if (limit) {
@@ -565,7 +584,7 @@ export function useDynamicInstallments(options: EntityHookOptions = {}) {
     } finally {
       setLoading(false);
     }
-  }, [currentTenant?.id, enabled, searchTerm, limit]);
+  }, [currentTenant?.id, enabled, searchTerm, limit, contractId, dealId]);
 
   useEffect(() => {
     fetchInstallments();

@@ -57,6 +57,10 @@ export const TodoForm = ({
   const [contacts, setContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
+  React.useEffect(() => {
+    setOpen(defaultOpen);
+  }, [defaultOpen]);
+
   const form = useForm({
     resolver: zodResolver(todoSchema),
     defaultValues: {
@@ -235,8 +239,8 @@ export const TodoForm = ({
         .from('todos')
         .insert({
           tenant_id: currentTenant.id,
-          entity_type: entityType,
-          entity_id: entityId,
+          entity_type: entityType === 'standalone' ? 'standalone' : entityType,
+          entity_id: entityType === 'standalone' ? null : entityId,
           title: values.title,
           description: values.description || null,
           due_date: values.due_date || null,

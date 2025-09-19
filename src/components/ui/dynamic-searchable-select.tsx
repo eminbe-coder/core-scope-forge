@@ -46,6 +46,8 @@ interface DynamicSearchableSelectProps {
   addNewLabel?: string;
   disabled?: boolean;
   className?: string;
+  contractId?: string;
+  dealId?: string;
 }
 
 export function DynamicSearchableSelect({
@@ -60,6 +62,8 @@ export function DynamicSearchableSelect({
   addNewLabel,
   disabled,
   className,
+  contractId,
+  dealId,
 }: DynamicSearchableSelectProps) {
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -104,7 +108,9 @@ export function DynamicSearchableSelect({
   const installmentsHook = useDynamicInstallments({ 
     enabled: open && entityType === 'installments',
     searchTerm,
-    limit: 100
+    limit: 100,
+    contractId,
+    dealId
   });
 
   // Select the appropriate hook result
@@ -170,6 +176,15 @@ export function DynamicSearchableSelect({
 
   const getDisplayName = (option: Option) => {
     if (renderOption) return renderOption(option);
+    
+    // Special handling for installments
+    if ('installment_number' in option && 'amount' in option) {
+      const contractName = (option as any).contracts?.name;
+      const dealName = (option as any).contracts?.deals?.name;
+      const parentName = dealName || contractName || 'Unknown';
+      return `Payment ${option.installment_number} - $${option.amount} (${parentName})`;
+    }
+    
     if (option.name) return option.name;
     if (option.first_name) {
       const fullName = `${option.first_name} ${option.last_name || ''}`.trim();
