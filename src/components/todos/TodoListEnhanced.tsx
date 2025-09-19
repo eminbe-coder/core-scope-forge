@@ -85,7 +85,7 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
     if (!currentTenant?.id) return;
 
     const channel = supabase
-      .channel('todos-changes')
+      .channel('todos-realtime')
       .on(
         'postgres_changes',
         {
@@ -96,7 +96,18 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
         },
         (payload) => {
           console.log('Todo change detected:', payload);
-          fetchTodos(); // Refresh the list
+          // Optimistically update UI for better UX
+          if (payload.eventType === 'UPDATE' && payload.new) {
+            setTodos(prevTodos => 
+              prevTodos.map(todo => 
+                todo.id === payload.new.id 
+                  ? { ...todo, ...payload.new }
+                  : todo
+              )
+            );
+          }
+          // Still fetch to ensure consistency
+          setTimeout(() => fetchTodos(), 500);
         }
       )
       .subscribe();
@@ -220,6 +231,19 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
   const toggleTodoCompletion = async (todoId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'completed' ? 'pending' : 'completed';
     
+    // Optimistic UI update
+    setTodos(prevTodos => 
+      prevTodos.map(todo => 
+        todo.id === todoId 
+          ? { 
+              ...todo, 
+              status: newStatus as any,
+              completed_at: newStatus === 'completed' ? new Date().toISOString() : null
+            }
+          : todo
+      )
+    );
+    
     try {
       const { error } = await supabase
         .from('todos')
@@ -232,19 +256,20 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
 
       if (error) throw error;
 
-      // Update local state immediately for responsive UI
-      setTodos(prev => prev.map(todo => 
-        todo.id === todoId 
-          ? { ...todo, status: newStatus as any }
-          : todo
-      ));
-
       toast({
         title: "Success",
         description: `Todo ${newStatus === 'completed' ? 'completed' : 'reopened'}`,
       });
     } catch (error) {
       console.error('Error updating todo:', error);
+      // Revert optimistic update on error
+      setTodos(prevTodos => 
+        prevTodos.map(todo => 
+          todo.id === todoId 
+            ? { ...todo, status: currentStatus as any }
+            : todo
+        )
+      );
       toast({
         title: "Error",
         description: "Failed to update todo",

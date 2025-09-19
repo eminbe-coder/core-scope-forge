@@ -124,7 +124,15 @@ export const useTodoPreferences = () => {
   };
 
   const saveCurrentPreferences = () => {
-    savePreferences(preferences);
+    // Create a clean copy of preferences to save, excluding calendar_date if it's invalid
+    const prefsToSave = { ...preferences };
+    
+    // Handle calendar_date properly - remove if invalid
+    if (prefsToSave.calendar_date && isNaN(new Date(prefsToSave.calendar_date).getTime())) {
+      delete prefsToSave.calendar_date;
+    }
+    
+    savePreferences(prefsToSave);
   };
 
   return {

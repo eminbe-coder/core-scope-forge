@@ -56,39 +56,49 @@ export const SubtaskManager: React.FC<SubtaskManagerProps> = ({
   }, [todoId]);
 
   const fetchSubtasks = async () => {
+    if (!todoId || !currentTenant?.id) return;
+    
     try {
-      const { data, error } = await supabase
+      // Get basic subtasks first
+      const { data: subtasksData, error: subtasksError } = await supabase
         .from('todos')
-        .select(`
-          id,
-          title,
-          description,
-          status,
-          priority,
-          assigned_to,
-          created_at,
-          todo_assignees (
-            id,
-            user_id,
-            profiles (
-              first_name,
-              last_name
-            )
-          )
-        `)
+        .select('*')
         .eq('parent_todo_id', todoId)
-        .eq('tenant_id', currentTenant?.id)
+        .eq('tenant_id', currentTenant.id)
         .order('created_at', { ascending: true });
 
-      if (error) throw error;
-      setSubtasks(data || []);
+      if (subtasksError) {
+        console.error('Error fetching subtasks:', subtasksError);
+        setSubtasks([]);
+        return;
+      }
+
+      // Then get assignees for each subtask separately to avoid join issues
+      const subtasksWithAssignees = await Promise.all(
+        (subtasksData || []).map(async (subtask) => {
+          const { data: assigneesData } = await supabase
+            .from('todo_assignees')
+            .select(`
+              id,
+              user_id,
+              profiles!todo_assignees_user_id_fkey (
+                first_name,
+                last_name
+              )
+            `)
+            .eq('todo_id', subtask.id);
+
+          return {
+            ...subtask,
+            assignees: assigneesData || []
+          } as Subtask;
+        })
+      );
+
+      setSubtasks(subtasksWithAssignees);
     } catch (error) {
       console.error('Error fetching subtasks:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load subtasks",
-        variant: "destructive",
-      });
+      setSubtasks([]);
     }
   };
 
