@@ -41,12 +41,6 @@ const MyTodos = () => {
       fetchStats();
       fetchProfiles();
     }
-  }, [currentTenant?.id, selectedUserId]); // Added selectedUserId to dependency array
-
-  useEffect(() => {
-    if (currentTenant?.id && selectedUserId) {
-      fetchStats(); // Use the main fetch function instead
-    }
   }, [currentTenant?.id, selectedUserId]);
 
   // Handle URL state for selected todo
@@ -469,8 +463,8 @@ const MyTodos = () => {
                   <Users className="h-4 w-4 text-muted-foreground" />
                   <Select value={selectedUserId || 'all'} onValueChange={(value) => setSelectedUserId(value === 'all' ? '' : value)}>
                     <SelectTrigger className="w-48">
-                      <SelectValue placeholder="Select assignee">
-                        {selectedUserId ? 
+                      <SelectValue>
+                        {selectedUserId && selectedUserId !== '' ? 
                           (() => {
                             const selectedProfile = profiles.find(p => p.id === selectedUserId);
                             return selectedProfile ? `${selectedProfile.first_name} ${selectedProfile.last_name}` : 'All Assignees';
