@@ -36,6 +36,7 @@ interface Todo {
 interface TodoListEnhancedProps {
   entityType?: string;
   entityId?: string;
+  assignedTo?: string;
   showFilters?: boolean;
   onTodoClick?: (todo: Todo) => void;
 }
@@ -43,6 +44,7 @@ interface TodoListEnhancedProps {
 export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
   entityType,
   entityId,
+  assignedTo,
   showFilters = true,
   onTodoClick
 }) => {
@@ -60,7 +62,7 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
     if (currentTenant?.id) {
       fetchTodos();
     }
-  }, [currentTenant?.id, entityType, entityId]);
+  }, [currentTenant?.id, entityType, entityId, assignedTo]);
 
   // Real-time subscription for live updates
   useEffect(() => {
@@ -105,6 +107,11 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
       // Filter by entity if specified
       if (entityType && entityId) {
         query = query.eq('entity_type', entityType).eq('entity_id', entityId);
+      }
+
+      // Filter by assigned user if specified
+      if (assignedTo) {
+        query = query.eq('assigned_to', assignedTo);
       }
 
       const { data, error } = await query.order('created_at', { ascending: false });

@@ -32,6 +32,7 @@ const MyTodos = () => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string>('');
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
     if (currentTenant?.id) {
@@ -97,6 +98,8 @@ const MyTodos = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
+      setUser(user); // Store user in state
 
       const { data: todosData } = await supabase
         .from('todos')
@@ -353,6 +356,7 @@ const MyTodos = () => {
         {/* Main Todo Content */}
         {preferences.view_type === 'list' ? (
           <TodoListEnhanced
+            assignedTo={user?.id}
             onTodoClick={handleTodoClick}
           />
         ) : (
