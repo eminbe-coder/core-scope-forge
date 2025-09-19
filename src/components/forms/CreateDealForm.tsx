@@ -14,12 +14,12 @@ import { EnhancedSourceSelect, SourceValues } from '@/components/ui/enhanced-sou
 import { QuickAddCompanyModal } from '@/components/modals/QuickAddCompanyModal';
 import { UnifiedQuickAddContactModal } from '@/components/modals/UnifiedQuickAddContactModal';
 import { QuickAddSiteModal } from '@/components/modals/QuickAddSiteModal';
-import { EntityRelationshipSelector, EntityRelationship } from '@/components/forms/EntityRelationshipSelector';
-import { saveEntityRelationships, EntityRelationshipData } from '@/utils/entity-relationships';
 import { SolutionCategorySelect } from '@/components/ui/solution-category-select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
+import { usePermissions } from '@/hooks/use-permissions';
+import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Building2, User, MapPin, Calendar, Trash2 } from 'lucide-react';
 
@@ -108,6 +108,8 @@ interface PaymentTerm {
 
 export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormProps) {
   const { currentTenant } = useTenant();
+  const { user } = useAuth();
+  const { hasPermission, isAdmin } = usePermissions();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -123,15 +125,15 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
   const [showCompanyModal, setShowCompanyModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
   const [showSiteModal, setShowSiteModal] = useState(false);
-  const [linkedCompanies, setLinkedCompanies] = useState<{ id: string; name: string }[]>([]);
-  const [linkedContacts, setLinkedContacts] = useState<{ id: string; name: string; first_name?: string; last_name?: string }[]>([]);
   const [leadData, setLeadData] = useState<any>(null);
-  const [companyRelationships, setCompanyRelationships] = useState<EntityRelationshipData[]>([]);
   const [sourceValues, setSourceValues] = useState<SourceValues>({
     sourceCategory: '',
     companySource: '',
     contactSource: '',
   });
+
+  // Check if user can assign deals to others
+  const canAssignToOthers = isAdmin || hasPermission('crm.deals.assign') || hasPermission('deals.assign');
 
   const form = useForm<DealFormData>({
     resolver: zodResolver(dealSchema),
@@ -281,6 +283,11 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
       }));
       
       setTenantUsers(tenantUsersList);
+
+      // Auto-assign current user as salesperson
+      if (user?.id) {
+        form.setValue('assigned_to', user.id);
+      }
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
@@ -450,42 +457,7 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
 
       if (error) throw error;
 
-      // Save linked companies
-      if (linkedCompanies.length > 0) {
-        const dealCompaniesData = linkedCompanies.map(company => ({
-          deal_id: deal.id,
-          company_id: company.id,
-          relationship_type: 'client',
-          notes: null,
-        }));
-
-        const { error: companiesError } = await supabase
-          .from('deal_companies')
-          .insert(dealCompaniesData);
-
-        if (companiesError) throw companiesError;
-      }
-
-      // Save linked contacts
-      if (linkedContacts.length > 0) {
-        const dealContactsData = linkedContacts.map(contact => ({
-          deal_id: deal.id,
-          contact_id: contact.id,
-          role: 'contact',
-          notes: null,
-        }));
-
-        const { error: contactsError } = await supabase
-          .from('deal_contacts')
-          .insert(dealContactsData);
-
-        if (contactsError) throw contactsError;
-      }
-
-      // Save company relationships
-      if (companyRelationships.length > 0) {
-        await saveEntityRelationships('deal', deal.id, companyRelationships, currentTenant.id);
-      }
+      // Note: Removed linked companies, contacts and relationship functionality as requested
 
       // Save payment terms if any
       if (updatedPaymentTerms.length > 0) {
@@ -624,7 +596,7 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
         
         toast({
           title: 'Customer Auto-Selected',
-          description: 'Customer has been automatically selected from site owner',
+          description: 'Customer automatically selected from site owner',
         });
       }
     } catch (error) {
@@ -697,21 +669,87 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Deal Name *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter deal name" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              {/* Deal Name */}
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Deal Name *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter deal name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
+              {/* Site Selection */}
+              <FormField
+                control={form.control}
+                name="site_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Site</FormLabel>
+                    <div className="flex gap-2">
+                      <FormControl>
+                          <DynamicSiteSelect
+                            value={field.value || ''}
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              if (value) {
+                                handleSiteSelection(value);
+                              }
+                            }}
+                            placeholder="Select site (optional)"
+                            searchPlaceholder="Search sites..."
+                            emptyText="No sites found"
+                            onAddNew={() => setShowSiteModal(true)}
+                            addNewLabel="Add Site"
+                          />
+                      </FormControl>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Solution Categories */}
+              <FormField
+                control={form.control}
+                name="solution_category_ids"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Solution Categories</FormLabel>
+                    <FormControl>
+                      <SolutionCategorySelect
+                        value={field.value || []}
+                        onChange={field.onChange}
+                        placeholder="Select solution categories..."
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Deal Value */}
+              <FormField
+                control={form.control}
+                name="value"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Deal Value</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="0.01" placeholder="0.00" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Stage & Priority */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
                   name="stage_id"
@@ -759,21 +797,21 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
                     </FormItem>
                   )}
                 />
-
               </div>
 
               {/* Enhanced Source Selection */}
-              <div className="space-y-4">
-                <Label>Deal/Lead Sources</Label>
+              <div className="space-y-2">
+                <Label>Lead Sources</Label>
                 <EnhancedSourceSelect
                   value={sourceValues}
                   onValueChange={setSourceValues}
                 />
-                <p className="text-sm text-muted-foreground">
-                  At least one source field (Category, Company, or Contact) must be filled.
+                <p className="text-xs text-muted-foreground">
+                  At least one source field must be filled.
                 </p>
               </div>
 
+              {/* Description */}
               <FormField
                 control={form.control}
                 name="description"
@@ -905,170 +943,49 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
                 )}
               </div>
 
+              {/* Salesperson Assignment */}
               <FormField
                 control={form.control}
-                name="site_id"
+                name="assigned_to"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Site (Optional)</FormLabel>
-                    <div className="flex gap-2">
+                    <FormLabel>Salesperson</FormLabel>
+                    {canAssignToOthers ? (
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select salesperson" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="unassigned">No Assignment</SelectItem>
+                          {tenantUsers.map((user) => (
+                            <SelectItem key={user.id} value={user.id}>
+                              {user.name} {user.id === user?.id ? '(You)' : ''}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
                       <FormControl>
-                          <DynamicSiteSelect
-                            value={field.value || ''}
-                            onValueChange={(value) => {
-                              field.onChange(value);
-                              if (value) {
-                                handleSiteSelection(value);
-                              }
-                            }}
-                            placeholder="Select site"
-                            searchPlaceholder="Search sites..."
-                            emptyText="No sites found"
-                            onAddNew={() => setShowSiteModal(true)}
-                            addNewLabel="Add Site"
-                          />
+                        <Input 
+                          value={tenantUsers.find(u => u.id === field.value)?.name || 'Current User'} 
+                          disabled 
+                          className="bg-muted"
+                        />
                       </FormControl>
-                    </div>
+                    )}
                     <FormMessage />
+                    {!canAssignToOthers && (
+                      <p className="text-xs text-muted-foreground">
+                        Auto-assigned to you. Contact admin to assign to others.
+                      </p>
+                    )}
                   </FormItem>
                 )}
               />
 
-              {/* Selected Relationships Section */}
-              <div className="space-y-4">
-                <Label>Selected Relationships</Label>
-                {linkedCompanies.length === 0 && linkedContacts.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No relationships selected</p>
-                ) : (
-                  <div className="space-y-3">
-                    {linkedCompanies.length > 0 && (
-                      <div>
-                        <h4 className="text-sm font-medium mb-2">Companies</h4>
-                        <div className="space-y-2">
-                          {linkedCompanies.map((company) => (
-                            <div key={company.id} className="flex items-center justify-between bg-muted p-3 rounded-lg">
-                              <div className="flex items-center gap-2">
-                                <Building2 className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-sm font-medium">{company.name}</span>
-                              </div>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setLinkedCompanies(linkedCompanies.filter(c => c.id !== company.id))}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {linkedContacts.length > 0 && (
-                      <div>
-                        <h4 className="text-sm font-medium mb-2">Contacts</h4>
-                        <div className="space-y-2">
-                          {linkedContacts.map((contact) => (
-                            <div key={contact.id} className="flex items-center justify-between bg-muted p-3 rounded-lg">
-                              <div className="flex items-center gap-2">
-                                <User className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-sm font-medium">{contact.name}</span>
-                              </div>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setLinkedContacts(linkedContacts.filter(c => c.id !== contact.id))}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Add Relationships */}
-              <div className="space-y-4">
-                <Label>Add Relationships (Optional)</Label>
-                
-                {/* Add Companies */}
-                <div className="space-y-2">
-                  <Label className="text-sm">Add Companies</Label>
-                  <div className="flex gap-2">
-                     <DynamicCompanySelect
-                       value=""
-                       onValueChange={(companyId) => {
-                         // We'll need to get the company data from the hook result
-                         // For now, just add the ID - the component will handle fetching the name
-                         if (companyId && !linkedCompanies.find(c => c.id === companyId)) {
-                           // We need to get the company name, but since we're using dynamic loading,
-                           // we'll need to find it from the current results or fetch it
-                           setLinkedCompanies([...linkedCompanies, { id: companyId, name: companyId }]);
-                         }
-                       }}
-                       placeholder="Search and add companies"
-                       searchPlaceholder="Search companies..."
-                       emptyText="No companies found"
-                       onAddNew={() => setShowCompanyModal(true)}
-                       addNewLabel="Add Company"
-                     />
-                  </div>
-                </div>
-
-                {/* Add Contacts */}
-                <div className="space-y-2">
-                  <Label className="text-sm">Add Contacts</Label>
-                  <div className="flex gap-2">
-                     <DynamicContactSelect
-                       value=""
-                       onValueChange={(contactId) => {
-                         // Similar to companies, we'll handle this with dynamic loading
-                         if (contactId && !linkedContacts.find(c => c.id === contactId)) {
-                           setLinkedContacts([...linkedContacts, { 
-                             id: contactId, 
-                             name: contactId, // Will be replaced with actual name
-                             first_name: '',
-                             last_name: ''
-                           }]);
-                         }
-                       }}
-                       placeholder="Search and add contacts"
-                       searchPlaceholder="Search contacts..."
-                       emptyText="No contacts found"
-                       onAddNew={() => setShowContactModal(true)}
-                       addNewLabel="Add Contact"
-                      />
-                   </div>
-                 </div>
-              </div>
-
-              {/* Company Relationships */}
-              <EntityRelationshipSelector
-                relationships={companyRelationships}
-                onChange={setCompanyRelationships}
-                title="Company Relationships"
-                description="Link companies with specific roles (e.g., Consultant, Contractor, etc.)"
-              />
-
-              <FormField
-                control={form.control}
-                name="value"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Deal Value</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.01" placeholder="0.00" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
+              {/* Expected Close Date */}
               <FormField
                 control={form.control}
                 name="expected_close_date"
@@ -1083,50 +1000,7 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="assigned_to"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Salesperson</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select salesperson" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="unassigned">No Assignment</SelectItem>
-                        {tenantUsers.map((user) => (
-                          <SelectItem key={user.id} value={user.id}>
-                            {user.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="solution_category_ids"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Solution Categories</FormLabel>
-                    <FormControl>
-                      <SolutionCategorySelect
-                        value={field.value || []}
-                        onChange={field.onChange}
-                        placeholder="Select solution categories..."
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
+              {/* Notes */}
               <FormField
                 control={form.control}
                 name="notes"
