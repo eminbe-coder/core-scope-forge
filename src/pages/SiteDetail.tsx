@@ -13,6 +13,7 @@ import { SearchableSelect } from '@/components/ui/searchable-select';
 import { SiteTodos } from '@/components/site-details/SiteTodos';
 import { SiteStatistics } from '@/components/site-details/SiteStatistics';
 import { SiteActivityTimeline } from '@/components/site-details/SiteActivityTimeline';
+import { SiteRelationships } from '@/components/site-details/SiteRelationships';
 import { MapDisplay } from '@/components/ui/map-display';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
@@ -185,7 +186,7 @@ const SiteDetail = () => {
         .select('id, first_name, last_name, email, stage_id, created_at')
         .eq('tenant_id', currentTenant?.id)
         .eq('is_lead', true)
-        .or(`id.in.(${JSON.stringify([id])}),notes.ilike.%${id}%`);
+        .or(`id.eq.${id},notes.ilike.%${id}%`);
 
       if (leadsQuery.error) throw leadsQuery.error;
       setLeads(leadsQuery.data || []);
@@ -720,6 +721,9 @@ const SiteDetail = () => {
             <SiteTodos siteId={site.id} siteName={site.name} />
           </CardContent>
         </Card>
+
+        {/* Site Relationships */}
+        <SiteRelationships siteId={site.id} />
 
         {/* Contacts and Companies Tabs */}
         <Tabs defaultValue="contacts" className="space-y-4">
