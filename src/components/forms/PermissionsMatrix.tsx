@@ -12,19 +12,20 @@ interface PermissionsMatrixProps {
   onChange: (permissions: any) => void;
 }
 
-const MODULES = [
-  { key: 'companies', label: 'Companies' },
-  { key: 'contacts', label: 'Contacts' },
-  { key: 'sites', label: 'Sites' },
-  { key: 'leads', label: 'Leads' },
-  { key: 'customers', label: 'Customers' },
-  { key: 'deals', label: 'Deals' },
-  { key: 'activities', label: 'Activities' },
-  { key: 'projects', label: 'Projects' },
-  { key: 'devices', label: 'Devices' },
-  { key: 'todos', label: 'Todos' },
-  { key: 'settings', label: 'Settings' },
-];
+  const MODULES = [
+    { key: 'companies', label: 'Companies' },
+    { key: 'contacts', label: 'Contacts' },
+    { key: 'sites', label: 'Sites' },
+    { key: 'leads', label: 'Leads' },
+    { key: 'customers', label: 'Customers' },
+    { key: 'deals', label: 'Deals' },
+    { key: 'activities', label: 'Activities' },
+    { key: 'projects', label: 'Projects' },
+    { key: 'devices', label: 'Devices' },
+    { key: 'todos', label: 'Todos' },
+    { key: 'settings', label: 'Settings' },
+    { key: 'recycle_bin', label: 'Recycle Bin' },
+  ];
 
 const CRUD_PERMISSIONS = [
   { key: 'read', label: 'Read' },

@@ -48,6 +48,7 @@ export default function Companies() {
         .from('companies')
         .select('*')
         .eq('tenant_id', currentTenant.id)
+        .is('deleted_at', null)
         .order('name', { ascending: true });
 
       if (error) throw error;
@@ -99,21 +100,22 @@ export default function Companies() {
   };
 
   const confirmDelete = async () => {
-    if (!deleteModal.company) return;
+    if (!deleteModal.company || !currentTenant?.id) return;
 
     setIsDeleting(true);
     try {
-      const { error } = await supabase
-        .from('companies')
-        .delete()
-        .eq('id', deleteModal.company.id);
+      const { error } = await supabase.rpc('soft_delete_entity', {
+        _table_name: 'companies',
+        _entity_id: deleteModal.company.id,
+        _tenant_id: currentTenant.id
+      });
 
       if (error) throw error;
 
       await fetchCompanies();
       toast({
         title: 'Success',
-        description: 'Company deleted successfully',
+        description: 'Company moved to recycle bin',
       });
       setDeleteModal({ open: false, company: null });
     } catch (error: any) {

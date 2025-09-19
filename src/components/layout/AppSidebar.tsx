@@ -31,7 +31,8 @@ import {
   Calendar,
   FileText,
   Bell,
-  Trophy
+  Trophy,
+  Trash2
 } from 'lucide-react';
 
 interface NavigationItem {
@@ -210,6 +211,12 @@ const tenantModules: NavigationModule[] = [
         url: '/reward-system',
         icon: Trophy,
         permission: 'admin.access',
+      },
+      {
+        title: 'Recycle Bin',
+        url: '/recycle-bin',
+        icon: Trash2,
+        permission: 'recycle_bin.view',
       },
     ]
   },
