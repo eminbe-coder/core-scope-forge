@@ -495,18 +495,25 @@ const TodoCard: React.FC<TodoCardProps> = ({
 
   return (
     <Card className={cn(
-      "transition-all hover:shadow-md cursor-pointer",
+      "group transition-all hover:shadow-md cursor-pointer",
       todo.status === 'completed' && "opacity-60"
-    )}>
+    )} onClick={() => {
+      console.log('TodoCard clicked:', todo.title, todo.id);
+      onClick?.(todo);
+    }}>
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
           <Checkbox
             checked={todo.status === 'completed'}
-            onCheckedChange={() => onToggleComplete(todo.id, todo.status)}
+            onCheckedChange={(checked) => {
+              console.log('Checkbox toggled:', todo.id, checked);
+              onToggleComplete(todo.id, todo.status);
+            }}
+            onClick={(e) => e.stopPropagation()}
             className="mt-1"
           />
           
-          <div className="flex-1 min-w-0" onClick={() => onClick?.(todo)}>
+          <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <h4 className={cn(
@@ -556,6 +563,7 @@ const TodoCard: React.FC<TodoCardProps> = ({
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
+                        console.log('Entity button clicked:', todo.entity_type, todo.entity_name);
                         onEntityClick(todo);
                       }}
                       className="h-6 px-2 text-xs text-blue-600 hover:text-blue-800"
@@ -572,6 +580,7 @@ const TodoCard: React.FC<TodoCardProps> = ({
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
+                  console.log('Delete button clicked:', todo.id);
                   onDelete(todo.id);
                 }}
                 className="text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
