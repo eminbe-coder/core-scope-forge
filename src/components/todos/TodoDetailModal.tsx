@@ -139,17 +139,36 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
   };
 
   const fetchProfiles = async () => {
+    if (!currentTenant?.id) return;
+    
     try {
-      const { data } = await supabase
+      // Get users that belong to the current tenant
+      const { data: memberships, error: membershipError } = await supabase
+        .from('user_tenant_memberships')
+        .select('user_id')
+        .eq('tenant_id', currentTenant.id)
+        .eq('active', true);
+
+      if (membershipError) throw membershipError;
+
+      const userIds = memberships?.map(m => m.user_id) || [];
+      
+      if (userIds.length === 0) {
+        setProfiles([]);
+        return;
+      }
+
+      const { data, error } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name')
+        .select('id, first_name, last_name, email')
+        .in('id', userIds)
         .order('first_name');
       
-      if (data) {
-        setProfiles(data);
-      }
+      if (error) throw error;
+      setProfiles(data || []);
     } catch (error) {
       console.error('Error fetching profiles:', error);
+      setProfiles([]);
     }
   };
 
@@ -213,7 +232,7 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
         .select(`
           id,
           user_id,
-          profiles (
+          profiles!todo_assignees_user_id_fkey (
             id,
             first_name,
             last_name,
@@ -222,10 +241,23 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
         `)
         .eq('todo_id', todo.id);
 
-      if (error) throw error;
-      setAssignees(data || []);
+      if (error) {
+        console.error('Error fetching assignees:', error);
+        setAssignees([]);
+        return;
+      }
+
+      // Format the data correctly
+      const formattedAssignees = (data || []).map((item: any) => ({
+        id: item.id,
+        user_id: item.user_id,
+        profiles: item.profiles
+      }));
+
+      setAssignees(formattedAssignees);
     } catch (error) {
       console.error('Error fetching assignees:', error);
+      setAssignees([]);
     }
   };
 
