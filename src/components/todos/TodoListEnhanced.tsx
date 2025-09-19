@@ -77,6 +77,11 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
   const { getVisibilityLevel, isAdmin } = usePermissions();
   const navigate = useNavigate();
 
+  // Sync filterAssignee with assignedTo prop
+  useEffect(() => {
+    setFilterAssignee(assignedTo || 'all');
+  }, [assignedTo]);
+
   useEffect(() => {
     const getCurrentUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
