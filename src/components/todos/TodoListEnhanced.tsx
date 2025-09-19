@@ -6,12 +6,12 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, CheckCircle, Circle, Clock, ExternalLink, Filter, Search, Trash2, User } from 'lucide-react';
+import { Calendar, CheckCircle, Circle, Clock, ExternalLink, Filter, Search, Trash2, User, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { usePermissions } from '@/hooks/use-permissions';
 import { toast } from '@/hooks/use-toast';
-import { format, isToday, isPast, isTomorrow, isThisWeek } from 'date-fns';
+import { format, isToday, isPast, isTomorrow, isThisWeek, isThisMonth, isThisYear, isFuture } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 
@@ -65,6 +65,8 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>(['pending', 'in_progress']);
   const [showCreatedByMe, setShowCreatedByMe] = useState(false);
+  const [showDue, setShowDue] = useState(false);
+  const [showOverdue, setShowOverdue] = useState(false);
   const [sortBy, setSortBy] = useState('due_date');
   const [sortOrder, setSortOrder] = useState('asc');
   const [filterAssignee, setFilterAssignee] = useState(assignedTo || 'all');
@@ -406,11 +408,30 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
       // Status filter
       const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(todo.status);
 
+      // Due filter - show todos that have a due date and are not completed
+      const matchesDue = !showDue || (todo.due_date && todo.status !== 'completed');
+
+      // Overdue filter - show todos that are past their due date and not completed
+      const matchesOverdue = !showOverdue || (todo.due_date && isPast(new Date(todo.due_date)) && !isToday(new Date(todo.due_date)) && todo.status !== 'completed');
+
       // Created by me filter - simplified for now
       const matchesCreatedBy = !showCreatedByMe || true; // Will be implemented properly later
 
-      return matchesSearch && matchesStatus && matchesCreatedBy;
+      return matchesSearch && matchesStatus && matchesDue && matchesOverdue && matchesCreatedBy;
     }).sort((a, b) => {
+      if (sortBy === 'priority') {
+        const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 };
+        const aPriority = priorityOrder[a.priority as keyof typeof priorityOrder] || 0;
+        const bPriority = priorityOrder[b.priority as keyof typeof priorityOrder] || 0;
+        
+        if (aPriority !== bPriority) {
+          return bPriority - aPriority; // Higher priority first
+        }
+        
+        // If same priority, sort by created_at (recent first)
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+
       let aValue: any = a[sortBy as keyof Todo];
       let bValue: any = b[sortBy as keyof Todo];
 
@@ -425,7 +446,7 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
         return aValue < bValue ? 1 : -1;
       }
     });
-  }, [todos, searchTerm, selectedStatuses, showCreatedByMe, sortBy, sortOrder]);
+  }, [todos, searchTerm, selectedStatuses, showDue, showOverdue, showCreatedByMe, sortBy, sortOrder]);
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -454,14 +475,50 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
     return 'text-muted-foreground';
   };
 
-  const categorizedTodos = {
-    overdue: filteredAndSortedTodos.filter(t => t.due_date && isPast(new Date(t.due_date)) && !isToday(new Date(t.due_date)) && t.status !== 'completed'),
-    today: filteredAndSortedTodos.filter(t => t.due_date && isToday(new Date(t.due_date)) && t.status !== 'completed'),
-    tomorrow: filteredAndSortedTodos.filter(t => t.due_date && isTomorrow(new Date(t.due_date)) && t.status !== 'completed'),
-    thisWeek: filteredAndSortedTodos.filter(t => t.due_date && isThisWeek(new Date(t.due_date)) && !isToday(new Date(t.due_date)) && !isTomorrow(new Date(t.due_date)) && t.status !== 'completed'),
-    noDueDate: filteredAndSortedTodos.filter(t => !t.due_date && t.status !== 'completed'),
-    completed: filteredAndSortedTodos.filter(t => t.status === 'completed')
-  };
+  const categorizedTodos = useMemo(() => {
+    if (sortBy === 'due_date') {
+      return {
+        overdue: filteredAndSortedTodos.filter(t => t.due_date && isPast(new Date(t.due_date)) && !isToday(new Date(t.due_date)) && t.status !== 'completed'),
+        today: filteredAndSortedTodos.filter(t => t.due_date && isToday(new Date(t.due_date)) && t.status !== 'completed'),
+        tomorrow: filteredAndSortedTodos.filter(t => t.due_date && isTomorrow(new Date(t.due_date)) && t.status !== 'completed'),
+        laterThisWeek: filteredAndSortedTodos.filter(t => t.due_date && isThisWeek(new Date(t.due_date)) && !isToday(new Date(t.due_date)) && !isTomorrow(new Date(t.due_date)) && t.status !== 'completed'),
+        laterThisMonth: filteredAndSortedTodos.filter(t => {
+          if (!t.due_date || t.status === 'completed') return false;
+          const date = new Date(t.due_date);
+          return isThisMonth(date) && !isThisWeek(date);
+        }),
+        laterThisYear: filteredAndSortedTodos.filter(t => {
+          if (!t.due_date || t.status === 'completed') return false;
+          const date = new Date(t.due_date);
+          return isThisYear(date) && !isThisMonth(date);
+        }),
+        future: filteredAndSortedTodos.filter(t => {
+          if (!t.due_date || t.status === 'completed') return false;
+          const date = new Date(t.due_date);
+          return isFuture(date) && !isThisYear(date);
+        }),
+        noDueDate: filteredAndSortedTodos.filter(t => !t.due_date && t.status !== 'completed'),
+        completed: filteredAndSortedTodos.filter(t => t.status === 'completed')
+      };
+    } else if (sortBy === 'priority') {
+      return {
+        urgent: filteredAndSortedTodos.filter(t => t.priority === 'urgent'),
+        high: filteredAndSortedTodos.filter(t => t.priority === 'high'),
+        medium: filteredAndSortedTodos.filter(t => t.priority === 'medium'),
+        low: filteredAndSortedTodos.filter(t => t.priority === 'low')
+      };
+    } else {
+      // Default categorization by status
+      return {
+        overdue: filteredAndSortedTodos.filter(t => t.due_date && isPast(new Date(t.due_date)) && !isToday(new Date(t.due_date)) && t.status !== 'completed'),
+        today: filteredAndSortedTodos.filter(t => t.due_date && isToday(new Date(t.due_date)) && t.status !== 'completed'),
+        tomorrow: filteredAndSortedTodos.filter(t => t.due_date && isTomorrow(new Date(t.due_date)) && t.status !== 'completed'),
+        thisWeek: filteredAndSortedTodos.filter(t => t.due_date && isThisWeek(new Date(t.due_date)) && !isToday(new Date(t.due_date)) && !isTomorrow(new Date(t.due_date)) && t.status !== 'completed'),
+        noDueDate: filteredAndSortedTodos.filter(t => !t.due_date && t.status !== 'completed'),
+        completed: filteredAndSortedTodos.filter(t => t.status === 'completed')
+      };
+    }
+  }, [filteredAndSortedTodos, sortBy]);
 
   return (
     <div className="space-y-4">
@@ -514,6 +571,24 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
             ))}
             
             <Button
+              variant={showDue ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setShowDue(!showDue)}
+            >
+              <Calendar className="h-4 w-4 mr-1" />
+              Due
+            </Button>
+
+            <Button
+              variant={showOverdue ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setShowOverdue(!showOverdue)}
+            >
+              <AlertTriangle className="h-4 w-4 mr-1" />
+              Overdue
+            </Button>
+            
+            <Button
               variant={showCreatedByMe ? 'default' : 'outline'}
               size="sm"
               onClick={() => setShowCreatedByMe(!showCreatedByMe)}
@@ -551,7 +626,7 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
             todos.length > 0 && (
               <div key={category}>
                 <h3 className="text-lg font-semibold mb-3 capitalize">
-                  {category.replace(/([A-Z])/g, ' $1')} ({todos.length})
+                  {category.replace(/([A-Z])/g, ' $1').replace(/later this/g, 'Later This')} ({todos.length})
                 </h3>
                 <div className="grid gap-3">
                   {todos.map(todo => (
