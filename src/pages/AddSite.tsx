@@ -353,7 +353,6 @@ const AddSite = () => {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="">No owner</SelectItem>
                             {companies.map((company) => (
                               <SelectItem key={`company-${company.id}`} value={company.id}>
                                 {company.name} (Company)
