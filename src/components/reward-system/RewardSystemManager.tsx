@@ -760,7 +760,9 @@ export const RewardSystemManager = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <span>{participant.current_target?.target_points || 100}</span>
+                          <Badge variant="outline">
+                            {participant.current_target?.target_points || 100} pts
+                          </Badge>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -768,8 +770,9 @@ export const RewardSystemManager = () => {
                               userId: participant.user_id,
                               targetPoints: participant.current_target?.target_points || 100
                             })}
+                            title="Edit target points"
                           >
-                            <Target className="h-3 w-3" />
+                            <Edit className="h-3 w-3" />
                           </Button>
                         </div>
                       </TableCell>
