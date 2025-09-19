@@ -46,7 +46,7 @@ export const PermissionsProvider = ({ children }: { children: React.ReactNode })
   // Check if user is admin (admin or super_admin)
   const isAdmin = userRole === 'admin' || userRole === 'super_admin';
 
-  // Map custom role permissions to database permission format
+  // Map custom role permissions to database permission format and UI format
   const mapCustomRolePermissions = (customPermissions: any): string[] => {
     const mappedPermissions: string[] = [];
     
@@ -76,7 +76,17 @@ export const PermissionsProvider = ({ children }: { children: React.ReactNode })
         Object.keys(modulePerms).forEach(action => {
           if (modulePerms[action] === true && action !== 'visibility') {
             const dbAction = action === 'read' ? 'view' : action;
+            
+            // Add database format permission (dot notation)
             mappedPermissions.push(`${dbModule}.${dbAction}`);
+            
+            // Also add UI format permission (underscore notation) for Reports page compatibility
+            if (module === 'reports') {
+              mappedPermissions.push(`reports_${action}`);
+              if (action === 'generate') {
+                mappedPermissions.push('reports_create'); // Map generate to create as well
+              }
+            }
           }
         });
       }

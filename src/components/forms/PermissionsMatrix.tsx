@@ -16,6 +16,9 @@ const MODULES = [
   { key: 'leads', label: 'Leads' },
   { key: 'customers', label: 'Customers' },
   { key: 'deals', label: 'Deals' },
+  { key: 'activities', label: 'Activities' },
+  { key: 'projects', label: 'Projects' },
+  { key: 'devices', label: 'Devices' },
 ];
 
 const CRUD_PERMISSIONS = [
@@ -27,6 +30,9 @@ const CRUD_PERMISSIONS = [
 
 const REPORT_PERMISSIONS = [
   { key: 'view', label: 'View' },
+  { key: 'create', label: 'Create' },
+  { key: 'update', label: 'Update' },
+  { key: 'delete', label: 'Delete' },
   { key: 'generate', label: 'Generate' },
 ];
 
