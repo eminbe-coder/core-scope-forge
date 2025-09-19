@@ -47,7 +47,7 @@ const MyTodos = () => {
           *,
           assignees:todo_assignees(
             user_id,
-            profiles(id, first_name, last_name)
+            profiles!todo_assignees_user_id_fkey(id, first_name, last_name)
           )
         `)
         .eq('tenant_id', currentTenant.id);
@@ -97,6 +97,11 @@ const MyTodos = () => {
           return false;
         });
       }
+
+      console.log('Debug - Total todos fetched:', todos?.length || 0);
+      console.log('Debug - Filtered todos:', filteredTodos.length);
+      console.log('Debug - User filtered todos:', userFilteredTodos.length);
+      console.log('Debug - Selected user IDs:', selectedUserIds);
 
       setTodos(userFilteredTodos);
 
@@ -177,20 +182,8 @@ const MyTodos = () => {
     }
   };
 
-  // Get user-filtered todos for calendar view
-  const userFilteredTodos = selectedUserIds.length > 0 
-    ? todos.filter((todo: any) => {
-        // Check main assignee
-        if (todo.assigned_to && selectedUserIds.includes(todo.assigned_to)) return true;
-        
-        // Check assignees array
-        if (todo.assignees && todo.assignees.some((a: any) => selectedUserIds.includes(a.user_id))) {
-          return true;
-        }
-        
-        return false;
-      })
-    : todos;
+  // Get user-filtered todos for calendar view (already filtered in fetchStats)
+  const userFilteredTodos = todos;
 
   return (
     <MobileLayout>
@@ -291,9 +284,9 @@ const MyTodos = () => {
               </CardHeader>
               <CardContent>
                 <TodoListEnhanced
-                  assignedTo={selectedUserIds.length === 1 ? selectedUserIds[0] : undefined}
+                  todos={todos}
                   onTodoClick={handleTodoClick}
-                  showAssigneeFilter={false} // We have our own filter above
+                  showAssigneeFilter={false}
                 />
               </CardContent>
             </Card>

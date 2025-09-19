@@ -50,6 +50,7 @@ interface TodoListEnhancedProps {
   showFilters?: boolean;
   onTodoClick?: (todo: Todo) => void;
   showAssigneeFilter?: boolean;
+  todos?: Todo[]; // Allow passing pre-filtered todos
 }
 
 export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
@@ -58,7 +59,8 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
   assignedTo,
   showFilters = true,
   onTodoClick,
-  showAssigneeFilter = true
+  showAssigneeFilter = true,
+  todos: externalTodos
 }) => {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(false);
@@ -91,17 +93,21 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
   }, []);
 
   useEffect(() => {
-    if (currentTenant?.id) {
+    if (externalTodos) {
+      // Use external todos if provided
+      setTodos(externalTodos);
+    } else if (currentTenant?.id) {
+      // Otherwise fetch todos
       fetchTodos();
       if (showAssigneeFilter) {
         fetchProfiles();
       }
     }
-  }, [currentTenant?.id, entityType, entityId, assignedTo]);
+  }, [currentTenant?.id, entityType, entityId, assignedTo, externalTodos]);
 
-  // Real-time subscription for live updates
+  // Real-time subscription for live updates (only if not using external todos)
   useEffect(() => {
-    if (!currentTenant?.id) return;
+    if (!currentTenant?.id || externalTodos) return;
 
     const channel = supabase
       .channel('todos-realtime')
