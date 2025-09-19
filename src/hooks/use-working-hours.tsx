@@ -122,6 +122,16 @@ export const useWorkingHours = () => {
       return new Date(dueDate.getTime() - durationMinutes * 60 * 1000);
     }
 
+    // For simple cases within the same working day, use direct calculation
+    const potentialStartTime = new Date(dueDate.getTime() - durationMinutes * 60 * 1000);
+    
+    // Check if both start and end times are within working hours on the same day
+    if (isWorkingTime(potentialStartTime) && isWorkingTime(dueDate) && 
+        potentialStartTime.toDateString() === dueDate.toDateString()) {
+      return potentialStartTime;
+    }
+
+    // For complex cases crossing working hour boundaries, use the iterative approach
     let remainingMinutes = durationMinutes;
     let currentDate = new Date(dueDate);
 
@@ -132,6 +142,12 @@ export const useWorkingHours = () => {
       // If we're in working time, subtract from remaining minutes
       if (isWorkingTime(currentDate)) {
         remainingMinutes--;
+      }
+      
+      // Prevent infinite loops by limiting iterations
+      if (currentDate.getTime() < dueDate.getTime() - (durationMinutes * 60 * 1000 * 10)) {
+        // Fallback to simple subtraction if something goes wrong
+        return new Date(dueDate.getTime() - durationMinutes * 60 * 1000);
       }
     }
 
