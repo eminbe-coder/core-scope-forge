@@ -3,6 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MultiSelectDropdown } from '@/components/deals/MultiSelectDropdown';
+import { supabase } from '@/integrations/supabase/client';
+import { useTenant } from '@/hooks/use-tenant';
 
 interface PermissionsMatrixProps {
   permissions: any;
@@ -68,12 +71,63 @@ const VISIBILITY_OPTIONS = [
   { value: 'all', label: 'All Records' },
 ];
 
+interface User {
+  id: string;
+  name: string;
+}
+
 export const PermissionsMatrix = ({ permissions, onChange }: PermissionsMatrixProps) => {
   const [localPermissions, setLocalPermissions] = useState(permissions || {});
+  const [users, setUsers] = useState<User[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const { currentTenant } = useTenant();
 
   useEffect(() => {
     setLocalPermissions(permissions || {});
   }, [permissions]);
+
+  // Fetch users when component mounts
+  useEffect(() => {
+    if (currentTenant) {
+      fetchUsers();
+    }
+  }, [currentTenant]);
+
+  const fetchUsers = async () => {
+    if (!currentTenant) return;
+    
+    setLoadingUsers(true);
+    try {
+      const { data, error } = await supabase
+        .from('user_tenant_memberships')
+        .select(`
+          user_id,
+          profiles:user_id (
+            id,
+            first_name,
+            last_name,
+            email
+          )
+        `)
+        .eq('tenant_id', currentTenant.id)
+        .eq('active', true);
+
+      if (error) throw error;
+
+      const userList = data?.map(membership => ({
+        id: membership.user_id,
+        name: `${membership.profiles?.first_name || ''} ${membership.profiles?.last_name || ''}`.trim() || 
+              membership.profiles?.email ||
+              `User ${membership.user_id.slice(0, 8)}`
+      })) || [];
+
+      setUsers(userList);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
 
   const handlePermissionChange = (module: string, permission: string, checked: boolean) => {
     const updatedPermissions = {
@@ -92,7 +146,10 @@ export const PermissionsMatrix = ({ permissions, onChange }: PermissionsMatrixPr
       ...localPermissions,
       [module]: {
         ...localPermissions[module],
-        visibility: value
+        visibility: value,
+        // Clear selected users if changing from selected_users
+        ...(value !== 'selected_users' && localPermissions[module]?.visibility_selected_users ? 
+          { visibility_selected_users: [] } : {})
       }
     };
     setLocalPermissions(updatedPermissions);
@@ -104,7 +161,34 @@ export const PermissionsMatrix = ({ permissions, onChange }: PermissionsMatrixPr
       ...localPermissions,
       [module]: {
         ...localPermissions[module],
-        assignment_scope: value
+        assignment_scope: value,
+        // Clear selected users if changing from selected_users
+        ...(value !== 'selected_users' && localPermissions[module]?.assignment_selected_users ? 
+          { assignment_selected_users: [] } : {})
+      }
+    };
+    setLocalPermissions(updatedPermissions);
+    onChange(updatedPermissions);
+  };
+
+  const handleVisibilityUsersChange = (module: string, selectedUserIds: string[]) => {
+    const updatedPermissions = {
+      ...localPermissions,
+      [module]: {
+        ...localPermissions[module],
+        visibility_selected_users: selectedUserIds
+      }
+    };
+    setLocalPermissions(updatedPermissions);
+    onChange(updatedPermissions);
+  };
+
+  const handleAssignmentUsersChange = (module: string, selectedUserIds: string[]) => {
+    const updatedPermissions = {
+      ...localPermissions,
+      [module]: {
+        ...localPermissions[module],
+        assignment_selected_users: selectedUserIds
       }
     };
     setLocalPermissions(updatedPermissions);
@@ -121,6 +205,14 @@ export const PermissionsMatrix = ({ permissions, onChange }: PermissionsMatrixPr
 
   const getAssignmentScope = (module: string) => {
     return localPermissions[module]?.assignment_scope || 'own';
+  };
+
+  const getVisibilitySelectedUsers = (module: string) => {
+    return localPermissions[module]?.visibility_selected_users || [];
+  };
+
+  const getAssignmentSelectedUsers = (module: string) => {
+    return localPermissions[module]?.assignment_selected_users || [];
   };
 
   return (
@@ -180,23 +272,38 @@ export const PermissionsMatrix = ({ permissions, onChange }: PermissionsMatrixPr
         <CardContent>
           <div className="space-y-4">
             {VISIBILITY_MODULES.map(module => (
-              <div key={module.key} className="flex items-center justify-between p-3 border rounded-md">
-                <Label className="font-medium">{module.label}</Label>
-                <Select 
-                  value={getVisibility(module.key)} 
-                  onValueChange={(value) => handleVisibilityChange(module.key, value)}
-                >
-                  <SelectTrigger className="w-48">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {VISIBILITY_OPTIONS.map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div key={module.key} className="space-y-3">
+                <div className="flex items-center justify-between p-3 border rounded-md">
+                  <Label className="font-medium">{module.label}</Label>
+                  <Select 
+                    value={getVisibility(module.key)} 
+                    onValueChange={(value) => handleVisibilityChange(module.key, value)}
+                  >
+                    <SelectTrigger className="w-48">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {VISIBILITY_OPTIONS.map(option => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {getVisibility(module.key) === 'selected_users' && (
+                  <div className="ml-3 p-3 border-l-2 border-primary/20 bg-muted/50 rounded-r-md">
+                    <Label className="text-sm font-medium mb-2 block">Select Users</Label>
+                    <MultiSelectDropdown
+                      options={users}
+                      selected={getVisibilitySelectedUsers(module.key)}
+                      onSelectionChange={(selected) => handleVisibilityUsersChange(module.key, selected)}
+                      placeholder="Choose users..."
+                      searchPlaceholder="Search users..."
+                      disabled={loadingUsers}
+                    />
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -242,23 +349,38 @@ export const PermissionsMatrix = ({ permissions, onChange }: PermissionsMatrixPr
         <CardContent>
           <div className="space-y-4">
             {ASSIGNMENT_MODULES.map(module => (
-              <div key={module.key} className="flex items-center justify-between p-3 border rounded-md">
-                <Label className="font-medium">{module.label}</Label>
-                <Select 
-                  value={getAssignmentScope(module.key)} 
-                  onValueChange={(value) => handleAssignmentChange(module.key, value)}
-                >
-                  <SelectTrigger className="w-48">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ASSIGNMENT_OPTIONS.map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div key={module.key} className="space-y-3">
+                <div className="flex items-center justify-between p-3 border rounded-md">
+                  <Label className="font-medium">{module.label}</Label>
+                  <Select 
+                    value={getAssignmentScope(module.key)} 
+                    onValueChange={(value) => handleAssignmentChange(module.key, value)}
+                  >
+                    <SelectTrigger className="w-48">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ASSIGNMENT_OPTIONS.map(option => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {getAssignmentScope(module.key) === 'selected_users' && (
+                  <div className="ml-3 p-3 border-l-2 border-primary/20 bg-muted/50 rounded-r-md">
+                    <Label className="text-sm font-medium mb-2 block">Select Users</Label>
+                    <MultiSelectDropdown
+                      options={users}
+                      selected={getAssignmentSelectedUsers(module.key)}
+                      onSelectionChange={(selected) => handleAssignmentUsersChange(module.key, selected)}
+                      placeholder="Choose users..."
+                      searchPlaceholder="Search users..."
+                      disabled={loadingUsers}
+                    />
+                  </div>
+                )}
               </div>
             ))}
           </div>

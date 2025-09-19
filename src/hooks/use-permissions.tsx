@@ -285,17 +285,24 @@ export const PermissionsProvider = ({ children }: { children: React.ReactNode })
         return entityBranch?.departments?.branch_id === userBranch.departments.branch_id;
       
       case 'selected_users':
-        // Get allowed user IDs from user_visibility_permissions
-        const { data: visibilitySettings } = await supabase
-          .from('user_visibility_permissions')
-          .select('allowed_user_ids')
-          .eq('user_id', user.id)
-          .eq('tenant_id', currentTenant.id)
-          .eq('entity_type', entityType)
-          .maybeSingle();
+        // Get allowed user IDs from custom role permissions
+        const currentMembership = userTenants.find(m => m.tenant_id === currentTenant.id);
         
-        if (!visibilitySettings?.allowed_user_ids) return false;
-        return visibilitySettings.allowed_user_ids.includes(entityUserId);
+        if (currentMembership?.custom_role_id) {
+          const { data: customRole } = await supabase
+            .from('custom_roles')
+            .select('permissions')
+            .eq('id', currentMembership.custom_role_id)
+            .eq('active', true)
+            .maybeSingle();
+          
+          if (customRole?.permissions[entityType]?.visibility_selected_users) {
+            const allowedUserIds = customRole.permissions[entityType].visibility_selected_users;
+            return allowedUserIds.includes(entityUserId);
+          }
+        }
+        
+        return false;
       
       default:
         return false;
@@ -346,19 +353,49 @@ export const PermissionsProvider = ({ children }: { children: React.ReactNode })
     // Can always assign to self
     if (user.id === targetUserId) return true;
     
-    try {
-      const { data, error } = await supabase.rpc('can_user_assign_to', {
-        _assigner_id: user.id,
-        _assignee_id: targetUserId,
-        _tenant_id: currentTenant.id,
-        _entity_type: entityType,
-      });
+    // Get assignment scope
+    const assignmentScope = await getAssignmentScope(entityType);
+    
+    switch (assignmentScope) {
+      case 'all':
+        return true;
       
-      if (error) throw error;
-      return data || false;
-    } catch (error) {
-      console.error('Error checking assignment permission:', error);
-      return false;
+      case 'selected_users':
+        // Check if target user is in the allowed list
+        const currentMembership = userTenants.find(m => m.tenant_id === currentTenant.id);
+        
+        if (currentMembership?.custom_role_id) {
+          const { data: customRole } = await supabase
+            .from('custom_roles')
+            .select('permissions')
+            .eq('id', currentMembership.custom_role_id)
+            .eq('active', true)
+            .maybeSingle();
+          
+          if (customRole?.permissions[entityType]?.assignment_selected_users) {
+            const allowedUserIds = customRole.permissions[entityType].assignment_selected_users;
+            return allowedUserIds.includes(targetUserId);
+          }
+        }
+        
+        return false;
+      
+      default:
+        // Fall back to database function for other scopes
+        try {
+          const { data, error } = await supabase.rpc('can_user_assign_to', {
+            _assigner_id: user.id,
+            _assignee_id: targetUserId,
+            _tenant_id: currentTenant.id,
+            _entity_type: entityType,
+          });
+          
+          if (error) throw error;
+          return data || false;
+        } catch (error) {
+          console.error('Error checking assignment permission:', error);
+          return false;
+        }
     }
   };
 
