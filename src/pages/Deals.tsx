@@ -6,6 +6,8 @@ import { Handshake, DollarSign, Archive } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
+import { useAuth } from '@/hooks/use-auth';
+import { usePermissions } from '@/hooks/use-permissions';
 import { useToast } from '@/hooks/use-toast';
 import { EntityListing } from '@/components/entity-listing';
 import { DeleteConfirmationModal } from '@/components/modals/DeleteConfirmationModal';
@@ -67,6 +69,8 @@ const stageColors = {
 
 const Deals = () => {
   const { currentTenant } = useTenant();
+  const { user } = useAuth();
+  const { getVisibilityLevel, isAdmin } = usePermissions();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [deals, setDeals] = useState<Deal[]>([]);
@@ -89,9 +93,12 @@ const Deals = () => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchDeals = async () => {
-    if (!currentTenant) return;
+    if (!currentTenant || !user) return;
 
     try {
+      // Get user's visibility level for deals
+      const visibilityLevel = await getVisibilityLevel('deals');
+      
       // Build the query with all necessary joins
       let query = supabase
         .from('deals')
@@ -105,6 +112,83 @@ const Deals = () => {
         `)
         .eq('tenant_id', currentTenant.id)
         .eq('is_converted', showArchived);
+
+      // Apply visibility-based filtering
+      if (!isAdmin) {
+        if (visibilityLevel === 'own') {
+          // Only show deals assigned to current user
+          query = query.eq('assigned_to', user.id);
+        } else if (visibilityLevel === 'department') {
+          // Get users from same department
+          const { data: userDept } = await supabase
+            .from('user_department_assignments')
+            .select('department_id')
+            .eq('user_id', user.id)
+            .eq('tenant_id', currentTenant.id)
+            .maybeSingle();
+
+          if (userDept) {
+            const { data: deptUsers } = await supabase
+              .from('user_department_assignments')
+              .select('user_id')
+              .eq('department_id', userDept.department_id)
+              .eq('tenant_id', currentTenant.id);
+
+            if (deptUsers && deptUsers.length > 0) {
+              const userIds = deptUsers.map(du => du.user_id);
+              query = query.in('assigned_to', userIds);
+            }
+          }
+        } else if (visibilityLevel === 'branch') {
+          // Get users from same branch
+          const { data: userBranch } = await supabase
+            .from('user_department_assignments')
+            .select(`
+              departments (
+                branch_id
+              )
+            `)
+            .eq('user_id', user.id)
+            .eq('tenant_id', currentTenant.id)
+            .maybeSingle();
+
+          if (userBranch?.departments?.branch_id) {
+            const { data: branchDepts } = await supabase
+              .from('departments')
+              .select('id')
+              .eq('branch_id', userBranch.departments.branch_id)
+              .eq('tenant_id', currentTenant.id);
+
+            if (branchDepts && branchDepts.length > 0) {
+              const deptIds = branchDepts.map(d => d.id);
+              const { data: branchUsers } = await supabase
+                .from('user_department_assignments')
+                .select('user_id')
+                .in('department_id', deptIds)
+                .eq('tenant_id', currentTenant.id);
+
+              if (branchUsers && branchUsers.length > 0) {
+                const userIds = branchUsers.map(bu => bu.user_id);
+                query = query.in('assigned_to', userIds);
+              }
+            }
+          }
+        } else if (visibilityLevel === 'selected_users') {
+          // Get allowed user IDs from user_visibility_permissions
+          const { data: visibilitySettings } = await supabase
+            .from('user_visibility_permissions')
+            .select('allowed_user_ids')
+            .eq('user_id', user.id)
+            .eq('tenant_id', currentTenant.id)
+            .eq('entity_type', 'deals')
+            .maybeSingle();
+
+          if (visibilitySettings?.allowed_user_ids && visibilitySettings.allowed_user_ids.length > 0) {
+            query = query.in('assigned_to', visibilitySettings.allowed_user_ids);
+          }
+        }
+        // For 'all' visibility level, no additional filtering needed
+      }
 
       // Apply filters
       if (filters.selectedStages.length > 0) {
@@ -223,7 +307,7 @@ const Deals = () => {
 
   useEffect(() => {
     fetchDeals();
-  }, [currentTenant, showArchived, filters]);
+  }, [currentTenant, user, showArchived, filters, getVisibilityLevel]);
 
   const handleEdit = (deal: Deal) => {
     navigate(`/deals/edit/${deal.id}`);

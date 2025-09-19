@@ -15,6 +15,8 @@ interface PermissionsContextType {
   userPermissions: string[];
   hasPermission: (permissionName: string) => boolean;
   hasAnyPermission: (permissionNames: string[]) => boolean;
+  getVisibilityLevel: (entityType: string) => Promise<string>;
+  canViewEntity: (entityType: string, entityUserId: string, entityUserDepartment?: string, entityUserBranch?: string) => Promise<boolean>;
   isAdmin: boolean;
   loading: boolean;
 }
@@ -24,6 +26,8 @@ const PermissionsContext = createContext<PermissionsContextType>({
   userPermissions: [],
   hasPermission: () => false,
   hasAnyPermission: () => false,
+  getVisibilityLevel: async () => 'own',
+  canViewEntity: async () => false,
   isAdmin: false,
   loading: true,
 });
@@ -184,6 +188,115 @@ export const PermissionsProvider = ({ children }: { children: React.ReactNode })
     return isAdmin || permissionNames.some(permission => userPermissions.includes(permission));
   };
 
+  const getVisibilityLevel = async (entityType: string): Promise<string> => {
+    if (isAdmin) return 'all';
+
+    // Check which visibility permission the user has for this entity type
+    const visibilityPermissions = [
+      `${entityType}.visibility.all`,
+      `${entityType}.visibility.selected_users`,
+      `${entityType}.visibility.branch`,
+      `${entityType}.visibility.department`,
+      `${entityType}.visibility.own`
+    ];
+
+    for (const permission of visibilityPermissions) {
+      if (hasPermission(permission)) {
+        return permission.split('.').pop() || 'own';
+      }
+    }
+
+    return 'own'; // Default to own only
+  };
+
+  const canViewEntity = async (
+    entityType: string, 
+    entityUserId: string, 
+    entityUserDepartment?: string, 
+    entityUserBranch?: string
+  ): Promise<boolean> => {
+    if (isAdmin) return true;
+    if (!user || !currentTenant) return false;
+
+    const visibilityLevel = await getVisibilityLevel(entityType);
+    
+    switch (visibilityLevel) {
+      case 'all':
+        return true;
+      
+      case 'own':
+        return entityUserId === user.id;
+      
+      case 'department':
+        if (!entityUserDepartment) return false;
+        // Get current user's department
+        const { data: userDept } = await supabase
+          .from('user_department_assignments')
+          .select('department_id')
+          .eq('user_id', user.id)
+          .eq('tenant_id', currentTenant.id)
+          .maybeSingle();
+        
+        if (!userDept) return false;
+        
+        // Check if entity user is in same department
+        const { data: entityUserDept } = await supabase
+          .from('user_department_assignments')
+          .select('department_id')
+          .eq('user_id', entityUserId)
+          .eq('tenant_id', currentTenant.id)
+          .maybeSingle();
+        
+        return entityUserDept?.department_id === userDept.department_id;
+      
+      case 'branch':
+        if (!entityUserBranch) return false;
+        // Get current user's branch through department
+        const { data: userBranch } = await supabase
+          .from('user_department_assignments')
+          .select(`
+            departments (
+              branch_id
+            )
+          `)
+          .eq('user_id', user.id)
+          .eq('tenant_id', currentTenant.id)
+          .maybeSingle();
+        
+        if (!userBranch?.departments?.branch_id) return false;
+        
+        // Get entity user's branch
+        const { data: entityBranch } = await supabase
+          .from('user_department_assignments')
+          .select(`
+            departments (
+              branch_id
+            )
+          `)
+          .eq('user_id', entityUserId)
+          .eq('tenant_id', currentTenant.id)
+          .maybeSingle();
+        
+        return entityBranch?.departments?.branch_id === userBranch.departments.branch_id;
+      
+      case 'selected_users':
+        // Get allowed user IDs from user_visibility_permissions
+        const { data: visibilitySettings } = await supabase
+          .from('user_visibility_permissions')
+          .select('allowed_user_ids')
+          .eq('user_id', user.id)
+          .eq('tenant_id', currentTenant.id)
+          .eq('entity_type', entityType)
+          .maybeSingle();
+        
+        if (!visibilitySettings?.allowed_user_ids) return false;
+        return visibilitySettings.allowed_user_ids.includes(entityUserId);
+      
+      default:
+        return false;
+    }
+  };
+
   return (
     <PermissionsContext.Provider
       value={{
@@ -191,6 +304,8 @@ export const PermissionsProvider = ({ children }: { children: React.ReactNode })
         userPermissions,
         hasPermission,
         hasAnyPermission,
+        getVisibilityLevel,
+        canViewEntity,
         isAdmin,
         loading,
       }}

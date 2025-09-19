@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { FilterX, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
+import { usePermissions } from '@/hooks/use-permissions';
+import { useAuth } from '@/hooks/use-auth';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 export interface DealFilterOptions {
@@ -61,13 +63,20 @@ const SORT_OPTIONS = [
 
 export const DealFilters = ({ filters, onFiltersChange, totalResults }: DealFiltersProps) => {
   const { currentTenant } = useTenant();
+  const { user } = useAuth();
+  const { getVisibilityLevel, isAdmin } = usePermissions();
   const [stages, setStages] = useState<DealStage[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [visibilityLevel, setVisibilityLevel] = useState<string>('own');
 
   useEffect(() => {
     const fetchFilterData = async () => {
-      if (!currentTenant) return;
+      if (!currentTenant || !user) return;
+
+      // Get user's visibility level for deals
+      const userVisibilityLevel = await getVisibilityLevel('deals');
+      setVisibilityLevel(userVisibilityLevel);
 
       // Fetch deal stages
       const { data: stagesData } = await supabase
@@ -79,17 +88,100 @@ export const DealFilters = ({ filters, onFiltersChange, totalResults }: DealFilt
 
       if (stagesData) setStages(stagesData);
 
-      // Fetch profiles (users who can be assigned)
-      const { data: profilesData } = await supabase
+      // Fetch profiles based on visibility level
+      let profilesQuery = supabase
         .from('profiles')
-        .select('id, first_name, last_name, email')
-        .order('first_name');
+        .select(`
+          id, 
+          first_name, 
+          last_name, 
+          email,
+          user_tenant_memberships!inner(tenant_id)
+        `)
+        .eq('user_tenant_memberships.tenant_id', currentTenant.id)
+        .eq('user_tenant_memberships.active', true);
 
+      // Filter profiles based on visibility permissions
+      if (userVisibilityLevel === 'own') {
+        // Only show current user
+        profilesQuery = profilesQuery.eq('id', user.id);
+      } else if (userVisibilityLevel === 'department') {
+        // Get users from same department
+        const { data: userDept } = await supabase
+          .from('user_department_assignments')
+          .select('department_id')
+          .eq('user_id', user.id)
+          .eq('tenant_id', currentTenant.id)
+          .maybeSingle();
+
+        if (userDept) {
+          const { data: deptUsers } = await supabase
+            .from('user_department_assignments')
+            .select('user_id')
+            .eq('department_id', userDept.department_id)
+            .eq('tenant_id', currentTenant.id);
+
+          if (deptUsers && deptUsers.length > 0) {
+            const userIds = deptUsers.map(du => du.user_id);
+            profilesQuery = profilesQuery.in('id', userIds);
+          }
+        }
+      } else if (userVisibilityLevel === 'branch') {
+        // Get users from same branch
+        const { data: userBranch } = await supabase
+          .from('user_department_assignments')
+          .select(`
+            departments (
+              branch_id
+            )
+          `)
+          .eq('user_id', user.id)
+          .eq('tenant_id', currentTenant.id)
+          .maybeSingle();
+
+        if (userBranch?.departments?.branch_id) {
+          const { data: branchDepts } = await supabase
+            .from('departments')
+            .select('id')
+            .eq('branch_id', userBranch.departments.branch_id)
+            .eq('tenant_id', currentTenant.id);
+
+          if (branchDepts && branchDepts.length > 0) {
+            const deptIds = branchDepts.map(d => d.id);
+            const { data: branchUsers } = await supabase
+              .from('user_department_assignments')
+              .select('user_id')
+              .in('department_id', deptIds)
+              .eq('tenant_id', currentTenant.id);
+
+            if (branchUsers && branchUsers.length > 0) {
+              const userIds = branchUsers.map(bu => bu.user_id);
+              profilesQuery = profilesQuery.in('id', userIds);
+            }
+          }
+        }
+      } else if (userVisibilityLevel === 'selected_users') {
+        // Get allowed user IDs from user_visibility_permissions
+        const { data: visibilitySettings } = await supabase
+          .from('user_visibility_permissions')
+          .select('allowed_user_ids')
+          .eq('user_id', user.id)
+          .eq('tenant_id', currentTenant.id)
+          .eq('entity_type', 'deals')
+          .maybeSingle();
+
+        if (visibilitySettings?.allowed_user_ids && visibilitySettings.allowed_user_ids.length > 0) {
+          profilesQuery = profilesQuery.in('id', visibilitySettings.allowed_user_ids);
+        }
+      }
+      // For 'all' visibility level, no additional filtering needed
+
+      const { data: profilesData } = await profilesQuery.order('first_name');
       if (profilesData) setProfiles(profilesData);
     };
 
     fetchFilterData();
-  }, [currentTenant]);
+  }, [currentTenant, user, getVisibilityLevel]);
 
   const handleStageToggle = (stageId: string) => {
     const newStages = filters.selectedStages.includes(stageId)
@@ -240,26 +332,28 @@ export const DealFilters = ({ filters, onFiltersChange, totalResults }: DealFilt
               </div>
             </div>
 
-            {/* Assignees */}
-            <div className="space-y-2">
-              <Label>Assigned To ({filters.selectedAssignees.length})</Label>
-              <div className="border rounded-md p-2 max-h-32 overflow-y-auto">
-                {profiles.map(profile => (
-                  <div key={profile.id} className="flex items-center space-x-2 py-1">
-                    <input
-                      type="checkbox"
-                      id={`assignee-${profile.id}`}
-                      checked={filters.selectedAssignees.includes(profile.id)}
-                      onChange={() => handleAssigneeToggle(profile.id)}
-                      className="rounded"
-                    />
-                    <label htmlFor={`assignee-${profile.id}`} className="text-sm">
-                      {profile.first_name} {profile.last_name}
-                    </label>
-                  </div>
-                ))}
+            {/* Assignees - only show if user has visibility beyond 'own' */}
+            {(visibilityLevel !== 'own' || isAdmin) && (
+              <div className="space-y-2">
+                <Label>Assigned To ({filters.selectedAssignees.length})</Label>
+                <div className="border rounded-md p-2 max-h-32 overflow-y-auto">
+                  {profiles.map(profile => (
+                    <div key={profile.id} className="flex items-center space-x-2 py-1">
+                      <input
+                        type="checkbox"
+                        id={`assignee-${profile.id}`}
+                        checked={filters.selectedAssignees.includes(profile.id)}
+                        onChange={() => handleAssigneeToggle(profile.id)}
+                        className="rounded"
+                      />
+                      <label htmlFor={`assignee-${profile.id}`} className="text-sm">
+                        {profile.first_name} {profile.last_name}
+                      </label>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Toggle Switches */}
             <div className="space-y-4">

@@ -42,8 +42,11 @@ const VISIBILITY_MODULES = [
 ];
 
 const VISIBILITY_OPTIONS = [
-  { value: 'all', label: 'All Records' },
   { value: 'own', label: 'Only My Records' },
+  { value: 'department', label: 'My Department' },
+  { value: 'branch', label: 'My Branch' },
+  { value: 'selected_users', label: 'Selected Users' },
+  { value: 'all', label: 'All Records' },
 ];
 
 export const PermissionsMatrix = ({ permissions, onChange }: PermissionsMatrixProps) => {
@@ -82,7 +85,7 @@ export const PermissionsMatrix = ({ permissions, onChange }: PermissionsMatrixPr
   };
 
   const getVisibility = (module: string) => {
-    return localPermissions[module]?.visibility || 'all';
+    return localPermissions[module]?.visibility || 'own';
   };
 
   return (
@@ -136,7 +139,7 @@ export const PermissionsMatrix = ({ permissions, onChange }: PermissionsMatrixPr
         <CardHeader>
           <CardTitle>Data Visibility Permissions</CardTitle>
           <CardDescription>
-            Configure what data users can see within each module
+            Configure what data users can see within each module. This controls which records users can view and filter by.
           </CardDescription>
         </CardHeader>
         <CardContent>

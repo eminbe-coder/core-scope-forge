@@ -4225,6 +4225,36 @@ export type Database = {
         }
         Relationships: []
       }
+      user_visibility_permissions: {
+        Row: {
+          allowed_user_ids: string[] | null
+          created_at: string | null
+          entity_type: string
+          id: string
+          tenant_id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          allowed_user_ids?: string[] | null
+          created_at?: string | null
+          entity_type: string
+          id?: string
+          tenant_id: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          allowed_user_ids?: string[] | null
+          created_at?: string | null
+          entity_type?: string
+          id?: string
+          tenant_id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_working_hours: {
         Row: {
           created_at: string
