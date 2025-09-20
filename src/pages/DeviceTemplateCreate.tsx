@@ -25,7 +25,7 @@ interface DeviceTemplatePropertyOption {
   label_ar: string;
   cost_modifier?: number;
   cost_modifier_type?: 'fixed' | 'percentage';
-  cost_currency_id?: string;
+  has_cost_impact?: boolean;
 }
 
 interface DeviceTemplateProperty {
@@ -73,27 +73,7 @@ export default function DeviceTemplateCreate() {
   const { currentTenant } = useTenant();
   const { brands, loading: brandsLoading } = useBrands();
   const { deviceTypes, loading: deviceTypesLoading } = useDeviceTypes();
-
-  // Load currencies
-  useEffect(() => {
-    const loadCurrencies = async () => {
-      try {
-        const { data } = await supabase
-          .from('currencies')
-          .select('id, code, symbol, name')
-          .eq('active', true)
-          .order('code');
-        
-        if (data) {
-          setCurrencies(data);
-        }
-      } catch (error) {
-        console.error('Error loading currencies:', error);
-      }
-    };
-
-    loadCurrencies();
-  }, []);
+  
   const [activeTab, setActiveTab] = useState("global");
   const [template, setTemplate] = useState<DeviceTemplate>({
     name: '',
@@ -110,7 +90,6 @@ export default function DeviceTemplateCreate() {
     is_global: true,
     properties: []
   });
-  const [currencies, setCurrencies] = useState<Array<{ id: string; code: string; symbol: string; name: string }>>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [autoSaveId, setAutoSaveId] = useState<string | null>(null);
 
@@ -249,7 +228,7 @@ export default function DeviceTemplateCreate() {
         // Save option cost modifiers
         const optionsWithCostImpact = template.properties.flatMap((prop, propIndex) => 
           prop.property_options
-            .filter(opt => opt.cost_modifier && opt.cost_modifier !== 0)
+            .filter(opt => opt.has_cost_impact && opt.cost_modifier && opt.cost_modifier !== 0)
             .map(opt => ({
               template_id: templateData.id,
               tenant_id: template.is_global ? null : currentTenant.id,
@@ -258,7 +237,6 @@ export default function DeviceTemplateCreate() {
               label_ar: opt.label_ar,
               cost_modifier: opt.cost_modifier,
               cost_modifier_type: opt.cost_modifier_type,
-              cost_currency_id: opt.cost_currency_id,
               sort_order: 0,
               active: true
             }))
@@ -336,9 +314,7 @@ export default function DeviceTemplateCreate() {
                 code: '', 
                 label_en: '', 
                 label_ar: '',
-                cost_modifier: 0,
-                cost_modifier_type: 'fixed',
-                cost_currency_id: ''
+                has_cost_impact: false
               }]
             } 
           : prop
@@ -346,7 +322,7 @@ export default function DeviceTemplateCreate() {
     }));
   };
 
-  const updatePropertyOption = (propertyIndex: number, optionIndex: number, field: string, value: string | number) => {
+  const updatePropertyOption = (propertyIndex: number, optionIndex: number, field: string, value: string | number | boolean) => {
     setTemplate(prev => ({
       ...prev,
       properties: prev.properties.map((prop, i) => 
@@ -762,63 +738,73 @@ export default function DeviceTemplateCreate() {
                                       <Trash2 className="h-4 w-4" />
                                     </Button>
                                   </div>
-                                  
-                                  <div className="border-t pt-3">
-                                    <Label className="text-sm font-medium mb-2 block">Cost Impact</Label>
-                                    <div className="grid grid-cols-3 gap-2">
-                                      <div>
-                                        <Label className="text-xs">Amount</Label>
-                                        <Input
-                                          type="number"
-                                          placeholder="0"
-                                          value={option.cost_modifier || 0}
-                                          onChange={(e) => updatePropertyOption(index, optionIndex, 'cost_modifier', parseFloat(e.target.value) || 0)}
-                                          className="text-sm"
-                                        />
-                                      </div>
-                                      <div>
-                                        <Label className="text-xs">Type</Label>
-                                        <Select
-                                          value={option.cost_modifier_type || 'fixed'}
-                                          onValueChange={(value) => updatePropertyOption(index, optionIndex, 'cost_modifier_type', value)}
-                                        >
-                                          <SelectTrigger className="text-sm">
-                                            <SelectValue />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            <SelectItem value="fixed">Fixed Amount</SelectItem>
-                                            <SelectItem value="percentage">Percentage</SelectItem>
-                                          </SelectContent>
-                                        </Select>
-                                      </div>
-                                      <div>
-                                        <Label className="text-xs">Currency</Label>
-                                        <Select
-                                          value={option.cost_currency_id || ''}
-                                          onValueChange={(value) => updatePropertyOption(index, optionIndex, 'cost_currency_id', value)}
-                                        >
-                                          <SelectTrigger className="text-sm">
-                                            <SelectValue placeholder="Currency" />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            {currencies.map(currency => (
-                                              <SelectItem key={currency.id} value={currency.id}>
-                                                {currency.code} ({currency.symbol})
-                                              </SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
-                                      </div>
-                                    </div>
-                                    {option.cost_modifier && option.cost_modifier !== 0 && (
-                                      <p className="text-xs text-muted-foreground mt-1">
-                                        {option.cost_modifier_type === 'percentage' 
-                                          ? `+${option.cost_modifier}% of base cost`
-                                          : `+${option.cost_modifier} ${currencies.find(c => c.id === option.cost_currency_id)?.symbol || ''}`
-                                        }
-                                      </p>
-                                    )}
-                                  </div>
+                                   
+                                   {option.has_cost_impact ? (
+                                     <div className="border-t pt-3">
+                                       <div className="flex items-center justify-between mb-2">
+                                         <Label className="text-sm font-medium">Cost Impact</Label>
+                                         <Button
+                                           size="sm"
+                                           variant="ghost"
+                                           onClick={() => updatePropertyOption(index, optionIndex, 'has_cost_impact', false)}
+                                           className="text-destructive hover:text-destructive"
+                                         >
+                                           Remove Cost Impact
+                                         </Button>
+                                       </div>
+                                       <div className="grid grid-cols-2 gap-2">
+                                         <div>
+                                           <Label className="text-xs">Amount</Label>
+                                           <Input
+                                             type="number"
+                                             placeholder="0"
+                                             value={option.cost_modifier || 0}
+                                             onChange={(e) => updatePropertyOption(index, optionIndex, 'cost_modifier', parseFloat(e.target.value) || 0)}
+                                             className="text-sm"
+                                           />
+                                         </div>
+                                         <div>
+                                           <Label className="text-xs">Type</Label>
+                                           <Select
+                                             value={option.cost_modifier_type || 'fixed'}
+                                             onValueChange={(value) => updatePropertyOption(index, optionIndex, 'cost_modifier_type', value)}
+                                           >
+                                             <SelectTrigger className="text-sm">
+                                               <SelectValue />
+                                             </SelectTrigger>
+                                             <SelectContent>
+                                               <SelectItem value="fixed">Fixed Amount</SelectItem>
+                                               <SelectItem value="percentage">Percentage</SelectItem>
+                                             </SelectContent>
+                                           </Select>
+                                         </div>
+                                       </div>
+                                       {option.cost_modifier && option.cost_modifier !== 0 && (
+                                         <p className="text-xs text-muted-foreground mt-1">
+                                           {option.cost_modifier_type === 'percentage' 
+                                             ? `+${option.cost_modifier}% of base cost`
+                                             : `+${option.cost_modifier} (inherits template currency)`
+                                           }
+                                         </p>
+                                       )}
+                                     </div>
+                                   ) : (
+                                     <div className="border-t pt-3">
+                                       <Button
+                                         size="sm"
+                                         variant="outline"
+                                         onClick={() => {
+                                           updatePropertyOption(index, optionIndex, 'has_cost_impact', true);
+                                           updatePropertyOption(index, optionIndex, 'cost_modifier', 0);
+                                           updatePropertyOption(index, optionIndex, 'cost_modifier_type', 'fixed');
+                                         }}
+                                         className="w-full"
+                                       >
+                                         <Plus className="h-3 w-3 mr-1" />
+                                         Add Cost Impact
+                                       </Button>
+                                     </div>
+                                   )}
                                 </div>
                               ))}
                             </div>
