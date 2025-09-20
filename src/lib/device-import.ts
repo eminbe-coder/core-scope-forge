@@ -7,8 +7,14 @@ export interface DeviceImportRow {
   model?: string;
   unit_price?: number;
   currency_code?: string;
-  specifications?: any;
   image_url?: string;
+  specifications?: string;
+  dynamic_sku?: boolean;
+  sku?: string;
+  dynamic_description?: boolean;
+  description?: string; 
+  dynamic_short_description?: boolean;
+  short_description?: string;
   [key: string]: any; // For template properties
 }
 
@@ -44,25 +50,31 @@ export const parseDeviceExcel = async (file: File, templateProperties?: Array<{ 
     const dataRows = jsonData.slice(1);
 
     // Create a mapping of possible column names to our interface
-    const columnMapping: { [key: string]: keyof DeviceImportRow } = {
-      'name': 'name',
-      'device name': 'name',
-      'product name': 'name',
-      'category': 'category',
-      'type': 'category',
-      'device type': 'category',
-      'brand': 'brand',
-      'manufacturer': 'brand',
-      'model': 'model',
-      'model number': 'model',
-      'price': 'price',
-      'unit price': 'price',
-      'cost': 'price',
-      'currency': 'currency',
-      'image url': 'image_url',
-      'image': 'image_url',
-      'specifications': 'specifications',
-      'specs': 'specifications',
+    const columnMapping: { [key: string]: string } = {
+      'Name': 'name',
+      'Device Name': 'name',
+      'Product Name': 'name',
+      'Category': 'category',
+      'Type': 'category',
+      'Device Type': 'category',
+      'Brand': 'brand',
+      'Manufacturer': 'brand',
+      'Model': 'model',
+      'Model Number': 'model',
+      'Unit Price': 'unit_price',
+      'Price': 'unit_price',
+      'Cost': 'unit_price',
+      'Currency': 'currency_code',
+      'Image URL': 'image_url',
+      'Image': 'image_url',
+      'Specifications': 'specifications',
+      'Specs': 'specifications',
+      'Dynamic SKU': 'dynamic_sku',
+      'SKU': 'sku',
+      'Dynamic Description': 'dynamic_description',
+      'Description': 'description',
+      'Dynamic Short Description': 'dynamic_short_description',
+      'Short Description': 'short_description',
     };
 
     // Create a map of template properties for quick lookup
@@ -72,38 +84,37 @@ export const parseDeviceExcel = async (file: File, templateProperties?: Array<{ 
     });
 
     const devices: DeviceImportRow[] = dataRows.map((row, index) => {
-      const device: DeviceImportRow = {
-        name: '',
-        category: '',
-        brand: '',
-        model: '',
-        price: null,
-        currency: '',
-        image_url: '',
-        specifications: '',
-      };
+      const device: DeviceImportRow = {};
 
-      // Map standard columns
+      // Map all columns
       headers.forEach((header, colIndex) => {
-        const normalizedHeader = header.toLowerCase().trim();
-        const mappedField = columnMapping[normalizedHeader];
+        const cellValue = row[colIndex];
+        if (cellValue === undefined || cellValue === null || cellValue === '') return;
+
+        const propertyName = columnMapping[header];
         
-        if (mappedField && row[colIndex] !== undefined && row[colIndex] !== null) {
-          if (mappedField === 'price') {
-            const value = row[colIndex];
-            device[mappedField] = typeof value === 'number' ? value : parseFloat(String(value)) || null;
+        if (propertyName) {
+          // Handle mapped standard columns
+          if (propertyName === 'unit_price') {
+            device.unit_price = typeof cellValue === 'number' ? cellValue : parseFloat(String(cellValue)) || undefined;
+          } else if (propertyName === 'currency_code') {
+            device.currency_code = cellValue;
+          } else if (propertyName === 'specifications') {
+            try {
+              device.specifications = typeof cellValue === 'string' ? cellValue : JSON.stringify(cellValue);
+            } catch (e) {
+              device.specifications = String(cellValue || '');
+            }
+          } else if (propertyName === 'dynamic_sku' || propertyName === 'dynamic_description' || propertyName === 'dynamic_short_description') {
+            // Convert to boolean
+            device[propertyName] = cellValue === 'TRUE' || cellValue === 'true' || cellValue === '1' || cellValue === 1 || cellValue === true;
           } else {
-            device[mappedField] = String(row[colIndex]).trim();
+            device[propertyName] = String(cellValue).trim();
           }
-        }
-      });
-
-      // Handle custom template properties (columns not in standard mapping)
-      headers.forEach((header, colIndex) => {
-        const normalizedHeader = header.toLowerCase().trim();
-        if (!columnMapping[normalizedHeader] && row[colIndex] !== undefined && row[colIndex] !== null) {
-          const templateProp = templatePropsMap.get(normalizedHeader);
-          const rawValue = String(row[colIndex]).trim();
+        } else {
+          // Handle custom template properties
+          const templateProp = templatePropsMap.get(header.toLowerCase().trim());
+          const rawValue = String(cellValue).trim();
           
           // Handle dynamic_multiselect properties - parse comma-separated values
           if (templateProp?.property_type === 'dynamic_multiselect') {
@@ -170,6 +181,19 @@ export function validateDeviceImportData(
         warnings.push(`Row ${rowNum}: Specifications is not valid JSON, will be stored as text`);
       }
     }
+
+    // Dynamic generation validation
+    if (device.dynamic_sku === true && !device.sku?.trim()) {
+      warnings.push(`Row ${rowNum}: Dynamic SKU is enabled but SKU formula is empty`);
+    }
+    
+    if (device.dynamic_description === true && !device.description?.trim()) {
+      warnings.push(`Row ${rowNum}: Dynamic Description is enabled but Description formula is empty`);
+    }
+    
+    if (device.dynamic_short_description === true && !device.short_description?.trim()) {
+      warnings.push(`Row ${rowNum}: Dynamic Short Description is enabled but Short Description formula is empty`);
+    }
   });
   
   return {
@@ -186,9 +210,10 @@ export function generateDeviceImportTemplate(
     type: string;
     required: boolean;
     is_identifier?: boolean;
-  }>
+  }>,
+  includeGenerationColumns = true
 ): Uint8Array {
-  const headers = [
+  const baseHeaders = [
     'Name',
     'Category', 
     'Brand',
@@ -197,10 +222,22 @@ export function generateDeviceImportTemplate(
     'Currency',
     'Image URL',
     'Specifications',
-    ...templateProperties.map(prop => prop.label_en || prop.name)
   ];
+
+  const generationHeaders = includeGenerationColumns ? [
+    'Dynamic SKU',
+    'SKU',
+    'Dynamic Description', 
+    'Description',
+    'Dynamic Short Description',
+    'Short Description'
+  ] : [];
+
+  const templateHeaders = templateProperties.map(prop => prop.label_en || prop.name);
   
-  const sampleData = [
+  const headers = [...baseHeaders, ...generationHeaders, ...templateHeaders];
+  
+  const baseSampleData = [
     'LED Panel Light',
     'LED Lighting',
     'Philips',
@@ -209,12 +246,25 @@ export function generateDeviceImportTemplate(
     'USD',
     'https://example.com/image.jpg',
     '{"power": "20W", "voltage": "24V"}',
-    ...templateProperties.map(prop => {
-      if (prop.type === 'number') return '10';
-      if (prop.type === 'select') return 'Option1';
-      return 'Sample Value';
-    })
   ];
+
+  const generationSampleData = includeGenerationColumns ? [
+    'TRUE',
+    'LED-{wattage}W-{color}',
+    'TRUE',
+    '{wattage}W LED Panel - {color} Color Temperature',
+    'FALSE',
+    'Compact LED Panel'
+  ] : [];
+
+  const templateSampleData = templateProperties.map(prop => {
+    if (prop.type === 'number') return '10';
+    if (prop.type === 'select') return 'Option1';
+    if (prop.type === 'dynamic_multiselect') return 'Value1, Value2';
+    return 'Sample Value';
+  });
+  
+  const sampleData = [...baseSampleData, ...generationSampleData, ...templateSampleData];
   
   const worksheet = XLSX.utils.aoa_to_sheet([headers, sampleData]);
   const workbook = XLSX.utils.book_new();

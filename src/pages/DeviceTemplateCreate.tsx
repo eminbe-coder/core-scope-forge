@@ -580,51 +580,150 @@ export default function DeviceTemplateCreate() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div>
-                <FormulaBuilder
-                  label="SKU Generation"
-                  value={template.sku_formula || ''}
-                  onChange={(value) => setTemplate(prev => ({ ...prev, sku_formula: value }))}
-                  properties={template.properties}
-                  placeholder="LED-{wattage}W-{color_temperature}K"
-                  description="Generate unique SKU codes using property references"
-                />
-                <div className="mt-2">
-                  <p className="text-sm text-muted-foreground">
-                    Preview: <Badge variant="outline">{preview.sku || 'Enter formula above'}</Badge>
-                  </p>
-                </div>
+                <Label className="text-base font-medium">SKU Generation</Label>
+                <RadioGroup
+                  value={template.sku_generation_type}
+                  onValueChange={(value: 'fixed' | 'dynamic') => setTemplate(prev => ({ ...prev, sku_generation_type: value }))}
+                  className="mt-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="fixed" id="sku-fixed-global" />
+                    <Label htmlFor="sku-fixed-global">Fixed SKU</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="dynamic" id="sku-dynamic-global" />
+                    <Label htmlFor="sku-dynamic-global">Dynamic SKU (Formula-based)</Label>
+                  </div>
+                </RadioGroup>
+                
+                {template.sku_generation_type === 'dynamic' ? (
+                  <div className="mt-3">
+                    <FormulaBuilder
+                      label="SKU Formula"
+                      value={template.sku_formula || ''}
+                      onChange={(value) => setTemplate(prev => ({ ...prev, sku_formula: value }))}
+                      properties={template.properties}
+                      placeholder="LED-{wattage}W-{color_temperature}K"
+                      description="Generate unique SKU codes using property references"
+                    />
+                    <div className="mt-2">
+                      <p className="text-sm text-muted-foreground">
+                        Preview: <Badge variant="outline">{preview.sku || 'Enter formula above'}</Badge>
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-3">
+                    <Label>Fixed SKU</Label>
+                    <Input
+                      value={template.sku_formula || ''}
+                      onChange={(e) => setTemplate(prev => ({ ...prev, sku_formula: e.target.value }))}
+                      placeholder="LED-PANEL-001"
+                      className="mt-1"
+                    />
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Enter a fixed SKU that will be used for all devices
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div>
-                <FormulaBuilder
-                  label="Long Description Generation"
-                  value={template.description_formula || ''}
-                  onChange={(value) => setTemplate(prev => ({ ...prev, description_formula: value }))}
-                  properties={template.properties}
-                  placeholder="{wattage}W LED Panel - {color_temperature}K - Professional Grade"
-                  description="Generate detailed descriptions for product pages and specifications"
-                />
-                <div className="mt-2">
-                  <p className="text-sm text-muted-foreground">
-                    Preview: <Badge variant="outline">{preview.description || 'Enter formula above'}</Badge>
-                  </p>
-                </div>
+                <Label className="text-base font-medium">Long Description Generation</Label>
+                <RadioGroup
+                  value={template.description_generation_type}
+                  onValueChange={(value: 'fixed' | 'dynamic') => setTemplate(prev => ({ ...prev, description_generation_type: value }))}
+                  className="mt-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="fixed" id="desc-fixed-global" />
+                    <Label htmlFor="desc-fixed-global">Fixed Description</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="dynamic" id="desc-dynamic-global" />
+                    <Label htmlFor="desc-dynamic-global">Dynamic Description (Formula-based)</Label>
+                  </div>
+                </RadioGroup>
+                
+                {template.description_generation_type === 'dynamic' ? (
+                  <div className="mt-3">
+                    <FormulaBuilder
+                      label="Description Formula"
+                      value={template.description_formula || ''}
+                      onChange={(value) => setTemplate(prev => ({ ...prev, description_formula: value }))}
+                      properties={template.properties}
+                      placeholder="{wattage}W LED Panel - {color_temperature}K - Professional Grade"
+                      description="Generate detailed descriptions for product pages and specifications"
+                    />
+                    <div className="mt-2">
+                      <p className="text-sm text-muted-foreground">
+                        Preview: <Badge variant="outline">{preview.description || 'Enter formula above'}</Badge>
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-3">
+                    <Label>Fixed Description</Label>
+                    <Textarea
+                      value={template.description_formula || ''}
+                      onChange={(e) => setTemplate(prev => ({ ...prev, description_formula: e.target.value }))}
+                      placeholder="High-quality LED Panel Light with professional-grade specifications"
+                      className="mt-1"
+                    />
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Enter a fixed description that will be used for all devices
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div>
-                <FormulaBuilder
-                  label="Short Description Generation"
-                  value={template.short_description_formula || ''}
-                  onChange={(value) => setTemplate(prev => ({ ...prev, short_description_formula: value }))}
-                  properties={template.properties}
-                  placeholder="{wattage}W LED - {color_temperature}K"
-                  description="Generate brief descriptions for listings and summaries"
-                />
-                <div className="mt-2">
-                  <p className="text-sm text-muted-foreground">
-                    Preview: <Badge variant="outline">{preview.shortDescription || 'Enter formula above'}</Badge>
-                  </p>
-                </div>
+                <Label className="text-base font-medium">Short Description Generation</Label>
+                <RadioGroup
+                  value={template.short_description_generation_type}
+                  onValueChange={(value: 'fixed' | 'dynamic') => setTemplate(prev => ({ ...prev, short_description_generation_type: value }))}
+                  className="mt-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="fixed" id="short-desc-fixed-global" />
+                    <Label htmlFor="short-desc-fixed-global">Fixed Short Description</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="dynamic" id="short-desc-dynamic-global" />
+                    <Label htmlFor="short-desc-dynamic-global">Dynamic Short Description (Formula-based)</Label>
+                  </div>
+                </RadioGroup>
+                
+                {template.short_description_generation_type === 'dynamic' ? (
+                  <div className="mt-3">
+                    <FormulaBuilder
+                      label="Short Description Formula"
+                      value={template.short_description_formula || ''}
+                      onChange={(value) => setTemplate(prev => ({ ...prev, short_description_formula: value }))}
+                      properties={template.properties}
+                      placeholder="{wattage}W LED - {color_temperature}K"
+                      description="Generate brief descriptions for listings and summaries"
+                    />
+                    <div className="mt-2">
+                      <p className="text-sm text-muted-foreground">
+                        Preview: <Badge variant="outline">{preview.shortDescription || 'Enter formula above'}</Badge>
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-3">
+                    <Label>Fixed Short Description</Label>
+                    <Input
+                      value={template.short_description_formula || ''}
+                      onChange={(e) => setTemplate(prev => ({ ...prev, short_description_formula: e.target.value }))}
+                      placeholder="LED Panel Light"
+                      className="mt-1"
+                    />
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Enter a fixed short description that will be used for all devices
+                    </p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -1088,17 +1187,82 @@ export default function DeviceTemplateCreate() {
                   </div>
                 </RadioGroup>
                 
-                {template.description_generation_type === 'dynamic' && (
+                {template.description_generation_type === 'dynamic' ? (
                   <div className="mt-3">
-                    <Label>Description Formula</Label>
-                    <Input
+                    <FormulaBuilder
+                      label="Description Formula"
+                      value={template.description_formula || ''}
+                      onChange={(value) => setTemplate(prev => ({ ...prev, description_formula: value }))}
+                      properties={template.properties}
+                      placeholder="{wattage}W LED Panel - {color_temperature}K - Professional Grade"
+                      description="Generate detailed descriptions using property references"
+                    />
+                    <div className="mt-2">
+                      <p className="text-sm text-muted-foreground">
+                        Preview: <Badge variant="outline">{preview.description || 'Enter formula above'}</Badge>
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-3">
+                    <Label>Fixed Description</Label>
+                    <Textarea
                       value={template.description_formula || ''}
                       onChange={(e) => setTemplate(prev => ({ ...prev, description_formula: e.target.value }))}
-                      placeholder="{wattage}W LED Panel - {color_temperature}K"
+                      placeholder="High-quality LED Panel Light with professional-grade specifications"
                       className="mt-1"
                     />
                     <p className="text-sm text-muted-foreground mt-1">
-                      Preview: <Badge variant="outline">{preview.description || 'Enter formula above'}</Badge>
+                      Enter a fixed description that will be used for all devices
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <Label className="text-base font-medium">Short Description Generation</Label>
+                <RadioGroup
+                  value={template.short_description_generation_type}
+                  onValueChange={(value: 'fixed' | 'dynamic') => setTemplate(prev => ({ ...prev, short_description_generation_type: value }))}
+                  className="mt-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="fixed" id="short-desc-fixed-tenant" />
+                    <Label htmlFor="short-desc-fixed-tenant">Fixed Short Description</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="dynamic" id="short-desc-dynamic-tenant" />
+                    <Label htmlFor="short-desc-dynamic-tenant">Dynamic Short Description (Formula-based)</Label>
+                  </div>
+                </RadioGroup>
+                
+                {template.short_description_generation_type === 'dynamic' ? (
+                  <div className="mt-3">
+                    <FormulaBuilder
+                      label="Short Description Formula"
+                      value={template.short_description_formula || ''}
+                      onChange={(value) => setTemplate(prev => ({ ...prev, short_description_formula: value }))}
+                      properties={template.properties}
+                      placeholder="{wattage}W LED - {color_temperature}K"
+                      description="Generate brief descriptions for listings and summaries"
+                    />
+                    <div className="mt-2">
+                      <p className="text-sm text-muted-foreground">
+                        Preview: <Badge variant="outline">{preview.shortDescription || 'Enter formula above'}</Badge>
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-3">
+                    <Label>Fixed Short Description</Label>
+                    <Input
+                      value={template.short_description_formula || ''}
+                      onChange={(e) => setTemplate(prev => ({ ...prev, short_description_formula: e.target.value }))}
+                      placeholder="LED Panel Light"
+                      className="mt-1"
+                    />
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Enter a fixed short description that will be used for all devices
                     </p>
                   </div>
                 )}

@@ -172,7 +172,8 @@ export function DeviceImportDialog({ open, onOpenChange, onImportComplete }: Dev
     
     try {
       const templateData = generateDeviceImportTemplate(
-        selectedTemplate.device_template_properties || []
+        selectedTemplate.device_template_properties || [],
+        true // Include generation columns for dynamic SKU/Description support
       );
       
       const blob = new Blob([templateData], { 
@@ -247,8 +248,20 @@ export function DeviceImportDialog({ open, onOpenChange, onImportComplete }: Dev
               ))}
             </select>
             <p className="text-sm text-muted-foreground mt-1">
-              Select a template to include custom properties in your import
+              Select a template to include custom properties and generation settings in your import
             </p>
+            {selectedTemplate && (
+              <div className="mt-2 p-3 bg-muted/50 rounded-lg text-sm space-y-1">
+                <p className="font-medium">Template Features:</p>
+                <ul className="text-muted-foreground space-y-1">
+                  <li>• Custom properties: {selectedTemplate.device_template_properties?.length || 0}</li>
+                  <li>• Excel supports Dynamic SKU, Dynamic Description, Dynamic Short Description columns</li>
+                  <li>• Use TRUE/FALSE in dynamic columns to control formula vs fixed text usage</li>
+                  <li>• When dynamic=TRUE, provide formula in corresponding column (e.g., SKU column)</li>
+                  <li>• When dynamic=FALSE, provide fixed text in corresponding column</li>
+                </ul>
+              </div>
+            )}
           </div>
 
           {/* Template Download */}
