@@ -39,7 +39,7 @@ export function DeviceTypesManager() {
     name: '',
     description: '',
     active: true,
-    parent_device_type_id: '',
+    parent_device_type_id: 'none',
   });
   const [hierarchicalTypes, setHierarchicalTypes] = useState<DeviceType[]>([]);
   const [flatTypes, setFlatTypes] = useState<DeviceType[]>([]);
@@ -131,7 +131,7 @@ export function DeviceTypesManager() {
             name: formData.name.trim(),
             description: formData.description.trim() || null,
             active: formData.active,
-            parent_device_type_id: formData.parent_device_type_id || null,
+            parent_device_type_id: formData.parent_device_type_id === 'none' ? null : formData.parent_device_type_id,
             updated_at: new Date().toISOString(),
           })
           .eq('id', editingType.id);
@@ -148,7 +148,7 @@ export function DeviceTypesManager() {
             name: formData.name.trim(),
             description: formData.description.trim() || null,
             active: formData.active,
-            parent_device_type_id: formData.parent_device_type_id || null,
+            parent_device_type_id: formData.parent_device_type_id === 'none' ? null : formData.parent_device_type_id,
             sort_order: maxSortOrder + 1,
             is_global: true, // Only super admins can create global types
           });
@@ -159,7 +159,7 @@ export function DeviceTypesManager() {
 
       setIsDialogOpen(false);
       setEditingType(null);
-      setFormData({ name: '', description: '', active: true, parent_device_type_id: '' });
+      setFormData({ name: '', description: '', active: true, parent_device_type_id: 'none' });
       loadDeviceTypes();
     } catch (error) {
       console.error('Error saving device type:', error);
@@ -173,7 +173,7 @@ export function DeviceTypesManager() {
       name: deviceType.name,
       description: deviceType.description || '',
       active: deviceType.active,
-      parent_device_type_id: deviceType.parent_device_type_id || '',
+      parent_device_type_id: deviceType.parent_device_type_id || 'none',
     });
     setIsDialogOpen(true);
   };
@@ -353,7 +353,7 @@ export function DeviceTypesManager() {
                     <SelectValue placeholder="Select parent device type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No Parent (Root Level)</SelectItem>
+                    <SelectItem value="none">No Parent (Root Level)</SelectItem>
                     {deviceTypes
                       .filter(type => type.id !== editingType?.id && type.active)
                       .map((type) => (
