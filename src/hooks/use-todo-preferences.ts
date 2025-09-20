@@ -97,20 +97,26 @@ export const useTodoPreferences = () => {
       const updatedPreferences = { ...preferences, ...newPreferences };
       setPreferences(updatedPreferences);
 
+      console.log('Saving preferences:', updatedPreferences);
+
       const { error } = await supabase
         .from('user_todo_preferences')
         .upsert({
           user_id: user.id,
           tenant_id: currentTenant.id,
           ...updatedPreferences,
+        }, { 
+          onConflict: 'user_id,tenant_id' 
         });
 
       if (error) {
         console.error('Error saving preferences:', error);
-        toast.error('Failed to save preferences');
+        console.error('Error details:', error.details, error.hint, error.message);
+        toast.error(`Failed to save preferences: ${error.message}`);
         return;
       }
 
+      console.log('Preferences saved successfully');
       toast.success('Preferences saved');
     } catch (error) {
       console.error('Error saving preferences:', error);
