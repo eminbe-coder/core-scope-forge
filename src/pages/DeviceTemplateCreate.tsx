@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Trash2, Plus, ArrowLeft, Save, Eye, GripVertical } from "lucide-react";
+import { Trash2, Plus, ArrowLeft, Save, Eye, GripVertical, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useTenant } from "@/hooks/use-tenant";
@@ -18,6 +18,7 @@ import { useBrands } from "@/hooks/use-brands";
 import { useDeviceTypes } from "@/hooks/use-device-types";
 import { useAuth } from "@/hooks/use-auth";
 import { ImageUpload } from "@/components/ui/image-upload";
+import { FormulaEngine, PropertyValue } from "@/lib/formula-engine";
 
 interface DeviceTemplatePropertyOption {
   code: string;
@@ -33,12 +34,14 @@ interface DeviceTemplateProperty {
   name: string;
   label_en: string;
   label_ar: string;
-  type: 'text' | 'number' | 'select' | 'multiselect' | 'boolean' | 'date';
+  type: 'text' | 'number' | 'select' | 'multiselect' | 'boolean' | 'date' | 'calculated';
   required: boolean;
   is_identifier: boolean;
   unit?: string;
   sort_order: number;
   property_options: DeviceTemplatePropertyOption[];
+  formula?: string;
+  depends_on_properties?: string[];
 }
 
 interface DeviceTemplate {
@@ -64,7 +67,8 @@ const PROPERTY_TYPES = [
   { value: 'select', label: 'Single Select' },
   { value: 'multiselect', label: 'Multi Select' },
   { value: 'boolean', label: 'Yes/No' },
-  { value: 'date', label: 'Date' }
+  { value: 'date', label: 'Date' },
+  { value: 'calculated', label: 'Calculated' }
 ];
 
 export default function DeviceTemplateCreate() {
@@ -216,7 +220,9 @@ export default function DeviceTemplateCreate() {
           is_identifier: prop.is_identifier,
           property_unit: prop.unit,
           sort_order: prop.sort_order,
-          property_options: prop.property_options as any
+          property_options: prop.property_options as any,
+          formula: prop.formula || null,
+          depends_on_properties: prop.depends_on_properties || null
         }));
 
         const { error: propertiesError } = await supabase
@@ -282,7 +288,9 @@ export default function DeviceTemplateCreate() {
         is_identifier: false,
         unit: '',
         sort_order: prev.properties.length,
-        property_options: []
+        property_options: [],
+        formula: '',
+        depends_on_properties: []
       }]
     }));
   };
@@ -350,6 +358,43 @@ export default function DeviceTemplateCreate() {
           : prop
       )
     }));
+  };
+
+  const updatePropertyReferences = () => {
+    // Get all non-calculated properties that can be referenced
+    const availableProperties = template.properties
+      .filter(prop => prop.type !== 'calculated' && prop.name.trim())
+      .map(prop => prop.name);
+
+    // Update depends_on_properties for calculated properties
+    setTemplate(prev => ({
+      ...prev,
+      properties: prev.properties.map(prop => {
+        if (prop.type === 'calculated' && prop.formula) {
+          const references = FormulaEngine.extractPropertyReferences(prop.formula);
+          const validReferences = references.filter(ref => availableProperties.includes(ref));
+          return { ...prop, depends_on_properties: validReferences };
+        }
+        return prop;
+      })
+    }));
+    
+    toast.success("Property references updated");
+  };
+
+  const validateCalculatedProperty = (property: DeviceTemplateProperty): string | null => {
+    if (property.type !== 'calculated') return null;
+    
+    if (!property.formula?.trim()) {
+      return "Formula is required for calculated properties";
+    }
+
+    const availableProperties = template.properties
+      .filter(prop => prop.type !== 'calculated' && prop.name.trim())
+      .map(prop => prop.name);
+
+    const validation = FormulaEngine.validateFormula(property.formula, availableProperties);
+    return validation.isValid ? null : validation.error || "Invalid formula";
   };
 
   const generatePreview = () => {
@@ -595,10 +640,21 @@ export default function DeviceTemplateCreate() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Custom Properties</CardTitle>
-                <Button onClick={addProperty} size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Property
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={updatePropertyReferences} 
+                    size="sm" 
+                    variant="outline"
+                    title="Refresh property references for calculated fields"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Update Properties
+                  </Button>
+                  <Button onClick={addProperty} size="sm">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Property
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -809,12 +865,68 @@ export default function DeviceTemplateCreate() {
                               ))}
                             </div>
                           </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
+                         )}
+
+                         {property.type === 'calculated' && (
+                           <div className="space-y-4">
+                             <div>
+                               <Label>Formula</Label>
+                               <Input
+                                 value={property.formula || ''}
+                                 onChange={(e) => updateProperty(index, 'formula', e.target.value)}
+                                 placeholder="e.g., {watt} * {efficiency}"
+                                 className="font-mono"
+                               />
+                               <p className="text-xs text-muted-foreground mt-1">
+                                 Use {'{property_name}'} to reference other properties
+                               </p>
+                             </div>
+                             
+                             {property.depends_on_properties && property.depends_on_properties.length > 0 && (
+                               <div>
+                                 <Label className="text-sm">Depends on:</Label>
+                                 <div className="flex flex-wrap gap-1 mt-1">
+                                   {property.depends_on_properties.map(dep => (
+                                     <Badge key={dep} variant="outline" className="text-xs">
+                                       {dep}
+                                     </Badge>
+                                   ))}
+                                 </div>
+                               </div>
+                             )}
+
+                             {(() => {
+                               const error = validateCalculatedProperty(property);
+                               if (error) {
+                                 return (
+                                   <div className="text-sm text-destructive bg-destructive/10 p-2 rounded">
+                                     {error}
+                                   </div>
+                                 );
+                               }
+
+                               // Show preview if formula is valid
+                               if (property.formula) {
+                                 const availableProps = template.properties
+                                   .filter(p => p.type !== 'calculated' && p.name.trim())
+                                   .map(p => ({ name: p.name, value: p.type === 'number' ? 10 : 'sample' }));
+                                 
+                                 const result = FormulaEngine.evaluate(property.formula, availableProps);
+                                 return (
+                                   <div className="text-sm text-muted-foreground bg-muted/50 p-2 rounded">
+                                     Preview (with sample values): <Badge variant="outline">{result}{property.unit && ` ${property.unit}`}</Badge>
+                                   </div>
+                                 );
+                               }
+                               return null;
+                             })()}
+                           </div>
+                         )}
+                       </CardContent>
+                     </Card>
+                   ))}
+                 </div>
+               )}
             </CardContent>
           </Card>
         </TabsContent>

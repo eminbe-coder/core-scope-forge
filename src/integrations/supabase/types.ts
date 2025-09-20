@@ -2227,6 +2227,8 @@ export type Database = {
       device_template_properties: {
         Row: {
           created_at: string
+          depends_on_properties: string[] | null
+          formula: string | null
           id: string
           is_identifier: boolean | null
           is_required: boolean
@@ -2242,6 +2244,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          depends_on_properties?: string[] | null
+          formula?: string | null
           id?: string
           is_identifier?: boolean | null
           is_required?: boolean
@@ -2257,6 +2261,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          depends_on_properties?: string[] | null
+          formula?: string | null
           id?: string
           is_identifier?: boolean | null
           is_required?: boolean
