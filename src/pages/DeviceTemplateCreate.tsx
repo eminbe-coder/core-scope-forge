@@ -58,6 +58,9 @@ interface DeviceTemplate {
   image_url?: string;
   is_global: boolean;
   properties: DeviceTemplateProperty[];
+  template_version?: number;
+  last_modified_by?: string;
+  created_by?: string;
 }
 
 
@@ -201,6 +204,7 @@ export default function DeviceTemplateCreate() {
           image_url: template.image_url,
           is_global: template.is_global,
           created_by: user?.id,
+          template_version: 1,
           properties_schema: template.properties as any
         })
         .select('id')

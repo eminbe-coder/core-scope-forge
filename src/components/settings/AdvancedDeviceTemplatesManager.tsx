@@ -39,6 +39,8 @@ interface DeviceTemplate {
   description_generation_type?: string;
   description_formula?: string;
   created_by?: string;
+  template_version?: number;
+  last_modified_by?: string;
   active: boolean;
   properties?: DeviceTemplateProperty[];
   options?: DeviceTemplateOption[];
@@ -458,6 +460,7 @@ export function AdvancedDeviceTemplatesManager() {
                             </div>
                             <p className="text-sm text-muted-foreground">
                               Device Type: {template.category} • Properties: {template.properties?.length || 0} • Options: {template.options?.length || 0}
+                              {template.template_version && ` • Version: ${template.template_version}`}
                             </p>
                             {template.description && (
                               <p className="text-sm text-muted-foreground">{template.description}</p>

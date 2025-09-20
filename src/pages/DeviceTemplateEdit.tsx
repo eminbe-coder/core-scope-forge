@@ -35,6 +35,11 @@ interface DeviceTemplate {
   sku_formula?: string;
   description_formula?: string;
   is_global: boolean;
+  template_version?: number;
+  last_modified_by?: string;
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
   properties: DeviceTemplateProperty[];
 }
 
@@ -106,6 +111,11 @@ export default function DeviceTemplateEdit() {
           sku_formula: templateData.sku_formula || '',
           description_formula: templateData.description_formula || '',
           is_global: templateData.is_global,
+          template_version: templateData.template_version || 1,
+          last_modified_by: templateData.last_modified_by,
+          created_by: templateData.created_by,
+          created_at: templateData.created_at,
+          updated_at: templateData.updated_at,
           properties
         });
 
@@ -389,7 +399,10 @@ export default function DeviceTemplateEdit() {
           </Button>
           <div>
             <h1 className="text-2xl font-bold">Edit Device Template</h1>
-            <p className="text-muted-foreground">Modify the template properties and configuration</p>
+            <p className="text-muted-foreground">
+              Modify the template properties and configuration
+              {template.template_version && ` • Version ${template.template_version}`}
+            </p>
           </div>
         </div>
         <div className="flex gap-2">
