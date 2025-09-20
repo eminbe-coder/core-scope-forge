@@ -74,6 +74,7 @@ const PROPERTY_TYPES = [
   { value: 'number', label: 'Number' },
   { value: 'select', label: 'Single Select' },
   { value: 'multiselect', label: 'Multi Select' },
+  { value: 'dynamic_multiselect', label: 'Dynamic Multi-Select' },
   { value: 'boolean', label: 'Yes/No' },
   { value: 'date', label: 'Date' },
   { value: 'calculated', label: 'Calculated' }

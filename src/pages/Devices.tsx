@@ -28,6 +28,7 @@ import {
 import { Plus, Search, Cpu, DollarSign, Upload } from 'lucide-react';
 import { ImageUpload } from '@/components/ui/image-upload';
 import { DeviceImportDialog } from '@/components/device-import/DeviceImportDialog';
+import { DeviceTemplateForm } from '@/components/device-creation/DeviceTemplateForm';
 
 interface Device {
   id: string;
@@ -51,15 +52,23 @@ interface Currency {
   name: string;
 }
 
+interface DeviceTemplate {
+  id: string;
+  name: string;
+  device_template_properties: any[];
+}
+
 const Devices = () => {
   const { currentTenant } = useTenant();
   const { toast } = useToast();
   const [devices, setDevices] = useState<Device[]>([]);
   const [currencies, setCurrencies] = useState<Currency[]>([]);
+  const [deviceTemplates, setDeviceTemplates] = useState<DeviceTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   
   const [formData, setFormData] = useState({
     name: '',
@@ -71,6 +80,8 @@ const Devices = () => {
     specifications: '',
     image_url: '',
   });
+
+  const [templateProperties, setTemplateProperties] = useState<Record<string, any>>({});
 
   const fetchDevices = async () => {
     if (!currentTenant) return;
@@ -117,9 +128,37 @@ const Devices = () => {
     }
   };
 
+  const fetchDeviceTemplates = async () => {
+    if (!currentTenant) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('device_templates')
+        .select(`
+          id,
+          name,
+          device_template_properties (
+            *,
+            device_template_property_options (
+              *
+            )
+          )
+        `)
+        .or(`tenant_id.eq.${currentTenant.id},is_global.eq.true`)
+        .eq('active', true)
+        .order('name');
+
+      if (error) throw error;
+      setDeviceTemplates(data || []);
+    } catch (error) {
+      console.error('Error fetching device templates:', error);
+    }
+  };
+
   useEffect(() => {
     fetchDevices();
     fetchCurrencies();
+    fetchDeviceTemplates();
     
     // Update form currency when tenant changes
     if (currentTenant?.default_currency_id) {
@@ -151,6 +190,8 @@ const Devices = () => {
         specifications: formData.specifications ? JSON.parse(formData.specifications) : null,
         image_url: formData.image_url || null,
         tenant_id: currentTenant.id,
+        template_id: selectedTemplateId || null,
+        template_properties: Object.keys(templateProperties).length > 0 ? templateProperties : null,
       };
 
       const { error } = await supabase
@@ -175,6 +216,8 @@ const Devices = () => {
         specifications: '',
         image_url: '',
       });
+      setTemplateProperties({});
+      setSelectedTemplateId('');
       fetchDevices();
     } catch (error) {
       console.error('Error creating device:', error);
@@ -184,6 +227,15 @@ const Devices = () => {
         variant: 'destructive',
       });
     }
+  };
+
+  const selectedTemplate = deviceTemplates.find(t => t.id === selectedTemplateId);
+
+  const handleTemplatePropertyChange = (name: string, value: any) => {
+    setTemplateProperties(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   const filteredDevices = devices.filter(device =>
@@ -220,7 +272,7 @@ const Devices = () => {
                 Add Device
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Add New Device</DialogTitle>
                 <DialogDescription>
@@ -228,6 +280,24 @@ const Devices = () => {
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
+                {/* Template Selection */}
+                <div>
+                  <Label htmlFor="template">Device Template (Optional)</Label>
+                  <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a template to use predefined properties" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {deviceTemplates.map((template) => (
+                        <SelectItem key={template.id} value={template.id}>
+                          {template.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Basic Device Information */}
                 <div>
                   <Label htmlFor="name">Name *</Label>
                   <Input
@@ -299,8 +369,21 @@ const Devices = () => {
                   folder="devices"
                   maxSize={5}
                 />
+
+                {/* Template Properties */}
+                {selectedTemplate && selectedTemplate.device_template_properties.length > 0 && (
+                  <div className="border-t pt-4">
+                    <Label className="text-base font-medium mb-4 block">Template Properties</Label>
+                    <DeviceTemplateForm
+                      templateProperties={selectedTemplate.device_template_properties}
+                      values={templateProperties}
+                      onChange={handleTemplatePropertyChange}
+                    />
+                  </div>
+                )}
+
                 <div>
-                  <Label htmlFor="specifications">Specifications (JSON)</Label>
+                  <Label htmlFor="specifications">Additional Specifications (JSON)</Label>
                   <Textarea
                     id="specifications"
                     value={formData.specifications}
