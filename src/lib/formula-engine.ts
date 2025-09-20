@@ -131,30 +131,32 @@ export class FormulaEngine {
    * Validate formula syntax before saving
    */
   static validateFormula(formula: string, availableProperties: string[]): { isValid: boolean; error?: string } {
-    if (!formula) {
-      return { isValid: false, error: 'Formula is required' };
-    }
-
-    // Extract property references
-    const references = this.extractPropertyReferences(formula);
-    
-    // Check if all referenced properties exist
-    const missingProperties = references.filter(ref => !availableProperties.includes(ref));
-    if (missingProperties.length > 0) {
-      return { 
-        isValid: false, 
-        error: `Referenced properties not found: ${missingProperties.join(', ')}` 
-      };
-    }
-
-    // Try to validate syntax by replacing references with dummy values
-    const testProperties: PropertyValue[] = references.map(ref => ({ name: ref, value: 1 }));
-    
     try {
-      this.evaluate(formula, testProperties);
+      if (!formula || formula.trim() === '') {
+        return { isValid: true };
+      }
+
+      // Add fixed properties that are always available
+      const fixedProperties = ['item_code'];
+      const allAvailableProperties = [...fixedProperties, ...availableProperties];
+
+      // Check for property references that aren't available
+      const propertyReferences = this.extractPropertyReferences(formula);
+      const missingProperties = propertyReferences.filter(prop => !allAvailableProperties.includes(prop));
+      
+      if (missingProperties.length > 0) {
+        return { 
+          isValid: false, 
+          error: `Unknown properties: ${missingProperties.join(', ')}` 
+        };
+      }
+
       return { isValid: true };
     } catch (error) {
-      return { isValid: false, error: 'Invalid formula syntax' };
+      return { 
+        isValid: false, 
+        error: error instanceof Error ? error.message : 'Invalid formula' 
+      };
     }
   }
 }

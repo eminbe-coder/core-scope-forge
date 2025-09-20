@@ -113,6 +113,45 @@ export default function DeviceTemplateCreate() {
 
   const isEditMode = !!id;
 
+  // Fixed properties that are always available in formulas
+  const getFixedProperties = (): DeviceTemplateProperty[] => {
+    return [
+      {
+        id: 'item_code',
+        name: 'item_code',
+        label_en: 'Item Code',
+        label_ar: 'رمز العنصر',
+        type: 'text',
+        data_type: 'text',
+        required: true,
+        is_identifier: true,
+        sort_order: -1,
+        property_options: [],
+        options: []
+      }
+    ];
+  };
+
+  // Get all available properties (fixed + template properties)
+  const getAllAvailableProperties = (): DeviceTemplateProperty[] => {
+    return [...getFixedProperties(), ...template.properties];
+  };
+
+  const generateSKU = (properties: PropertyValue[]): string => {
+    if (!template.sku_formula) return '';
+    return FormulaEngine.evaluate(template.sku_formula, properties).toString();
+  };
+
+  const generateDescription = (properties: PropertyValue[]): string => {
+    if (!template.description_formula) return '';
+    return FormulaEngine.evaluate(template.description_formula, properties).toString();
+  };
+
+  const generateShortDescription = (properties: PropertyValue[]): string => {
+    if (!template.short_description_formula) return '';
+    return FormulaEngine.evaluate(template.short_description_formula, properties).toString();
+  };
+
   // Load existing template for edit mode
   useEffect(() => {
     const loadTemplate = async () => {
@@ -816,8 +855,8 @@ export default function DeviceTemplateCreate() {
                       label="SKU Formula"
                       value={template.sku_formula || ''}
                       onChange={(value) => setTemplate(prev => ({ ...prev, sku_formula: value }))}
-                      properties={template.properties}
-                      placeholder="LED-{wattage}W-{color_temperature}K"
+                      properties={getAllAvailableProperties()}
+                      placeholder="{item_code}-{wattage}W-{color_temperature}K"
                       description="Generate unique SKU codes using property references"
                     />
                     <div className="mt-2">
@@ -865,8 +904,8 @@ export default function DeviceTemplateCreate() {
                       label="Description Formula"
                       value={template.description_formula || ''}
                       onChange={(value) => setTemplate(prev => ({ ...prev, description_formula: value }))}
-                      properties={template.properties}
-                      placeholder="{wattage}W LED Panel - {color_temperature}K - Professional Grade"
+                      properties={getAllAvailableProperties()}
+                      placeholder="{item_code} - {wattage}W LED Panel - {color_temperature}K - Professional Grade"
                       description="Generate detailed descriptions for product pages and specifications"
                     />
                     <div className="mt-2">
@@ -914,8 +953,8 @@ export default function DeviceTemplateCreate() {
                       label="Short Description Formula"
                       value={template.short_description_formula || ''}
                       onChange={(value) => setTemplate(prev => ({ ...prev, short_description_formula: value }))}
-                      properties={template.properties}
-                      placeholder="{wattage}W LED - {color_temperature}K"
+                      properties={getAllAvailableProperties()}
+                      placeholder="{item_code} - {wattage}W LED - {color_temperature}K"
                       description="Generate brief descriptions for listings and summaries"
                     />
                     <div className="mt-2">
@@ -1407,8 +1446,8 @@ export default function DeviceTemplateCreate() {
                       label="Description Formula"
                       value={template.description_formula || ''}
                       onChange={(value) => setTemplate(prev => ({ ...prev, description_formula: value }))}
-                      properties={template.properties}
-                      placeholder="{wattage}W LED Panel - {color_temperature}K - Professional Grade"
+                      properties={getAllAvailableProperties()}
+                      placeholder="{item_code} - {wattage}W LED Panel - {color_temperature}K - Professional Grade"
                       description="Generate detailed descriptions using property references"
                     />
                     <div className="mt-2">
@@ -1456,8 +1495,8 @@ export default function DeviceTemplateCreate() {
                       label="Short Description Formula"
                       value={template.short_description_formula || ''}
                       onChange={(value) => setTemplate(prev => ({ ...prev, short_description_formula: value }))}
-                      properties={template.properties}
-                      placeholder="{wattage}W LED - {color_temperature}K"
+                      properties={getAllAvailableProperties()}
+                      placeholder="{item_code} - {wattage}W LED - {color_temperature}K"
                       description="Generate brief descriptions for listings and summaries"
                     />
                     <div className="mt-2">
