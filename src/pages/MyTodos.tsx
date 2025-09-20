@@ -3,20 +3,22 @@ import { MobileLayout } from '@/components/layout/MobileLayout';
 import { TodoListEnhanced } from '@/components/todos/TodoListEnhanced';
 import { TodoCalendarView } from '@/components/todos/TodoCalendarView';
 import { TodoDetailModal } from '@/components/todos/TodoDetailModal';
+import { TodoFilters } from '@/components/todos/TodoFilters';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, CheckCircle, Clock, AlertTriangle, ListTodo, Calendar, CalendarCheck } from 'lucide-react';
+import { Plus, CheckCircle, Clock, AlertTriangle, ListTodo, Calendar, CalendarCheck, Save } from 'lucide-react';
 import { WorkingHoursSettings } from '@/components/todos/WorkingHoursSettings';
 import { AssigneeFilter } from '@/components/todos/AssigneeFilter';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useTodoPreferences } from '@/hooks/use-todo-preferences';
 import { usePermissions } from '@/hooks/use-permissions';
+import { toast } from 'sonner';
 
 const MyTodos = () => {
   const { currentTenant } = useTenant();
   const { getVisibilityLevel, canViewEntity } = usePermissions();
-  const { preferences, updatePreference } = useTodoPreferences();
+  const { preferences, updatePreference, saveCurrentPreferences } = useTodoPreferences();
   const [todos, setTodos] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
@@ -28,6 +30,17 @@ const MyTodos = () => {
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [selectedTodo, setSelectedTodo] = useState<any>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  
+  // Filter states for unified filtering
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('due_date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [showOverdue, setShowOverdue] = useState(true);
+  const [showDue, setShowDue] = useState(true);
+  const [showPending, setShowPending] = useState(true);
+  const [showCreatedByMe, setShowCreatedByMe] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
 
   useEffect(() => {
     if (currentTenant?.id) {
@@ -161,6 +174,19 @@ const MyTodos = () => {
     });
   };
 
+  const handleSavePreferences = async () => {
+    setIsSaving(true);
+    try {
+      await saveCurrentPreferences();
+      toast.success('View preferences saved successfully');
+    } catch (error) {
+      console.error('Error saving preferences:', error);
+      toast.error('Failed to save view preferences');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleEventDrop = async (args: { event: any; start: Date; end: Date }) => {
     const { event, start } = args;
     
@@ -213,6 +239,15 @@ const MyTodos = () => {
             >
               <Calendar className="h-4 w-4 mr-2" />
               Calendar
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSavePreferences}
+              disabled={isSaving}
+            >
+              <Save className="h-4 w-4 mr-2" />
+              {isSaving ? 'Saving...' : 'Save View'}
             </Button>
             <WorkingHoursSettings />
           </div>
@@ -271,6 +306,26 @@ const MyTodos = () => {
           </Card>
         </div>
 
+        {/* Unified Filters */}
+        <TodoFilters
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+          sortOrder={sortOrder}
+          onSortOrderChange={setSortOrder}
+          showOverdue={showOverdue}
+          onShowOverdueChange={setShowOverdue}
+          showDue={showDue}
+          onShowDueChange={setShowDue}
+          showPending={showPending}
+          onShowPendingChange={setShowPending}
+          showCreatedByMe={showCreatedByMe}
+          onShowCreatedByMeChange={setShowCreatedByMe}
+          showCompleted={showCompleted}
+          onShowCompletedChange={setShowCompleted}
+        />
+
         {/* Main Todo Content */}
         {preferences.view_type === 'list' ? (
           <div className="space-y-4">
@@ -287,6 +342,17 @@ const MyTodos = () => {
                   todos={todos}
                   onTodoClick={handleTodoClick}
                   showAssigneeFilter={false}
+                  showFilters={false}
+                  externalFilters={{
+                    searchTerm,
+                    sortBy,
+                    sortOrder,
+                    showOverdue,
+                    showDue,
+                    showPending,
+                    showCreatedByMe,
+                    showCompleted
+                  }}
                 />
               </CardContent>
             </Card>
@@ -308,6 +374,16 @@ const MyTodos = () => {
                     onEventDrop={handleEventDrop}
                     onTodoClick={handleTodoClick}
                     preferences={preferences}
+                    externalFilters={{
+                      searchTerm,
+                      sortBy,
+                      sortOrder,
+                      showOverdue,
+                      showDue,
+                      showPending,
+                      showCreatedByMe,
+                      showCompleted
+                    }}
                   />
                 </div>
               </CardContent>

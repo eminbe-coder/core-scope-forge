@@ -124,13 +124,23 @@ export const useTodoPreferences = () => {
   };
 
   const saveCurrentPreferences = () => {
-    // Create a clean copy of preferences to save, excluding calendar_date if it's invalid
+    // Create a clean copy of preferences to save
     const prefsToSave = { ...preferences };
     
-    // Handle calendar_date properly - remove if invalid
-    if (prefsToSave.calendar_date && isNaN(new Date(prefsToSave.calendar_date).getTime())) {
-      delete prefsToSave.calendar_date;
+    // Handle calendar_date properly - ensure it's in correct format or remove it
+    if (prefsToSave.calendar_date) {
+      const date = new Date(prefsToSave.calendar_date);
+      if (isNaN(date.getTime())) {
+        // Invalid date, remove it
+        delete prefsToSave.calendar_date;
+      } else {
+        // Convert to PostgreSQL compatible timestamp format (without milliseconds)
+        prefsToSave.calendar_date = date.toISOString().split('.')[0] + 'Z';
+      }
     }
+    
+    // Log what we're trying to save for debugging
+    console.log('Saving preferences:', prefsToSave);
     
     savePreferences(prefsToSave);
   };

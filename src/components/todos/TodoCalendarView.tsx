@@ -30,6 +30,17 @@ interface Todo {
   todo_types?: { name: string; color: string; icon: string } | null;
 }
 
+interface ExternalFilters {
+  searchTerm?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  showOverdue?: boolean;
+  showDue?: boolean;
+  showPending?: boolean;
+  showCreatedByMe?: boolean;
+  showCompleted?: boolean;
+}
+
 interface TodoCalendarViewProps {
   todos: Todo[];
   onSelectEvent?: (event: any) => void;
@@ -46,6 +57,7 @@ interface TodoCalendarViewProps {
     time_slot_height?: number;
   };
   onPreferencesChange?: (preferences: any) => void;
+  externalFilters?: ExternalFilters;
 }
 
 interface CalendarEvent extends Event {
@@ -62,6 +74,7 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
   defaultView = 'week',
   preferences,
   onPreferencesChange,
+  externalFilters,
 }) => {
   const [currentView, setCurrentView] = useState<View>(preferences?.calendar_view as View || defaultView);
   const [currentDate, setCurrentDate] = useState(preferences?.calendar_date ? new Date(preferences.calendar_date) : new Date());
@@ -74,7 +87,42 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
   const [isResizingColumn, setIsResizingColumn] = useState<string | null>(null);
   const [isResizingTimeSlot, setIsResizingTimeSlot] = useState(false);
   const events: CalendarEvent[] = useMemo(() => {
-    return todos
+    let filteredTodos = todos;
+
+    // Apply external filters if provided
+    if (externalFilters) {
+      const currentUser = null; // We'd need to get this from auth
+      const now = new Date();
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      filteredTodos = todos.filter(todo => {
+        // Search filter
+        if (externalFilters.searchTerm && !todo.title.toLowerCase().includes(externalFilters.searchTerm.toLowerCase())) {
+          return false;
+        }
+
+        // Status filters
+        if (!externalFilters.showCompleted && todo.status === 'completed') return false;
+        if (!externalFilters.showPending && todo.status === 'pending') return false;
+        
+        // Due date filters
+        if (todo.due_date) {
+          const dueDate = new Date(todo.due_date);
+          const isOverdue = dueDate < startOfDay && todo.status !== 'completed';
+          const isDueToday = dueDate >= startOfDay && dueDate < new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+          
+          if (!externalFilters.showOverdue && isOverdue) return false;
+          if (!externalFilters.showDue && isDueToday) return false;
+        }
+
+        // Created by me filter (would need current user)
+        // if (externalFilters.showCreatedByMe && todo.created_by !== currentUser?.id) return false;
+
+        return true;
+      });
+    }
+
+    return filteredTodos
       .filter(todo => todo.due_date)
       .map(todo => {
         let startDate: Date;

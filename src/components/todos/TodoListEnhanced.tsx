@@ -43,6 +43,17 @@ interface Todo {
   }>;
 }
 
+interface ExternalFilters {
+  searchTerm?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  showOverdue?: boolean;
+  showDue?: boolean;
+  showPending?: boolean;
+  showCreatedByMe?: boolean;
+  showCompleted?: boolean;
+}
+
 interface TodoListEnhancedProps {
   entityType?: string;
   entityId?: string;
@@ -51,6 +62,7 @@ interface TodoListEnhancedProps {
   onTodoClick?: (todo: Todo) => void;
   showAssigneeFilter?: boolean;
   todos?: Todo[]; // Allow passing pre-filtered todos
+  externalFilters?: ExternalFilters;
 }
 
 export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
@@ -60,21 +72,32 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
   showFilters = true,
   onTodoClick,
   showAssigneeFilter = true,
-  todos: externalTodos
+  todos: externalTodos,
+  externalFilters
 }) => {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showCreatedByMe, setShowCreatedByMe] = useState(false);
-  const [showDue, setShowDue] = useState(false);
-  const [showOverdue, setShowOverdue] = useState(false);
-  const [showPending, setShowPending] = useState(false);
-  const [showCompleted, setShowCompleted] = useState(false);
-  const [sortBy, setSortBy] = useState('due_date');
-  const [sortOrder, setSortOrder] = useState('asc');
+  const [internalSearchTerm, setInternalSearchTerm] = useState('');
+  const [internalShowCreatedByMe, setInternalShowCreatedByMe] = useState(false);
+  const [internalShowDue, setInternalShowDue] = useState(false);
+  const [internalShowOverdue, setInternalShowOverdue] = useState(false);
+  const [internalShowPending, setInternalShowPending] = useState(false);
+  const [internalShowCompleted, setInternalShowCompleted] = useState(false);
+  const [internalSortBy, setInternalSortBy] = useState('due_date');
+  const [internalSortOrder, setInternalSortOrder] = useState('asc');
   const [filterAssignee, setFilterAssignee] = useState(assignedTo || 'all');
   const [profiles, setProfiles] = useState<any[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  // Use external filters if provided, otherwise use internal state
+  const searchTerm = externalFilters?.searchTerm ?? internalSearchTerm;
+  const sortBy = externalFilters?.sortBy ?? internalSortBy;
+  const sortOrder = externalFilters?.sortOrder ?? internalSortOrder;
+  const showOverdue = externalFilters?.showOverdue ?? internalShowOverdue;
+  const showDue = externalFilters?.showDue ?? internalShowDue;
+  const showPending = externalFilters?.showPending ?? internalShowPending;
+  const showCreatedByMe = externalFilters?.showCreatedByMe ?? internalShowCreatedByMe;
+  const showCompleted = externalFilters?.showCompleted ?? internalShowCompleted;
   const { currentTenant } = useTenant();
   const { getVisibilityLevel, isAdmin } = usePermissions();
   const navigate = useNavigate();
@@ -641,13 +664,14 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
                 <Input
                   placeholder="Search todos..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => !externalFilters ? setInternalSearchTerm(e.target.value) : undefined}
                   className="pl-10"
+                  disabled={!!externalFilters}
                 />
               </div>
             </div>
             
-            <Select value={sortBy} onValueChange={setSortBy}>
+            <Select value={sortBy} onValueChange={!externalFilters ? setInternalSortBy : undefined} disabled={!!externalFilters}>
               <SelectTrigger className="w-40">
                 <SelectValue />
               </SelectTrigger>
@@ -662,7 +686,8 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
             <Button
               variant={sortOrder === 'asc' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+              onClick={() => !externalFilters ? setInternalSortOrder(sortOrder === 'asc' ? 'desc' : 'asc') : undefined}
+              disabled={!!externalFilters}
             >
               {sortOrder === 'asc' ? '↑' : '↓'}
             </Button>
@@ -672,8 +697,9 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
             <Button
               variant={showOverdue ? 'destructive' : 'outline'}
               size="sm"
-              onClick={() => setShowOverdue(!showOverdue)}
+              onClick={() => !externalFilters ? setInternalShowOverdue(!showOverdue) : undefined}
               className={showOverdue ? 'bg-red-500 hover:bg-red-600' : 'border-red-200 text-red-600 hover:bg-red-50'}
+              disabled={!!externalFilters}
             >
               <AlertTriangle className="h-4 w-4 mr-1" />
               Overdue
@@ -682,8 +708,9 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
             <Button
               variant={showDue ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setShowDue(!showDue)}
+              onClick={() => !externalFilters ? setInternalShowDue(!showDue) : undefined}
               className={showDue ? 'bg-orange-500 hover:bg-orange-600' : 'border-orange-200 text-orange-600 hover:bg-orange-50'}
+              disabled={!!externalFilters}
             >
               <Calendar className="h-4 w-4 mr-1" />
               Due Today
@@ -692,8 +719,9 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
             <Button
               variant={showPending ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setShowPending(!showPending)}
+              onClick={() => !externalFilters ? setInternalShowPending(!showPending) : undefined}
               className={showPending ? 'bg-yellow-500 hover:bg-yellow-600 text-black' : 'border-yellow-200 text-yellow-600 hover:bg-yellow-50'}
+              disabled={!!externalFilters}
             >
               <Clock className="h-4 w-4 mr-1" />
               Pending
@@ -702,7 +730,8 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
             <Button
               variant={showCreatedByMe ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setShowCreatedByMe(!showCreatedByMe)}
+              onClick={() => !externalFilters ? setInternalShowCreatedByMe(!showCreatedByMe) : undefined}
+              disabled={!!externalFilters}
             >
               <User className="h-4 w-4 mr-1" />
               Created by me
@@ -711,8 +740,9 @@ export const TodoListEnhanced: React.FC<TodoListEnhancedProps> = ({
             <Button
               variant={showCompleted ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setShowCompleted(!showCompleted)}
+              onClick={() => !externalFilters ? setInternalShowCompleted(!showCompleted) : undefined}
               className={showCompleted ? 'bg-green-500 hover:bg-green-600' : 'border-green-200 text-green-600 hover:bg-green-50'}
+              disabled={!!externalFilters}
             >
               <CheckCircle className="h-4 w-4 mr-1" />
               Completed
