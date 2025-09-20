@@ -263,10 +263,10 @@ export function AppSidebar() {
   };
 
   // Determine which navigation to show based on context
-  // Show Core Platform navigation only when on /global-admin route AND user has global access
-  const showCorePlatform = location.pathname === '/global-admin' && hasGlobalAccess;
+  // Show Core Platform navigation only when user has global access (Platform super admin)
+  const showCorePlatform = hasGlobalAccess && currentTenant?.slug === 'platform';
   
-  // Show tenant modules when in tenant context (not on global-admin route)
+  // Show tenant modules when in tenant context (not Platform tenant or no global access)
   const navigationModules = showCorePlatform ? corePlatformModules : tenantModules;
 
   return (

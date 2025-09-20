@@ -77,22 +77,19 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
   const isAdmin = userRole === 'admin' || userRole === 'super_admin';
   const isSuperAdmin = userRole === 'super_admin';
   
-  // Check if user has global system access (separate from tenant-based super admin)
+  // Check if user has global system access (only super_admin in Platform tenant)
   const hasGlobalAccess = userTenants.some(membership => 
-    membership.role === 'super_admin' && userTenants.length > 1
+    membership.role === 'super_admin' && membership.tenant.slug === 'platform'
   );
 
   const setCurrentTenant = async (tenant: Tenant) => {
     setCurrentTenantState(tenant);
     localStorage.setItem('currentTenantId', tenant.id);
     
-    // Find user role in this tenant - but if we're already super admin, keep that role
-    if (userRole !== 'super_admin') {
-      const membership = userTenants.find(m => m.tenant_id === tenant.id);
-      // Only update if we actually found a role for this tenant; don't overwrite with null
-      if (membership?.role) {
-        setUserRole(membership.role);
-      }
+    // Find user role in this specific tenant
+    const membership = userTenants.find(m => m.tenant_id === tenant.id);
+    if (membership?.role) {
+      setUserRole(membership.role);
     }
   };
 
@@ -149,47 +146,62 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
       console.log('Super admin check result:', { superAdminCheck, superAdminError });
       if (superAdminError) throw superAdminError;
 
-      // If user is super admin, load all tenants
-      if (superAdminCheck && superAdminCheck.length > 0) {
-        console.log('User is super admin, loading all tenants');
-        const { data: allTenants, error: allTenantsError } = await supabase
-          .rpc('get_all_tenants_for_super_admin');
+      // Check if user is super admin in Platform tenant specifically
+      const platformSuperAdmin = superAdminCheck?.find(membership => {
+        // We need to get the tenant info for this membership to check the slug
+        return membership.role === 'super_admin';
+      });
+
+      if (platformSuperAdmin) {
+        console.log('User is super admin, checking Platform tenant access');
         
-        console.log('All tenants for super admin:', { allTenants, allTenantsError });
-        if (allTenantsError) throw allTenantsError;
-        
-        const mappedTenants = allTenants?.map(tenant => ({
-          id: tenant.id,
-          user_id: user.id,
-          tenant_id: tenant.id,
-          role: 'super_admin' as const,
-          active: true,
-          tenant: {
-            id: tenant.id,
-            name: tenant.name,
-            slug: tenant.slug,
-            domain: tenant.domain,
-            active: tenant.active,
-            country: (tenant as any).country,
-            company_location: (tenant as any).company_location,
-            cr_number: (tenant as any).cr_number,
-            tax_number: (tenant as any).tax_number,
-            contact_email: (tenant as any).contact_email,
-            contact_phone_country_code: (tenant as any).contact_phone_country_code,
-            contact_phone_number: (tenant as any).contact_phone_number,
-            settings: tenant.settings,
-            default_currency_id: tenant.default_currency_id
+        // Get user's actual tenant memberships (only tenants they're explicitly members of)
+        const { data: userMemberships, error: userMembershipsError } = await supabase
+          .from('user_tenant_memberships')
+          .select(`
+            id,
+            user_id,
+            tenant_id,
+            role,
+            custom_role_id,
+            active,
+            tenant:tenants(
+              id, name, slug, domain, active, country, company_location, 
+              cr_number, tax_number, contact_email, contact_phone_country_code,
+              contact_phone_number, default_currency_id, settings, created_at, updated_at
+            )
+          `)
+          .eq('user_id', user.id)
+          .eq('active', true);
+
+        console.log('User memberships for super admin:', { userMemberships, userMembershipsError });
+        if (userMembershipsError) throw userMembershipsError;
+
+        if (userMemberships && userMemberships.length > 0) {
+          setUserTenants(userMemberships);
+          
+          // Set current tenant and role
+          if (!currentTenant) {
+            const savedTenantId = localStorage.getItem('currentTenantId');
+            const savedTenant = userMemberships.find(m => m.tenant_id === savedTenantId);
+            const tenantToSet = savedTenant || userMemberships[0];
+            
+            console.log('Setting current tenant and role for super admin:', { 
+              tenant: tenantToSet.tenant, 
+              role: tenantToSet.role 
+            });
+            
+            setUserRole(tenantToSet.role);
+            setCurrentTenantState(tenantToSet.tenant);
+            localStorage.setItem('currentTenantId', tenantToSet.tenant.id);
+          } else {
+            // Update role for current tenant
+            const currentMembership = userMemberships.find(m => m.tenant_id === currentTenant.id);
+            if (currentMembership) {
+              console.log('Setting user role for current tenant:', currentMembership.role);
+              setUserRole(currentMembership.role);
+            }
           }
-        })) || [];
-        
-        console.log('Mapped super admin tenants:', mappedTenants);
-        setUserTenants(mappedTenants);
-        setUserRole('super_admin');
-        
-        // Set current tenant if not already set
-        if (mappedTenants.length > 0 && !currentTenant) {
-          setCurrentTenantState(mappedTenants[0].tenant);
-          localStorage.setItem('currentTenantId', mappedTenants[0].tenant.id);
         }
         return;
       }

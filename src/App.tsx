@@ -8,6 +8,7 @@ import { TenantProvider } from "@/hooks/use-tenant";
 import { PermissionsProvider } from "@/hooks/use-permissions";
 import { EntityRefreshProvider } from "@/components/ui/entity-refresh-context";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { GlobalAdminRoute } from "@/components/GlobalAdminRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import AcceptInvitation from "./pages/AcceptInvitation";
@@ -279,10 +280,12 @@ const App = () => (
                       </ProtectedRoute>
                     } />
                    <Route path="/global-admin" element={
-                    <ProtectedRoute>
-                      <CorePlatform />
-                    </ProtectedRoute>
-                  } />
+                     <ProtectedRoute>
+                       <GlobalAdminRoute>
+                         <CorePlatform />
+                       </GlobalAdminRoute>
+                     </ProtectedRoute>
+                   } />
                   <Route path="/users-roles" element={
                     <ProtectedRoute>
                       <UsersRoles />
