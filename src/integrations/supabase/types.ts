@@ -2304,6 +2304,8 @@ export type Database = {
           last_modified_by: string | null
           name: string
           properties_schema: Json
+          short_description_formula: string | null
+          short_description_generation_type: string | null
           sku_formula: string | null
           sku_generation_type: string
           supports_multilang: boolean
@@ -2328,6 +2330,8 @@ export type Database = {
           last_modified_by?: string | null
           name: string
           properties_schema?: Json
+          short_description_formula?: string | null
+          short_description_generation_type?: string | null
           sku_formula?: string | null
           sku_generation_type?: string
           supports_multilang?: boolean
@@ -2352,6 +2356,8 @@ export type Database = {
           last_modified_by?: string | null
           name?: string
           properties_schema?: Json
+          short_description_formula?: string | null
+          short_description_generation_type?: string | null
           sku_formula?: string | null
           sku_generation_type?: string
           supports_multilang?: boolean

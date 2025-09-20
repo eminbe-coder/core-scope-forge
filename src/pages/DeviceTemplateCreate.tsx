@@ -18,6 +18,7 @@ import { useBrands } from "@/hooks/use-brands";
 import { useDeviceTypes } from "@/hooks/use-device-types";
 import { useAuth } from "@/hooks/use-auth";
 import { ImageUpload } from "@/components/ui/image-upload";
+import { FormulaBuilder } from "@/components/ui/formula-builder";
 import { FormulaEngine, PropertyValue } from "@/lib/formula-engine";
 
 interface DeviceTemplatePropertyOption {
@@ -35,11 +36,13 @@ interface DeviceTemplateProperty {
   label_en: string;
   label_ar: string;
   type: 'text' | 'number' | 'select' | 'multiselect' | 'boolean' | 'date' | 'calculated';
+  data_type: string; // Add this for compatibility with FormulaBuilder
   required: boolean;
   is_identifier: boolean;
   unit?: string;
   sort_order: number;
   property_options: DeviceTemplatePropertyOption[];
+  options?: Array<{ code: string; label_en: string; }>; // Add this alias for FormulaBuilder
   formula?: string;
   depends_on_properties?: string[];
 }
@@ -55,6 +58,8 @@ interface DeviceTemplate {
   sku_formula?: string;
   description_generation_type: 'fixed' | 'dynamic';
   description_formula?: string;
+  short_description_generation_type: 'fixed' | 'dynamic';
+  short_description_formula?: string;
   image_url?: string;
   is_global: boolean;
   properties: DeviceTemplateProperty[];
@@ -93,6 +98,8 @@ export default function DeviceTemplateCreate() {
     sku_formula: '',
     description_generation_type: 'fixed',
     description_formula: '',
+    short_description_generation_type: 'dynamic',
+    short_description_formula: '',
     image_url: '',
     is_global: true,
     properties: []
@@ -201,6 +208,8 @@ export default function DeviceTemplateCreate() {
           sku_formula: template.sku_formula,
           description_generation_type: template.description_generation_type,
           description_formula: template.description_formula,
+          short_description_generation_type: template.short_description_generation_type,
+          short_description_formula: template.short_description_formula,
           image_url: template.image_url,
           is_global: template.is_global,
           created_by: user?.id,
@@ -288,11 +297,13 @@ export default function DeviceTemplateCreate() {
         label_en: '',
         label_ar: '',
         type: 'text',
+        data_type: 'text',
         required: false,
         is_identifier: false,
         unit: '',
         sort_order: prev.properties.length,
         property_options: [],
+        options: [],
         formula: '',
         depends_on_properties: []
       }]
@@ -302,9 +313,21 @@ export default function DeviceTemplateCreate() {
   const updateProperty = (index: number, field: keyof DeviceTemplateProperty, value: any) => {
     setTemplate(prev => ({
       ...prev,
-      properties: prev.properties.map((prop, i) => 
-        i === index ? { ...prop, [field]: value } : prop
-      )
+      properties: prev.properties.map((prop, i) => {
+        if (i === index) {
+          const updates: any = { [field]: value };
+          // Sync data_type with type field
+          if (field === 'type') {
+            updates.data_type = value;
+          }
+          // Update options array when property_options change
+          if (field === 'property_options') {
+            updates.options = value.map((opt: any) => ({ code: opt.code, label_en: opt.label_en }));
+          }
+          return { ...prop, ...updates };
+        }
+        return prop;
+      })
     }));
   };
 
@@ -422,7 +445,11 @@ export default function DeviceTemplateCreate() {
       return sampleData[key] || match;
     }) || '';
 
-    return { sku: replacedSku, description: replacedDescription };
+    const replacedShortDescription = template.short_description_formula?.replace(/\{(\w+)\}/g, (match, key) => {
+      return sampleData[key] || match;
+    }) || '';
+
+    return { sku: replacedSku, description: replacedDescription, shortDescription: replacedShortDescription };
   };
 
   const preview = generatePreview();
@@ -552,69 +579,51 @@ export default function DeviceTemplateCreate() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div>
-                <Label className="text-base font-medium">SKU Generation</Label>
-                <RadioGroup
-                  value={template.sku_generation_type}
-                  onValueChange={(value: 'fixed' | 'dynamic') => setTemplate(prev => ({ ...prev, sku_generation_type: value }))}
-                  className="mt-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="fixed" id="sku-fixed" />
-                    <Label htmlFor="sku-fixed">Fixed SKU</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="dynamic" id="sku-dynamic" />
-                    <Label htmlFor="sku-dynamic">Dynamic SKU (Formula-based)</Label>
-                  </div>
-                </RadioGroup>
-                
-                {template.sku_generation_type === 'dynamic' && (
-                  <div className="mt-3">
-                    <Label>SKU Formula</Label>
-                    <Input
-                      value={template.sku_formula || ''}
-                      onChange={(e) => setTemplate(prev => ({ ...prev, sku_formula: e.target.value }))}
-                      placeholder="LED-{wattage}W-{color_temperature}K"
-                      className="mt-1"
-                    />
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Preview: <Badge variant="outline">{preview.sku || 'Enter formula above'}</Badge>
-                    </p>
-                  </div>
-                )}
+                <FormulaBuilder
+                  label="SKU Generation"
+                  value={template.sku_formula || ''}
+                  onChange={(value) => setTemplate(prev => ({ ...prev, sku_formula: value }))}
+                  properties={template.properties}
+                  placeholder="LED-{wattage}W-{color_temperature}K"
+                  description="Generate unique SKU codes using property references"
+                />
+                <div className="mt-2">
+                  <p className="text-sm text-muted-foreground">
+                    Preview: <Badge variant="outline">{preview.sku || 'Enter formula above'}</Badge>
+                  </p>
+                </div>
               </div>
 
               <div>
-                <Label className="text-base font-medium">Description Generation</Label>
-                <RadioGroup
-                  value={template.description_generation_type}
-                  onValueChange={(value: 'fixed' | 'dynamic') => setTemplate(prev => ({ ...prev, description_generation_type: value }))}
-                  className="mt-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="fixed" id="desc-fixed" />
-                    <Label htmlFor="desc-fixed">Fixed Description</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="dynamic" id="desc-dynamic" />
-                    <Label htmlFor="desc-dynamic">Dynamic Description (Formula-based)</Label>
-                  </div>
-                </RadioGroup>
-                
-                {template.description_generation_type === 'dynamic' && (
-                  <div className="mt-3">
-                    <Label>Description Formula</Label>
-                    <Input
-                      value={template.description_formula || ''}
-                      onChange={(e) => setTemplate(prev => ({ ...prev, description_formula: e.target.value }))}
-                      placeholder="{wattage}W LED Panel - {color_temperature}K"
-                      className="mt-1"
-                    />
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Preview: <Badge variant="outline">{preview.description || 'Enter formula above'}</Badge>
-                    </p>
-                  </div>
-                )}
+                <FormulaBuilder
+                  label="Long Description Generation"
+                  value={template.description_formula || ''}
+                  onChange={(value) => setTemplate(prev => ({ ...prev, description_formula: value }))}
+                  properties={template.properties}
+                  placeholder="{wattage}W LED Panel - {color_temperature}K - Professional Grade"
+                  description="Generate detailed descriptions for product pages and specifications"
+                />
+                <div className="mt-2">
+                  <p className="text-sm text-muted-foreground">
+                    Preview: <Badge variant="outline">{preview.description || 'Enter formula above'}</Badge>
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <FormulaBuilder
+                  label="Short Description Generation"
+                  value={template.short_description_formula || ''}
+                  onChange={(value) => setTemplate(prev => ({ ...prev, short_description_formula: value }))}
+                  properties={template.properties}
+                  placeholder="{wattage}W LED - {color_temperature}K"
+                  description="Generate brief descriptions for listings and summaries"
+                />
+                <div className="mt-2">
+                  <p className="text-sm text-muted-foreground">
+                    Preview: <Badge variant="outline">{preview.shortDescription || 'Enter formula above'}</Badge>
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>
