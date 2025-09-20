@@ -424,10 +424,9 @@ export default function DeviceTemplateCreate() {
               </div>
 
               <div>
-                <Label>Device Image</Label>
                 <ImageUpload
                   value={template.image_url}
-                  onValueChange={(url) => setTemplate(prev => ({ ...prev, image_url: url || '' }))}
+                  onChange={(url) => setTemplate(prev => ({ ...prev, image_url: url || '' }))}
                   bucket="device-templates"
                   folder="templates"
                   className="mt-2"
