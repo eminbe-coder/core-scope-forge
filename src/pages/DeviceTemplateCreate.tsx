@@ -169,14 +169,14 @@ export default function DeviceTemplateCreate() {
 
     setIsSaving(true);
     try {
-      // Save template
+      // Save template - use category field for now until types are updated
       const { data: templateData, error: templateError } = await supabase
         .from('device_templates')
         .insert({
           tenant_id: template.is_global ? null : currentTenant.id,
           name: template.name,
           label_ar: template.label_ar,
-          device_type_id: template.device_type_id,
+          category: template.device_type_id, // Map device_type_id to category field temporarily
           brand_id: template.brand_id || null,
           description: template.description,
           supports_multilang: template.supports_multilang,

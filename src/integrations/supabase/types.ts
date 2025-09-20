@@ -2284,6 +2284,7 @@ export type Database = {
           description: string | null
           description_formula: string | null
           description_generation_type: string
+          device_type_id: string | null
           id: string
           image_url: string | null
           is_global: boolean
@@ -2305,6 +2306,7 @@ export type Database = {
           description?: string | null
           description_formula?: string | null
           description_generation_type?: string
+          device_type_id?: string | null
           id?: string
           image_url?: string | null
           is_global?: boolean
@@ -2326,6 +2328,7 @@ export type Database = {
           description?: string | null
           description_formula?: string | null
           description_generation_type?: string
+          device_type_id?: string | null
           id?: string
           image_url?: string | null
           is_global?: boolean
@@ -2344,6 +2347,13 @@ export type Database = {
             columns: ["brand_id"]
             isOneToOne: false
             referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "device_templates_device_type_id_fkey"
+            columns: ["device_type_id"]
+            isOneToOne: false
+            referencedRelation: "device_types"
             referencedColumns: ["id"]
           },
           {
