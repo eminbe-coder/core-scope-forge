@@ -267,13 +267,36 @@ export function AdvancedDeviceTemplatesManager() {
   };
 
   const handleEditTemplate = (template: DeviceTemplate) => {
-    setEditingTemplate(template);
-    setFormData({
-      ...template,
-      properties: template.properties || [],
-      options: template.options || []
-    });
-    setDialogOpen(true);
+    // Navigate to the edit page instead of opening a dialog
+    navigate(`/device-templates/edit/${template.id}`);
+  };
+
+  const handleDeleteTemplate = async (template: DeviceTemplate) => {
+    try {
+      const { error } = await supabase
+        .from('device_templates')
+        .update({ 
+          deleted_at: new Date().toISOString(),
+          deleted_by: (await supabase.auth.getUser()).data.user?.id
+        })
+        .eq('id', template.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Template moved to recycle bin successfully",
+      });
+
+      loadTemplates();
+    } catch (error) {
+      console.error('Error deleting template:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete template",
+        variant: "destructive",
+      });
+    }
   };
 
   const resetForm = () => {
@@ -473,6 +496,14 @@ export function AdvancedDeviceTemplatesManager() {
                               onClick={() => handleEditTemplate(template)}
                             >
                               <Edit2 className="h-4 w-4" />
+                              Edit
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteTemplate(template)}
+                            >
+                              <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
                         </div>
@@ -485,67 +516,7 @@ export function AdvancedDeviceTemplatesManager() {
           </TabsContent>
         </Tabs>
 
-        {/* Edit Template Dialog - Only for editing existing templates */}
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Edit Template</DialogTitle>
-              <DialogDescription>
-                Update template properties, options, and generation settings
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-6">
-              {/* Basic Information */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="name">Template Name</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="Enter template name"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="category">Device Type</Label>
-                  <Select value={formData.category} onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select device type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {deviceTypes.map((type) => (
-                        <SelectItem key={type.id} value={type.name}>
-                          {type.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Template description"
-                />
-              </div>
-
-              {/* Form Actions */}
-              <div className="flex justify-end space-x-2 pt-4">
-                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="button" onClick={handleSaveTemplate}>
-                  Update Template
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        {/* Edit dialog removed - navigation to dedicated edit page instead */}
       </CardContent>
     </Card>
   );

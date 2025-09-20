@@ -63,6 +63,7 @@ export default function DeviceTemplateEdit() {
   const [template, setTemplate] = useState<DeviceTemplate | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [autoSaveId, setAutoSaveId] = useState<string | null>(null);
 
   // Load template data
@@ -256,6 +257,45 @@ export default function DeviceTemplateEdit() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!currentTenant || !template) return;
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete the template "${template.name}"? This will move it to the recycle bin where it can be restored later.`
+    );
+
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('device_templates')
+        .update({ 
+          deleted_at: new Date().toISOString(),
+          deleted_by: (await supabase.auth.getUser()).data.user?.id
+        })
+        .eq('id', template.id);
+
+      if (error) throw error;
+
+      // Clean up draft if exists
+      if (autoSaveId) {
+        await supabase
+          .from('device_template_drafts')
+          .delete()
+          .eq('id', autoSaveId);
+      }
+
+      toast.success("Template moved to recycle bin successfully");
+      navigate('/global-admin');
+    } catch (error) {
+      console.error('Error deleting template:', error);
+      toast.error("Failed to delete template");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   // Property management functions (same as create page)
   const addProperty = () => {
     if (!template) return;
@@ -409,6 +449,14 @@ export default function DeviceTemplateEdit() {
           <Button variant="outline" onClick={() => console.log(preview)}>
             <Eye className="h-4 w-4 mr-2" />
             Preview
+          </Button>
+          <Button 
+            variant="destructive" 
+            onClick={handleDelete}
+            disabled={isDeleting}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            {isDeleting ? 'Deleting...' : 'Delete Template'}
           </Button>
           <Button onClick={handleSave} disabled={isSaving}>
             <Save className="h-4 w-4 mr-2" />

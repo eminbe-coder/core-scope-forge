@@ -20,6 +20,12 @@ export interface DeletedItem {
   } | null;
 }
 
+// Extend the hook to support device templates
+const SUPPORTED_TABLES = [
+  'companies', 'contacts', 'sites', 'deals', 'todos', 
+  'contracts', 'projects', 'activities', 'device_templates'
+];
+
 export const useRecycleBin = () => {
   const [deletedItems, setDeletedItems] = useState<DeletedItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -30,24 +36,61 @@ export const useRecycleBin = () => {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // Fetch items from deleted_items table (for entities with soft delete through deleted_items table)
+      const { data: deletedItemsData, error: deletedItemsError } = await supabase
         .from('deleted_items')
-        .select(`
-          *,
-          deleted_by_profile:profiles!deleted_items_deleted_by_fkey(
-            first_name,
-            last_name,
-            email
-          )
-        `)
+        .select('*')
         .eq('tenant_id', currentTenant.id)
         .order('deleted_at', { ascending: false });
 
-      if (error) throw error;
-      setDeletedItems((data as any[])?.map(item => ({
-        ...item,
-        deleted_by_profile: item.deleted_by_profile || null
-      })) || []);
+      if (deletedItemsError) throw deletedItemsError;
+
+      // Fetch device templates with soft delete (deleted_at is not null)
+      const { data: templatesData, error: templatesError } = await supabase
+        .from('device_templates')
+        .select(`
+          id,
+          tenant_id,
+          name,
+          description,
+          category,
+          deleted_at,
+          deleted_by
+        `)
+        .not('deleted_at', 'is', null)
+        .or(`tenant_id.eq.${currentTenant.id},is_global.eq.true`)
+        .order('deleted_at', { ascending: false });
+
+      if (templatesError) throw templatesError;
+
+      // Convert device templates to DeletedItem format
+      const templateDeletedItems: DeletedItem[] = (templatesData || []).map(template => ({
+        id: template.id,
+        tenant_id: template.tenant_id || currentTenant.id,
+        entity_type: 'device_templates',
+        entity_id: template.id,
+        entity_data: {
+          name: template.name,
+          description: template.description,
+          category: template.category
+        },
+        deleted_at: template.deleted_at!,
+        deleted_by: template.deleted_by!,
+        deleted_by_profile: null, // Will be loaded separately if needed
+        original_table: 'device_templates',
+        created_at: template.deleted_at! // Using deleted_at as created_at for deleted items
+      }));
+
+      // Combine all deleted items
+      const allDeletedItems: DeletedItem[] = [
+        ...(deletedItemsData?.map(item => ({
+          ...item,
+          deleted_by_profile: null // Will be loaded separately if needed
+        })) || []),
+        ...templateDeletedItems
+      ];
+      
+      setDeletedItems(allDeletedItems);
     } catch (error: any) {
       console.error('Error fetching deleted items:', error);
       toast.error('Failed to fetch deleted items');
@@ -58,11 +101,29 @@ export const useRecycleBin = () => {
 
   const restoreItem = async (deletedItemId: string) => {
     try {
-      const { error } = await supabase.rpc('restore_deleted_entity', {
-        _deleted_item_id: deletedItemId
-      });
+      // Find the item to restore
+      const itemToRestore = deletedItems.find(item => item.id === deletedItemId);
+      
+      if (!itemToRestore) {
+        throw new Error('Item not found');
+      }
 
-      if (error) throw error;
+      if (itemToRestore.entity_type === 'device_templates') {
+        // Handle device template restoration directly
+        const { error } = await supabase
+          .from('device_templates')
+          .update({ deleted_at: null, deleted_by: null })
+          .eq('id', itemToRestore.entity_id);
+
+        if (error) throw error;
+      } else {
+        // Use the RPC function for other entities
+        const { error } = await supabase.rpc('restore_deleted_entity', {
+          _deleted_item_id: deletedItemId
+        });
+
+        if (error) throw error;
+      }
       
       toast.success('Item restored successfully');
       fetchDeletedItems(); // Refresh the list
@@ -74,11 +135,29 @@ export const useRecycleBin = () => {
 
   const permanentlyDelete = async (deletedItemId: string) => {
     try {
-      const { error } = await supabase.rpc('permanently_delete_entity', {
-        _deleted_item_id: deletedItemId
-      });
+      // Find the item to delete
+      const itemToDelete = deletedItems.find(item => item.id === deletedItemId);
+      
+      if (!itemToDelete) {
+        throw new Error('Item not found');
+      }
 
-      if (error) throw error;
+      if (itemToDelete.entity_type === 'device_templates') {
+        // Handle device template permanent deletion directly
+        const { error } = await supabase
+          .from('device_templates')
+          .delete()
+          .eq('id', itemToDelete.entity_id);
+
+        if (error) throw error;
+      } else {
+        // Use the RPC function for other entities
+        const { error } = await supabase.rpc('permanently_delete_entity', {
+          _deleted_item_id: deletedItemId
+        });
+
+        if (error) throw error;
+      }
       
       toast.success('Item permanently deleted');
       fetchDeletedItems(); // Refresh the list
@@ -110,13 +189,27 @@ export const useSoftDelete = () => {
     }
 
     try {
-      const { error } = await supabase.rpc('soft_delete_entity', {
-        _table_name: tableName,
-        _entity_id: entityId,
-        _tenant_id: currentTenant.id
-      });
+      if (tableName === 'device_templates') {
+        // Handle device templates directly since they have their own soft delete columns
+        const { error } = await supabase
+          .from('device_templates')
+          .update({ 
+            deleted_at: new Date().toISOString(),
+            deleted_by: (await supabase.auth.getUser()).data.user?.id
+          })
+          .eq('id', entityId);
 
-      if (error) throw error;
+        if (error) throw error;
+      } else {
+        // Use the RPC function for other entities
+        const { error } = await supabase.rpc('soft_delete_entity', {
+          _table_name: tableName,
+          _entity_id: entityId,
+          _tenant_id: currentTenant.id
+        });
+
+        if (error) throw error;
+      }
       
       toast.success('Item moved to recycle bin');
     } catch (error: any) {

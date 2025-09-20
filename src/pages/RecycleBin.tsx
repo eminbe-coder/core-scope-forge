@@ -59,6 +59,8 @@ const RecycleBin = () => {
         return <FileText className="h-4 w-4" />;
       case 'projects':
         return <Target className="h-4 w-4" />;
+      case 'device_templates':
+        return <FileText className="h-4 w-4" />;
       default:
         return <FileText className="h-4 w-4" />;
     }
