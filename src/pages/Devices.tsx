@@ -76,7 +76,9 @@ const Devices = () => {
         .from('devices')
         .select(`
           *,
-          currencies(symbol)
+          currencies!devices_currency_id_fkey(symbol),
+          cost_currencies:currencies!devices_cost_currency_id_fkey(symbol),
+          msrp_currencies:currencies!devices_msrp_currency_id_fkey(symbol)
         `)
         .eq('tenant_id', currentTenant.id)
         .eq('active', true)

@@ -29,6 +29,7 @@ interface DeviceTemplate {
   name: string;
   name_ar: string;
   category: string;
+  brand_id?: string;
   description?: string;
   description_ar?: string;
   sku_formula?: string;
@@ -54,10 +55,12 @@ export default function DeviceTemplateCreate() {
   const navigate = useNavigate();
   const { currentTenant } = useTenant();
   const [activeTab, setActiveTab] = useState("global");
+  const [brands, setBrands] = useState<Array<{ id: string; name: string }>>([]);
   const [template, setTemplate] = useState<DeviceTemplate>({
     name: '',
     name_ar: '',
     category: '',
+    brand_id: '',
     description: '',
     description_ar: '',
     sku_formula: '',
@@ -154,6 +157,7 @@ export default function DeviceTemplateCreate() {
           name: template.name,
           name_ar: template.name_ar,
           category: template.category,
+          brand_id: template.brand_id || null,
           description: template.description,
           description_ar: template.description_ar,
           sku_formula: template.sku_formula,
@@ -362,18 +366,33 @@ export default function DeviceTemplateCreate() {
                 </div>
               </div>
 
-              <div>
-                <Label>Category</Label>
-                <Select value={template.category} onValueChange={(value) => setTemplate(prev => ({ ...prev, category: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DEVICE_CATEGORIES.map(category => (
-                      <SelectItem key={category} value={category}>{category}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Brand</Label>
+                  <Select value={template.brand_id} onValueChange={(value) => setTemplate(prev => ({ ...prev, brand_id: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select brand" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {brands.map(brand => (
+                        <SelectItem key={brand.id} value={brand.id}>{brand.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Category</Label>
+                  <Select value={template.category} onValueChange={(value) => setTemplate(prev => ({ ...prev, category: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DEVICE_CATEGORIES.map(category => (
+                        <SelectItem key={category} value={category}>{category}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

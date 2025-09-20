@@ -117,7 +117,8 @@ export const CreateProjectForm = ({ isOpen, onClose, onSuccess }: CreateProjectF
           name,
           category,
           unit_price,
-          currencies(symbol)
+          currency_id,
+          currencies!devices_currency_id_fkey(symbol)
         `)
         .eq('tenant_id', currentTenant.id)
         .eq('active', true)

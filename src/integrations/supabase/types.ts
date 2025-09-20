@@ -224,6 +224,36 @@ export type Database = {
         }
         Relationships: []
       }
+      brands: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string | null
+          id: string
+          logo_url: string | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          logo_url?: string | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          logo_url?: string | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           active: boolean
@@ -2247,6 +2277,7 @@ export type Database = {
       device_templates: {
         Row: {
           active: boolean
+          brand_id: string | null
           category: string
           created_at: string
           created_by: string | null
@@ -2266,6 +2297,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          brand_id?: string | null
           category: string
           created_at?: string
           created_by?: string | null
@@ -2285,6 +2317,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          brand_id?: string | null
           category?: string
           created_at?: string
           created_by?: string | null
@@ -2303,6 +2336,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "device_templates_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "device_templates_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -2353,12 +2393,18 @@ export type Database = {
           active: boolean
           brand: string | null
           category: string
+          cost_currency_id: string | null
+          cost_price: number | null
           created_at: string
           currency_id: string | null
           id: string
           is_global: boolean
           model: string | null
+          msrp: number | null
+          msrp_currency_id: string | null
           name: string
+          pricing_formula: string | null
+          pricing_type: string | null
           specifications: Json | null
           template_id: string | null
           template_properties: Json | null
@@ -2370,12 +2416,18 @@ export type Database = {
           active?: boolean
           brand?: string | null
           category: string
+          cost_currency_id?: string | null
+          cost_price?: number | null
           created_at?: string
           currency_id?: string | null
           id?: string
           is_global?: boolean
           model?: string | null
+          msrp?: number | null
+          msrp_currency_id?: string | null
           name: string
+          pricing_formula?: string | null
+          pricing_type?: string | null
           specifications?: Json | null
           template_id?: string | null
           template_properties?: Json | null
@@ -2387,12 +2439,18 @@ export type Database = {
           active?: boolean
           brand?: string | null
           category?: string
+          cost_currency_id?: string | null
+          cost_price?: number | null
           created_at?: string
           currency_id?: string | null
           id?: string
           is_global?: boolean
           model?: string | null
+          msrp?: number | null
+          msrp_currency_id?: string | null
           name?: string
+          pricing_formula?: string | null
+          pricing_type?: string | null
           specifications?: Json | null
           template_id?: string | null
           template_properties?: Json | null
@@ -2402,8 +2460,22 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "devices_cost_currency_id_fkey"
+            columns: ["cost_currency_id"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "devices_currency_id_fkey"
             columns: ["currency_id"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "devices_msrp_currency_id_fkey"
+            columns: ["msrp_currency_id"]
             isOneToOne: false
             referencedRelation: "currencies"
             referencedColumns: ["id"]

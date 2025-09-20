@@ -19,6 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DeviceTemplatesManager from '@/components/settings/DeviceTemplatesManager';
 import { DeviceTypesManager } from '@/components/settings/DeviceTypesManager';
 import { AdvancedDeviceTemplatesManager } from '@/components/settings/AdvancedDeviceTemplatesManager';
+import { BrandManager } from '@/components/settings/BrandManager';
 import GlobalUsersManager from '@/components/settings/GlobalUsersManager';
 
 interface User {
@@ -165,13 +166,14 @@ const CorePlatform = () => {
         </div>
 
         <Tabs defaultValue="tenants" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="tenants">Tenants</TabsTrigger>
-            <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="global-users">Global Users</TabsTrigger>
-            <TabsTrigger value="device-templates">Device Templates</TabsTrigger>
-            <TabsTrigger value="system-settings">System Settings</TabsTrigger>
-          </TabsList>
+            <TabsList className="grid w-full grid-cols-6">
+              <TabsTrigger value="tenants">Tenants</TabsTrigger>
+              <TabsTrigger value="users">Users</TabsTrigger>
+              <TabsTrigger value="global-users">Global Users</TabsTrigger>
+              <TabsTrigger value="brands">Brands</TabsTrigger>
+              <TabsTrigger value="device-templates">Device Templates</TabsTrigger>
+              <TabsTrigger value="system-settings">System Settings</TabsTrigger>
+            </TabsList>
 
           <TabsContent value="tenants" className="space-y-6">
             <Card>
@@ -377,6 +379,10 @@ const CorePlatform = () => {
 
           <TabsContent value="global-users" className="space-y-6">
             <GlobalUsersManager />
+          </TabsContent>
+
+          <TabsContent value="brands" className="space-y-6">
+            <BrandManager />
           </TabsContent>
 
           <TabsContent value="device-templates" className="space-y-6">
