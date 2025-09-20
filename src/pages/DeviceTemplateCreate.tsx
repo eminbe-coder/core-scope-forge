@@ -19,6 +19,15 @@ import { useDeviceTypes } from "@/hooks/use-device-types";
 import { useAuth } from "@/hooks/use-auth";
 import { ImageUpload } from "@/components/ui/image-upload";
 
+interface DeviceTemplatePropertyOption {
+  code: string;
+  label_en: string;
+  label_ar: string;
+  cost_modifier?: number;
+  cost_modifier_type?: 'fixed' | 'percentage';
+  cost_currency_id?: string;
+}
+
 interface DeviceTemplateProperty {
   id: string;
   name: string;
@@ -29,7 +38,7 @@ interface DeviceTemplateProperty {
   is_identifier: boolean;
   unit?: string;
   sort_order: number;
-  property_options: Array<{ code: string; label_en: string; label_ar: string; }>;
+  property_options: DeviceTemplatePropertyOption[];
 }
 
 interface DeviceTemplate {
@@ -64,6 +73,27 @@ export default function DeviceTemplateCreate() {
   const { currentTenant } = useTenant();
   const { brands, loading: brandsLoading } = useBrands();
   const { deviceTypes, loading: deviceTypesLoading } = useDeviceTypes();
+
+  // Load currencies
+  useEffect(() => {
+    const loadCurrencies = async () => {
+      try {
+        const { data } = await supabase
+          .from('currencies')
+          .select('id, code, symbol, name')
+          .eq('active', true)
+          .order('code');
+        
+        if (data) {
+          setCurrencies(data);
+        }
+      } catch (error) {
+        console.error('Error loading currencies:', error);
+      }
+    };
+
+    loadCurrencies();
+  }, []);
   const [activeTab, setActiveTab] = useState("global");
   const [template, setTemplate] = useState<DeviceTemplate>({
     name: '',
@@ -80,6 +110,7 @@ export default function DeviceTemplateCreate() {
     is_global: true,
     properties: []
   });
+  const [currencies, setCurrencies] = useState<Array<{ id: string; code: string; symbol: string; name: string }>>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [autoSaveId, setAutoSaveId] = useState<string | null>(null);
 
@@ -194,7 +225,7 @@ export default function DeviceTemplateCreate() {
 
       if (templateError) throw templateError;
 
-      // Save properties
+      // Save properties with cost impact for options
       if (template.properties.length > 0) {
         const propertiesData = template.properties.map(prop => ({
           template_id: templateData.id,
@@ -214,6 +245,32 @@ export default function DeviceTemplateCreate() {
           .insert(propertiesData);
 
         if (propertiesError) throw propertiesError;
+
+        // Save option cost modifiers
+        const optionsWithCostImpact = template.properties.flatMap((prop, propIndex) => 
+          prop.property_options
+            .filter(opt => opt.cost_modifier && opt.cost_modifier !== 0)
+            .map(opt => ({
+              template_id: templateData.id,
+              tenant_id: template.is_global ? null : currentTenant.id,
+              code: opt.code,
+              label_en: opt.label_en,
+              label_ar: opt.label_ar,
+              cost_modifier: opt.cost_modifier,
+              cost_modifier_type: opt.cost_modifier_type,
+              cost_currency_id: opt.cost_currency_id,
+              sort_order: 0,
+              active: true
+            }))
+        );
+
+        if (optionsWithCostImpact.length > 0) {
+          const { error: optionsError } = await supabase
+            .from('device_template_options')
+            .insert(optionsWithCostImpact);
+
+          if (optionsError) throw optionsError;
+        }
       }
 
       // Clean up draft
@@ -275,14 +332,21 @@ export default function DeviceTemplateCreate() {
         i === propertyIndex 
           ? { 
               ...prop, 
-              property_options: [...prop.property_options, { code: '', label_en: '', label_ar: '' }]
+              property_options: [...prop.property_options, { 
+                code: '', 
+                label_en: '', 
+                label_ar: '',
+                cost_modifier: 0,
+                cost_modifier_type: 'fixed',
+                cost_currency_id: ''
+              }]
             } 
           : prop
       )
     }));
   };
 
-  const updatePropertyOption = (propertyIndex: number, optionIndex: number, field: string, value: string) => {
+  const updatePropertyOption = (propertyIndex: number, optionIndex: number, field: string, value: string | number) => {
     setTemplate(prev => ({
       ...prev,
       properties: prev.properties.map((prop, i) => 
@@ -313,7 +377,12 @@ export default function DeviceTemplateCreate() {
   };
 
   const generatePreview = () => {
-    const sampleData: Record<string, any> = {};
+    const sampleData: Record<string, any> = {
+      // Fixed properties
+      item_code: 'SAMPLE-001'
+    };
+    
+    // Add custom properties that are identifiers
     template.properties.forEach(prop => {
       if (prop.is_identifier) {
         sampleData[prop.name] = prop.type === 'number' ? '100' : 'SAMPLE';
@@ -527,8 +596,29 @@ export default function DeviceTemplateCreate() {
 
           <Card>
             <CardHeader>
+              <CardTitle>Fixed Properties</CardTitle>
+              <p className="text-sm text-muted-foreground">These properties are automatically included in every device template.</p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+                <div>
+                  <Label className="font-medium">Item Code</Label>
+                  <p className="text-sm text-muted-foreground">Unique identifier for each device (always used for SKU/Description)</p>
+                  <Badge variant="outline" className="mt-1">Text • Required • Identifier</Badge>
+                </div>
+                <div>
+                  <Label className="font-medium">Cost Price</Label>
+                  <p className="text-sm text-muted-foreground">Base cost of the device (currency set during device creation)</p>
+                  <Badge variant="outline" className="mt-1">Number • Required</Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle>Properties</CardTitle>
+                <CardTitle>Custom Properties</CardTitle>
                 <Button onClick={addProperty} size="sm">
                   <Plus className="h-4 w-4 mr-2" />
                   Add Property
@@ -537,7 +627,7 @@ export default function DeviceTemplateCreate() {
             </CardHeader>
             <CardContent>
               {template.properties.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">No properties added yet. Click "Add Property" to start.</p>
+                <p className="text-muted-foreground text-center py-8">No custom properties added yet. Click "Add Property" to start.</p>
               ) : (
                 <div className="space-y-6">
                   {template.properties.map((property, index) => (
@@ -629,14 +719,6 @@ export default function DeviceTemplateCreate() {
                             />
                             <Label htmlFor={`required-${index}`}>Required</Label>
                           </div>
-                          <div className="flex items-center space-x-2 pt-6">
-                            <Checkbox
-                              id={`identifier-${index}`}
-                              checked={property.is_identifier}
-                              onCheckedChange={(checked) => updateProperty(index, 'is_identifier', checked === true)}
-                            />
-                            <Label htmlFor={`identifier-${index}`}>For SKU/Description</Label>
-                          </div>
                         </div>
 
                         {(property.type === 'select' || property.type === 'multiselect') && (
@@ -652,32 +734,91 @@ export default function DeviceTemplateCreate() {
                                 Add Option
                               </Button>
                             </div>
-                            <div className="space-y-2">
+                            <div className="space-y-3">
                               {property.property_options.map((option, optionIndex) => (
-                                <div key={optionIndex} className="flex gap-2 items-center">
-                                  <Input
-                                    placeholder="Code"
-                                    value={option.code}
-                                    onChange={(e) => updatePropertyOption(index, optionIndex, 'code', e.target.value)}
-                                    className="w-20"
-                                  />
-                                  <Input
-                                    placeholder="English Label"
-                                    value={option.label_en}
-                                    onChange={(e) => updatePropertyOption(index, optionIndex, 'label_en', e.target.value)}
-                                  />
-                                  <Input
-                                    placeholder="Arabic Label"
-                                    value={option.label_ar}
-                                    onChange={(e) => updatePropertyOption(index, optionIndex, 'label_ar', e.target.value)}
-                                  />
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => removePropertyOption(index, optionIndex)}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                                <div key={optionIndex} className="border p-3 rounded-lg space-y-3">
+                                  <div className="flex gap-2 items-center">
+                                    <Input
+                                      placeholder="Code"
+                                      value={option.code}
+                                      onChange={(e) => updatePropertyOption(index, optionIndex, 'code', e.target.value)}
+                                      className="w-20"
+                                    />
+                                    <Input
+                                      placeholder="English Label"
+                                      value={option.label_en}
+                                      onChange={(e) => updatePropertyOption(index, optionIndex, 'label_en', e.target.value)}
+                                    />
+                                    <Input
+                                      placeholder="Arabic Label"
+                                      value={option.label_ar}
+                                      onChange={(e) => updatePropertyOption(index, optionIndex, 'label_ar', e.target.value)}
+                                    />
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => removePropertyOption(index, optionIndex)}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                  
+                                  <div className="border-t pt-3">
+                                    <Label className="text-sm font-medium mb-2 block">Cost Impact</Label>
+                                    <div className="grid grid-cols-3 gap-2">
+                                      <div>
+                                        <Label className="text-xs">Amount</Label>
+                                        <Input
+                                          type="number"
+                                          placeholder="0"
+                                          value={option.cost_modifier || 0}
+                                          onChange={(e) => updatePropertyOption(index, optionIndex, 'cost_modifier', parseFloat(e.target.value) || 0)}
+                                          className="text-sm"
+                                        />
+                                      </div>
+                                      <div>
+                                        <Label className="text-xs">Type</Label>
+                                        <Select
+                                          value={option.cost_modifier_type || 'fixed'}
+                                          onValueChange={(value) => updatePropertyOption(index, optionIndex, 'cost_modifier_type', value)}
+                                        >
+                                          <SelectTrigger className="text-sm">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="fixed">Fixed Amount</SelectItem>
+                                            <SelectItem value="percentage">Percentage</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      <div>
+                                        <Label className="text-xs">Currency</Label>
+                                        <Select
+                                          value={option.cost_currency_id || ''}
+                                          onValueChange={(value) => updatePropertyOption(index, optionIndex, 'cost_currency_id', value)}
+                                        >
+                                          <SelectTrigger className="text-sm">
+                                            <SelectValue placeholder="Currency" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {currencies.map(currency => (
+                                              <SelectItem key={currency.id} value={currency.id}>
+                                                {currency.code} ({currency.symbol})
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                    </div>
+                                    {option.cost_modifier && option.cost_modifier !== 0 && (
+                                      <p className="text-xs text-muted-foreground mt-1">
+                                        {option.cost_modifier_type === 'percentage' 
+                                          ? `+${option.cost_modifier}% of base cost`
+                                          : `+${option.cost_modifier} ${currencies.find(c => c.id === option.cost_currency_id)?.symbol || ''}`
+                                        }
+                                      </p>
+                                    )}
+                                  </div>
                                 </div>
                               ))}
                             </div>
@@ -855,8 +996,29 @@ export default function DeviceTemplateCreate() {
 
           <Card>
             <CardHeader>
+              <CardTitle>Fixed Properties</CardTitle>
+              <p className="text-sm text-muted-foreground">These properties are automatically included in every device template.</p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+                <div>
+                  <Label className="font-medium">Item Code</Label>
+                  <p className="text-sm text-muted-foreground">Unique identifier for each device (always used for SKU/Description)</p>
+                  <Badge variant="outline" className="mt-1">Text • Required • Identifier</Badge>
+                </div>
+                <div>
+                  <Label className="font-medium">Cost Price</Label>
+                  <p className="text-sm text-muted-foreground">Base cost of the device (currency set during device creation)</p>
+                  <Badge variant="outline" className="mt-1">Number • Required</Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle>Properties</CardTitle>
+                <CardTitle>Custom Properties</CardTitle>
                 <Button onClick={addProperty} size="sm">
                   <Plus className="h-4 w-4 mr-2" />
                   Add Property
@@ -865,7 +1027,7 @@ export default function DeviceTemplateCreate() {
             </CardHeader>
             <CardContent>
               {template.properties.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">No properties added yet. Click "Add Property" to start.</p>
+                <p className="text-muted-foreground text-center py-8">No custom properties added yet. Click "Add Property" to start.</p>
               ) : (
                 <div className="space-y-6">
                   {template.properties.map((property, index) => (

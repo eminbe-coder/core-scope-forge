@@ -2169,6 +2169,9 @@ export type Database = {
         Row: {
           active: boolean
           code: string
+          cost_currency_id: string | null
+          cost_modifier: number | null
+          cost_modifier_type: string | null
           created_at: string
           data_type: string
           id: string
@@ -2183,6 +2186,9 @@ export type Database = {
         Insert: {
           active?: boolean
           code: string
+          cost_currency_id?: string | null
+          cost_modifier?: number | null
+          cost_modifier_type?: string | null
           created_at?: string
           data_type?: string
           id?: string
@@ -2197,6 +2203,9 @@ export type Database = {
         Update: {
           active?: boolean
           code?: string
+          cost_currency_id?: string | null
+          cost_modifier?: number | null
+          cost_modifier_type?: string | null
           created_at?: string
           data_type?: string
           id?: string
@@ -2209,6 +2218,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "device_template_options_cost_currency_id_fkey"
+            columns: ["cost_currency_id"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "device_template_options_template_id_fkey"
             columns: ["template_id"]
