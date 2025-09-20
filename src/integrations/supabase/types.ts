@@ -2105,6 +2105,36 @@ export type Database = {
           },
         ]
       }
+      device_template_drafts: {
+        Row: {
+          created_at: string
+          id: string
+          template_data: Json
+          template_id: string | null
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          template_data?: Json
+          template_id?: string | null
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          template_data?: Json
+          template_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       device_template_options: {
         Row: {
           active: boolean

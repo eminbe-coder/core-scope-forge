@@ -8,6 +8,7 @@ import { useTenant } from '@/hooks/use-tenant';
 import { useAuth } from '@/hooks/use-auth';
 import { supabase } from '@/integrations/supabase/client';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, Users, Building2, Plus, Edit, Trash2, Shield, Smartphone, Settings } from 'lucide-react';
 import { CreateTenantForm } from '@/components/forms/CreateTenantForm';
 import { TenantEditModal } from '@/components/modals/TenantEditModal';
@@ -59,6 +60,7 @@ interface Tenant {
 }
 
 const CorePlatform = () => {
+  const navigate = useNavigate();
   const { hasGlobalAccess } = useTenant();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -378,6 +380,16 @@ const CorePlatform = () => {
           </TabsContent>
 
           <TabsContent value="device-templates" className="space-y-6">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-2xl font-bold">Device Templates</h2>
+                <p className="text-muted-foreground">Manage global and tenant-specific device templates</p>
+              </div>
+              <Button onClick={() => navigate('/device-templates/create')}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create New Template
+              </Button>
+            </div>
             <div className="space-y-6">
               <DeviceTypesManager />
               <AdvancedDeviceTemplatesManager />

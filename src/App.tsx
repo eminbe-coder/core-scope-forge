@@ -11,6 +11,9 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { GlobalAdminRoute } from "@/components/GlobalAdminRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import GlobalAdmin from "./pages/GlobalAdmin";
+import DeviceTemplateCreate from "./pages/DeviceTemplateCreate";
+import DeviceTemplateEdit from "./pages/DeviceTemplateEdit";
 import AcceptInvitation from "./pages/AcceptInvitation";
 import SetPassword from "./pages/SetPassword";
 import Companies from "./pages/Companies";
@@ -51,7 +54,6 @@ import MobileHome from "./pages/MobileHome";
 import Settings from "./pages/Settings";
 import CRMSettings from "./pages/CRMSettings";
 import TodoEngineSettings from "./pages/TodoEngineSettings";
-import Admin from "./pages/Admin";
 import CorePlatform from "./pages/GlobalAdmin";
 import UsersRoles from "./pages/UsersRoles";
 import Reports from "./pages/Reports";
@@ -283,6 +285,20 @@ const App = () => (
                      <ProtectedRoute>
                        <GlobalAdminRoute>
                          <CorePlatform />
+                       </GlobalAdminRoute>
+                     </ProtectedRoute>
+                   } />
+                   <Route path="/device-templates/create" element={
+                     <ProtectedRoute>
+                       <GlobalAdminRoute>
+                         <DeviceTemplateCreate />
+                       </GlobalAdminRoute>
+                     </ProtectedRoute>
+                   } />
+                   <Route path="/device-templates/edit/:id" element={
+                     <ProtectedRoute>
+                       <GlobalAdminRoute>
+                         <DeviceTemplateEdit />
                        </GlobalAdminRoute>
                      </ProtectedRoute>
                    } />
