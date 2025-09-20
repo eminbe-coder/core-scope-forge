@@ -2301,11 +2301,13 @@ export type Database = {
           image_url: string | null
           is_global: boolean
           label_ar: string | null
+          last_modified_by: string | null
           name: string
           properties_schema: Json
           sku_formula: string | null
           sku_generation_type: string
           supports_multilang: boolean
+          template_version: number
           tenant_id: string | null
           updated_at: string
         }
@@ -2323,11 +2325,13 @@ export type Database = {
           image_url?: string | null
           is_global?: boolean
           label_ar?: string | null
+          last_modified_by?: string | null
           name: string
           properties_schema?: Json
           sku_formula?: string | null
           sku_generation_type?: string
           supports_multilang?: boolean
+          template_version?: number
           tenant_id?: string | null
           updated_at?: string
         }
@@ -2345,11 +2349,13 @@ export type Database = {
           image_url?: string | null
           is_global?: boolean
           label_ar?: string | null
+          last_modified_by?: string | null
           name?: string
           properties_schema?: Json
           sku_formula?: string | null
           sku_generation_type?: string
           supports_multilang?: boolean
+          template_version?: number
           tenant_id?: string | null
           updated_at?: string
         }
