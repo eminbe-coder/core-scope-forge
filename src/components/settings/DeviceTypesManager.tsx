@@ -8,7 +8,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Edit2, Trash2, GripVertical } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Plus, Edit2, Trash2, GripVertical, ChevronRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/use-auth';
@@ -21,8 +22,11 @@ interface DeviceType {
   active: boolean;
   is_global: boolean;
   tenant_id?: string;
+  parent_device_type_id?: string;
   created_at: string;
   updated_at: string;
+  children?: DeviceType[];
+  level?: number;
 }
 
 export function DeviceTypesManager() {
@@ -35,11 +39,56 @@ export function DeviceTypesManager() {
     name: '',
     description: '',
     active: true,
+    parent_device_type_id: '',
   });
+  const [hierarchicalTypes, setHierarchicalTypes] = useState<DeviceType[]>([]);
+  const [flatTypes, setFlatTypes] = useState<DeviceType[]>([]);
 
   useEffect(() => {
     loadDeviceTypes();
   }, []);
+
+  const buildHierarchy = (types: DeviceType[]): DeviceType[] => {
+    const typeMap = new Map<string, DeviceType>();
+    const rootTypes: DeviceType[] = [];
+    
+    // First pass: create all types with children array
+    types.forEach(type => {
+      typeMap.set(type.id, { ...type, children: [], level: 0 });
+    });
+    
+    // Second pass: build hierarchy
+    types.forEach(type => {
+      const typeWithChildren = typeMap.get(type.id)!;
+      if (type.parent_device_type_id) {
+        const parent = typeMap.get(type.parent_device_type_id);
+        if (parent) {
+          typeWithChildren.level = (parent.level || 0) + 1;
+          parent.children!.push(typeWithChildren);
+        }
+      } else {
+        rootTypes.push(typeWithChildren);
+      }
+    });
+    
+    return rootTypes;
+  };
+
+  const flattenHierarchy = (types: DeviceType[]): DeviceType[] => {
+    const flattened: DeviceType[] = [];
+    
+    const traverse = (types: DeviceType[]) => {
+      types.forEach(type => {
+        flattened.push(type);
+        if (type.children && type.children.length > 0) {
+          traverse(type.children);
+        }
+      });
+    };
+    
+    traverse(types);
+    return flattened;
+  };
 
   const loadDeviceTypes = async () => {
     try {
@@ -51,7 +100,14 @@ export function DeviceTypesManager() {
         .order('sort_order', { ascending: true });
 
       if (error) throw error;
-      setDeviceTypes(data || []);
+      
+      const types = data || [];
+      const hierarchical = buildHierarchy(types);
+      const flattened = flattenHierarchy(hierarchical);
+      
+      setDeviceTypes(types);
+      setHierarchicalTypes(hierarchical);
+      setFlatTypes(flattened);
     } catch (error) {
       console.error('Error loading device types:', error);
       toast.error('Failed to load device types');
@@ -75,6 +131,7 @@ export function DeviceTypesManager() {
             name: formData.name.trim(),
             description: formData.description.trim() || null,
             active: formData.active,
+            parent_device_type_id: formData.parent_device_type_id || null,
             updated_at: new Date().toISOString(),
           })
           .eq('id', editingType.id);
@@ -91,6 +148,7 @@ export function DeviceTypesManager() {
             name: formData.name.trim(),
             description: formData.description.trim() || null,
             active: formData.active,
+            parent_device_type_id: formData.parent_device_type_id || null,
             sort_order: maxSortOrder + 1,
             is_global: true, // Only super admins can create global types
           });
@@ -101,7 +159,7 @@ export function DeviceTypesManager() {
 
       setIsDialogOpen(false);
       setEditingType(null);
-      setFormData({ name: '', description: '', active: true });
+      setFormData({ name: '', description: '', active: true, parent_device_type_id: '' });
       loadDeviceTypes();
     } catch (error) {
       console.error('Error saving device type:', error);
@@ -115,6 +173,7 @@ export function DeviceTypesManager() {
       name: deviceType.name,
       description: deviceType.description || '',
       active: deviceType.active,
+      parent_device_type_id: deviceType.parent_device_type_id || '',
     });
     setIsDialogOpen(true);
   };
@@ -196,12 +255,21 @@ export function DeviceTypesManager() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {deviceTypes.map((deviceType) => (
+              {flatTypes.map((deviceType) => (
                 <TableRow key={deviceType.id}>
                   <TableCell>
                     <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
                   </TableCell>
-                  <TableCell className="font-medium">{deviceType.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      <div style={{ paddingLeft: `${(deviceType.level || 0) * 20}px` }} className="flex items-center gap-2">
+                        {deviceType.level && deviceType.level > 0 && (
+                          <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                        )}
+                        {deviceType.name}
+                      </div>
+                    </div>
+                  </TableCell>
                   <TableCell className="text-muted-foreground">
                     {deviceType.description || 'No description'}
                   </TableCell>
@@ -274,6 +342,27 @@ export function DeviceTypesManager() {
                   placeholder="Optional description for this device type"
                   rows={3}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="parent">Parent Type (Optional)</Label>
+                <Select
+                  value={formData.parent_device_type_id}
+                  onValueChange={(value) => setFormData({ ...formData, parent_device_type_id: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select parent device type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">No Parent (Root Level)</SelectItem>
+                    {deviceTypes
+                      .filter(type => type.id !== editingType?.id && type.active)
+                      .map((type) => (
+                        <SelectItem key={type.id} value={type.id}>
+                          {type.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="flex items-center space-x-2">
                 <Switch
