@@ -11,15 +11,10 @@ interface DeviceTemplateProperty {
   id: string;
   property_name: string;
   label_en: string;
-  data_type: string;
-  required: boolean;
+  property_type: string;
+  is_required: boolean;
   is_identifier?: boolean;
-  device_template_property_options?: Array<{
-    id: string;
-    code: string;
-    label_en: string;
-    cost_modifier?: number;
-  }>;
+  property_options?: any;
 }
 
 interface DeviceTemplateFormProps {
@@ -57,7 +52,7 @@ export function DeviceTemplateForm({ templateProperties, values, onChange }: Dev
   React.useEffect(() => {
     const initialDynamic: Record<string, string[]> = {};
     templateProperties.forEach(prop => {
-      if (prop.data_type === 'dynamic_multiselect' && values[prop.property_name]) {
+      if (prop.property_type === 'dynamic_multiselect' && values[prop.property_name]) {
         initialDynamic[prop.property_name] = Array.isArray(values[prop.property_name]) ? values[prop.property_name] : [];
       }
     });
@@ -67,7 +62,7 @@ export function DeviceTemplateForm({ templateProperties, values, onChange }: Dev
   const renderPropertyInput = (property: DeviceTemplateProperty) => {
     const currentValue = values[property.property_name];
 
-    switch (property.data_type) {
+    switch (property.property_type) {
       case 'text':
       case 'url':
       case 'email':
@@ -120,20 +115,16 @@ export function DeviceTemplateForm({ templateProperties, values, onChange }: Dev
         );
 
       case 'select':
+        const selectOptions = property.property_options ? JSON.parse(property.property_options) : [];
         return (
           <Select value={currentValue || ''} onValueChange={(value) => onChange(property.property_name, value)}>
             <SelectTrigger>
               <SelectValue placeholder={`Select ${property.label_en.toLowerCase()}`} />
             </SelectTrigger>
             <SelectContent>
-              {property.device_template_property_options?.map((option) => (
-                <SelectItem key={option.id} value={option.code}>
+              {selectOptions.map((option: any) => (
+                <SelectItem key={option.code} value={option.code}>
                   {option.label_en}
-                  {option.cost_modifier && (
-                    <span className="text-muted-foreground ml-2">
-                      ({option.cost_modifier > 0 ? '+' : ''}{option.cost_modifier})
-                    </span>
-                  )}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -141,12 +132,13 @@ export function DeviceTemplateForm({ templateProperties, values, onChange }: Dev
         );
 
       case 'multiselect':
+        const multiselectOptions = property.property_options ? JSON.parse(property.property_options) : [];
         const selectedValues = Array.isArray(currentValue) ? currentValue : [];
         return (
           <div className="space-y-2">
             <div className="flex flex-wrap gap-2">
-              {property.device_template_property_options?.map((option) => (
-                <div key={option.id} className="flex items-center space-x-2">
+              {multiselectOptions.map((option: any) => (
+                <div key={option.code} className="flex items-center space-x-2">
                   <Checkbox
                     checked={selectedValues.includes(option.code)}
                     onCheckedChange={(checked) => {
@@ -164,7 +156,7 @@ export function DeviceTemplateForm({ templateProperties, values, onChange }: Dev
             {selectedValues.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {selectedValues.map((value) => {
-                  const option = property.device_template_property_options?.find(opt => opt.code === value);
+                  const option = multiselectOptions.find((opt: any) => opt.code === value);
                   return (
                     <Badge key={value} variant="secondary" className="text-xs">
                       {option?.label_en || value}
@@ -240,7 +232,7 @@ export function DeviceTemplateForm({ templateProperties, values, onChange }: Dev
         <div key={property.id} className="space-y-2">
           <Label htmlFor={property.property_name}>
             {property.label_en}
-            {property.required && <span className="text-destructive ml-1">*</span>}
+            {property.is_required && <span className="text-destructive ml-1">*</span>}
             {property.is_identifier && (
               <Badge variant="outline" className="ml-2 text-xs">Identifier</Badge>
             )}

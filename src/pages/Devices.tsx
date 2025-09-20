@@ -55,7 +55,21 @@ interface Currency {
 interface DeviceTemplate {
   id: string;
   name: string;
-  device_template_properties: any[];
+  device_template_properties: Array<{
+    id: string;
+    property_name: string;
+    label_en: string;
+    property_type: string;
+    is_required: boolean;
+    is_identifier?: boolean;
+    property_options?: any;
+  }>;
+  device_template_options: Array<{
+    id: string;
+    code: string;
+    label_en: string;
+    cost_modifier?: number;
+  }>;
 }
 
 const Devices = () => {
@@ -137,12 +151,8 @@ const Devices = () => {
         .select(`
           id,
           name,
-          device_template_properties (
-            *,
-            device_template_property_options (
-              *
-            )
-          )
+          device_template_properties (*),
+          device_template_options (*)
         `)
         .or(`tenant_id.eq.${currentTenant.id},is_global.eq.true`)
         .eq('active', true)

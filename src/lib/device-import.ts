@@ -26,94 +26,112 @@ export interface DeviceImportValidationResult {
   warnings: string[];
 }
 
-export function parseDeviceExcel(file: File): Promise<DeviceImportResult> {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
-        
-        if (jsonData.length < 2) {
-          resolve({
-            success: false,
-            errors: ['File must contain at least a header row and one data row']
-          });
-          return;
-        }
-        
-        const headers = jsonData[0] as string[];
-        const rows = jsonData.slice(1);
-        
-        const devices: DeviceImportRow[] = rows
-          .filter(row => row.some(cell => cell !== null && cell !== undefined && cell !== ''))
-          .map((row, index) => {
-            const device: DeviceImportRow = {};
-            
-            headers.forEach((header, colIndex) => {
-              const value = row[colIndex];
-              if (value !== null && value !== undefined && value !== '') {
-                const headerLower = header.toLowerCase().trim();
-                
-                // Map standard columns
-                if (headerLower === 'name' || headerLower === 'device name') {
-                  device.name = String(value);
-                } else if (headerLower === 'category' || headerLower === 'device category') {
-                  device.category = String(value);
-                } else if (headerLower === 'brand') {
-                  device.brand = String(value);
-                } else if (headerLower === 'model') {
-                  device.model = String(value);
-                } else if (headerLower === 'unit_price' || headerLower === 'unit price' || headerLower === 'price') {
-                  device.unit_price = typeof value === 'number' ? value : parseFloat(String(value));
-                } else if (headerLower === 'currency' || headerLower === 'currency_code') {
-                  device.currency_code = String(value);
-                } else if (headerLower === 'image_url' || headerLower === 'image url' || headerLower === 'image') {
-                  device.image_url = String(value);
-                } else if (headerLower === 'specifications') {
-                  try {
-                    device.specifications = typeof value === 'string' ? JSON.parse(value) : value;
-                  } catch {
-                    device.specifications = String(value);
-                  }
-                } else {
-                  // Store as template property
-                  device[header] = value;
-                }
-              }
-            });
-            
-            return device;
-          });
-        
-        resolve({
-          success: true,
-          data: devices,
-          totalRows: rows.length,
-          validRows: devices.length
-        });
-        
-      } catch (error) {
-        resolve({
-          success: false,
-          errors: [`Error parsing Excel file: ${error instanceof Error ? error.message : 'Unknown error'}`]
-        });
-      }
-    };
-    
-    reader.onerror = () => {
-      resolve({
+export const parseDeviceExcel = async (file: File, templateProperties?: Array<{ property_name: string; property_type: string }>): Promise<DeviceImportResult> => {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+
+    if (jsonData.length < 2) {
+      return {
         success: false,
-        errors: ['Error reading file']
-      });
+        errors: ['Excel file must have at least a header row and one data row']
+      };
+    }
+
+    const headers = jsonData[0] as string[];
+    const dataRows = jsonData.slice(1);
+
+    // Create a mapping of possible column names to our interface
+    const columnMapping: { [key: string]: keyof DeviceImportRow } = {
+      'name': 'name',
+      'device name': 'name',
+      'product name': 'name',
+      'category': 'category',
+      'type': 'category',
+      'device type': 'category',
+      'brand': 'brand',
+      'manufacturer': 'brand',
+      'model': 'model',
+      'model number': 'model',
+      'price': 'price',
+      'unit price': 'price',
+      'cost': 'price',
+      'currency': 'currency',
+      'image url': 'image_url',
+      'image': 'image_url',
+      'specifications': 'specifications',
+      'specs': 'specifications',
     };
-    
-    reader.readAsArrayBuffer(file);
-  });
-}
+
+    // Create a map of template properties for quick lookup
+    const templatePropsMap = new Map<string, { property_name: string; property_type: string }>();
+    templateProperties?.forEach(prop => {
+      templatePropsMap.set(prop.property_name.toLowerCase().trim(), prop);
+    });
+
+    const devices: DeviceImportRow[] = dataRows.map((row, index) => {
+      const device: DeviceImportRow = {
+        name: '',
+        category: '',
+        brand: '',
+        model: '',
+        price: null,
+        currency: '',
+        image_url: '',
+        specifications: '',
+      };
+
+      // Map standard columns
+      headers.forEach((header, colIndex) => {
+        const normalizedHeader = header.toLowerCase().trim();
+        const mappedField = columnMapping[normalizedHeader];
+        
+        if (mappedField && row[colIndex] !== undefined && row[colIndex] !== null) {
+          if (mappedField === 'price') {
+            const value = row[colIndex];
+            device[mappedField] = typeof value === 'number' ? value : parseFloat(String(value)) || null;
+          } else {
+            device[mappedField] = String(row[colIndex]).trim();
+          }
+        }
+      });
+
+      // Handle custom template properties (columns not in standard mapping)
+      headers.forEach((header, colIndex) => {
+        const normalizedHeader = header.toLowerCase().trim();
+        if (!columnMapping[normalizedHeader] && row[colIndex] !== undefined && row[colIndex] !== null) {
+          const templateProp = templatePropsMap.get(normalizedHeader);
+          const rawValue = String(row[colIndex]).trim();
+          
+          // Handle dynamic_multiselect properties - parse comma-separated values
+          if (templateProp?.property_type === 'dynamic_multiselect') {
+            // Split by comma and clean up values
+            const values = rawValue.split(',').map(v => v.trim()).filter(v => v.length > 0);
+            device[header] = values;
+          } else {
+            // Store as string for other property types
+            device[header] = rawValue;
+          }
+        }
+      });
+
+      return device;
+    });
+
+    return {
+      success: true,
+      data: devices
+    };
+  } catch (error) {
+    console.error('Error parsing Excel file:', error);
+    return {
+      success: false,
+      errors: [error instanceof Error ? error.message : 'Unknown error occurred while parsing Excel file']
+    };
+  }
+};
 
 export function validateDeviceImportData(
   devices: DeviceImportRow[],

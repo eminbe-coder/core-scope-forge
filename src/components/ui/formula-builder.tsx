@@ -63,6 +63,12 @@ export function FormulaBuilder({
         case 'select':
           sampleValue = prop.options?.[0]?.label_en || 'Option 1';
           break;
+        case 'multiselect':
+          sampleValue = prop.options?.[0]?.label_en || 'Option 1';
+          break;
+        case 'dynamic_multiselect':
+          sampleValue = 'Value1, Value2, Value3';
+          break;
         case 'text':
           sampleValue = 'Sample Text';
           break;

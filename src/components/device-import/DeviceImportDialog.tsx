@@ -64,41 +64,38 @@ export function DeviceImportDialog({ open, onOpenChange, onImportComplete }: Dev
     const file = event.target.files?.[0];
     if (!file) return;
 
-    setImporting(true);
-    
     try {
-      const result = await parseDeviceExcel(file);
-      
+      // Get template properties for parsing context
+      const templateProperties = selectedTemplate?.device_template_properties?.map(prop => ({
+        property_name: prop.property_name,
+        property_type: prop.property_type
+      })) || [];
+
+      const result = await parseDeviceExcel(file, templateProperties);
       if (result.success && result.data) {
         setImportData(result.data);
         
-        // Find identifier property for validation
+        // Find the identifier property from the selected template
         const identifierProperty = selectedTemplate?.device_template_properties?.find(
-          (prop: any) => prop.is_identifier
-        )?.name;
+          prop => prop.is_identifier
+        );
         
-        const validation = validateDeviceImportData(result.data, identifierProperty);
+        const validation = validateDeviceImportData(result.data, identifierProperty?.property_name);
         setValidationResult(validation);
-        
-        toast({
-          title: 'File parsed successfully',
-          description: `Found ${result.validRows} valid rows out of ${result.totalRows} total rows`,
-        });
       } else {
         toast({
-          title: 'Import failed',
-          description: result.errors?.join(', ') || 'Unknown error',
-          variant: 'destructive',
+          title: "Import Error",
+          description: result.errors?.[0] || "Failed to parse Excel file",
+          variant: "destructive",
         });
       }
     } catch (error) {
+      console.error('Error processing file:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to parse Excel file',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to process the Excel file",
+        variant: "destructive",
       });
-    } finally {
-      setImporting(false);
     }
   };
 
