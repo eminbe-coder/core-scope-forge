@@ -19,6 +19,7 @@ import { useDeviceTypes } from "@/hooks/use-device-types";
 import { useAuth } from "@/hooks/use-auth";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { FormulaBuilder } from "@/components/ui/formula-builder";
+import { HierarchicalDeviceTypeSelect } from "@/components/ui/hierarchical-device-type-select";
 import { FormulaEngine, PropertyValue } from "@/lib/formula-engine";
 
 interface DeviceTemplatePropertyOption {
@@ -133,23 +134,126 @@ export default function DeviceTemplateCreate() {
   };
 
   // Get all available properties (fixed + template properties)
-  const getAllAvailableProperties = (): DeviceTemplateProperty[] => {
-    return [...getFixedProperties(), ...template.properties];
+  const getAllAvailableProperties = (properties?: DeviceTemplateProperty[]): DeviceTemplateProperty[] => {
+    const templateProps = properties || template.properties;
+    return [...getFixedProperties(), ...templateProps];
   };
 
-  const generateSKU = (properties: PropertyValue[]): string => {
-    if (!template.sku_formula) return '';
-    return FormulaEngine.evaluate(template.sku_formula, properties).toString();
+  const generateSKU = (properties: DeviceTemplateProperty[]) => {
+    if (!template.sku_formula || properties.length === 0) return 'Enter SKU formula to see preview';
+
+    const allProperties = getAllAvailableProperties(properties);
+    const propertyValues: PropertyValue[] = allProperties.map(prop => {
+      let sampleValue: string | number = '';
+      let options: Array<{ code: string; label_en: string; label_ar?: string; }> | undefined;
+      
+      switch (prop.data_type) {
+        case 'number':
+          sampleValue = 100;
+          break;
+        case 'select':
+          options = prop.options;
+          sampleValue = prop.options?.[0]?.code || 'OPT1';
+          break;
+        case 'multiselect':
+          options = prop.options;
+          sampleValue = prop.options?.[0]?.code || 'OPT1';
+          break;
+        case 'dynamic_multiselect':
+          sampleValue = 'VAL1,VAL2,VAL3';
+          break;
+        case 'text':
+          sampleValue = prop.name === 'item_code' ? 'ITM001' : 'Sample Text';
+          break;
+        case 'boolean':
+          sampleValue = 'Yes';
+          break;
+        default:
+          sampleValue = prop.name === 'item_code' ? 'ITM001' : 'Sample';
+      }
+
+      return { name: prop.name, value: sampleValue, options };
+    });
+
+    return FormulaEngine.evaluateText(template.sku_formula, propertyValues, 'sku');
   };
 
-  const generateDescription = (properties: PropertyValue[]): string => {
-    if (!template.description_formula) return '';
-    return FormulaEngine.evaluate(template.description_formula, properties).toString();
+  const generateDescription = (properties: DeviceTemplateProperty[]) => {
+    if (!template.description_formula || properties.length === 0) return 'Enter description formula to see preview';
+
+    const allProperties = getAllAvailableProperties(properties);
+    const propertyValues: PropertyValue[] = allProperties.map(prop => {
+      let sampleValue: string | number = '';
+      let options: Array<{ code: string; label_en: string; label_ar?: string; }> | undefined;
+      
+      switch (prop.data_type) {
+        case 'number':
+          sampleValue = 100;
+          break;
+        case 'select':
+          options = prop.options;
+          sampleValue = prop.options?.[0]?.label_en || 'Option 1';
+          break;
+        case 'multiselect':
+          options = prop.options;
+          sampleValue = prop.options?.[0]?.label_en || 'Option 1';
+          break;
+        case 'dynamic_multiselect':
+          sampleValue = 'Value1, Value2, Value3';
+          break;
+        case 'text':
+          sampleValue = prop.name === 'item_code' ? 'ITM001' : 'Sample Text';
+          break;
+        case 'boolean':
+          sampleValue = 'Yes';
+          break;
+        default:
+          sampleValue = prop.name === 'item_code' ? 'ITM001' : 'Sample';
+      }
+
+      return { name: prop.name, value: sampleValue, options };
+    });
+
+    return FormulaEngine.evaluateText(template.description_formula, propertyValues, 'description_en');
   };
 
-  const generateShortDescription = (properties: PropertyValue[]): string => {
-    if (!template.short_description_formula) return '';
-    return FormulaEngine.evaluate(template.short_description_formula, properties).toString();
+  const generateShortDescription = (properties: DeviceTemplateProperty[]) => {
+    if (!template.short_description_formula || properties.length === 0) return 'Enter short description formula to see preview';
+
+    const allProperties = getAllAvailableProperties(properties);
+    const propertyValues: PropertyValue[] = allProperties.map(prop => {
+      let sampleValue: string | number = '';
+      let options: Array<{ code: string; label_en: string; label_ar?: string; }> | undefined;
+      
+      switch (prop.data_type) {
+        case 'number':
+          sampleValue = 100;
+          break;
+        case 'select':
+          options = prop.options;
+          sampleValue = prop.options?.[0]?.label_en || 'Option 1';
+          break;
+        case 'multiselect':
+          options = prop.options;
+          sampleValue = prop.options?.[0]?.label_en || 'Option 1';
+          break;
+        case 'dynamic_multiselect':
+          sampleValue = 'Value1, Value2, Value3';
+          break;
+        case 'text':
+          sampleValue = prop.name === 'item_code' ? 'ITM001' : 'Sample Text';
+          break;
+        case 'boolean':
+          sampleValue = 'Yes';
+          break;
+        default:
+          sampleValue = prop.name === 'item_code' ? 'ITM001' : 'Sample';
+      }
+
+      return { name: prop.name, value: sampleValue, options };
+    });
+
+    return FormulaEngine.evaluateText(template.short_description_formula, propertyValues, 'description_en');
   };
 
   // Load existing template for edit mode
@@ -410,16 +514,16 @@ export default function DeviceTemplateCreate() {
 
       // Save properties with cost impact for options
       if (template.properties.length > 0) {
-        const propertiesData = template.properties.map(prop => ({
+        const propertiesData = template.properties.map((prop, index) => ({
           template_id: templateData.id,
           property_name: prop.name,
           label_en: prop.label_en,
           label_ar: prop.label_ar,
           property_type: prop.type,
-          is_required: prop.required,
-          is_identifier: prop.is_identifier,
+          is_required: prop.required || false,
+          is_identifier: prop.is_identifier || false,
           property_unit: prop.unit,
-          sort_order: prop.sort_order,
+          sort_order: prop.sort_order !== undefined ? prop.sort_order : index,
           property_options: prop.property_options as any,
           formula: prop.formula || null,
           depends_on_properties: prop.depends_on_properties || null
@@ -771,16 +875,11 @@ export default function DeviceTemplateCreate() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Device Type</Label>
-                  <Select value={template.device_type_id} onValueChange={(value) => setTemplate(prev => ({ ...prev, device_type_id: value }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={deviceTypesLoading ? "Loading..." : "Select device type"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {deviceTypes.map(deviceType => (
-                        <SelectItem key={deviceType.id} value={deviceType.id}>{deviceType.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <HierarchicalDeviceTypeSelect 
+                    value={template.device_type_id} 
+                    onValueChange={(value) => setTemplate(prev => ({ ...prev, device_type_id: value }))}
+                    placeholder="Select device type"
+                  />
                 </div>
                 <div>
                   <Label>Brand</Label>
@@ -1342,16 +1441,11 @@ export default function DeviceTemplateCreate() {
                 </div>
                 <div>
                   <Label>Device Type</Label>
-                  <Select value={template.device_type_id} onValueChange={(value) => setTemplate(prev => ({ ...prev, device_type_id: value }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={deviceTypesLoading ? "Loading..." : "Select device type"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {deviceTypes.map(deviceType => (
-                        <SelectItem key={deviceType.id} value={deviceType.id}>{deviceType.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <HierarchicalDeviceTypeSelect 
+                    value={template.device_type_id} 
+                    onValueChange={(value) => setTemplate(prev => ({ ...prev, device_type_id: value }))}
+                    placeholder="Select device type"
+                  />
                 </div>
               </div>
 

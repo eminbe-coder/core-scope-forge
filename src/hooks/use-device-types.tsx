@@ -8,6 +8,8 @@ interface DeviceType {
   sort_order: number;
   active: boolean;
   is_global: boolean;
+  parent_device_type_id?: string;
+  sub_types?: DeviceType[];
 }
 
 export function useDeviceTypes() {
@@ -25,7 +27,29 @@ export function useDeviceTypes() {
         .order('sort_order');
 
       if (error) throw error;
-      setDeviceTypes(data || []);
+      
+      // Build hierarchical structure
+      const typesMap = new Map<string, DeviceType>();
+      const rootTypes: DeviceType[] = [];
+      
+      // First pass: create all types
+      (data || []).forEach(type => {
+        typesMap.set(type.id, { ...type, sub_types: [] });
+      });
+      
+      // Second pass: build hierarchy
+      typesMap.forEach(type => {
+        if (type.parent_device_type_id) {
+          const parent = typesMap.get(type.parent_device_type_id);
+          if (parent) {
+            parent.sub_types!.push(type);
+          }
+        } else {
+          rootTypes.push(type);
+        }
+      });
+      
+      setDeviceTypes(rootTypes);
       setError(null);
     } catch (err) {
       console.error('Error fetching device types:', err);

@@ -2403,6 +2403,7 @@ export type Database = {
           id: string
           is_global: boolean
           name: string
+          parent_device_type_id: string | null
           sort_order: number
           tenant_id: string | null
           updated_at: string
@@ -2414,6 +2415,7 @@ export type Database = {
           id?: string
           is_global?: boolean
           name: string
+          parent_device_type_id?: string | null
           sort_order?: number
           tenant_id?: string | null
           updated_at?: string
@@ -2425,11 +2427,20 @@ export type Database = {
           id?: string
           is_global?: boolean
           name?: string
+          parent_device_type_id?: string | null
           sort_order?: number
           tenant_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "device_types_parent_device_type_id_fkey"
+            columns: ["parent_device_type_id"]
+            isOneToOne: false
+            referencedRelation: "device_types"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       devices: {
         Row: {
