@@ -237,6 +237,7 @@ export function EnhancedDeviceTemplatesManager() {
           is_identifier: prop.is_identifier,
           property_options: prop.options.length > 0 ? JSON.stringify(prop.options) : null,
           sort_order: index,
+          label_en: prop.name // Use property name as default label
         }));
 
         const { error: propertiesError } = await supabase

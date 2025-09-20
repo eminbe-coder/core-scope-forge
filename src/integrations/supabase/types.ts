@@ -2105,12 +2105,67 @@ export type Database = {
           },
         ]
       }
+      device_template_options: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          data_type: string
+          id: string
+          label_ar: string | null
+          label_en: string
+          sort_order: number
+          template_id: string
+          tenant_id: string
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          data_type?: string
+          id?: string
+          label_ar?: string | null
+          label_en: string
+          sort_order?: number
+          template_id: string
+          tenant_id: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          data_type?: string
+          id?: string
+          label_ar?: string | null
+          label_en?: string
+          sort_order?: number
+          template_id?: string
+          tenant_id?: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_template_options_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "device_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       device_template_properties: {
         Row: {
           created_at: string
           id: string
           is_identifier: boolean | null
           is_required: boolean
+          label_ar: string | null
+          label_en: string
           property_name: string
           property_options: Json | null
           property_type: string
@@ -2124,6 +2179,8 @@ export type Database = {
           id?: string
           is_identifier?: boolean | null
           is_required?: boolean
+          label_ar?: string | null
+          label_en: string
           property_name: string
           property_options?: Json | null
           property_type: string
@@ -2137,6 +2194,8 @@ export type Database = {
           id?: string
           is_identifier?: boolean | null
           is_required?: boolean
+          label_ar?: string | null
+          label_en?: string
           property_name?: string
           property_options?: Json | null
           property_type?: string
@@ -2162,10 +2221,16 @@ export type Database = {
           created_at: string
           created_by: string | null
           description: string | null
+          description_formula: string | null
+          description_generation_type: string
           id: string
           is_global: boolean
+          label_ar: string | null
           name: string
           properties_schema: Json
+          sku_formula: string | null
+          sku_generation_type: string
+          supports_multilang: boolean
           tenant_id: string | null
           updated_at: string
         }
@@ -2175,10 +2240,16 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          description_formula?: string | null
+          description_generation_type?: string
           id?: string
           is_global?: boolean
+          label_ar?: string | null
           name: string
           properties_schema?: Json
+          sku_formula?: string | null
+          sku_generation_type?: string
+          supports_multilang?: boolean
           tenant_id?: string | null
           updated_at?: string
         }
@@ -2188,10 +2259,16 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          description_formula?: string | null
+          description_generation_type?: string
           id?: string
           is_global?: boolean
+          label_ar?: string | null
           name?: string
           properties_schema?: Json
+          sku_formula?: string | null
+          sku_generation_type?: string
+          supports_multilang?: boolean
           tenant_id?: string | null
           updated_at?: string
         }

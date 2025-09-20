@@ -190,7 +190,8 @@ export default function DeviceTemplatesManager() {
           property_type: prop.property_type,
           property_options: prop.property_options,
           is_required: prop.is_required,
-          sort_order: index
+          sort_order: index,
+          label_en: prop.property_name // Use property_name as default label
         }));
 
         const { error: propError } = await supabase

@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DeviceTemplatesManager from '@/components/settings/DeviceTemplatesManager';
 import { DeviceTypesManager } from '@/components/settings/DeviceTypesManager';
-import { EnhancedDeviceTemplatesManager } from '@/components/settings/EnhancedDeviceTemplatesManager';
+import { AdvancedDeviceTemplatesManager } from '@/components/settings/AdvancedDeviceTemplatesManager';
 import GlobalUsersManager from '@/components/settings/GlobalUsersManager';
 
 interface User {
@@ -380,7 +380,7 @@ const CorePlatform = () => {
           <TabsContent value="device-templates" className="space-y-6">
             <div className="space-y-6">
               <DeviceTypesManager />
-              <EnhancedDeviceTemplatesManager />
+              <AdvancedDeviceTemplatesManager />
             </div>
           </TabsContent>
 
