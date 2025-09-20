@@ -2178,7 +2178,7 @@ export type Database = {
           label_en: string
           sort_order: number
           template_id: string
-          tenant_id: string
+          tenant_id: string | null
           unit: string | null
           updated_at: string
         }
@@ -2194,7 +2194,7 @@ export type Database = {
           label_en: string
           sort_order?: number
           template_id: string
-          tenant_id: string
+          tenant_id?: string | null
           unit?: string | null
           updated_at?: string
         }
@@ -2210,7 +2210,7 @@ export type Database = {
           label_en?: string
           sort_order?: number
           template_id?: string
-          tenant_id?: string
+          tenant_id?: string | null
           unit?: string | null
           updated_at?: string
         }
