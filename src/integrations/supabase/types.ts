@@ -2411,6 +2411,7 @@ export type Database = {
           created_at: string
           currency_id: string | null
           id: string
+          image_url: string | null
           is_global: boolean
           model: string | null
           msrp: number | null
@@ -2434,6 +2435,7 @@ export type Database = {
           created_at?: string
           currency_id?: string | null
           id?: string
+          image_url?: string | null
           is_global?: boolean
           model?: string | null
           msrp?: number | null
@@ -2457,6 +2459,7 @@ export type Database = {
           created_at?: string
           currency_id?: string | null
           id?: string
+          image_url?: string | null
           is_global?: boolean
           model?: string | null
           msrp?: number | null

@@ -25,7 +25,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Search, Cpu, DollarSign } from 'lucide-react';
+import { Plus, Search, Cpu, DollarSign, Upload } from 'lucide-react';
+import { ImageUpload } from '@/components/ui/image-upload';
+import { DeviceImportDialog } from '@/components/device-import/DeviceImportDialog';
 
 interface Device {
   id: string;
@@ -57,6 +59,7 @@ const Devices = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -66,6 +69,7 @@ const Devices = () => {
     unit_price: '',
     currency_id: currentTenant?.default_currency_id || '',
     specifications: '',
+    image_url: '',
   });
 
   const fetchDevices = async () => {
@@ -145,6 +149,7 @@ const Devices = () => {
         unit_price: formData.unit_price ? parseFloat(formData.unit_price) : null,
         currency_id: formData.currency_id || null,
         specifications: formData.specifications ? JSON.parse(formData.specifications) : null,
+        image_url: formData.image_url || null,
         tenant_id: currentTenant.id,
       };
 
@@ -168,6 +173,7 @@ const Devices = () => {
         unit_price: '',
         currency_id: currentTenant?.default_currency_id || '',
         specifications: '',
+        image_url: '',
       });
       fetchDevices();
     } catch (error) {
@@ -214,7 +220,7 @@ const Devices = () => {
                 Add Device
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Add New Device</DialogTitle>
                 <DialogDescription>
@@ -286,6 +292,13 @@ const Devices = () => {
                     </Select>
                   </div>
                 </div>
+                <ImageUpload
+                  value={formData.image_url}
+                  onChange={(url) => setFormData(prev => ({ ...prev, image_url: url || '' }))}
+                  bucket="device-images"
+                  folder="devices"
+                  maxSize={5}
+                />
                 <div>
                   <Label htmlFor="specifications">Specifications (JSON)</Label>
                   <Textarea
@@ -307,7 +320,7 @@ const Devices = () => {
           </Dialog>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center justify-between">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -317,6 +330,10 @@ const Devices = () => {
               className="pl-8"
             />
           </div>
+          <Button variant="outline" onClick={() => setIsImportDialogOpen(true)}>
+            <Upload className="mr-2 h-4 w-4" />
+            Import Devices
+          </Button>
         </div>
 
         {filteredDevices.length === 0 ? (
@@ -338,6 +355,15 @@ const Devices = () => {
             {filteredDevices.map((device) => (
               <Card key={device.id} className="hover:shadow-md transition-shadow cursor-pointer">
                 <CardHeader className="pb-3">
+                  {(device as any).image_url && (
+                    <div className="mb-3">
+                      <img 
+                        src={(device as any).image_url} 
+                        alt={device.name}
+                        className="w-full h-32 object-cover rounded-lg"
+                      />
+                    </div>
+                  )}
                   <div className="flex items-center gap-2">
                     <Cpu className="h-4 w-4 text-primary" />
                     <CardTitle className="text-lg">{device.name}</CardTitle>
@@ -374,6 +400,12 @@ const Devices = () => {
           </div>
         )}
       </div>
+
+      <DeviceImportDialog
+        open={isImportDialogOpen}
+        onOpenChange={setIsImportDialogOpen}
+        onImportComplete={fetchDevices}
+      />
     </DashboardLayout>
   );
 };

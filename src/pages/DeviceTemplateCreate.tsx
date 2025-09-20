@@ -961,9 +961,20 @@ export default function DeviceTemplateCreate() {
                             <Checkbox
                               id={`identifier-tenant-${index}`}
                               checked={property.is_identifier}
-                              onCheckedChange={(checked) => updateProperty(index, 'is_identifier', checked === true)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  // Uncheck all other identifier checkboxes
+                                  const updatedProperties = template.properties.map((prop, i) => ({
+                                    ...prop,
+                                    is_identifier: i === index
+                                  }));
+                                  setTemplate(prev => ({ ...prev, properties: updatedProperties }));
+                                } else {
+                                  updateProperty(index, 'is_identifier', false);
+                                }
+                              }}
                             />
-                            <Label htmlFor={`identifier-tenant-${index}`}>For SKU/Description</Label>
+                            <Label htmlFor={`identifier-tenant-${index}`}>Use as Unique Identifier (for imports)</Label>
                           </div>
                         </div>
 
