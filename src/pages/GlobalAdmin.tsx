@@ -16,6 +16,8 @@ import { EditUserModal } from '@/components/forms/EditUserModal';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DeviceTemplatesManager from '@/components/settings/DeviceTemplatesManager';
+import { DeviceTypesManager } from '@/components/settings/DeviceTypesManager';
+import { EnhancedDeviceTemplatesManager } from '@/components/settings/EnhancedDeviceTemplatesManager';
 import GlobalUsersManager from '@/components/settings/GlobalUsersManager';
 
 interface User {
@@ -376,7 +378,10 @@ const CorePlatform = () => {
           </TabsContent>
 
           <TabsContent value="device-templates" className="space-y-6">
-            <DeviceTemplatesManager />
+            <div className="space-y-6">
+              <DeviceTypesManager />
+              <EnhancedDeviceTemplatesManager />
+            </div>
           </TabsContent>
 
           <TabsContent value="system-settings" className="space-y-6">

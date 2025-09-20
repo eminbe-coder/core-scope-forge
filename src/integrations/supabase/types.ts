@@ -2109,10 +2109,12 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_identifier: boolean | null
           is_required: boolean
           property_name: string
           property_options: Json | null
           property_type: string
+          property_unit: string | null
           sort_order: number
           template_id: string
           updated_at: string
@@ -2120,10 +2122,12 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          is_identifier?: boolean | null
           is_required?: boolean
           property_name: string
           property_options?: Json | null
           property_type: string
+          property_unit?: string | null
           sort_order?: number
           template_id: string
           updated_at?: string
@@ -2131,10 +2135,12 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          is_identifier?: boolean | null
           is_required?: boolean
           property_name?: string
           property_options?: Json | null
           property_type?: string
+          property_unit?: string | null
           sort_order?: number
           template_id?: string
           updated_at?: string
@@ -2198,6 +2204,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      device_types: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string | null
+          id: string
+          is_global: boolean
+          name: string
+          sort_order: number
+          tenant_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_global?: boolean
+          name: string
+          sort_order?: number
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_global?: boolean
+          name?: string
+          sort_order?: number
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       devices: {
         Row: {
