@@ -13,7 +13,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import GlobalAdmin from "./pages/GlobalAdmin";
 import DeviceTemplateCreate from "./pages/DeviceTemplateCreate";
-import DeviceTemplateEdit from "./pages/DeviceTemplateEdit";
+
 import AcceptInvitation from "./pages/AcceptInvitation";
 import SetPassword from "./pages/SetPassword";
 import Companies from "./pages/Companies";
@@ -298,7 +298,7 @@ const App = () => (
                    <Route path="/device-templates/edit/:id" element={
                      <ProtectedRoute>
                        <GlobalAdminRoute>
-                         <DeviceTemplateEdit />
+                         <DeviceTemplateCreate />
                        </GlobalAdminRoute>
                      </ProtectedRoute>
                    } />

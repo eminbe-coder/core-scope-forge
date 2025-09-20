@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Trash2, Plus, ArrowLeft, Save, Eye, GripVertical, RefreshCw } from "lucide-react";
+import { Trash2, Plus, ArrowLeft, Save, Eye, GripVertical, RefreshCw, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useTenant } from "@/hooks/use-tenant";
@@ -82,12 +82,15 @@ const PROPERTY_TYPES = [
 
 export default function DeviceTemplateCreate() {
   const navigate = useNavigate();
+  const { id } = useParams();
   const { user } = useAuth();
   const { currentTenant } = useTenant();
   const { brands, loading: brandsLoading } = useBrands();
   const { deviceTypes, loading: deviceTypesLoading } = useDeviceTypes();
   
   const [activeTab, setActiveTab] = useState("global");
+  const [loading, setLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [template, setTemplate] = useState<DeviceTemplate>({
     name: '',
     label_ar: '',
@@ -107,6 +110,107 @@ export default function DeviceTemplateCreate() {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [autoSaveId, setAutoSaveId] = useState<string | null>(null);
+
+  const isEditMode = !!id;
+
+  // Load existing template for edit mode
+  useEffect(() => {
+    const loadTemplate = async () => {
+      if (!isEditMode || !currentTenant) return;
+
+      setLoading(true);
+      try {
+        // Load template
+        const { data: templateData, error: templateError } = await supabase
+          .from('device_templates')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (templateError) throw templateError;
+
+        // Load properties
+        const { data: propertiesData, error: propertiesError } = await supabase
+          .from('device_template_properties')
+          .select('*')
+          .eq('template_id', id)
+          .order('sort_order');
+
+        if (propertiesError) throw propertiesError;
+
+        // Map properties to new format
+        const properties: DeviceTemplateProperty[] = propertiesData.map(prop => ({
+          id: prop.id,
+          name: prop.property_name,
+          label_en: prop.label_en,
+          label_ar: prop.label_ar,
+          type: prop.property_type as any,
+          data_type: prop.property_type,
+          required: prop.is_required,
+          is_identifier: prop.is_identifier,
+          unit: prop.property_unit,
+          sort_order: prop.sort_order || 0,
+          property_options: (prop.property_options as any) || [],
+          options: ((prop.property_options as any) || []).map((opt: any) => ({ 
+            code: opt.code, 
+            label_en: opt.label_en 
+          })),
+          formula: prop.formula || '',
+          depends_on_properties: prop.depends_on_properties || []
+        }));
+
+        // Map old template fields to new interface
+        setTemplate({
+          name: templateData.name,
+          label_ar: templateData.label_ar || '',
+          device_type_id: templateData.device_type_id || templateData.category, // Handle both old and new schema
+          brand_id: templateData.brand_id || '',
+          description: templateData.description || '',
+          supports_multilang: templateData.supports_multilang || false,
+          sku_generation_type: (templateData.sku_generation_type as 'fixed' | 'dynamic') || 'fixed',
+          sku_formula: templateData.sku_formula || '',
+          description_generation_type: (templateData.description_generation_type as 'fixed' | 'dynamic') || 'fixed',
+          description_formula: templateData.description_formula || '',
+          short_description_generation_type: (templateData.short_description_generation_type as 'fixed' | 'dynamic') || 'dynamic',
+          short_description_formula: templateData.short_description_formula || '',
+          image_url: templateData.image_url || '',
+          is_global: templateData.is_global || false,
+          properties,
+          template_version: templateData.template_version || 1,
+          last_modified_by: templateData.last_modified_by,
+          created_by: templateData.created_by
+        });
+
+        setActiveTab(templateData.is_global ? 'global' : 'tenant');
+
+        // Check for draft
+        const { data: draftData } = await supabase
+          .from('device_template_drafts')
+          .select('*')
+          .eq('tenant_id', currentTenant.id)
+          .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+          .eq('template_id', id)
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (draftData) {
+          const draft = draftData.template_data as any;
+          setTemplate(draft);
+          setActiveTab(draft.activeTab || (draft.is_global ? 'global' : 'tenant'));
+          setAutoSaveId(draftData.id);
+        }
+      } catch (error) {
+        console.error('Error loading template:', error);
+        toast.error("Failed to load template");
+        navigate('/global-admin');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTemplate();
+  }, [id, isEditMode, currentTenant, navigate]);
 
   // Auto-save functionality
   useEffect(() => {
@@ -130,6 +234,7 @@ export default function DeviceTemplateCreate() {
             .insert({
               tenant_id: currentTenant.id,
               user_id: (await supabase.auth.getUser()).data.user?.id,
+              template_id: isEditMode ? id : null,
               template_data: templateData
             })
             .select('id')
@@ -167,7 +272,7 @@ export default function DeviceTemplateCreate() {
           .select('*')
           .eq('tenant_id', currentTenant.id)
           .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
-          .is('template_id', null)
+          .eq('template_id', isEditMode ? id : null)
           .order('updated_at', { ascending: false })
           .limit(1)
           .single();
@@ -194,33 +299,75 @@ export default function DeviceTemplateCreate() {
 
     setIsSaving(true);
     try {
-      // Save template - use category field for now until types are updated
-      const { data: templateData, error: templateError } = await supabase
-        .from('device_templates')
-        .insert({
-          tenant_id: template.is_global ? null : currentTenant.id,
-          name: template.name,
-          label_ar: template.label_ar,
-          category: template.device_type_id, // Map device_type_id to category field temporarily
-          brand_id: template.brand_id || null,
-          description: template.description,
-          supports_multilang: template.supports_multilang,
-          sku_generation_type: template.sku_generation_type,
-          sku_formula: template.sku_formula,
-          description_generation_type: template.description_generation_type,
-          description_formula: template.description_formula,
-          short_description_generation_type: template.short_description_generation_type,
-          short_description_formula: template.short_description_formula,
-          image_url: template.image_url,
-          is_global: template.is_global,
-          created_by: user?.id,
-          template_version: 1,
-          properties_schema: template.properties as any
-        })
-        .select('id')
-        .single();
+      let templateData;
+      
+      if (isEditMode) {
+        // Update existing template
+        const { error: templateError } = await supabase
+          .from('device_templates')
+          .update({
+            name: template.name,
+            label_ar: template.label_ar,
+            device_type_id: template.device_type_id,
+            category: template.device_type_id, // Keep both for compatibility
+            brand_id: template.brand_id || null,
+            description: template.description,
+            supports_multilang: template.supports_multilang,
+            sku_generation_type: template.sku_generation_type,
+            sku_formula: template.sku_formula,
+            description_generation_type: template.description_generation_type,
+            description_formula: template.description_formula,
+            short_description_generation_type: template.short_description_generation_type,
+            short_description_formula: template.short_description_formula,
+            image_url: template.image_url,
+            is_global: template.is_global,
+            last_modified_by: user?.id,
+            properties_schema: template.properties as any
+          })
+          .eq('id', id);
 
-      if (templateError) throw templateError;
+        if (templateError) throw templateError;
+        templateData = { id };
+      } else {
+        // Create new template
+        const { data: newTemplateData, error: templateError } = await supabase
+          .from('device_templates')
+          .insert({
+            tenant_id: template.is_global ? null : currentTenant.id,
+            name: template.name,
+            label_ar: template.label_ar,
+            device_type_id: template.device_type_id,
+            category: template.device_type_id, // Keep both for compatibility
+            brand_id: template.brand_id || null,
+            description: template.description,
+            supports_multilang: template.supports_multilang,
+            sku_generation_type: template.sku_generation_type,
+            sku_formula: template.sku_formula,
+            description_generation_type: template.description_generation_type,
+            description_formula: template.description_formula,
+            short_description_generation_type: template.short_description_generation_type,
+            short_description_formula: template.short_description_formula,
+            image_url: template.image_url,
+            is_global: template.is_global,
+            created_by: user?.id,
+            template_version: 1,
+            properties_schema: template.properties as any
+          })
+          .select('id')
+          .single();
+
+        if (templateError) throw templateError;
+        templateData = newTemplateData;
+      }
+
+      // Handle properties
+      if (isEditMode) {
+        // Delete existing properties for update
+        await supabase
+          .from('device_template_properties')
+          .delete()
+          .eq('template_id', id);
+      }
 
       // Save properties with cost impact for options
       if (template.properties.length > 0) {
@@ -279,13 +426,52 @@ export default function DeviceTemplateCreate() {
           .eq('id', autoSaveId);
       }
 
-      toast.success("Template created successfully");
+      toast.success(isEditMode ? "Template updated successfully" : "Template created successfully");
       navigate('/global-admin');
     } catch (error) {
       console.error('Error saving template:', error);
       toast.error("Failed to save template");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!currentTenant || !isEditMode) return;
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete the template "${template.name}"? This will move it to the recycle bin where it can be restored later.`
+    );
+
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('device_templates')
+        .update({ 
+          deleted_at: new Date().toISOString(),
+          deleted_by: user?.id
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Clean up draft if exists
+      if (autoSaveId) {
+        await supabase
+          .from('device_template_drafts')
+          .delete()
+          .eq('id', autoSaveId);
+      }
+
+      toast.success("Template moved to recycle bin successfully");
+      navigate('/global-admin');
+    } catch (error) {
+      console.error('Error deleting template:', error);
+      toast.error("Failed to delete template");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -455,6 +641,17 @@ export default function DeviceTemplateCreate() {
 
   const preview = generatePreview();
 
+  if (loading) {
+    return (
+      <div className="container mx-auto p-6 flex items-center justify-center">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading template...
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto p-6 max-w-6xl">
       <div className="flex items-center justify-between mb-6">
@@ -468,8 +665,15 @@ export default function DeviceTemplateCreate() {
             Back to Global Admin
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">Create Device Template</h1>
-            <p className="text-muted-foreground">Build a comprehensive device template with properties and multi-language support</p>
+            <h1 className="text-2xl font-bold">
+              {isEditMode ? 'Edit Device Template' : 'Create Device Template'}
+            </h1>
+            <p className="text-muted-foreground">
+              {isEditMode 
+                ? `Modify the template properties and configuration${template.template_version ? ` • Version ${template.template_version}` : ''}`
+                : 'Build a comprehensive device template with properties and multi-language support'
+              }
+            </p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -477,9 +681,19 @@ export default function DeviceTemplateCreate() {
             <Eye className="h-4 w-4 mr-2" />
             Preview
           </Button>
+          {isEditMode && (
+            <Button 
+              variant="destructive" 
+              onClick={handleDelete}
+              disabled={isDeleting}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              {isDeleting ? 'Deleting...' : 'Delete Template'}
+            </Button>
+          )}
           <Button onClick={handleSave} disabled={isSaving}>
             <Save className="h-4 w-4 mr-2" />
-            {isSaving ? 'Saving...' : 'Save Template'}
+            {isSaving ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Save Template')}
           </Button>
         </div>
       </div>
