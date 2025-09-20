@@ -15,6 +15,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useTenant } from "@/hooks/use-tenant";
 import { useBrands } from "@/hooks/use-brands";
+import { useDeviceTypes } from "@/hooks/use-device-types";
+import { useAuth } from "@/hooks/use-auth";
 import { ImageUpload } from "@/components/ui/image-upload";
 
 interface DeviceTemplateProperty {
@@ -33,7 +35,7 @@ interface DeviceTemplateProperty {
 interface DeviceTemplate {
   name: string;
   label_ar?: string;
-  category: string;
+  device_type_id: string;
   brand_id?: string;
   description?: string;
   supports_multilang: boolean;
@@ -46,9 +48,6 @@ interface DeviceTemplate {
   properties: DeviceTemplateProperty[];
 }
 
-const DEVICE_CATEGORIES = [
-  'Lighting', 'Security', 'Climate', 'Networking', 'Audio/Visual', 'Sensors', 'Other'
-];
 
 const PROPERTY_TYPES = [
   { value: 'text', label: 'Text' },
@@ -61,13 +60,15 @@ const PROPERTY_TYPES = [
 
 export default function DeviceTemplateCreate() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { currentTenant } = useTenant();
   const { brands, loading: brandsLoading } = useBrands();
+  const { deviceTypes, loading: deviceTypesLoading } = useDeviceTypes();
   const [activeTab, setActiveTab] = useState("global");
   const [template, setTemplate] = useState<DeviceTemplate>({
     name: '',
     label_ar: '',
-    category: '',
+    device_type_id: '',
     brand_id: '',
     description: '',
     supports_multilang: false,
@@ -168,8 +169,6 @@ export default function DeviceTemplateCreate() {
 
     setIsSaving(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
       // Save template
       const { data: templateData, error: templateError } = await supabase
         .from('device_templates')
@@ -177,7 +176,7 @@ export default function DeviceTemplateCreate() {
           tenant_id: template.is_global ? null : currentTenant.id,
           name: template.name,
           label_ar: template.label_ar,
-          category: template.category,
+          device_type_id: template.device_type_id,
           brand_id: template.brand_id || null,
           description: template.description,
           supports_multilang: template.supports_multilang,
@@ -413,14 +412,14 @@ export default function DeviceTemplateCreate() {
                   </Select>
                 </div>
                 <div>
-                  <Label>Category</Label>
-                  <Select value={template.category} onValueChange={(value) => setTemplate(prev => ({ ...prev, category: value }))}>
+                  <Label>Device Type</Label>
+                  <Select value={template.device_type_id} onValueChange={(value) => setTemplate(prev => ({ ...prev, device_type_id: value }))}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
+                      <SelectValue placeholder={deviceTypesLoading ? "Loading..." : "Select device type"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {DEVICE_CATEGORIES.map(category => (
-                        <SelectItem key={category} value={category}>{category}</SelectItem>
+                      {deviceTypes.map(deviceType => (
+                        <SelectItem key={deviceType.id} value={deviceType.id}>{deviceType.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -741,14 +740,14 @@ export default function DeviceTemplateCreate() {
                   </Select>
                 </div>
                 <div>
-                  <Label>Category</Label>
-                  <Select value={template.category} onValueChange={(value) => setTemplate(prev => ({ ...prev, category: value }))}>
+                  <Label>Device Type</Label>
+                  <Select value={template.device_type_id} onValueChange={(value) => setTemplate(prev => ({ ...prev, device_type_id: value }))}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
+                      <SelectValue placeholder={deviceTypesLoading ? "Loading..." : "Select device type"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {DEVICE_CATEGORIES.map(category => (
-                        <SelectItem key={category} value={category}>{category}</SelectItem>
+                      {deviceTypes.map(deviceType => (
+                        <SelectItem key={deviceType.id} value={deviceType.id}>{deviceType.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
