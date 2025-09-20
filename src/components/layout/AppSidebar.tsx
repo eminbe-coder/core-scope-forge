@@ -47,20 +47,13 @@ interface NavigationModule {
   items: NavigationItem[];
 }
 
-// Navigation for Super Admins (Core Platform)
-const corePlatformModules: NavigationModule[] = [
-  {
-    title: 'Core Platform',
-    items: [
-      {
-        title: 'Core Platform',
-        url: '/global-admin',
-        icon: Shield,
-        permission: 'super_admin.access',
-      },
-    ]
-  },
-];
+// Global Admin item for Platform super admins
+const globalAdminItem: NavigationItem = {
+  title: 'Global Admin',
+  url: '/global-admin',
+  icon: Shield,
+  permission: 'super_admin.access',
+};
 
 // Navigation for Tenant Users
 const tenantModules: NavigationModule[] = [
@@ -250,7 +243,7 @@ export function AppSidebar() {
       }
       
       if (item.permission === 'super_admin.access') {
-        return hasGlobalAccess;
+        return hasGlobalAccess && currentTenant?.slug === 'platform';
       }
       if (item.permission === 'admin.access') {
         return isAdmin;
@@ -262,12 +255,16 @@ export function AppSidebar() {
     });
   };
 
-  // Determine which navigation to show based on context
-  // Show Core Platform navigation only when user has global access (Platform super admin)
-  const showCorePlatform = hasGlobalAccess && currentTenant?.slug === 'platform';
-  
-  // Show tenant modules when in tenant context (not Platform tenant or no global access)
-  const navigationModules = showCorePlatform ? corePlatformModules : tenantModules;
+  // Add Global Admin to Administration section for Platform super admins
+  const navigationModules = tenantModules.map(module => {
+    if (module.title === 'Administration' && hasGlobalAccess && currentTenant?.slug === 'platform') {
+      return {
+        ...module,
+        items: [...module.items, globalAdminItem]
+      };
+    }
+    return module;
+  });
 
   return (
     <Sidebar className="border-r border-sidebar-border bg-sidebar">
