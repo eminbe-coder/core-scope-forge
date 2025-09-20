@@ -12,6 +12,8 @@ import { Trash2, Plus, ArrowLeft, Save, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useTenant } from "@/hooks/use-tenant";
+import { useBrands } from "@/hooks/use-brands";
+import { ImageUpload } from "@/components/ui/image-upload";
 
 interface DeviceTemplateProperty {
   id: string;
@@ -34,6 +36,7 @@ interface DeviceTemplate {
   description_ar?: string;
   sku_formula?: string;
   description_formula?: string;
+  image_url?: string;
   is_global: boolean;
   properties: DeviceTemplateProperty[];
 }
@@ -54,8 +57,8 @@ const PROPERTY_TYPES = [
 export default function DeviceTemplateCreate() {
   const navigate = useNavigate();
   const { currentTenant } = useTenant();
+  const { brands, loading: brandsLoading } = useBrands();
   const [activeTab, setActiveTab] = useState("global");
-  const [brands, setBrands] = useState<Array<{ id: string; name: string }>>([]);
   const [template, setTemplate] = useState<DeviceTemplate>({
     name: '',
     name_ar: '',
@@ -65,6 +68,7 @@ export default function DeviceTemplateCreate() {
     description_ar: '',
     sku_formula: '',
     description_formula: '',
+    image_url: '',
     is_global: true,
     properties: []
   });
@@ -162,6 +166,7 @@ export default function DeviceTemplateCreate() {
           description_ar: template.description_ar,
           sku_formula: template.sku_formula,
           description_formula: template.description_formula,
+          image_url: template.image_url,
           is_global: template.is_global
         })
         .select('id')
@@ -374,9 +379,13 @@ export default function DeviceTemplateCreate() {
                       <SelectValue placeholder="Select brand" />
                     </SelectTrigger>
                     <SelectContent>
-                      {brands.map(brand => (
-                        <SelectItem key={brand.id} value={brand.id}>{brand.name}</SelectItem>
-                      ))}
+                      {brandsLoading ? (
+                        <SelectItem value="" disabled>Loading brands...</SelectItem>
+                      ) : (
+                        brands.map(brand => (
+                          <SelectItem key={brand.id} value={brand.id}>{brand.name}</SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -412,6 +421,17 @@ export default function DeviceTemplateCreate() {
                     placeholder="وصف القالب بالعربية"
                   />
                 </div>
+              </div>
+
+              <div>
+                <Label>Device Image</Label>
+                <ImageUpload
+                  value={template.image_url}
+                  onValueChange={(url) => setTemplate(prev => ({ ...prev, image_url: url || '' }))}
+                  bucket="device-templates"
+                  folder="templates"
+                  className="mt-2"
+                />
               </div>
             </CardContent>
           </Card>

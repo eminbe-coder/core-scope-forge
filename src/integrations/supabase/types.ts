@@ -2285,6 +2285,7 @@ export type Database = {
           description_formula: string | null
           description_generation_type: string
           id: string
+          image_url: string | null
           is_global: boolean
           label_ar: string | null
           name: string
@@ -2305,6 +2306,7 @@ export type Database = {
           description_formula?: string | null
           description_generation_type?: string
           id?: string
+          image_url?: string | null
           is_global?: boolean
           label_ar?: string | null
           name: string
@@ -2325,6 +2327,7 @@ export type Database = {
           description_formula?: string | null
           description_generation_type?: string
           id?: string
+          image_url?: string | null
           is_global?: boolean
           label_ar?: string | null
           name?: string
