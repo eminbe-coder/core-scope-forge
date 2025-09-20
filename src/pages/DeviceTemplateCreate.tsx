@@ -395,23 +395,6 @@ export default function DeviceTemplateCreate() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Brand</Label>
-                  <Select value={template.brand_id} onValueChange={(value) => setTemplate(prev => ({ ...prev, brand_id: value }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select brand" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {brandsLoading ? (
-                        <SelectItem value="" disabled>Loading brands...</SelectItem>
-                      ) : (
-                        brands.map(brand => (
-                          <SelectItem key={brand.id} value={brand.id}>{brand.name}</SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
                   <Label>Device Type</Label>
                   <Select value={template.device_type_id} onValueChange={(value) => setTemplate(prev => ({ ...prev, device_type_id: value }))}>
                     <SelectTrigger>
@@ -420,6 +403,19 @@ export default function DeviceTemplateCreate() {
                     <SelectContent>
                       {deviceTypes.map(deviceType => (
                         <SelectItem key={deviceType.id} value={deviceType.id}>{deviceType.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Brand</Label>
+                  <Select value={template.brand_id} onValueChange={(value) => setTemplate(prev => ({ ...prev, brand_id: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={brandsLoading ? "Loading..." : "Select brand"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {brands.map(brand => (
+                        <SelectItem key={brand.id} value={brand.id}>{brand.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

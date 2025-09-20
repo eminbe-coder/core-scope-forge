@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -87,6 +88,7 @@ const DATA_TYPES = [
 
 export function AdvancedDeviceTemplatesManager() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('global');
   const [templates, setTemplates] = useState<DeviceTemplate[]>([]);
   const [deviceTypes, setDeviceTypes] = useState<DeviceType[]>([]);
@@ -94,7 +96,7 @@ export function AdvancedDeviceTemplatesManager() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<DeviceTemplate | null>(null);
   
-  // Form state
+  // Form state for editing only
   const [formData, setFormData] = useState<DeviceTemplate>({
     name: '',
     category: '',
@@ -193,10 +195,9 @@ export function AdvancedDeviceTemplatesManager() {
     try {
       const templateData = {
         ...formData,
-        tenant_id: formData.is_global ? null : undefined
+        tenant_id: formData.is_global ? null : undefined,
+        category: formData.category // Map device type name to category for now
       };
-
-      let templateId = editingTemplate?.id;
 
       if (editingTemplate) {
         // Update existing template
@@ -206,68 +207,47 @@ export function AdvancedDeviceTemplatesManager() {
           .eq('id', editingTemplate.id);
 
         if (error) throw error;
-      } else {
-        // Create new template
-        const { data, error } = await supabase
-          .from('device_templates')
-          .insert([templateData])
-          .select()
-          .single();
 
-        if (error) throw error;
-        templateId = data.id;
-      }
-
-      // Save properties
-      if (templateId && formData.properties) {
-        // Delete existing properties
-        await supabase
-          .from('device_template_properties')
-          .delete()
-          .eq('template_id', templateId);
-
-        // Insert new properties
-        if (formData.properties.length > 0) {
-          const propertiesData = formData.properties.map(prop => ({
-            ...prop,
-            template_id: templateId
-          }));
-
-          const { error: propsError } = await supabase
-            .from('device_template_properties')
-            .insert(propertiesData);
-
-          if (propsError) throw propsError;
+        // Save properties and options
+        const templateId = editingTemplate.id;
+        
+        // Save properties
+        if (templateId && formData.properties) {
+          await supabase.from('device_template_properties').delete().eq('template_id', templateId);
+          
+          if (formData.properties.length > 0) {
+            const propertiesData = formData.properties.map(prop => ({
+              ...prop,
+              template_id: templateId
+            }));
+            const { error: propsError } = await supabase
+              .from('device_template_properties')
+              .insert(propertiesData);
+            if (propsError) throw propsError;
+          }
         }
-      }
 
-      // Save options
-      if (templateId && formData.options) {
-        // Delete existing options
-        await supabase
-          .from('device_template_options')
-          .delete()
-          .eq('template_id', templateId);
-
-        // Insert new options
-        if (formData.options.length > 0) {
-          const optionsData = formData.options.map(option => ({
-            ...option,
-            template_id: templateId,
-            tenant_id: formData.is_global ? null : undefined
-          }));
-
-          const { error: optionsError } = await supabase
-            .from('device_template_options')
-            .insert(optionsData);
-
-          if (optionsError) throw optionsError;
+        // Save options
+        if (templateId && formData.options) {
+          await supabase.from('device_template_options').delete().eq('template_id', templateId);
+          
+          if (formData.options.length > 0) {
+            const optionsData = formData.options.map(option => ({
+              ...option,
+              template_id: templateId,
+              tenant_id: formData.is_global ? null : undefined
+            }));
+            const { error: optionsError } = await supabase
+              .from('device_template_options')
+              .insert(optionsData);
+            if (optionsError) throw optionsError;
+          }
         }
       }
 
       toast({
         title: "Success",
-        description: `Template ${editingTemplate ? 'updated' : 'created'} successfully`,
+        description: "Template updated successfully",
       });
 
       setDialogOpen(false);
@@ -380,7 +360,6 @@ export function AdvancedDeviceTemplatesManager() {
 
   const generatePreview = () => {
     if (formData.sku_generation_type === 'dynamic' && formData.sku_formula) {
-      // Simple formula evaluation for preview
       let preview = formData.sku_formula;
       formData.properties?.forEach(prop => {
         if (prop.property_name) {
@@ -442,392 +421,10 @@ export function AdvancedDeviceTemplatesManager() {
               <h3 className="text-lg font-medium">
                 {activeTab === 'global' ? 'Global Templates' : 'Tenant Templates'}
               </h3>
-              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button onClick={resetForm}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Template
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>
-                      {editingTemplate ? 'Edit Template' : 'Create New Template'}
-                    </DialogTitle>
-                    <DialogDescription>
-                      Configure template properties, options, and generation settings
-                    </DialogDescription>
-                  </DialogHeader>
-
-                  <div className="space-y-6">
-                    {/* Basic Information */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="name">Template Name</Label>
-                        <Input
-                          id="name"
-                          value={formData.name}
-                          onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                          placeholder="Enter template name"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="category">Category</Label>
-                        <Select value={formData.category} onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select category" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {deviceTypes.map((type) => (
-                              <SelectItem key={type.id} value={type.name}>
-                                {type.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    {/* Multi-language Support */}
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        id="multilang"
-                        checked={formData.supports_multilang}
-                        onCheckedChange={(checked) => setFormData(prev => ({ ...prev, supports_multilang: checked }))}
-                      />
-                      <Label htmlFor="multilang" className="flex items-center gap-2">
-                        <Languages className="h-4 w-4" />
-                        Enable Multi-language Support (Arabic/English)
-                      </Label>
-                    </div>
-
-                    {formData.supports_multilang && (
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="name_en">Template Name (English)</Label>
-                          <Input
-                            id="name_en"
-                            value={formData.name}
-                            onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                            placeholder="Enter English name"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="name_ar">Template Name (Arabic)</Label>
-                          <Input
-                            id="name_ar"
-                            value={formData.label_ar || ''}
-                            onChange={(e) => setFormData(prev => ({ ...prev, label_ar: e.target.value }))}
-                            placeholder="أدخل الاسم باللغة العربية"
-                            dir="rtl"
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    <div>
-                      <Label htmlFor="description">Description</Label>
-                      <Textarea
-                        id="description"
-                        value={formData.description || ''}
-                        onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                        placeholder="Enter template description"
-                      />
-                    </div>
-
-                    <Separator />
-
-                    {/* Dynamic Generation Settings */}
-                    <div className="space-y-4">
-                      <h4 className="text-lg font-medium flex items-center gap-2">
-                        <Code className="h-4 w-4" />
-                        Dynamic Generation Settings
-                      </h4>
-                      
-                      {/* SKU Generation */}
-                      <div className="space-y-2">
-                        <Label>SKU Generation</Label>
-                        <Select 
-                          value={formData.sku_generation_type} 
-                          onValueChange={(value: 'fixed' | 'dynamic') => setFormData(prev => ({ ...prev, sku_generation_type: value }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="fixed">Fixed SKU</SelectItem>
-                            <SelectItem value="dynamic">Dynamic SKU (Formula-based)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        
-                        {formData.sku_generation_type === 'dynamic' && (
-                          <div className="space-y-2">
-                            <Label>SKU Formula</Label>
-                            <Input
-                              value={formData.sku_formula || ''}
-                              onChange={(e) => setFormData(prev => ({ ...prev, sku_formula: e.target.value }))}
-                              placeholder="e.g., {brand}-{model}-{color}"
-                            />
-                            <div className="text-sm text-muted-foreground">
-                              Preview: <Badge variant="outline">{skuPreview}</Badge>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Description Generation */}
-                      <div className="space-y-2">
-                        <Label>Description Generation</Label>
-                        <Select 
-                          value={formData.description_generation_type} 
-                          onValueChange={(value: 'fixed' | 'dynamic') => setFormData(prev => ({ ...prev, description_generation_type: value }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="fixed">Fixed Description</SelectItem>
-                            <SelectItem value="dynamic">Dynamic Description (Formula-based)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        
-                        {formData.description_generation_type === 'dynamic' && (
-                          <div className="space-y-2">
-                            <Label>Description Formula</Label>
-                            <Textarea
-                              value={formData.description_formula || ''}
-                              onChange={(e) => setFormData(prev => ({ ...prev, description_formula: e.target.value }))}
-                              placeholder="e.g., {brand} {model} in {color} color"
-                            />
-                            <div className="text-sm text-muted-foreground">
-                              Preview: <Badge variant="outline">{descriptionPreview}</Badge>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    {/* Properties and Options Management */}
-                    <Tabs defaultValue="properties">
-                      <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="properties">Properties</TabsTrigger>
-                        <TabsTrigger value="options">Options</TabsTrigger>
-                      </TabsList>
-
-                      <TabsContent value="properties" className="space-y-4">
-                        <div className="flex justify-between items-center">
-                          <h4 className="text-lg font-medium">Template Properties</h4>
-                          <Button type="button" variant="outline" onClick={addProperty}>
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add Property
-                          </Button>
-                        </div>
-
-                        {formData.properties?.map((property, index) => (
-                          <Card key={index} className="p-4">
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <Label>Property Name</Label>
-                                <Input
-                                  value={property.property_name}
-                                  onChange={(e) => updateProperty(index, { property_name: e.target.value })}
-                                  placeholder="e.g., brand, model, color"
-                                />
-                              </div>
-                              <div>
-                                <Label>Property Type</Label>
-                                <Select 
-                                  value={property.property_type} 
-                                  onValueChange={(value: any) => updateProperty(index, { property_type: value })}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {PROPERTY_TYPES.map((type) => (
-                                      <SelectItem key={type.value} value={type.value}>
-                                        {type.label}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-
-                              {formData.supports_multilang ? (
-                                <>
-                                  <div>
-                                    <Label>Label (English)</Label>
-                                    <Input
-                                      value={property.label_en}
-                                      onChange={(e) => updateProperty(index, { label_en: e.target.value })}
-                                      placeholder="English label"
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label>Label (Arabic)</Label>
-                                    <Input
-                                      value={property.label_ar || ''}
-                                      onChange={(e) => updateProperty(index, { label_ar: e.target.value })}
-                                      placeholder="التسمية باللغة العربية"
-                                      dir="rtl"
-                                    />
-                                  </div>
-                                </>
-                              ) : (
-                                <div>
-                                  <Label>Label</Label>
-                                  <Input
-                                    value={property.label_en}
-                                    onChange={(e) => updateProperty(index, { label_en: e.target.value })}
-                                    placeholder="Property label"
-                                  />
-                                </div>
-                              )}
-
-                              <div>
-                                <Label>Unit</Label>
-                                <Input
-                                  value={property.property_unit || ''}
-                                  onChange={(e) => updateProperty(index, { property_unit: e.target.value })}
-                                  placeholder="e.g., cm, kg, inches"
-                                />
-                              </div>
-                              <div className="flex items-center space-x-4">
-                                <div className="flex items-center space-x-2">
-                                  <Switch
-                                    checked={property.is_required}
-                                    onCheckedChange={(checked) => updateProperty(index, { is_required: checked })}
-                                  />
-                                  <Label>Required</Label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                  <Switch
-                                    checked={property.is_identifier || false}
-                                    onCheckedChange={(checked) => updateProperty(index, { is_identifier: checked })}
-                                  />
-                                  <Label>Identifier</Label>
-                                </div>
-                                <Button 
-                                  type="button" 
-                                  variant="destructive" 
-                                  size="sm"
-                                  onClick={() => removeProperty(index)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          </Card>
-                        ))}
-                      </TabsContent>
-
-                      <TabsContent value="options" className="space-y-4">
-                        <div className="flex justify-between items-center">
-                          <h4 className="text-lg font-medium">Template Options</h4>
-                          <Button type="button" variant="outline" onClick={addOption}>
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add Option
-                          </Button>
-                        </div>
-
-                        {formData.options?.map((option, index) => (
-                          <Card key={index} className="p-4">
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <Label>Option Code</Label>
-                                <Input
-                                  value={option.code}
-                                  onChange={(e) => updateOption(index, { code: e.target.value })}
-                                  placeholder="e.g., RED, BLU, LRG"
-                                />
-                              </div>
-                              <div>
-                                <Label>Data Type</Label>
-                                <Select 
-                                  value={option.data_type} 
-                                  onValueChange={(value: any) => updateOption(index, { data_type: value })}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {DATA_TYPES.map((type) => (
-                                      <SelectItem key={type.value} value={type.value}>
-                                        {type.label}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-
-                              {formData.supports_multilang ? (
-                                <>
-                                  <div>
-                                    <Label>Label (English)</Label>
-                                    <Input
-                                      value={option.label_en}
-                                      onChange={(e) => updateOption(index, { label_en: e.target.value })}
-                                      placeholder="English label"
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label>Label (Arabic)</Label>
-                                    <Input
-                                      value={option.label_ar || ''}
-                                      onChange={(e) => updateOption(index, { label_ar: e.target.value })}
-                                      placeholder="التسمية باللغة العربية"
-                                      dir="rtl"
-                                    />
-                                  </div>
-                                </>
-                              ) : (
-                                <div>
-                                  <Label>Label</Label>
-                                  <Input
-                                    value={option.label_en}
-                                    onChange={(e) => updateOption(index, { label_en: e.target.value })}
-                                    placeholder="Option label"
-                                  />
-                                </div>
-                              )}
-
-                              <div>
-                                <Label>Unit</Label>
-                                <Input
-                                  value={option.unit || ''}
-                                  onChange={(e) => updateOption(index, { unit: e.target.value })}
-                                  placeholder="e.g., cm, kg, inches"
-                                />
-                              </div>
-                              <div className="flex items-center justify-end">
-                                <Button 
-                                  type="button" 
-                                  variant="destructive" 
-                                  size="sm"
-                                  onClick={() => removeOption(index)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          </Card>
-                        ))}
-                      </TabsContent>
-                    </Tabs>
-
-                    <div className="flex justify-end space-x-2">
-                      <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button type="button" onClick={handleSaveTemplate}>
-                        {editingTemplate ? 'Update Template' : 'Create Template'}
-                      </Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
+              <Button onClick={() => navigate('/device-templates/create')}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Template
+              </Button>
             </div>
 
             {loading ? (
@@ -860,7 +457,7 @@ export function AdvancedDeviceTemplatesManager() {
                               )}
                             </div>
                             <p className="text-sm text-muted-foreground">
-                              Category: {template.category} • Properties: {template.properties?.length || 0} • Options: {template.options?.length || 0}
+                              Device Type: {template.category} • Properties: {template.properties?.length || 0} • Options: {template.options?.length || 0}
                             </p>
                             {template.description && (
                               <p className="text-sm text-muted-foreground">{template.description}</p>
@@ -884,6 +481,68 @@ export function AdvancedDeviceTemplatesManager() {
             )}
           </TabsContent>
         </Tabs>
+
+        {/* Edit Template Dialog - Only for editing existing templates */}
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Template</DialogTitle>
+              <DialogDescription>
+                Update template properties, options, and generation settings
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-6">
+              {/* Basic Information */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="name">Template Name</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Enter template name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="category">Device Type</Label>
+                  <Select value={formData.category} onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select device type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {deviceTypes.map((type) => (
+                        <SelectItem key={type.id} value={type.name}>
+                          {type.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Template description"
+                />
+              </div>
+
+              {/* Form Actions */}
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="button" onClick={handleSaveTemplate}>
+                  Update Template
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );
