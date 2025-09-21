@@ -52,6 +52,7 @@ interface DeviceTemplate {
   id: string;
   name: string;
   category: string;
+  device_type_id?: string;
   device_template_properties: Array<{
     id: string;
     property_name: string;
@@ -92,6 +93,8 @@ const GlobalDevices = () => {
   });
 
   const [templateProperties, setTemplateProperties] = useState<Record<string, any>>({});
+  const [deviceTypes, setDeviceTypes] = useState<Array<{id: string; name: string}>>([]);
+  const [brands, setBrands] = useState<Array<{id: string; name: string}>>([]);
 
   const fetchGlobalDevices = async () => {
     try {
@@ -142,6 +145,7 @@ const GlobalDevices = () => {
           id,
           name,
           category,
+          device_type_id,
           properties_schema,
           device_template_properties (*),
           device_template_options (*)
@@ -157,11 +161,94 @@ const GlobalDevices = () => {
     }
   };
 
+  const fetchDeviceTypes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('device_types')
+        .select('id, name')
+        .eq('active', true)
+        .order('name');
+
+      if (error) throw error;
+      setDeviceTypes(data || []);
+    } catch (error) {
+      console.error('Error fetching device types:', error);
+    }
+  };
+
+  const fetchBrands = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('brands')
+        .select('id, name')
+        .eq('active', true)
+        .order('name');
+
+      if (error) throw error;
+      setBrands(data || []);
+    } catch (error) {
+      console.error('Error fetching brands:', error);
+    }
+  };
+
   useEffect(() => {
     fetchGlobalDevices();
     fetchCurrencies();
     fetchDeviceTemplates();
+    fetchDeviceTypes();
+    fetchBrands();
   }, []);
+
+  // Auto-populate form fields from selected template
+  useEffect(() => {
+    const selectedTemplate = deviceTemplates.find(t => t.id === selectedTemplateId);
+    if (selectedTemplate) {
+      const deviceType = deviceTypes.find(dt => dt.id === selectedTemplate.device_type_id);
+      
+      // Get template properties for auto-population
+      let templateProps = selectedTemplate?.device_template_properties || [];
+      if (templateProps.length === 0 && selectedTemplate?.properties_schema) {
+        const schema = Array.isArray(selectedTemplate.properties_schema) 
+          ? selectedTemplate.properties_schema 
+          : [];
+        templateProps = schema.map((prop: any) => ({
+          id: prop.name || prop.id,
+          property_name: prop.name || prop.property_name,
+          label_en: prop.label_en || prop.name,
+          property_type: prop.type || prop.property_type,
+          is_required: prop.required || prop.is_required || false,
+          is_identifier: prop.is_identifier || false,
+          property_options: prop.property_options
+        }));
+      }
+
+      // Find Brand property from template properties
+      const brandProperty = templateProps.find(p => p.property_name.toLowerCase() === 'brand');
+      
+      setFormData(prev => ({
+        ...prev,
+        name: selectedTemplate.name || prev.name,
+        category: deviceType?.name || selectedTemplate.category || prev.category,
+        brand: brandProperty ? '' : prev.brand, // Clear brand if it's in template properties
+      }));
+
+      // Clear template properties to start fresh
+      setTemplateProperties({});
+    } else {
+      // Reset form when no template selected
+      setFormData({
+        name: '',
+        category: '',
+        brand: '',
+        model: '',
+        unit_price: '',
+        currency_id: '',
+        specifications: '',
+        image_url: '',
+      });
+      setTemplateProperties({});
+    }
+  }, [selectedTemplateId, deviceTemplates, deviceTypes, brands]);
 
   const handleExportDevices = async () => {
     if (selectedDevices.length === 0) {
@@ -222,12 +309,29 @@ const GlobalDevices = () => {
     }
 
     try {
+      // Get final values from template properties
+      const selectedTemplate = deviceTemplates.find(t => t.id === selectedTemplateId);
+      let finalBrand = formData.brand;
+      let finalModel = formData.model;
+      let finalUnitPrice = formData.unit_price;
+
+      // Extract values from template properties if they exist
+      if (selectedTemplateId && templateProperties) {
+        const brandFromTemplate = templateProperties['brand'] || templateProperties['Brand'];
+        const modelFromTemplate = templateProperties['model'] || templateProperties['Model'];
+        const costFromTemplate = templateProperties['cost'] || templateProperties['Cost'] || templateProperties['cost_price'] || templateProperties['Cost Price'];
+
+        if (brandFromTemplate) finalBrand = brandFromTemplate;
+        if (modelFromTemplate) finalModel = modelFromTemplate;
+        if (costFromTemplate && !formData.unit_price) finalUnitPrice = costFromTemplate.toString();
+      }
+
       const deviceData = {
         name: formData.name,
         category: formData.category,
-        brand: formData.brand || null,
-        model: formData.model || null,
-        unit_price: formData.unit_price ? parseFloat(formData.unit_price) : null,
+        brand: finalBrand || null,
+        model: finalModel || null,
+        unit_price: finalUnitPrice ? parseFloat(finalUnitPrice) : null,
         currency_id: formData.currency_id || null,
         specifications: formData.specifications ? JSON.parse(formData.specifications) : null,
         image_url: formData.image_url || null,
@@ -372,36 +476,61 @@ const GlobalDevices = () => {
                       id="name"
                       value={formData.name}
                       onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                      placeholder="Device name"
+                      placeholder={selectedTemplateId ? "Auto-filled from template" : "Device name"}
+                      disabled={!!selectedTemplateId}
                     />
                   </div>
+                  
                   <div>
-                    <Label htmlFor="category">Category *</Label>
+                    <Label htmlFor="category">Category * {selectedTemplateId && "(From Template)"}</Label>
                     <Input
                       id="category"
                       value={formData.category}
                       onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                      placeholder="e.g., LED Light, Sensor, Switch"
+                      placeholder={selectedTemplateId ? "Auto-filled from template device type" : "e.g., LED Light, Sensor, Switch"}
+                      disabled={!!selectedTemplateId}
                     />
                   </div>
+
                   <div>
-                    <Label htmlFor="brand">Brand</Label>
-                    <Input
-                      id="brand"
-                      value={formData.brand}
-                      onChange={(e) => setFormData(prev => ({ ...prev, brand: e.target.value }))}
-                      placeholder="Device brand"
-                    />
+                    <Label htmlFor="brand">Brand {(() => {
+                      const selectedTemplate = deviceTemplates.find(t => t.id === selectedTemplateId);
+                      const templateProps = selectedTemplate?.device_template_properties || [];
+                      const brandInTemplate = templateProps.some(p => p.property_name.toLowerCase() === 'brand');
+                      return brandInTemplate ? "(From Template Properties)" : selectedTemplateId ? "(Not in Template)" : "";
+                    })()}</Label>
+                    {(() => {
+                      const selectedTemplate = deviceTemplates.find(t => t.id === selectedTemplateId);
+                      const templateProps = selectedTemplate?.device_template_properties || [];
+                      const brandInTemplate = templateProps.some(p => p.property_name.toLowerCase() === 'brand');
+                      
+                      if (brandInTemplate) {
+                        return <p className="text-sm text-muted-foreground">Brand will be set from template properties below</p>;
+                      }
+                      
+                      return (
+                        <Input
+                          id="brand"
+                          value={formData.brand}
+                          onChange={(e) => setFormData(prev => ({ ...prev, brand: e.target.value }))}
+                          placeholder="Device brand"
+                          disabled={!!selectedTemplateId && !brandInTemplate}
+                        />
+                      );
+                    })()}
                   </div>
-                  <div>
-                    <Label htmlFor="model">Model</Label>
-                    <Input
-                      id="model"
-                      value={formData.model}
-                      onChange={(e) => setFormData(prev => ({ ...prev, model: e.target.value }))}
-                      placeholder="Model number"
-                    />
-                  </div>
+
+                  {!selectedTemplateId && (
+                    <div>
+                      <Label htmlFor="model">Model</Label>
+                      <Input
+                        id="model"
+                        value={formData.model}
+                        onChange={(e) => setFormData(prev => ({ ...prev, model: e.target.value }))}
+                        placeholder="Model number"
+                      />
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <Label htmlFor="unit_price">Unit Price</Label>
@@ -462,7 +591,14 @@ const GlobalDevices = () => {
                     if (templateProps.length > 0) {
                       return (
                         <div className="border-t pt-4">
-                          <Label className="text-base font-medium mb-4 block">Template Properties</Label>
+                          <Label className="text-base font-medium mb-4 block">
+                            Template Properties
+                            {selectedTemplate && (
+                              <span className="text-sm font-normal text-muted-foreground ml-2">
+                                (from {selectedTemplate.name})
+                              </span>
+                            )}
+                          </Label>
                           <DeviceTemplateForm
                             templateProperties={templateProps}
                             values={templateProperties}
