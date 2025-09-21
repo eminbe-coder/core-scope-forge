@@ -30,6 +30,10 @@ interface DeviceTemplate {
   short_description_formula?: string;
   description_generation_type?: string;
   description_formula?: string;
+  short_description_ar_generation_type?: string;
+  short_description_ar_formula?: string;
+  description_ar_generation_type?: string;
+  description_ar_formula?: string;
 }
 
 interface DeviceTemplateFormProps {
@@ -105,6 +109,30 @@ export function DeviceTemplateForm({ templateProperties, values, onChange, selec
         id: 'long_description',
         property_name: 'long_description',
         label_en: 'Long Description',
+        property_type: 'text',
+        data_type: 'textarea',
+        is_required: true,
+        is_identifier: false,
+      });
+    }
+
+    if (selectedTemplate?.short_description_ar_generation_type === 'fixed') {
+      baseProperties.splice(-1, 0, {
+        id: 'short_description_ar',
+        property_name: 'short_description_ar',
+        label_en: 'Short Description (Arabic)',
+        property_type: 'text',
+        data_type: 'text',
+        is_required: true,
+        is_identifier: false,
+      });
+    }
+
+    if (selectedTemplate?.description_ar_generation_type === 'fixed') {
+      baseProperties.splice(-1, 0, {
+        id: 'description_ar',
+        property_name: 'description_ar',
+        label_en: 'Long Description (Arabic)',
         property_type: 'text',
         data_type: 'textarea',
         is_required: true,
@@ -448,16 +476,19 @@ export function DeviceTemplateForm({ templateProperties, values, onChange, selec
       {selectedTemplate && (
         selectedTemplate.sku_generation_type === 'dynamic' || 
         selectedTemplate.short_description_generation_type === 'dynamic' || 
-        selectedTemplate.description_generation_type === 'dynamic'
+        selectedTemplate.description_generation_type === 'dynamic' ||
+        selectedTemplate.short_description_ar_generation_type === 'dynamic' ||
+        selectedTemplate.description_ar_generation_type === 'dynamic'
       ) && (
         <div>
           <h3 className="text-lg font-semibold mb-4">Generated Fields Preview</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {selectedTemplate.sku_generation_type === 'dynamic' && selectedTemplate.sku_formula && (
               <DynamicFieldPreview
-                label="SKU"
+                label="Item Code"
                 formula={selectedTemplate.sku_formula}
                 properties={getPropertyValues}
+                context="sku"
               />
             )}
             {selectedTemplate.short_description_generation_type === 'dynamic' && selectedTemplate.short_description_formula && (
@@ -465,6 +496,7 @@ export function DeviceTemplateForm({ templateProperties, values, onChange, selec
                 label="Short Description"
                 formula={selectedTemplate.short_description_formula}
                 properties={getPropertyValues}
+                context="description_en"
                 className="md:col-span-2 lg:col-span-2"
               />
             )}
@@ -473,6 +505,25 @@ export function DeviceTemplateForm({ templateProperties, values, onChange, selec
                 label="Long Description"
                 formula={selectedTemplate.description_formula}
                 properties={getPropertyValues}
+                context="description_en"
+                className="md:col-span-2 lg:col-span-3"
+              />
+            )}
+            {selectedTemplate.short_description_ar_generation_type === 'dynamic' && selectedTemplate.short_description_ar_formula && (
+              <DynamicFieldPreview
+                label="Short Description (Arabic)"
+                formula={selectedTemplate.short_description_ar_formula}
+                properties={getPropertyValues}
+                context="description_ar"
+                className="md:col-span-2 lg:col-span-2"
+              />
+            )}
+            {selectedTemplate.description_ar_generation_type === 'dynamic' && selectedTemplate.description_ar_formula && (
+              <DynamicFieldPreview
+                label="Long Description (Arabic)"
+                formula={selectedTemplate.description_ar_formula}
+                properties={getPropertyValues}
+                context="description_ar"
                 className="md:col-span-2 lg:col-span-3"
               />
             )}

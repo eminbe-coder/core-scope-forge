@@ -32,8 +32,12 @@ interface DeviceTemplate {
   sku_formula?: string;
   short_description_generation_type?: string;
   short_description_formula?: string;
-  description_generation_type?: string;
+  description_generation_type?: string;  
   description_formula?: string;
+  short_description_ar_generation_type?: string;
+  short_description_ar_formula?: string;
+  description_ar_generation_type?: string;
+  description_ar_formula?: string;
   device_template_properties: Array<{
     id: string;
     property_name: string;
@@ -103,6 +107,10 @@ const AddGlobalDevice = () => {
           short_description_formula,
           description_generation_type,
           description_formula,
+          short_description_ar_generation_type,
+          short_description_ar_formula,
+          description_ar_generation_type,
+          description_ar_formula,
           properties_schema,
           device_template_properties (*),
           device_template_options (*)
@@ -187,6 +195,8 @@ const AddGlobalDevice = () => {
         sku: '',
         short_description: '',
         long_description: '',
+        short_description_ar: '',
+        description_ar: '',
         device_image: ''
       };
       
@@ -228,13 +238,19 @@ const AddGlobalDevice = () => {
     
     // Only check SKU, descriptions if they are fixed generation type
     if (selectedTemplate?.sku_generation_type === 'fixed' && !templateProperties.sku) {
-      requiredFixedFields.push('SKU');
+      requiredFixedFields.push('item code');
     }
     if (selectedTemplate?.short_description_generation_type === 'fixed' && !templateProperties.short_description) {
       requiredFixedFields.push('short description');
     }
     if (selectedTemplate?.description_generation_type === 'fixed' && !templateProperties.long_description) {
       requiredFixedFields.push('long description');
+    }
+    if (selectedTemplate?.short_description_ar_generation_type === 'fixed' && !templateProperties.short_description_ar) {
+      requiredFixedFields.push('short description (Arabic)');
+    }
+    if (selectedTemplate?.description_ar_generation_type === 'fixed' && !templateProperties.description_ar) {
+      requiredFixedFields.push('long description (Arabic)');
     }
 
     if (requiredFixedFields.length > 0) {
@@ -296,6 +312,8 @@ const AddGlobalDevice = () => {
           sku: templateProperties.sku || '',
           short_description: templateProperties.short_description || '',
           long_description: templateProperties.long_description || '',
+          short_description_ar: templateProperties.short_description_ar || '',
+          description_ar: templateProperties.description_ar || '',
           device_image: templateProperties.device_image || ''
         },
         tenant_id: null,

@@ -14,18 +14,19 @@ interface DynamicFieldPreviewProps {
   label: string;
   formula: string;
   properties: PropertyValue[];
+  context?: 'sku' | 'description_en' | 'description_ar';
   className?: string;
 }
 
-export function DynamicFieldPreview({ label, formula, properties, className }: DynamicFieldPreviewProps) {
+export function DynamicFieldPreview({ label, formula, properties, context = 'description_en', className }: DynamicFieldPreviewProps) {
   // Evaluate the formula with current property values
   const previewValue = React.useMemo(() => {
     try {
-      return FormulaEngine.evaluateText(formula, properties, 'description_en');
+      return FormulaEngine.evaluateText(formula, properties, context);
     } catch (error) {
       return 'Preview will appear as you fill properties...';
     }
-  }, [formula, properties]);
+  }, [formula, properties, context]);
 
   return (
     <div className={`space-y-2 ${className}`}>

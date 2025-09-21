@@ -2299,6 +2299,8 @@ export type Database = {
           deleted_at: string | null
           deleted_by: string | null
           description: string | null
+          description_ar_formula: string | null
+          description_ar_generation_type: string | null
           description_formula: string | null
           description_generation_type: string
           device_type_id: string | null
@@ -2309,6 +2311,8 @@ export type Database = {
           last_modified_by: string | null
           name: string
           properties_schema: Json
+          short_description_ar_formula: string | null
+          short_description_ar_generation_type: string | null
           short_description_formula: string | null
           short_description_generation_type: string | null
           sku_formula: string | null
@@ -2327,6 +2331,8 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           description?: string | null
+          description_ar_formula?: string | null
+          description_ar_generation_type?: string | null
           description_formula?: string | null
           description_generation_type?: string
           device_type_id?: string | null
@@ -2337,6 +2343,8 @@ export type Database = {
           last_modified_by?: string | null
           name: string
           properties_schema?: Json
+          short_description_ar_formula?: string | null
+          short_description_ar_generation_type?: string | null
           short_description_formula?: string | null
           short_description_generation_type?: string | null
           sku_formula?: string | null
@@ -2355,6 +2363,8 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           description?: string | null
+          description_ar_formula?: string | null
+          description_ar_generation_type?: string | null
           description_formula?: string | null
           description_generation_type?: string
           device_type_id?: string | null
@@ -2365,6 +2375,8 @@ export type Database = {
           last_modified_by?: string | null
           name?: string
           properties_schema?: Json
+          short_description_ar_formula?: string | null
+          short_description_ar_generation_type?: string | null
           short_description_formula?: string | null
           short_description_generation_type?: string | null
           sku_formula?: string | null
