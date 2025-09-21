@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import DeviceTemplatesManager from '@/components/settings/DeviceTemplatesManager';
+import { AdvancedDeviceTemplatesManager } from '@/components/settings/AdvancedDeviceTemplatesManager';
 
 interface DeviceTemplate {
   id: string;
@@ -42,12 +42,13 @@ export default function DeviceTemplates() {
   const loadGlobalTemplates = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('device_templates')
-        .select('*')
-        .eq('is_global', true)
-        .eq('active', true)
-        .order('name');
+    const { data, error } = await supabase
+      .from('device_templates')
+      .select('*')
+      .eq('is_global', true)
+      .eq('active', true)
+      .is('deleted_at', null) // Fix soft delete filtering
+      .order('name');
       
       if (error) throw error;
       setGlobalTemplates(data || []);
@@ -144,7 +145,7 @@ export default function DeviceTemplates() {
           </Button>
         </div>
 
-        <DeviceTemplatesManager />
+        <AdvancedDeviceTemplatesManager />
 
         <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">

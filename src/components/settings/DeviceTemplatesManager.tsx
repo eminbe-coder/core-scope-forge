@@ -88,6 +88,9 @@ export default function DeviceTemplatesManager() {
         query = query.eq('tenant_id', currentTenant?.id).eq('is_global', false);
       }
       
+      // Fix soft delete filtering
+      query = query.is('deleted_at', null);
+      
       const { data, error } = await query.order('name');
       
       if (error) throw error;
@@ -232,19 +235,23 @@ export default function DeviceTemplatesManager() {
   };
 
   const handleDeleteTemplate = async (templateId: string) => {
-    if (!confirm('Are you sure you want to delete this template?')) return;
+    if (!confirm('Are you sure you want to move this template to recycle bin?')) return;
 
     try {
+      // Use soft delete instead of hard delete
       const { error } = await supabase
         .from('device_templates')
-        .delete()
+        .update({ 
+          deleted_at: new Date().toISOString(),
+          deleted_by: null // Would need auth.uid() if this was in RLS context
+        })
         .eq('id', templateId);
       
       if (error) throw error;
       
       toast({
         title: "Success",
-        description: "Template deleted successfully"
+        description: "Template moved to recycle bin"
       });
       
       loadTemplates();

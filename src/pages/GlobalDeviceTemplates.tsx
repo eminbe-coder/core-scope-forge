@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import DeviceTemplatesManager from '@/components/settings/DeviceTemplatesManager';
+import { useNavigate } from 'react-router-dom';
 
 interface DeviceTemplate {
   id: string;
@@ -21,12 +21,14 @@ interface DeviceTemplate {
   active: boolean;
   created_at: string;
   updated_at: string;
+  deleted_at?: string;
 }
 
 export default function GlobalDeviceTemplates() {
   const [templates, setTemplates] = useState<DeviceTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadGlobalTemplates();
@@ -39,6 +41,7 @@ export default function GlobalDeviceTemplates() {
         .from('device_templates')
         .select('*')
         .eq('is_global', true)
+        .is('deleted_at', null) // Fix soft delete filtering
         .order('name');
       
       if (error) throw error;
@@ -55,33 +58,6 @@ export default function GlobalDeviceTemplates() {
     }
   };
 
-  const handleDeleteTemplate = async (templateId: string) => {
-    if (!confirm('Are you sure you want to delete this global template?')) return;
-
-    try {
-      const { error } = await supabase
-        .from('device_templates')
-        .delete()
-        .eq('id', templateId);
-      
-      if (error) throw error;
-      
-      toast({
-        title: "Success",
-        description: "Global template deleted successfully"
-      });
-      
-      loadGlobalTemplates();
-    } catch (error: any) {
-      console.error('Error deleting template:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete template",
-        variant: "destructive"
-      });
-    }
-  };
-
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -89,9 +65,13 @@ export default function GlobalDeviceTemplates() {
           <div>
             <h1 className="text-3xl font-bold">Global Device Templates</h1>
             <p className="text-muted-foreground">
-              Manage global device templates available to all tenants
+              View global device templates. For full management, visit the Global Admin panel.
             </p>
           </div>
+          <Button onClick={() => navigate('/global-admin')}>
+            <Edit className="w-4 h-4 mr-2" />
+            Manage Templates
+          </Button>
         </div>
 
         <Card>
@@ -148,9 +128,9 @@ export default function GlobalDeviceTemplates() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleDeleteTemplate(template.id)}
+                            onClick={() => navigate('/global-admin')}
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Eye className="w-4 h-4" />
                           </Button>
                         </div>
                       </TableCell>
@@ -162,10 +142,20 @@ export default function GlobalDeviceTemplates() {
           </CardContent>
         </Card>
 
-        {/* Template Management Component - Filtered for Global Only */}
-        <div className="mt-8">
-          <DeviceTemplatesManager />
-        </div>
+        {/* Note: Full template management is available in Global Admin */}
+        <Card className="mt-8">
+          <CardContent className="py-8">
+            <div className="text-center space-y-4">
+              <h3 className="text-lg font-semibold">Need to manage templates?</h3>
+              <p className="text-muted-foreground">
+                Visit the Global Admin panel for full template creation, editing, and management capabilities.
+              </p>
+              <Button onClick={() => navigate('/global-admin')}>
+                Go to Global Admin
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </DashboardLayout>
   );

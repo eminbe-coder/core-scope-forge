@@ -16,7 +16,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { EditUserModal } from '@/components/forms/EditUserModal';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import DeviceTemplatesManager from '@/components/settings/DeviceTemplatesManager';
 import { DeviceTypesManager } from '@/components/settings/DeviceTypesManager';
 import { AdvancedDeviceTemplatesManager } from '@/components/settings/AdvancedDeviceTemplatesManager';
 import { BrandManager } from '@/components/settings/BrandManager';
