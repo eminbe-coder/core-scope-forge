@@ -28,7 +28,12 @@ interface DeviceTemplate {
   category: string;
   device_type_id?: string;
   brand_id?: string;
-  sku_generation_type?: 'fixed' | 'dynamic';
+  sku_generation_type?: string;
+  sku_formula?: string;
+  short_description_generation_type?: string;
+  short_description_formula?: string;
+  description_generation_type?: string;
+  description_formula?: string;
   device_template_properties: Array<{
     id: string;
     property_name: string;
@@ -92,6 +97,12 @@ const AddGlobalDevice = () => {
           category,
           device_type_id,
           brand_id,
+          sku_generation_type,
+          sku_formula,
+          short_description_generation_type,
+          short_description_formula,
+          description_generation_type,
+          description_formula,
           properties_schema,
           device_template_properties (*),
           device_template_options (*)
@@ -207,10 +218,29 @@ const AddGlobalDevice = () => {
     }
 
     // Check if required fixed properties are filled
-    if (!templateProperties.cost_price || !templateProperties.sku || !templateProperties.short_description || !templateProperties.long_description) {
+    const selectedTemplate = deviceTemplates.find(t => t.id === selectedTemplateId);
+    const requiredFixedFields = [];
+    
+    // Always check cost_price
+    if (!templateProperties.cost_price) {
+      requiredFixedFields.push('cost price');
+    }
+    
+    // Only check SKU, descriptions if they are fixed generation type
+    if (selectedTemplate?.sku_generation_type === 'fixed' && !templateProperties.sku) {
+      requiredFixedFields.push('SKU');
+    }
+    if (selectedTemplate?.short_description_generation_type === 'fixed' && !templateProperties.short_description) {
+      requiredFixedFields.push('short description');
+    }
+    if (selectedTemplate?.description_generation_type === 'fixed' && !templateProperties.long_description) {
+      requiredFixedFields.push('long description');
+    }
+
+    if (requiredFixedFields.length > 0) {
       toast({
         title: 'Error',
-        description: 'Please fill in all required template properties',
+        description: `Please fill in all required fields: ${requiredFixedFields.join(', ')}`,
         variant: 'destructive',
       });
       return;
@@ -523,11 +553,12 @@ const AddGlobalDevice = () => {
                   if (templateProps.length > 0) {
                     return (
                       <div className="border-t pt-6">
-                        <DeviceTemplateForm
-                          templateProperties={templateProps}
-                          values={templateProperties}
-                          onChange={handleTemplatePropertyChange}
-                        />
+                <DeviceTemplateForm
+                  templateProperties={templateProps}
+                  values={templateProperties}
+                  onChange={handleTemplatePropertyChange}
+                  selectedTemplate={selectedTemplate}
+                />
                       </div>
                     );
                   }

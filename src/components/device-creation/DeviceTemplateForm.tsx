@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { ImageUpload } from '@/components/ui/image-upload';
 import { Plus, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { DynamicFieldPreview } from './DynamicFieldPreview';
 
 interface DeviceTemplateProperty {
   id: string;
@@ -20,73 +21,118 @@ interface DeviceTemplateProperty {
   property_options?: any;
 }
 
+interface DeviceTemplate {
+  id: string;
+  name: string;
+  sku_generation_type?: string;
+  sku_formula?: string;
+  short_description_generation_type?: string;
+  short_description_formula?: string;
+  description_generation_type?: string;
+  description_formula?: string;
+}
+
 interface DeviceTemplateFormProps {
   templateProperties: DeviceTemplateProperty[];
   values: Record<string, any>;
   onChange: (name: string, value: any) => void;
+  selectedTemplate?: DeviceTemplate;
 }
 
-export function DeviceTemplateForm({ templateProperties, values, onChange }: DeviceTemplateFormProps) {
+export function DeviceTemplateForm({ templateProperties, values, onChange, selectedTemplate }: DeviceTemplateFormProps) {
   const [dynamicValues, setDynamicValues] = useState<Record<string, string[]>>({});
   
-  // Fixed properties that are always shown
-  const fixedProperties = [
-    {
-      id: 'cost_price',
-      property_name: 'cost_price',
-      label_en: 'Cost Price',
-      property_type: 'number',
-      data_type: 'number',
-      is_required: true,
-      is_identifier: false,
-    },
-    {
-      id: 'cost_price_currency_id',
-      property_name: 'cost_price_currency_id',
-      label_en: 'Cost Price Currency',
-      property_type: 'select',
-      data_type: 'select',
-      is_required: true,
-      is_identifier: false,
-      property_options: [], // Will be populated with currencies
-    },
-    {
-      id: 'sku',
-      property_name: 'sku',
-      label_en: 'SKU',
-      property_type: 'text',
-      data_type: 'text',
-      is_required: true,
-      is_identifier: true,
-    },
-    {
-      id: 'short_description',
-      property_name: 'short_description',
-      label_en: 'Short Description',
-      property_type: 'text',
-      data_type: 'text',
-      is_required: true,
-      is_identifier: false,
-    },
-    {
-      id: 'long_description',
-      property_name: 'long_description',
-      label_en: 'Long Description',
-      property_type: 'text',
-      data_type: 'textarea',
-      is_required: true,
-      is_identifier: false,
-    },
-    {
-      id: 'device_image',
-      property_name: 'device_image',
-      label_en: 'Device Image',
-      property_type: 'text',
-      data_type: 'image',
-      is_required: false,
-      is_identifier: false,
+  // Build fixed properties based on template generation types
+  const fixedProperties = React.useMemo(() => {
+    const baseProperties = [
+      {
+        id: 'cost_price',
+        property_name: 'cost_price',
+        label_en: 'Cost Price',
+        property_type: 'number',
+        data_type: 'number',
+        is_required: true,
+        is_identifier: false,
+      },
+      {
+        id: 'cost_price_currency_id',
+        property_name: 'cost_price_currency_id',
+        label_en: 'Cost Price Currency',
+        property_type: 'select',
+        data_type: 'select',
+        is_required: true,
+        is_identifier: false,
+        property_options: [], // Will be populated with currencies
+      },
+      {
+        id: 'device_image',
+        property_name: 'device_image',
+        label_en: 'Device Image',
+        property_type: 'text',
+        data_type: 'image',
+        is_required: false,
+        is_identifier: false,
+      }
+    ];
+
+    // Only add fixed properties if generation type is 'fixed'
+    if (selectedTemplate?.sku_generation_type === 'fixed') {
+      baseProperties.splice(2, 0, {
+        id: 'sku',
+        property_name: 'sku',
+        label_en: 'SKU',
+        property_type: 'text',
+        data_type: 'text',
+        is_required: true,
+        is_identifier: true,
+      });
     }
-  ];
+
+    if (selectedTemplate?.short_description_generation_type === 'fixed') {
+      baseProperties.splice(-1, 0, {
+        id: 'short_description',
+        property_name: 'short_description',
+        label_en: 'Short Description',
+        property_type: 'text',
+        data_type: 'text',
+        is_required: true,
+        is_identifier: false,
+      });
+    }
+
+    if (selectedTemplate?.description_generation_type === 'fixed') {
+      baseProperties.splice(-1, 0, {
+        id: 'long_description',
+        property_name: 'long_description',
+        label_en: 'Long Description',
+        property_type: 'text',
+        data_type: 'textarea',
+        is_required: true,
+        is_identifier: false,
+      });
+    }
+
+    return baseProperties;
+  }, [selectedTemplate]);
+
+  // Convert template properties to PropertyValue format for formula engine
+  const getPropertyValues = React.useMemo(() => {
+    return templateProperties.map(prop => ({
+      name: prop.property_name,
+      value: values[prop.property_name],
+      options: (() => {
+        if (!prop.property_options) return undefined;
+        try {
+          const options = typeof prop.property_options === 'string' 
+            ? JSON.parse(prop.property_options) 
+            : prop.property_options;
+          return Array.isArray(options) ? options : undefined;
+        } catch {
+          return undefined;
+        }
+      })()
+    }));
+  }, [templateProperties, values]);
 
   // Get currencies for cost price currency field
   const [currencies, setCurrencies] = React.useState<Array<{id: string; code: string; name: string}>>([]);
@@ -398,27 +444,65 @@ export function DeviceTemplateForm({ templateProperties, values, onChange }: Dev
 
   return (
     <div className="space-y-6">
-      {/* Fixed Properties Section */}
-      <div>
-        <h3 className="text-lg font-semibold mb-4">Required Device Information</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {fixedProperties.map((property) => (
-            <div key={property.id} className={`space-y-2 ${
-              property.data_type === 'textarea' ? 'md:col-span-2 lg:col-span-3' : 
-              property.data_type === 'image' ? 'md:col-span-2 lg:col-span-3' : ''
-            }`}>
-              <Label htmlFor={property.property_name}>
-                {property.label_en}
-                {property.is_required && <span className="text-destructive ml-1">*</span>}
-                {property.is_identifier && (
-                  <Badge variant="outline" className="ml-2 text-xs">Identifier</Badge>
-                )}
-              </Label>
-              {renderFixedPropertyInput(property)}
-            </div>
-          ))}
+      {/* Dynamic Field Previews Section */}
+      {selectedTemplate && (
+        selectedTemplate.sku_generation_type === 'dynamic' || 
+        selectedTemplate.short_description_generation_type === 'dynamic' || 
+        selectedTemplate.description_generation_type === 'dynamic'
+      ) && (
+        <div>
+          <h3 className="text-lg font-semibold mb-4">Generated Fields Preview</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {selectedTemplate.sku_generation_type === 'dynamic' && selectedTemplate.sku_formula && (
+              <DynamicFieldPreview
+                label="SKU"
+                formula={selectedTemplate.sku_formula}
+                properties={getPropertyValues}
+              />
+            )}
+            {selectedTemplate.short_description_generation_type === 'dynamic' && selectedTemplate.short_description_formula && (
+              <DynamicFieldPreview
+                label="Short Description"
+                formula={selectedTemplate.short_description_formula}
+                properties={getPropertyValues}
+                className="md:col-span-2 lg:col-span-2"
+              />
+            )}
+            {selectedTemplate.description_generation_type === 'dynamic' && selectedTemplate.description_formula && (
+              <DynamicFieldPreview
+                label="Long Description"
+                formula={selectedTemplate.description_formula}
+                properties={getPropertyValues}
+                className="md:col-span-2 lg:col-span-3"
+              />
+            )}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Fixed Properties Section */}
+      {fixedProperties.length > 0 && (
+        <div>
+          <h3 className="text-lg font-semibold mb-4">Required Device Information</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {fixedProperties.map((property) => (
+              <div key={property.id} className={`space-y-2 ${
+                property.data_type === 'textarea' ? 'md:col-span-2 lg:col-span-3' : 
+                property.data_type === 'image' ? 'md:col-span-2 lg:col-span-3' : ''
+              }`}>
+                <Label htmlFor={property.property_name}>
+                  {property.label_en}
+                  {property.is_required && <span className="text-destructive ml-1">*</span>}
+                  {property.is_identifier && (
+                    <Badge variant="outline" className="ml-2 text-xs">Identifier</Badge>
+                  )}
+                </Label>
+                {renderFixedPropertyInput(property)}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Template Properties Section */}
       {templateProperties.length > 0 && (
