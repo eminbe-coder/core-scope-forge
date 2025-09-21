@@ -203,6 +203,12 @@ const AddGlobalDevice = () => {
       if (brandProperty && defaultBrand) {
         initialTemplateProps[brandProperty.property_name] = defaultBrand;
       }
+      
+      // Always include fixed properties
+      initialTemplateProps['item_code'] = '';
+      initialTemplateProps['cost_price'] = 0;
+      initialTemplateProps['device_image'] = '';
+      
       setTemplateProperties(initialTemplateProps);
     } else {
       // Reset form when no template selected
@@ -274,7 +280,8 @@ const AddGlobalDevice = () => {
           ...templateProperties,
           // Always include fixed properties
           item_code: templateProperties.item_code || templateProperties.Item_Code || '',
-          cost_price: templateProperties.cost_price || templateProperties.Cost_Price || finalUnitPrice || 0
+          cost_price: templateProperties.cost_price || templateProperties.Cost_Price || finalUnitPrice || 0,
+          device_image: templateProperties.device_image || templateProperties.Device_Image || formData.image_url || ''
         },
         tenant_id: null,
       };
@@ -545,7 +552,7 @@ const AddGlobalDevice = () => {
                     <h3 className="text-lg font-semibold mb-4">Template Properties</h3>
                     <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                       <h4 className="font-medium text-blue-900 mb-2">Fixed Properties (Always Available)</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                         <div>
                           <span className="font-medium">Item Code:</span> Unique identifier for device
                           <div className="text-xs text-blue-700 mt-1">✓ This is the device identifier</div>
@@ -553,6 +560,10 @@ const AddGlobalDevice = () => {
                         <div>
                           <span className="font-medium">Cost Price:</span> Base manufacturing cost  
                           <div className="text-xs text-blue-700 mt-1">✓ Automatically populated from template</div>
+                        </div>
+                        <div>
+                          <span className="font-medium">Device Image:</span> Product photo or illustration
+                          <div className="text-xs text-blue-700 mt-1">✓ URL or file upload supported</div>
                         </div>
                       </div>
                     </div>

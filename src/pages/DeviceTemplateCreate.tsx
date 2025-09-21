@@ -149,6 +149,22 @@ export default function DeviceTemplateCreate() {
         options: [],
         formula: '',
         depends_on_properties: []
+      },
+      {
+        id: 'device_image',
+        name: 'device_image',
+        label_en: 'Device Image',
+        label_ar: 'صورة الجهاز',
+        type: 'text' as const,
+        data_type: 'image',
+        required: false,
+        is_identifier: false,
+        is_device_name: false,
+        sort_order: 2,
+        property_options: [],
+        options: [],
+        formula: '',
+        depends_on_properties: []
       }
     ];
   };
@@ -1109,7 +1125,7 @@ export default function DeviceTemplateCreate() {
               <p className="text-sm text-muted-foreground">These properties are automatically included in every device template.</p>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+              <div className="grid grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
                 <div>
                   <Label className="font-medium">Item Code</Label>
                   <p className="text-sm text-muted-foreground">Unique identifier for each device (always used for SKU/Description)</p>
@@ -1119,6 +1135,11 @@ export default function DeviceTemplateCreate() {
                   <Label className="font-medium">Cost Price</Label>
                   <p className="text-sm text-muted-foreground">Base cost of the device (currency set during device creation)</p>
                   <Badge variant="outline" className="mt-1">Number • Required</Badge>
+                </div>
+                <div>
+                  <Label className="font-medium">Device Image</Label>
+                  <p className="text-sm text-muted-foreground">Product image or photo (URL or file upload)</p>
+                  <Badge variant="outline" className="mt-1">Image • Optional</Badge>
                 </div>
               </div>
             </CardContent>

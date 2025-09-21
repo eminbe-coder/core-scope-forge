@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -201,7 +201,13 @@ const Devices = () => {
         image_url: formData.image_url || null,
         tenant_id: currentTenant.id,
         template_id: selectedTemplateId || null,
-        template_properties: Object.keys(templateProperties).length > 0 ? templateProperties : null,
+        template_properties: {
+          ...templateProperties,
+          // Always include fixed properties
+          item_code: templateProperties.item_code || '',
+          cost_price: templateProperties.cost_price || parseFloat(formData.unit_price) || 0,
+          device_image: templateProperties.device_image || formData.image_url || ''
+        },
       };
 
       const { error } = await supabase
@@ -241,11 +247,37 @@ const Devices = () => {
 
   const selectedTemplate = deviceTemplates.find(t => t.id === selectedTemplateId);
 
+  // Auto-populate fixed properties when template is selected
+  React.useEffect(() => {
+    if (selectedTemplateId && selectedTemplate) {
+      // Initialize template properties with fixed properties
+      const initialTemplateProps: Record<string, any> = {
+        item_code: '',
+        cost_price: 0,
+        device_image: ''
+      };
+      setTemplateProperties(initialTemplateProps);
+    } else {
+      setTemplateProperties({});
+    }
+  }, [selectedTemplateId, selectedTemplate]);
+
   const handleTemplatePropertyChange = (name: string, value: any) => {
-    setTemplateProperties(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setTemplateProperties(prev => {
+      const newProps = { ...prev, [name]: value };
+      
+      // If this property is marked as device name, update the form's name field
+      if (selectedTemplate) {
+        const deviceNameProp = selectedTemplate.device_template_properties.find(p => 
+          p.property_name === name && (p as any).is_device_name
+        );
+        if (deviceNameProp && value) {
+          setFormData(prev => ({ ...prev, name: value }));
+        }
+      }
+      
+      return newProps;
+    });
   };
 
   const filteredDevices = devices.filter(device =>

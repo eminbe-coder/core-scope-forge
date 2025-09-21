@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { ImageUpload } from '@/components/ui/image-upload';
 import { Plus, X } from 'lucide-react';
 
 interface DeviceTemplateProperty {
@@ -12,6 +13,7 @@ interface DeviceTemplateProperty {
   property_name: string;
   label_en: string;
   property_type: string;
+  data_type?: string;
   is_required: boolean;
   is_identifier?: boolean;
   property_options?: any;
@@ -63,7 +65,6 @@ export function DeviceTemplateForm({ templateProperties, values, onChange }: Dev
     const currentValue = values[property.property_name];
 
     switch (property.property_type) {
-      case 'text':
       case 'url':
       case 'email':
       case 'phone':
@@ -111,6 +112,35 @@ export function DeviceTemplateForm({ templateProperties, values, onChange }: Dev
             type="color"
             value={currentValue || '#000000'}
             onChange={(e) => onChange(property.property_name, e.target.value)}
+          />
+        );
+
+      case 'text':
+        // Handle image type as special text input with upload option
+        if (property.data_type === 'image') {
+          return (
+            <div className="space-y-2">
+              <Input
+                type="url"
+                value={currentValue || ''}
+                onChange={(e) => onChange(property.property_name, e.target.value)}
+                placeholder="Enter image URL or upload below"
+              />
+              <div className="text-sm text-muted-foreground">Or upload an image:</div>
+              <ImageUpload
+                value={currentValue || ''}
+                onChange={(url) => onChange(property.property_name, url)}
+                bucket="device-images"
+                folder="devices"
+              />
+            </div>
+          );
+        }
+        return (
+          <Input
+            value={currentValue || ''}
+            onChange={(e) => onChange(property.property_name, e.target.value)}
+            placeholder={`Enter ${property.label_en.toLowerCase()}`}
           />
         );
 
