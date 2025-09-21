@@ -32,15 +32,6 @@ export function DeviceTemplateForm({ templateProperties, values, onChange }: Dev
   // Fixed properties that are always shown
   const fixedProperties = [
     {
-      id: 'item_code',
-      property_name: 'item_code',
-      label_en: 'Item Code',
-      property_type: 'text',
-      data_type: 'text',
-      is_required: true,
-      is_identifier: true,
-    },
-    {
       id: 'cost_price',
       property_name: 'cost_price',
       label_en: 'Cost Price',
@@ -58,6 +49,33 @@ export function DeviceTemplateForm({ templateProperties, values, onChange }: Dev
       is_required: true,
       is_identifier: false,
       property_options: [], // Will be populated with currencies
+    },
+    {
+      id: 'sku',
+      property_name: 'sku',
+      label_en: 'SKU',
+      property_type: 'text',
+      data_type: 'text',
+      is_required: true,
+      is_identifier: true,
+    },
+    {
+      id: 'short_description',
+      property_name: 'short_description',
+      label_en: 'Short Description',
+      property_type: 'text',
+      data_type: 'text',
+      is_required: true,
+      is_identifier: false,
+    },
+    {
+      id: 'long_description',
+      property_name: 'long_description',
+      label_en: 'Long Description',
+      property_type: 'text',
+      data_type: 'textarea',
+      is_required: true,
+      is_identifier: false,
     },
     {
       id: 'device_image',
@@ -199,6 +217,18 @@ export function DeviceTemplateForm({ templateProperties, values, onChange }: Dev
                 folder="devices"
               />
             </div>
+          );
+        }
+        // Handle textarea type
+        if (property.data_type === 'textarea') {
+          return (
+            <textarea
+              className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              value={currentValue || ''}
+              onChange={(e) => onChange(property.property_name, e.target.value)}
+              placeholder={`Enter ${property.label_en.toLowerCase()}`}
+              rows={3}
+            />
           );
         }
         return (
@@ -373,7 +403,10 @@ export function DeviceTemplateForm({ templateProperties, values, onChange }: Dev
         <h3 className="text-lg font-semibold mb-4">Required Device Information</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {fixedProperties.map((property) => (
-            <div key={property.id} className="space-y-2">
+            <div key={property.id} className={`space-y-2 ${
+              property.data_type === 'textarea' ? 'md:col-span-2 lg:col-span-3' : 
+              property.data_type === 'image' ? 'md:col-span-2 lg:col-span-3' : ''
+            }`}>
               <Label htmlFor={property.property_name}>
                 {property.label_en}
                 {property.is_required && <span className="text-destructive ml-1">*</span>}
