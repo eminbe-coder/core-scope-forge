@@ -40,6 +40,7 @@ interface DeviceTemplateProperty {
   data_type: string; // Add this for compatibility with FormulaBuilder
   required: boolean;
   is_identifier: boolean;
+  is_device_name: boolean;
   unit?: string;
   sort_order: number;
   property_options: DeviceTemplatePropertyOption[];
@@ -291,6 +292,7 @@ export default function DeviceTemplateCreate() {
           data_type: prop.property_type,
           required: prop.is_required,
           is_identifier: prop.is_identifier,
+          is_device_name: prop.is_device_name || false,
           unit: prop.property_unit,
           sort_order: prop.sort_order || 0,
           property_options: (prop.property_options as any) || [],
@@ -522,6 +524,7 @@ export default function DeviceTemplateCreate() {
           property_type: prop.type,
           is_required: prop.required || false,
           is_identifier: prop.is_identifier || false,
+          is_device_name: prop.is_device_name || false,
           property_unit: prop.unit,
           sort_order: prop.sort_order !== undefined ? prop.sort_order : index,
           property_options: prop.property_options as any,
@@ -630,6 +633,7 @@ export default function DeviceTemplateCreate() {
         data_type: 'text',
         required: false,
         is_identifier: false,
+        is_device_name: false,
         unit: '',
         sort_order: prev.properties.length,
         property_options: [],
@@ -1215,6 +1219,22 @@ export default function DeviceTemplateCreate() {
                               onCheckedChange={(checked) => updateProperty(index, 'required', checked === true)}
                             />
                             <Label htmlFor={`required-${index}`}>Required</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`identifier-${index}`}
+                              checked={property.is_identifier}
+                              onCheckedChange={(checked) => updateProperty(index, 'is_identifier', checked === true)}
+                            />
+                            <Label htmlFor={`identifier-${index}`}>Use as Identifier</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`device-name-${index}`}
+                              checked={property.is_device_name}
+                              onCheckedChange={(checked) => updateProperty(index, 'is_device_name', checked === true)}
+                            />
+                            <Label htmlFor={`device-name-${index}`}>Use as Device Name</Label>
                           </div>
                         </div>
 

@@ -299,10 +299,31 @@ const AddGlobalDevice = () => {
   };
 
   const handleTemplatePropertyChange = (name: string, value: any) => {
-    setTemplateProperties(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setTemplateProperties(prev => {
+      const newProps = { ...prev, [name]: value };
+      
+      // If this property is marked as device name, update the form's name field
+      const selectedTemplate = deviceTemplates.find(t => t.id === selectedTemplateId);
+      if (selectedTemplate) {
+        let templateProps = selectedTemplate?.device_template_properties || [];
+        if (templateProps.length === 0 && selectedTemplate?.properties_schema) {
+          const schema = Array.isArray(selectedTemplate.properties_schema) 
+            ? selectedTemplate.properties_schema 
+            : [];
+          templateProps = schema.map((prop: any) => ({
+            property_name: prop.name || prop.property_name,
+            is_device_name: prop.is_device_name || false
+          }));
+        }
+        
+        const deviceNameProp = templateProps.find(p => p.property_name === name && (p as any).is_device_name);
+        if (deviceNameProp && value) {
+          setFormData(prev => ({ ...prev, name: value }));
+        }
+      }
+      
+      return newProps;
+    });
   };
 
   if (loading) {

@@ -2230,6 +2230,7 @@ export type Database = {
           depends_on_properties: string[] | null
           formula: string | null
           id: string
+          is_device_name: boolean | null
           is_identifier: boolean | null
           is_required: boolean
           label_ar: string | null
@@ -2247,6 +2248,7 @@ export type Database = {
           depends_on_properties?: string[] | null
           formula?: string | null
           id?: string
+          is_device_name?: boolean | null
           is_identifier?: boolean | null
           is_required?: boolean
           label_ar?: string | null
@@ -2264,6 +2266,7 @@ export type Database = {
           depends_on_properties?: string[] | null
           formula?: string | null
           id?: string
+          is_device_name?: boolean | null
           is_identifier?: boolean | null
           is_required?: boolean
           label_ar?: string | null
