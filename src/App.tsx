@@ -15,6 +15,7 @@ import GlobalAdmin from "./pages/GlobalAdmin";
 import DeviceTemplateCreate from "./pages/DeviceTemplateCreate";
 import DeviceTemplates from "./pages/DeviceTemplates";
 import GlobalDevices from "./pages/GlobalDevices";
+import AddGlobalDevice from "./pages/AddGlobalDevice";
 import GlobalDeviceTemplates from "./pages/GlobalDeviceTemplates";
 
 import AcceptInvitation from "./pages/AcceptInvitation";
@@ -263,6 +264,13 @@ const App = () => (
                      <ProtectedRoute>
                        <GlobalAdminRoute>
                          <GlobalDevices />
+                       </GlobalAdminRoute>
+                     </ProtectedRoute>
+                   } />
+                   <Route path="/global-devices/add" element={
+                     <ProtectedRoute>
+                       <GlobalAdminRoute>
+                         <AddGlobalDevice />
                        </GlobalAdminRoute>
                      </ProtectedRoute>
                    } />
