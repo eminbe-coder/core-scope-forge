@@ -115,7 +115,17 @@ export function DeviceTemplateForm({ templateProperties, values, onChange }: Dev
         );
 
       case 'select':
-        const selectOptions = property.property_options ? JSON.parse(property.property_options) : [];
+        const selectOptions = (() => {
+          if (!property.property_options) return [];
+          if (typeof property.property_options === 'string') {
+            try {
+              return JSON.parse(property.property_options);
+            } catch {
+              return [];
+            }
+          }
+          return Array.isArray(property.property_options) ? property.property_options : [];
+        })();
         return (
           <Select value={currentValue || ''} onValueChange={(value) => onChange(property.property_name, value)}>
             <SelectTrigger>
@@ -132,7 +142,17 @@ export function DeviceTemplateForm({ templateProperties, values, onChange }: Dev
         );
 
       case 'multiselect':
-        const multiselectOptions = property.property_options ? JSON.parse(property.property_options) : [];
+        const multiselectOptions = (() => {
+          if (!property.property_options) return [];
+          if (typeof property.property_options === 'string') {
+            try {
+              return JSON.parse(property.property_options);
+            } catch {
+              return [];
+            }
+          }
+          return Array.isArray(property.property_options) ? property.property_options : [];
+        })();
         const selectedValues = Array.isArray(currentValue) ? currentValue : [];
         return (
           <div className="space-y-2">
