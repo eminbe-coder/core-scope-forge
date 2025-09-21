@@ -170,6 +170,24 @@ const tenantModules: NavigationModule[] = [
         icon: Smartphone,
         permission: 'devices.view',
       },
+      {
+        title: 'Device Templates',
+        url: '/device-templates',
+        icon: Settings,
+        permission: 'admin.access',
+      },
+      {
+        title: 'Global Devices',
+        url: '/global-devices',
+        icon: Smartphone,
+        permission: 'super_admin.access',
+      },
+      {
+        title: 'Global Device Templates',
+        url: '/global-device-templates',
+        icon: Settings,
+        permission: 'super_admin.access',
+      },
     ]
   },
   {

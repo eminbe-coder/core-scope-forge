@@ -68,7 +68,7 @@ export default function DeviceTemplatesManager() {
     name: '',
     category: '',
     description: '',
-    is_global: true
+    is_global: false // Default to tenant template
   });
   
   const [properties, setProperties] = useState<DeviceTemplateProperty[]>([]);
@@ -283,7 +283,7 @@ export default function DeviceTemplatesManager() {
       name: '',
       category: '',
       description: '',
-      is_global: true
+      is_global: false // Default to tenant template
     });
     setProperties([]);
     setSelectedTemplate(null);

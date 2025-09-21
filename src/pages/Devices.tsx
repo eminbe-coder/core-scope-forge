@@ -25,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Search, Cpu, DollarSign, Upload } from 'lucide-react';
+import { Plus, Search, Cpu, DollarSign, Upload, Download } from 'lucide-react';
 import { ImageUpload } from '@/components/ui/image-upload';
 import { DeviceImportDialog } from '@/components/device-import/DeviceImportDialog';
 import { DeviceTemplateForm } from '@/components/device-creation/DeviceTemplateForm';
@@ -423,10 +423,16 @@ const Devices = () => {
               className="pl-8"
             />
           </div>
-          <Button variant="outline" onClick={() => setIsImportDialogOpen(true)}>
-            <Upload className="mr-2 h-4 w-4" />
-            Import Devices
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setIsImportDialogOpen(true)}>
+              <Upload className="mr-2 h-4 w-4" />
+              Import from Excel
+            </Button>
+            <Button variant="outline">
+              <Download className="mr-2 h-4 w-4" />
+              Import from Global
+            </Button>
+          </div>
         </div>
 
         {filteredDevices.length === 0 ? (

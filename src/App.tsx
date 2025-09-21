@@ -13,6 +13,9 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import GlobalAdmin from "./pages/GlobalAdmin";
 import DeviceTemplateCreate from "./pages/DeviceTemplateCreate";
+import DeviceTemplates from "./pages/DeviceTemplates";
+import GlobalDevices from "./pages/GlobalDevices";
+import GlobalDeviceTemplates from "./pages/GlobalDeviceTemplates";
 
 import AcceptInvitation from "./pages/AcceptInvitation";
 import SetPassword from "./pages/SetPassword";
@@ -246,11 +249,30 @@ const App = () => (
                        <MyTodos />
                      </ProtectedRoute>
                    } />
-                  <Route path="/devices" element={
-                    <ProtectedRoute>
-                      <Devices />
-                    </ProtectedRoute>
-                  } />
+                   <Route path="/devices" element={
+                     <ProtectedRoute>
+                       <Devices />
+                     </ProtectedRoute>
+                   } />
+                   <Route path="/device-templates" element={
+                     <ProtectedRoute>
+                       <DeviceTemplates />
+                     </ProtectedRoute>
+                   } />
+                   <Route path="/global-devices" element={
+                     <ProtectedRoute>
+                       <GlobalAdminRoute>
+                         <GlobalDevices />
+                       </GlobalAdminRoute>
+                     </ProtectedRoute>
+                   } />
+                   <Route path="/global-device-templates" element={
+                     <ProtectedRoute>
+                       <GlobalAdminRoute>
+                         <GlobalDeviceTemplates />
+                       </GlobalAdminRoute>
+                     </ProtectedRoute>
+                   } />
                   <Route path="/settings" element={
                     <ProtectedRoute>
                       <Settings />
