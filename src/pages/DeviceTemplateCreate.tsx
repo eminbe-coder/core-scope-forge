@@ -121,15 +121,34 @@ export default function DeviceTemplateCreate() {
       {
         id: 'item_code',
         name: 'item_code',
-        label_en: 'Item Code',
+        label_en: 'Item Code', 
         label_ar: 'رمز العنصر',
-        type: 'text',
+        type: 'text' as const,
         data_type: 'text',
         required: true,
         is_identifier: true,
-        sort_order: -1,
+        is_device_name: false,
+        sort_order: 0,
         property_options: [],
-        options: []
+        options: [],
+        formula: '',
+        depends_on_properties: []
+      },
+      {
+        id: 'cost_price',
+        name: 'cost_price',
+        label_en: 'Cost Price',
+        label_ar: 'سعر التكلفة', 
+        type: 'number' as const,
+        data_type: 'number',
+        required: true,
+        is_identifier: false,
+        is_device_name: false,
+        sort_order: 1,
+        property_options: [],
+        options: [],
+        formula: '',
+        depends_on_properties: []
       }
     ];
   };
@@ -1219,14 +1238,6 @@ export default function DeviceTemplateCreate() {
                               onCheckedChange={(checked) => updateProperty(index, 'required', checked === true)}
                             />
                             <Label htmlFor={`required-${index}`}>Required</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`identifier-${index}`}
-                              checked={property.is_identifier}
-                              onCheckedChange={(checked) => updateProperty(index, 'is_identifier', checked === true)}
-                            />
-                            <Label htmlFor={`identifier-${index}`}>Use as Identifier</Label>
                           </div>
                           <div className="flex items-center space-x-2">
                             <Checkbox

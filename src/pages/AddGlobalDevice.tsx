@@ -270,7 +270,12 @@ const AddGlobalDevice = () => {
         image_url: formData.image_url || null,
         is_global: true,
         template_id: selectedTemplateId || null,
-        template_properties: Object.keys(templateProperties).length > 0 ? templateProperties : null,
+        template_properties: {
+          ...templateProperties,
+          // Always include fixed properties
+          item_code: templateProperties.item_code || templateProperties.Item_Code || '',
+          cost_price: templateProperties.cost_price || templateProperties.Cost_Price || finalUnitPrice || 0
+        },
         tenant_id: null,
       };
 
@@ -305,17 +310,7 @@ const AddGlobalDevice = () => {
       // If this property is marked as device name, update the form's name field
       const selectedTemplate = deviceTemplates.find(t => t.id === selectedTemplateId);
       if (selectedTemplate) {
-        let templateProps = selectedTemplate?.device_template_properties || [];
-        if (templateProps.length === 0 && selectedTemplate?.properties_schema) {
-          const schema = Array.isArray(selectedTemplate.properties_schema) 
-            ? selectedTemplate.properties_schema 
-            : [];
-          templateProps = schema.map((prop: any) => ({
-            property_name: prop.name || prop.property_name,
-            is_device_name: prop.is_device_name || false
-          }));
-        }
-        
+        const templateProps = selectedTemplate?.device_template_properties || [];
         const deviceNameProp = templateProps.find(p => p.property_name === name && (p as any).is_device_name);
         if (deviceNameProp && value) {
           setFormData(prev => ({ ...prev, name: value }));
@@ -548,6 +543,19 @@ const AddGlobalDevice = () => {
                 return (
                   <div className="border-t pt-6">
                     <h3 className="text-lg font-semibold mb-4">Template Properties</h3>
+                    <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <h4 className="font-medium text-blue-900 mb-2">Fixed Properties (Always Available)</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="font-medium">Item Code:</span> Unique identifier for device
+                          <div className="text-xs text-blue-700 mt-1">✓ This is the device identifier</div>
+                        </div>
+                        <div>
+                          <span className="font-medium">Cost Price:</span> Base manufacturing cost  
+                          <div className="text-xs text-blue-700 mt-1">✓ Automatically populated from template</div>
+                        </div>
+                      </div>
+                    </div>
                     <DeviceTemplateForm
                       templateProperties={templateProps}
                       values={templateProperties}
