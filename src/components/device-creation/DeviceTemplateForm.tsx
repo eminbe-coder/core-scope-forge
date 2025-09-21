@@ -7,6 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { ImageUpload } from '@/components/ui/image-upload';
 import { Plus, X } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface DeviceTemplateProperty {
   id: string;
@@ -27,6 +28,70 @@ interface DeviceTemplateFormProps {
 
 export function DeviceTemplateForm({ templateProperties, values, onChange }: DeviceTemplateFormProps) {
   const [dynamicValues, setDynamicValues] = useState<Record<string, string[]>>({});
+  
+  // Fixed properties that are always shown
+  const fixedProperties = [
+    {
+      id: 'item_code',
+      property_name: 'item_code',
+      label_en: 'Item Code',
+      property_type: 'text',
+      data_type: 'text',
+      is_required: true,
+      is_identifier: true,
+    },
+    {
+      id: 'cost_price',
+      property_name: 'cost_price',
+      label_en: 'Cost Price',
+      property_type: 'number',
+      data_type: 'number',
+      is_required: true,
+      is_identifier: false,
+    },
+    {
+      id: 'cost_price_currency_id',
+      property_name: 'cost_price_currency_id',
+      label_en: 'Cost Price Currency',
+      property_type: 'select',
+      data_type: 'select',
+      is_required: true,
+      is_identifier: false,
+      property_options: [], // Will be populated with currencies
+    },
+    {
+      id: 'device_image',
+      property_name: 'device_image',
+      label_en: 'Device Image',
+      property_type: 'text',
+      data_type: 'image',
+      is_required: false,
+      is_identifier: false,
+    }
+  ];
+
+  // Get currencies for cost price currency field
+  const [currencies, setCurrencies] = React.useState<Array<{id: string; code: string; name: string}>>([]);
+  
+  React.useEffect(() => {
+    const fetchCurrencies = async () => {
+      const { data } = await supabase
+        .from('currencies')
+        .select('id, code, name')
+        .eq('active', true)
+        .order('code');
+      
+      if (data) {
+        setCurrencies(data);
+        // Update the cost_price_currency_id property options
+        fixedProperties[2].property_options = data.map(c => ({
+          code: c.id,
+          label_en: `${c.code} - ${c.name}`
+        }));
+      }
+    };
+    fetchCurrencies();
+  }, []);
 
   const addDynamicValue = (propertyName: string) => {
     const currentValues = dynamicValues[propertyName] || [];
@@ -276,24 +341,76 @@ export function DeviceTemplateForm({ templateProperties, values, onChange }: Dev
     }
   };
 
+  const renderCurrencySelect = () => {
+    const currentValue = values['cost_price_currency_id'];
+    return (
+      <Select value={currentValue || ''} onValueChange={(value) => onChange('cost_price_currency_id', value)}>
+        <SelectTrigger>
+          <SelectValue placeholder="Select currency" />
+        </SelectTrigger>
+        <SelectContent>
+          {currencies.map((currency) => (
+            <SelectItem key={currency.id} value={currency.id}>
+              {currency.code} - {currency.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    );
+  };
+
+  const renderFixedPropertyInput = (property: any) => {
+    if (property.property_name === 'cost_price_currency_id') {
+      return renderCurrencySelect();
+    }
+    return renderPropertyInput(property);
+  };
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-      {templateProperties.map((property) => (
-        <div key={property.id} className={`space-y-2 ${
-          property.property_type === 'multiselect' || property.property_type === 'dynamic_multiselect' 
-            ? 'md:col-span-2 lg:col-span-2' 
-            : ''
-        }`}>
-          <Label htmlFor={property.property_name}>
-            {property.label_en}
-            {property.is_required && <span className="text-destructive ml-1">*</span>}
-            {property.is_identifier && (
-              <Badge variant="outline" className="ml-2 text-xs">Identifier</Badge>
-            )}
-          </Label>
-          {renderPropertyInput(property)}
+    <div className="space-y-6">
+      {/* Fixed Properties Section */}
+      <div>
+        <h3 className="text-lg font-semibold mb-4">Required Device Information</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {fixedProperties.map((property) => (
+            <div key={property.id} className="space-y-2">
+              <Label htmlFor={property.property_name}>
+                {property.label_en}
+                {property.is_required && <span className="text-destructive ml-1">*</span>}
+                {property.is_identifier && (
+                  <Badge variant="outline" className="ml-2 text-xs">Identifier</Badge>
+                )}
+              </Label>
+              {renderFixedPropertyInput(property)}
+            </div>
+          ))}
         </div>
-      ))}
+      </div>
+
+      {/* Template Properties Section */}
+      {templateProperties.length > 0 && (
+        <div>
+          <h3 className="text-lg font-semibold mb-4">Template Properties</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {templateProperties.map((property) => (
+              <div key={property.id} className={`space-y-2 ${
+                property.property_type === 'multiselect' || property.property_type === 'dynamic_multiselect' 
+                  ? 'md:col-span-2 lg:col-span-2' 
+                  : ''
+              }`}>
+                <Label htmlFor={property.property_name}>
+                  {property.label_en}
+                  {property.is_required && <span className="text-destructive ml-1">*</span>}
+                  {property.is_identifier && (
+                    <Badge variant="outline" className="ml-2 text-xs">Identifier</Badge>
+                  )}
+                </Label>
+                {renderPropertyInput(property)}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

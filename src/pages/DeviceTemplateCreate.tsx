@@ -151,6 +151,22 @@ export default function DeviceTemplateCreate() {
         depends_on_properties: []
       },
       {
+        id: 'cost_price_currency_id',
+        name: 'cost_price_currency_id',
+        label_en: 'Cost Price Currency',
+        label_ar: 'عملة سعر التكلفة',
+        type: 'select' as const,
+        data_type: 'select',
+        required: true,
+        is_identifier: false,
+        is_device_name: false,
+        sort_order: 1.5,
+        property_options: [],
+        options: [],
+        formula: '',
+        depends_on_properties: []
+      },
+      {
         id: 'device_image',
         name: 'device_image',
         label_en: 'Device Image',
@@ -160,7 +176,7 @@ export default function DeviceTemplateCreate() {
         required: false,
         is_identifier: false,
         is_device_name: false,
-        sort_order: 2,
+        sort_order: 2.5,
         property_options: [],
         options: [],
         formula: '',
