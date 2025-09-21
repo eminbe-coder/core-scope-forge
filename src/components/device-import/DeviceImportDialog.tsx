@@ -27,9 +27,10 @@ interface DeviceImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onImportComplete: () => void;
+  isGlobal?: boolean;
 }
 
-export function DeviceImportDialog({ open, onOpenChange, onImportComplete }: DeviceImportDialogProps) {
+export function DeviceImportDialog({ open, onOpenChange, onImportComplete, isGlobal = false }: DeviceImportDialogProps) {
   const { currentTenant } = useTenant();
   const { toast } = useToast();
   const [importing, setImporting] = useState(false);
@@ -40,18 +41,25 @@ export function DeviceImportDialog({ open, onOpenChange, onImportComplete }: Dev
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchTemplates = async () => {
-    if (!currentTenant) return;
+    if (!isGlobal && !currentTenant) return;
     
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('device_templates')
         .select(`
           *,
-          device_template_properties(*)
+          device_template_properties(*),
+          properties_schema
         `)
-        .or(`tenant_id.eq.${currentTenant.id},is_global.eq.true`)
-        .eq('active', true)
-        .order('name');
+        .eq('active', true);
+
+      if (isGlobal) {
+        query = query.eq('is_global', true);
+      } else {
+        query = query.or(`tenant_id.eq.${currentTenant!.id},is_global.eq.true`);
+      }
+
+      const { data, error } = await query.order('name');
 
       if (error) throw error;
       setTemplates(data || []);
@@ -65,22 +73,29 @@ export function DeviceImportDialog({ open, onOpenChange, onImportComplete }: Dev
     if (!file) return;
 
     try {
-      // Get template properties for parsing context
-      const templateProperties = selectedTemplate?.device_template_properties?.map(prop => ({
-        property_name: prop.property_name,
-        property_type: prop.property_type
-      })) || [];
+      // Get template properties for parsing context - handle both old and new format
+      const templateProperties = (
+        selectedTemplate?.device_template_properties?.map(prop => ({
+          property_name: prop.property_name,
+          property_type: prop.property_type
+        })) || 
+        selectedTemplate?.properties_schema?.map(prop => ({
+          property_name: prop.name,
+          property_type: prop.type
+        })) || []
+      );
 
       const result = await parseDeviceExcel(file, templateProperties);
       if (result.success && result.data) {
         setImportData(result.data);
         
-        // Find the identifier property from the selected template
-        const identifierProperty = selectedTemplate?.device_template_properties?.find(
-          prop => prop.is_identifier
+        // Find the identifier property from the selected template - handle both formats
+        const identifierProperty = (
+          selectedTemplate?.device_template_properties?.find(prop => prop.is_identifier) ||
+          selectedTemplate?.properties_schema?.find(prop => prop.is_identifier)
         );
         
-        const validation = validateDeviceImportData(result.data, identifierProperty?.property_name);
+        const validation = validateDeviceImportData(result.data, identifierProperty?.property_name || identifierProperty?.name);
         setValidationResult(validation);
       } else {
         toast({
@@ -100,7 +115,7 @@ export function DeviceImportDialog({ open, onOpenChange, onImportComplete }: Dev
   };
 
   const handleImport = async () => {
-    if (!importData.length || !currentTenant) return;
+    if (!importData.length || (!currentTenant && !isGlobal)) return;
     
     setImporting(true);
     
@@ -120,18 +135,19 @@ export function DeviceImportDialog({ open, onOpenChange, onImportComplete }: Dev
         brand: device.brand || null,
         model: device.model || null,
         unit_price: device.unit_price || null,
-        currency_id: device.currency_code ? currencyMap.get(device.currency_code) : currentTenant.default_currency_id,
+        currency_id: device.currency_code ? currencyMap.get(device.currency_code) : currentTenant?.default_currency_id,
         specifications: device.specifications || null,
         image_url: device.image_url || null,
         template_id: selectedTemplate?.id || null,
         template_properties: selectedTemplate ? 
           Object.fromEntries(
-            selectedTemplate.device_template_properties?.map((prop: any) => [
-              prop.name, 
-              device[prop.name] || device[prop.label_en] || null
+            (selectedTemplate.device_template_properties || selectedTemplate.properties_schema || [])?.map((prop: any) => [
+              prop.property_name || prop.name, 
+              device[prop.property_name || prop.name] || device[prop.label_en] || null
             ]) || []
           ) : null,
-        tenant_id: currentTenant.id,
+        is_global: isGlobal,
+        tenant_id: isGlobal ? null : currentTenant!.id,
       }));
       
       const { error } = await supabase
@@ -171,8 +187,17 @@ export function DeviceImportDialog({ open, onOpenChange, onImportComplete }: Dev
     }
     
     try {
+      // Handle both old and new template property formats
+      const templateProps = (selectedTemplate.device_template_properties || selectedTemplate.properties_schema || []).map((prop: any) => ({
+        name: prop.property_name || prop.name,
+        label_en: prop.label_en || prop.property_name || prop.name,
+        type: prop.property_type || prop.type,
+        required: prop.is_required || prop.required || false,
+        is_identifier: prop.is_identifier || false
+      }));
+
       const templateData = generateDeviceImportTemplate(
-        selectedTemplate.device_template_properties || [],
+        templateProps,
         true // Include generation columns for dynamic SKU/Description support
       );
       
@@ -221,9 +246,9 @@ export function DeviceImportDialog({ open, onOpenChange, onImportComplete }: Dev
     }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Import Devices</DialogTitle>
+          <DialogTitle>Import {isGlobal ? 'Global ' : ''}Devices</DialogTitle>
           <DialogDescription>
-            Upload an Excel file to import multiple devices at once
+            Upload an Excel file to import multiple {isGlobal ? 'global ' : ''}devices at once
           </DialogDescription>
         </DialogHeader>
 
@@ -254,7 +279,7 @@ export function DeviceImportDialog({ open, onOpenChange, onImportComplete }: Dev
               <div className="mt-2 p-3 bg-muted/50 rounded-lg text-sm space-y-1">
                 <p className="font-medium">Template Features:</p>
                 <ul className="text-muted-foreground space-y-1">
-                  <li>• Custom properties: {selectedTemplate.device_template_properties?.length || 0}</li>
+                  <li>• Custom properties: {(selectedTemplate.device_template_properties || selectedTemplate.properties_schema || []).length}</li>
                   <li>• Excel supports Dynamic SKU, Dynamic Description, Dynamic Short Description columns</li>
                   <li>• Use TRUE/FALSE in dynamic columns to control formula vs fixed text usage</li>
                   <li>• When dynamic=TRUE, provide formula in corresponding column (e.g., SKU column)</li>
