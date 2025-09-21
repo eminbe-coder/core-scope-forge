@@ -474,12 +474,12 @@ const AddGlobalDevice = () => {
                           />
                         </div>
                         
-                        {brandInTemplate ? (
+                        {(brandInTemplate || formData.brand) ? (
                           <div>
-                            <Label htmlFor="brand_locked">Brand (From Template)</Label>
+                            <Label htmlFor="brand_locked">Brand {brandInTemplate ? '(From Template)' : ''}</Label>
                             <Input
                               id="brand_locked"
-                              value={formData.brand}
+                              value={formData.brand || 'No brand selected'}
                               disabled
                               className="bg-muted"
                             />
