@@ -151,31 +151,10 @@ const AddGlobalDevice = () => {
     if (selectedTemplate) {
       const deviceType = deviceTypes.find(dt => dt.id === selectedTemplate.device_type_id);
       
-      // Get template properties for auto-population
-      let templateProps = selectedTemplate?.device_template_properties || [];
-      if (templateProps.length === 0 && selectedTemplate?.properties_schema) {
-        const schema = Array.isArray(selectedTemplate.properties_schema) 
-          ? selectedTemplate.properties_schema 
-          : [];
-        templateProps = schema.map((prop: any) => ({
-          id: prop.name || prop.id,
-          property_name: prop.name || prop.property_name,
-          label_en: prop.label_en || prop.name,
-          property_type: prop.type || prop.property_type,
-          is_required: prop.required || prop.is_required || false,
-          is_identifier: prop.is_identifier || false,
-          property_options: prop.property_options
-        }));
-      }
-
-      // Find Brand property from template properties
-      const brandProperty = templateProps.find(p => p.property_name.toLowerCase() === 'brand');
-      
+      // Only populate category from template/device type, not the name
       setFormData(prev => ({
         ...prev,
-        name: selectedTemplate.name || prev.name,
         category: deviceType?.name || selectedTemplate.category || prev.category,
-        brand: brandProperty ? '' : prev.brand, // Clear brand if it's in template properties
       }));
 
       // Clear template properties to start fresh
@@ -194,7 +173,7 @@ const AddGlobalDevice = () => {
       });
       setTemplateProperties({});
     }
-  }, [selectedTemplateId, deviceTemplates, deviceTypes, brands]);
+  }, [selectedTemplateId, deviceTemplates, deviceTypes]);
 
   const handleCreate = async () => {
     if (!formData.name || !formData.category) {
@@ -301,7 +280,7 @@ const AddGlobalDevice = () => {
           <CardHeader>
             <CardTitle>Device Information</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
             {/* Template Selection */}
             <div>
               <Label htmlFor="template">Device Template (Optional)</Label>
@@ -319,125 +298,139 @@ const AddGlobalDevice = () => {
               </Select>
             </div>
 
-            {/* Basic Device Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="name">Name *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder={selectedTemplateId ? "Auto-filled from template" : "Device name"}
-                  disabled={!!selectedTemplateId}
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="category">Category * {selectedTemplateId && "(From Template)"}</Label>
-                <Input
-                  id="category"
-                  value={formData.category}
-                  onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                  placeholder={selectedTemplateId ? "Auto-filled from template device type" : "e.g., LED Light, Sensor, Switch"}
-                  disabled={!!selectedTemplateId}
-                />
-              </div>
-            </div>
+            {/* Only show device fields after template is selected */}
+            {selectedTemplateId && (
+              <>
+                {/* Basic Device Information */}
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  <div>
+                    <Label htmlFor="name">Device Name *</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="Enter device name"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="category">Category *</Label>
+                    <Input
+                      id="category"
+                      value={formData.category}
+                      onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                      placeholder="From template"
+                      disabled
+                    />
+                  </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="brand">Brand {(() => {
-                  const selectedTemplate = deviceTemplates.find(t => t.id === selectedTemplateId);
-                  const templateProps = selectedTemplate?.device_template_properties || [];
-                  const brandInTemplate = templateProps.some(p => p.property_name.toLowerCase() === 'brand');
-                  return brandInTemplate ? "(From Template Properties)" : selectedTemplateId ? "(Not in Template)" : "";
-                })()}</Label>
-                <Input
-                  id="brand"
-                  value={formData.brand}
-                  onChange={(e) => setFormData(prev => ({ ...prev, brand: e.target.value }))}
-                  placeholder="Brand name"
-                  disabled={(() => {
+                  {(() => {
                     const selectedTemplate = deviceTemplates.find(t => t.id === selectedTemplateId);
-                    const templateProps = selectedTemplate?.device_template_properties || [];
-                    return templateProps.some(p => p.property_name.toLowerCase() === 'brand');
+                    let templateProps = selectedTemplate?.device_template_properties || [];
+                    
+                    // Handle properties_schema format if device_template_properties is empty
+                    if (templateProps.length === 0 && selectedTemplate?.properties_schema) {
+                      const schema = Array.isArray(selectedTemplate.properties_schema) 
+                        ? selectedTemplate.properties_schema 
+                        : [];
+                      templateProps = schema.map((prop: any) => ({
+                        id: prop.name || prop.id,
+                        property_name: prop.name || prop.property_name,
+                        label_en: prop.label_en || prop.name,
+                        property_type: prop.type || prop.property_type,
+                        is_required: prop.required || prop.is_required || false,
+                        is_identifier: prop.is_identifier || false,
+                        property_options: prop.property_options
+                      }));
+                    }
+
+                    const brandInTemplate = templateProps.some(p => p.property_name.toLowerCase() === 'brand');
+                    const modelInTemplate = templateProps.some(p => p.property_name.toLowerCase() === 'model');
+
+                    return (
+                      <>
+                        {!brandInTemplate && (
+                          <div>
+                            <Label htmlFor="brand">Brand</Label>
+                            <Input
+                              id="brand"
+                              value={formData.brand}
+                              onChange={(e) => setFormData(prev => ({ ...prev, brand: e.target.value }))}
+                              placeholder="Brand name"
+                            />
+                          </div>
+                        )}
+
+                        {!modelInTemplate && (
+                          <div>
+                            <Label htmlFor="model">Model</Label>
+                            <Input
+                              id="model"
+                              value={formData.model}
+                              onChange={(e) => setFormData(prev => ({ ...prev, model: e.target.value }))}
+                              placeholder="Model number"
+                            />
+                          </div>
+                        )}
+                      </>
+                    );
                   })()}
-                />
-              </div>
 
-              <div>
-                <Label htmlFor="model">Model {(() => {
-                  const selectedTemplate = deviceTemplates.find(t => t.id === selectedTemplateId);
-                  const templateProps = selectedTemplate?.device_template_properties || [];
-                  const modelInTemplate = templateProps.some(p => p.property_name.toLowerCase() === 'model');
-                  return modelInTemplate ? "(From Template Properties)" : selectedTemplateId ? "(Not in Template)" : "";
-                })()}</Label>
-                <Input
-                  id="model"
-                  value={formData.model}
-                  onChange={(e) => setFormData(prev => ({ ...prev, model: e.target.value }))}
-                  placeholder="Model number"
-                  disabled={(() => {
-                    const selectedTemplate = deviceTemplates.find(t => t.id === selectedTemplateId);
-                    const templateProps = selectedTemplate?.device_template_properties || [];
-                    return templateProps.some(p => p.property_name.toLowerCase() === 'model');
-                  })()}
-                />
-              </div>
-            </div>
+                  <div>
+                    <Label htmlFor="unit_price">Unit Price</Label>
+                    <Input
+                      id="unit_price"
+                      type="number"
+                      step="0.01"
+                      value={formData.unit_price}
+                      onChange={(e) => setFormData(prev => ({ ...prev, unit_price: e.target.value }))}
+                      placeholder="0.00"
+                    />
+                  </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="unit_price">Unit Price</Label>
-                <Input
-                  id="unit_price"
-                  type="number"
-                  step="0.01"
-                  value={formData.unit_price}
-                  onChange={(e) => setFormData(prev => ({ ...prev, unit_price: e.target.value }))}
-                  placeholder="0.00"
-                />
-              </div>
+                  <div>
+                    <Label htmlFor="currency">Currency</Label>
+                    <Select value={formData.currency_id} onValueChange={(value) => setFormData(prev => ({ ...prev, currency_id: value }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select currency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {currencies.map((currency) => (
+                          <SelectItem key={currency.id} value={currency.id}>
+                            {currency.code} ({currency.symbol})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
 
-              <div>
-                <Label htmlFor="currency">Currency</Label>
-                <Select value={formData.currency_id} onValueChange={(value) => setFormData(prev => ({ ...prev, currency_id: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select currency" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {currencies.map((currency) => (
-                      <SelectItem key={currency.id} value={currency.id}>
-                        {currency.code} ({currency.symbol}) - {currency.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="specifications">Specifications (JSON)</Label>
+                    <Textarea
+                      id="specifications"
+                      value={formData.specifications}
+                      onChange={(e) => setFormData(prev => ({ ...prev, specifications: e.target.value }))}
+                      placeholder='{"voltage": "220V", "power": "100W"}'
+                      rows={3}
+                    />
+                  </div>
 
-            <div>
-              <Label htmlFor="specifications">Specifications (JSON)</Label>
-              <Textarea
-                id="specifications"
-                value={formData.specifications}
-                onChange={(e) => setFormData(prev => ({ ...prev, specifications: e.target.value }))}
-                placeholder='{"voltage": "220V", "power": "100W"}'
-                rows={3}
-              />
-            </div>
+                  <div>
+                    <Label htmlFor="image">Device Image</Label>
+                    <ImageUpload
+                      value={formData.image_url}
+                      onChange={(url) => setFormData(prev => ({ ...prev, image_url: url }))}
+                      bucket="devices"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
 
-            <div>
-              <Label htmlFor="image">Device Image</Label>
-              <ImageUpload
-                value={formData.image_url}
-                onChange={(url) => setFormData(prev => ({ ...prev, image_url: url }))}
-                bucket="devices"
-              />
-            </div>
-
-            {/* Template Properties */}
-            {(() => {
+            {/* Template Properties - only show if template selected and has properties */}
+            {selectedTemplateId && (() => {
               const selectedTemplate = deviceTemplates.find(t => t.id === selectedTemplateId);
               let templateProps = selectedTemplate?.device_template_properties || [];
               
@@ -459,7 +452,7 @@ const AddGlobalDevice = () => {
               
               if (templateProps.length > 0) {
                 return (
-                  <div className="border-t pt-4">
+                  <div className="border-t pt-6">
                     <h3 className="text-lg font-semibold mb-4">Template Properties</h3>
                     <DeviceTemplateForm
                       templateProperties={templateProps}

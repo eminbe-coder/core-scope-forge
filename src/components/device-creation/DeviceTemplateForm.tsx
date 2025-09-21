@@ -247,9 +247,13 @@ export function DeviceTemplateForm({ templateProperties, values, onChange }: Dev
   };
 
   return (
-    <div className="space-y-4">
+    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
       {templateProperties.map((property) => (
-        <div key={property.id} className="space-y-2">
+        <div key={property.id} className={`space-y-2 ${
+          property.property_type === 'multiselect' || property.property_type === 'dynamic_multiselect' 
+            ? 'md:col-span-2 lg:col-span-2' 
+            : ''
+        }`}>
           <Label htmlFor={property.property_name}>
             {property.label_en}
             {property.is_required && <span className="text-destructive ml-1">*</span>}
