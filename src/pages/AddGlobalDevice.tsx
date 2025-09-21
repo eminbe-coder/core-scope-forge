@@ -151,14 +151,59 @@ const AddGlobalDevice = () => {
     if (selectedTemplate) {
       const deviceType = deviceTypes.find(dt => dt.id === selectedTemplate.device_type_id);
       
-      // Only populate category from template/device type, not the name
+      // Get template properties to check for brand/model
+      let templateProps = selectedTemplate?.device_template_properties || [];
+      if (templateProps.length === 0 && selectedTemplate?.properties_schema) {
+        const schema = Array.isArray(selectedTemplate.properties_schema) 
+          ? selectedTemplate.properties_schema 
+          : [];
+        templateProps = schema.map((prop: any) => ({
+          id: prop.name || prop.id,
+          property_name: prop.name || prop.property_name,
+          label_en: prop.label_en || prop.name,
+          property_type: prop.type || prop.property_type,
+          is_required: prop.required || prop.is_required || false,
+          is_identifier: prop.is_identifier || false,
+          property_options: prop.property_options
+        }));
+      }
+
+      // Find brand property from template and get its default value
+      const brandProperty = templateProps.find(p => p.property_name.toLowerCase() === 'brand');
+      let defaultBrand = '';
+      
+      if (brandProperty) {
+        // If brand is a select with options, get the first option or default
+        if (brandProperty.property_type === 'select' && brandProperty.property_options) {
+          let options = [];
+          if (typeof brandProperty.property_options === 'string') {
+            try {
+              options = JSON.parse(brandProperty.property_options);
+            } catch {
+              options = [];
+            }
+          } else if (Array.isArray(brandProperty.property_options)) {
+            options = brandProperty.property_options;
+          }
+          
+          if (options.length > 0) {
+            defaultBrand = options[0].code || options[0].label_en || '';
+          }
+        }
+      }
+      
       setFormData(prev => ({
         ...prev,
         category: deviceType?.name || selectedTemplate.category || prev.category,
+        brand: brandProperty ? defaultBrand : prev.brand, // Use template brand if available
       }));
 
-      // Clear template properties to start fresh
-      setTemplateProperties({});
+      // Initialize template properties with brand if it exists
+      const initialTemplateProps: Record<string, any> = {};
+      if (brandProperty && defaultBrand) {
+        initialTemplateProps[brandProperty.property_name] = defaultBrand;
+      }
+      setTemplateProperties(initialTemplateProps);
     } else {
       // Reset form when no template selected
       setFormData({
@@ -187,7 +232,7 @@ const AddGlobalDevice = () => {
 
     setSaving(true);
     try {
-      // Get final values from template properties
+      // Get final values from template properties and form
       const selectedTemplate = deviceTemplates.find(t => t.id === selectedTemplateId);
       let finalBrand = formData.brand;
       let finalModel = formData.model;
@@ -195,9 +240,19 @@ const AddGlobalDevice = () => {
 
       // Extract values from template properties if they exist
       if (selectedTemplateId && templateProperties) {
-        const brandFromTemplate = templateProperties['brand'] || templateProperties['Brand'];
-        const modelFromTemplate = templateProperties['model'] || templateProperties['Model'];
-        const costFromTemplate = templateProperties['cost'] || templateProperties['Cost'] || templateProperties['cost_price'] || templateProperties['Cost Price'];
+        // Check for brand in template properties (case insensitive)
+        const brandFromTemplate = templateProperties['brand'] || templateProperties['Brand'] || 
+                                 Object.entries(templateProperties).find(([key]) => 
+                                   key.toLowerCase() === 'brand')?.[1];
+        
+        const modelFromTemplate = templateProperties['model'] || templateProperties['Model'] || 
+                                 Object.entries(templateProperties).find(([key]) => 
+                                   key.toLowerCase() === 'model')?.[1];
+        
+        const costFromTemplate = templateProperties['cost'] || templateProperties['Cost'] || 
+                                templateProperties['cost_price'] || templateProperties['Cost Price'] ||
+                                Object.entries(templateProperties).find(([key]) => 
+                                  key.toLowerCase().includes('cost') || key.toLowerCase().includes('price'))?.[1];
 
         if (brandFromTemplate) finalBrand = brandFromTemplate;
         if (modelFromTemplate) finalModel = modelFromTemplate;
@@ -357,6 +412,24 @@ const AddGlobalDevice = () => {
                               value={formData.brand}
                               onChange={(e) => setFormData(prev => ({ ...prev, brand: e.target.value }))}
                               placeholder="Brand name"
+                            />
+                          </div>
+                        )}
+
+                        {brandInTemplate && (
+                          <div>
+                            <Label htmlFor="brand">Brand (From Template)</Label>
+                            <Input
+                              id="brand"
+                              value={(() => {
+                                const brandFromTemplate = templateProperties['brand'] || templateProperties['Brand'] || 
+                                                         Object.entries(templateProperties).find(([key]) => 
+                                                           key.toLowerCase() === 'brand')?.[1];
+                                return brandFromTemplate || formData.brand;
+                              })()}
+                              onChange={(e) => setFormData(prev => ({ ...prev, brand: e.target.value }))}
+                              placeholder="Brand from template"
+                              disabled
                             />
                           </div>
                         )}
