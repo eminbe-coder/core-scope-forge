@@ -176,6 +176,9 @@ const AddGlobalDevice = () => {
       const brandProperty = templateProps.find(p => p.property_name.toLowerCase() === 'brand');
       let defaultBrand = '';
       
+      console.log('DEBUG: Brand property found:', brandProperty);
+      console.log('DEBUG: Template props:', templateProps);
+      
       if (brandProperty) {
         // If brand is a select with options, get the first option or default
         if (brandProperty.property_type === 'select' && brandProperty.property_options) {
@@ -190,17 +193,22 @@ const AddGlobalDevice = () => {
             options = brandProperty.property_options;
           }
           
+          console.log('DEBUG: Brand options:', options);
           if (options.length > 0) {
-            defaultBrand = options[0].code || options[0].label_en || '';
+            defaultBrand = options[0].code || options[0].label_en || options[0];
           }
         }
       }
+      
+      console.log('DEBUG: Default brand selected:', defaultBrand);
       
       setFormData(prev => ({
         ...prev,
         device_type_id: selectedTemplate.device_type_id || prev.device_type_id,
         brand: brandProperty ? defaultBrand : prev.brand, // Use template brand if available
       }));
+
+      console.log('DEBUG: Setting formData brand to:', brandProperty ? defaultBrand : 'no brand property');
 
       // Initialize template properties with brand if it exists
       const initialTemplateProps: Record<string, any> = {};
@@ -424,6 +432,9 @@ const AddGlobalDevice = () => {
 
                   const deviceNameProperty = templateProps.find(p => (p as any).is_device_name);
                   const brandInTemplate = templateProps.some(p => p.property_name.toLowerCase() === 'brand');
+                  
+                  console.log('DEBUG: brandInTemplate check:', brandInTemplate);
+                  console.log('DEBUG: formData.brand value:', formData.brand);
 
                   return (
                     <div className="space-y-4">
