@@ -27,6 +27,7 @@ interface DeviceTemplate {
   name: string;
   category: string;
   device_type_id?: string;
+  brand_id?: string;
   sku_generation_type?: 'fixed' | 'dynamic';
   device_template_properties: Array<{
     id: string;
@@ -90,6 +91,7 @@ const AddGlobalDevice = () => {
           name,
           category,
           device_type_id,
+          brand_id,
           properties_schema,
           device_template_properties (*),
           device_template_options (*)
@@ -154,75 +156,28 @@ const AddGlobalDevice = () => {
     if (selectedTemplate) {
       const deviceType = deviceTypes.find(dt => dt.id === selectedTemplate.device_type_id);
       
-      // Get template properties to check for brand/model
-      let templateProps = selectedTemplate?.device_template_properties || [];
-      if (templateProps.length === 0 && selectedTemplate?.properties_schema) {
-        const schema = Array.isArray(selectedTemplate.properties_schema) 
-          ? selectedTemplate.properties_schema 
-          : [];
-        templateProps = schema.map((prop: any) => ({
-          id: prop.name || prop.id,
-          property_name: prop.name || prop.property_name,
-          label_en: prop.label_en || prop.name,
-          property_type: prop.type || prop.property_type,
-          is_required: prop.required || prop.is_required || false,
-          is_identifier: prop.is_identifier || false,
-          is_device_name: prop.is_device_name || false,
-          property_options: prop.property_options
-        }));
+      // Set brand from template's brand_id
+      let templateBrand = '';
+      if (selectedTemplate.brand_id) {
+        const brand = brands.find(b => b.id === selectedTemplate.brand_id);
+        templateBrand = brand?.name || '';
       }
-
-      // Find brand property from template and get its default value
-      const brandProperty = templateProps.find(p => p.property_name.toLowerCase() === 'brand');
-      let defaultBrand = '';
-      
-      console.log('DEBUG: Brand property found:', brandProperty);
-      console.log('DEBUG: Template props:', templateProps);
-      
-      if (brandProperty) {
-        // If brand is a select with options, get the first option or default
-        if (brandProperty.property_type === 'select' && brandProperty.property_options) {
-          let options = [];
-          if (typeof brandProperty.property_options === 'string') {
-            try {
-              options = JSON.parse(brandProperty.property_options);
-            } catch {
-              options = [];
-            }
-          } else if (Array.isArray(brandProperty.property_options)) {
-            options = brandProperty.property_options;
-          }
-          
-          console.log('DEBUG: Brand options:', options);
-          if (options.length > 0) {
-            defaultBrand = options[0].code || options[0].label_en || options[0];
-          }
-        }
-      }
-      
-      console.log('DEBUG: Default brand selected:', defaultBrand);
       
       setFormData(prev => ({
         ...prev,
         device_type_id: selectedTemplate.device_type_id || prev.device_type_id,
-        brand: brandProperty ? defaultBrand : prev.brand, // Use template brand if available
+        brand: templateBrand || prev.brand,
       }));
 
-      console.log('DEBUG: Setting formData brand to:', brandProperty ? defaultBrand : 'no brand property');
-
-      // Initialize template properties with brand if it exists
-      const initialTemplateProps: Record<string, any> = {};
-      if (brandProperty && defaultBrand) {
-        initialTemplateProps[brandProperty.property_name] = defaultBrand;
-      }
-      
       // Always include fixed properties
-      initialTemplateProps['cost_price'] = 0;
-      initialTemplateProps['cost_price_currency_id'] = '';
-      initialTemplateProps['sku'] = '';
-      initialTemplateProps['short_description'] = '';
-      initialTemplateProps['long_description'] = '';
-      initialTemplateProps['device_image'] = '';
+      const initialTemplateProps: Record<string, any> = {
+        cost_price: 0,
+        cost_price_currency_id: '',
+        sku: '',
+        short_description: '',
+        long_description: '',
+        device_image: ''
+      };
       
       setTemplateProperties(initialTemplateProps);
     } else {
@@ -239,7 +194,7 @@ const AddGlobalDevice = () => {
       });
       setTemplateProperties({});
     }
-  }, [selectedTemplateId, deviceTemplates, deviceTypes]);
+  }, [selectedTemplateId, deviceTemplates, deviceTypes, brands]);
 
   const handleCreate = async () => {
     if (!formData.name || !formData.device_type_id) {
@@ -431,10 +386,7 @@ const AddGlobalDevice = () => {
                   }
 
                   const deviceNameProperty = templateProps.find(p => (p as any).is_device_name);
-                  const brandInTemplate = templateProps.some(p => p.property_name.toLowerCase() === 'brand');
-                  
-                  console.log('DEBUG: brandInTemplate check:', brandInTemplate);
-                  console.log('DEBUG: formData.brand value:', formData.brand);
+                  const brandFromTemplate = selectedTemplate?.brand_id ? true : false;
 
                   return (
                     <div className="space-y-4">
@@ -485,9 +437,9 @@ const AddGlobalDevice = () => {
                           />
                         </div>
                         
-                        {(brandInTemplate || formData.brand) ? (
+                        {(brandFromTemplate || formData.brand) ? (
                           <div>
-                            <Label htmlFor="brand_locked">Brand {brandInTemplate ? '(From Template)' : ''}</Label>
+                            <Label htmlFor="brand_locked">Brand {brandFromTemplate ? '(From Template)' : ''}</Label>
                             <Input
                               id="brand_locked"
                               value={formData.brand || 'No brand selected'}
