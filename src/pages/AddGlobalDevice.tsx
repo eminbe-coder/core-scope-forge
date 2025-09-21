@@ -445,12 +445,12 @@ const AddGlobalDevice = () => {
                         )}
                         
                         <div>
-                          <Label htmlFor="sku">SKU *</Label>
+                          <Label htmlFor="sku">Item Code *</Label>
                           <Input
                             id="sku"
                             value={templateProperties.sku || ''}
                             onChange={(e) => handleTemplatePropertyChange('sku', e.target.value)}
-                            placeholder="Enter SKU"
+                            placeholder="Enter item code"
                           />
                         </div>
                       </div>
