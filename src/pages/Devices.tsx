@@ -418,11 +418,28 @@ const Devices = () => {
                 {selectedTemplate && selectedTemplate.device_template_properties.length > 0 && (
                   <div className="border-t pt-4">
                     <Label className="text-base font-medium mb-4 block">Template Properties</Label>
-                    <DeviceTemplateForm
-                      templateProperties={selectedTemplate.device_template_properties}
-                      values={templateProperties}
-                      onChange={handleTemplatePropertyChange}
-                    />
+                     <DeviceTemplateForm
+                       templateProperties={selectedTemplate.device_template_properties.map((prop: any) => ({
+                         id: prop.id,
+                         name: prop.property_name,
+                         label_en: prop.label_en,
+                         label_ar: prop.label_ar || '',
+                         type: prop.property_type,
+                         data_type: prop.property_type,
+                         required: prop.is_required,
+                         is_identifier: prop.is_identifier || false,
+                         is_device_name: prop.is_device_name || false,
+                         unit: prop.property_unit,
+                         sort_order: prop.sort_order || 0,
+                         property_options: prop.property_options || [],
+                         options: prop.property_options || [],
+                         formula: prop.formula || '',
+                         depends_on_properties: prop.depends_on_properties || []
+                       }))}
+                       values={templateProperties}
+                       onChange={handleTemplatePropertyChange}
+                       selectedTemplate={undefined}
+                     />
                   </div>
                 )}
 

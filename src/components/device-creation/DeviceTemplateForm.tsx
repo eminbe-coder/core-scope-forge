@@ -13,29 +13,46 @@ import { FormulaEngine } from '@/lib/formula-engine';
 
 interface DeviceTemplateProperty {
   id: string;
-  property_name: string;
+  name: string;
   label_en: string;
-  property_type: string;
-  data_type?: string;
-  is_required: boolean;
-  is_identifier?: boolean;
-  property_options?: any;
+  label_ar: string;
+  type: 'text' | 'number' | 'select' | 'multiselect' | 'dynamic_multiselect' | 'boolean' | 'date' | 'calculated' | 'url' | 'email' | 'phone' | 'color';
+  data_type: string;
+  required: boolean;
+  is_identifier: boolean;
+  is_device_name: boolean;
+  unit?: string;
+  sort_order: number;
+  property_options: any[];
+  options?: Array<{ code: string; label_en: string; label_ar?: string; }>;
   formula?: string;
+  depends_on_properties?: string[];
 }
 
 interface DeviceTemplate {
   id: string;
   name: string;
-  sku_generation_type?: string;
+  label_ar?: string;
+  device_type_id: string;
+  brand_id?: string;
+  description?: string;
+  supports_multilang: boolean;
+  sku_generation_type: 'fixed' | 'dynamic';
   sku_formula?: string;
-  short_description_generation_type?: string;
-  short_description_formula?: string;
-  description_generation_type?: string;
+  description_generation_type: 'fixed' | 'dynamic';
   description_formula?: string;
-  short_description_ar_generation_type?: string;
-  short_description_ar_formula?: string;
-  description_ar_generation_type?: string;
+  short_description_generation_type: 'fixed' | 'dynamic';
+  short_description_formula?: string;
+  description_ar_generation_type?: 'fixed' | 'dynamic';
   description_ar_formula?: string;
+  short_description_ar_generation_type?: 'fixed' | 'dynamic';
+  short_description_ar_formula?: string;
+  image_url?: string;
+  is_global: boolean;
+  properties: DeviceTemplateProperty[];
+  template_version?: number;
+  last_modified_by?: string;
+  created_by?: string;
 }
 
 interface DeviceTemplateFormProps {
@@ -48,121 +65,150 @@ interface DeviceTemplateFormProps {
 export function DeviceTemplateForm({ templateProperties, values, onChange, selectedTemplate }: DeviceTemplateFormProps) {
   const [dynamicValues, setDynamicValues] = useState<Record<string, string[]>>({});
   
-  // Build fixed properties based on template generation types
+  // Build fixed properties that are always available
   const fixedProperties = React.useMemo(() => {
     const baseProperties = [
       {
+        id: 'item_code',
+        name: 'item_code',
+        label_en: 'Item Code', 
+        label_ar: 'رمز العنصر',
+        type: 'text' as const,
+        data_type: 'text',
+        required: true,
+        is_identifier: true,
+        is_device_name: false,
+        sort_order: 0,
+        property_options: [],
+        options: [],
+        formula: '',
+        depends_on_properties: []
+      },
+      {
         id: 'cost_price',
-        property_name: 'cost_price',
+        name: 'cost_price',
         label_en: 'Cost Price',
-        property_type: 'number',
+        label_ar: 'سعر التكلفة', 
+        type: 'number' as const,
         data_type: 'number',
-        is_required: true,
+        required: true,
         is_identifier: false,
+        is_device_name: false,
+        sort_order: 1,
+        property_options: [],
+        options: [],
+        formula: '',
+        depends_on_properties: []
       },
       {
         id: 'cost_price_currency_id',
-        property_name: 'cost_price_currency_id',
+        name: 'cost_price_currency_id',
         label_en: 'Cost Price Currency',
-        property_type: 'select',
+        label_ar: 'عملة سعر التكلفة',
+        type: 'select' as const,
         data_type: 'select',
-        is_required: true,
+        required: true,
         is_identifier: false,
-        property_options: [], // Will be populated with currencies
+        is_device_name: false,
+        sort_order: 1.5,
+        property_options: [],
+        options: [],
+        formula: '',
+        depends_on_properties: []
       },
       {
         id: 'device_image',
-        property_name: 'device_image',
+        name: 'device_image',
         label_en: 'Device Image',
-        property_type: 'text',
+        label_ar: 'صورة الجهاز',
+        type: 'text' as const,
         data_type: 'image',
-        is_required: false,
+        required: false,
         is_identifier: false,
+        is_device_name: false,
+        sort_order: 2.5,
+        property_options: [],
+        options: [],
+        formula: '',
+        depends_on_properties: []
       }
     ];
 
-    // Only add fixed properties if generation type is 'fixed'
+    // Add conditional fixed properties based on generation types
     if (selectedTemplate?.sku_generation_type === 'fixed') {
-      baseProperties.splice(2, 0, {
+      baseProperties.push({
         id: 'sku',
-        property_name: 'sku',
+        name: 'sku',
         label_en: 'SKU',
-        property_type: 'text',
+        label_ar: 'رمز التخزين',
+        type: 'text' as const,
         data_type: 'text',
-        is_required: true,
+        required: true,
         is_identifier: true,
-      });
-    }
-
-    if (selectedTemplate?.short_description_generation_type === 'fixed') {
-      baseProperties.splice(-1, 0, {
-        id: 'short_description',
-        property_name: 'short_description',
-        label_en: 'Short Description',
-        property_type: 'text',
-        data_type: 'text',
-        is_required: true,
-        is_identifier: false,
+        is_device_name: false,
+        sort_order: 3,
+        property_options: [],
+        options: [],
+        formula: '',
+        depends_on_properties: []
       });
     }
 
     if (selectedTemplate?.description_generation_type === 'fixed') {
-      baseProperties.splice(-1, 0, {
-        id: 'long_description',
-        property_name: 'long_description',
-        label_en: 'Long Description',
-        property_type: 'text',
+      baseProperties.push({
+        id: 'description',
+        name: 'description',
+        label_en: 'Description',
+        label_ar: 'الوصف',
+        type: 'text' as const,
         data_type: 'textarea',
-        is_required: true,
+        required: true,
         is_identifier: false,
-      });
-    }
-
-    if (selectedTemplate?.short_description_ar_generation_type === 'fixed') {
-      baseProperties.splice(-1, 0, {
-        id: 'short_description_ar',
-        property_name: 'short_description_ar',
-        label_en: 'Short Description (Arabic)',
-        property_type: 'text',
-        data_type: 'text',
-        is_required: true,
-        is_identifier: false,
+        is_device_name: false,
+        sort_order: 4,
+        property_options: [],
+        options: [],
+        formula: '',
+        depends_on_properties: []
       });
     }
 
     if (selectedTemplate?.description_ar_generation_type === 'fixed') {
-      baseProperties.splice(-1, 0, {
+      baseProperties.push({
         id: 'description_ar',
-        property_name: 'description_ar',
-        label_en: 'Long Description (Arabic)',
-        property_type: 'text',
+        name: 'description_ar',
+        label_en: 'Arabic Description',
+        label_ar: 'الوصف العربي',
+        type: 'text' as const,
         data_type: 'textarea',
-        is_required: true,
+        required: false,
         is_identifier: false,
+        is_device_name: false,
+        sort_order: 5,
+        property_options: [],
+        options: [],
+        formula: '',
+        depends_on_properties: []
       });
     }
 
     return baseProperties;
   }, [selectedTemplate]);
 
-  // Convert template properties to PropertyValue format for formula engine
+  // Get all available properties (fixed + template properties)
+  const getAllAvailableProperties = (): DeviceTemplateProperty[] => {
+    return [...fixedProperties, ...templateProperties];
+  };
+
+  // Convert all properties to PropertyValue format for formula engine
   const getPropertyValues = React.useMemo(() => {
-    return templateProperties.map(prop => ({
-      name: prop.property_name,
-      value: values[prop.property_name],
-      options: (() => {
-        if (!prop.property_options) return undefined;
-        try {
-          const options = typeof prop.property_options === 'string' 
-            ? JSON.parse(prop.property_options) 
-            : prop.property_options;
-          return Array.isArray(options) ? options : undefined;
-        } catch {
-          return undefined;
-        }
-      })()
+    const allProperties = getAllAvailableProperties();
+    return allProperties.map(prop => ({
+      name: prop.name,
+      value: values[prop.name],
+      options: prop.options
     }));
-  }, [templateProperties, values]);
+  }, [templateProperties, values, fixedProperties]);
 
   // Get currencies for cost price currency field
   const [currencies, setCurrencies] = React.useState<Array<{id: string; code: string; name: string}>>([]);
@@ -178,14 +224,17 @@ export function DeviceTemplateForm({ templateProperties, values, onChange, selec
       if (data) {
         setCurrencies(data);
         // Update the cost_price_currency_id property options
-        fixedProperties[2].property_options = data.map(c => ({
-          code: c.id,
-          label_en: `${c.code} - ${c.name}`
-        }));
+        const currencyProperty = fixedProperties.find(p => p.name === 'cost_price_currency_id');
+        if (currencyProperty) {
+          currencyProperty.options = data.map(c => ({
+            code: c.id,
+            label_en: `${c.code} - ${c.name}`
+          }));
+        }
       }
     };
     fetchCurrencies();
-  }, []);
+  }, [fixedProperties]);
 
   const addDynamicValue = (propertyName: string) => {
     const currentValues = dynamicValues[propertyName] || [];
@@ -213,18 +262,18 @@ export function DeviceTemplateForm({ templateProperties, values, onChange, selec
   React.useEffect(() => {
     const initialDynamic: Record<string, string[]> = {};
     templateProperties.forEach(prop => {
-      if (prop.property_type === 'dynamic_multiselect' && values[prop.property_name]) {
-        initialDynamic[prop.property_name] = Array.isArray(values[prop.property_name]) ? values[prop.property_name] : [];
+      if (prop.type === 'dynamic_multiselect' && values[prop.name]) {
+        initialDynamic[prop.name] = Array.isArray(values[prop.name]) ? values[prop.name] : [];
       }
     });
     setDynamicValues(initialDynamic);
   }, [templateProperties, values]);
 
   const renderPropertyInput = (property: DeviceTemplateProperty) => {
-    const currentValue = values[property.property_name];
+    const currentValue = values[property.name];
 
     // Handle calculated properties with formulas
-    if (property.property_type === 'calculation' || property.formula) {
+    if (property.type === 'calculated' || property.formula) {
       const calculatedValue = React.useMemo(() => {
         if (property.formula) {
           try {
@@ -253,14 +302,14 @@ export function DeviceTemplateForm({ templateProperties, values, onChange, selec
       );
     }
 
-    switch (property.property_type) {
+    switch (property.type) {
       case 'url':
       case 'email':
       case 'phone':
         return (
           <Input
             value={currentValue || ''}
-            onChange={(e) => onChange(property.property_name, e.target.value)}
+            onChange={(e) => onChange(property.name, e.target.value)}
             placeholder={`Enter ${property.label_en.toLowerCase()}`}
           />
         );
@@ -270,7 +319,7 @@ export function DeviceTemplateForm({ templateProperties, values, onChange, selec
           <Input
             type="number"
             value={currentValue || ''}
-            onChange={(e) => onChange(property.property_name, e.target.value ? parseFloat(e.target.value) : null)}
+            onChange={(e) => onChange(property.name, e.target.value ? parseFloat(e.target.value) : null)}
             placeholder={`Enter ${property.label_en.toLowerCase()}`}
           />
         );
@@ -280,7 +329,7 @@ export function DeviceTemplateForm({ templateProperties, values, onChange, selec
           <div className="flex items-center space-x-2">
             <Checkbox
               checked={currentValue || false}
-              onCheckedChange={(checked) => onChange(property.property_name, checked)}
+              onCheckedChange={(checked) => onChange(property.name, checked)}
             />
             <Label>Yes</Label>
           </div>
@@ -291,7 +340,7 @@ export function DeviceTemplateForm({ templateProperties, values, onChange, selec
           <Input
             type="date"
             value={currentValue || ''}
-            onChange={(e) => onChange(property.property_name, e.target.value)}
+            onChange={(e) => onChange(property.name, e.target.value)}
           />
         );
 
@@ -300,7 +349,7 @@ export function DeviceTemplateForm({ templateProperties, values, onChange, selec
           <Input
             type="color"
             value={currentValue || '#000000'}
-            onChange={(e) => onChange(property.property_name, e.target.value)}
+            onChange={(e) => onChange(property.name, e.target.value)}
           />
         );
 
@@ -312,13 +361,13 @@ export function DeviceTemplateForm({ templateProperties, values, onChange, selec
               <Input
                 type="url"
                 value={currentValue || ''}
-                onChange={(e) => onChange(property.property_name, e.target.value)}
+                onChange={(e) => onChange(property.name, e.target.value)}
                 placeholder="Enter image URL or upload below"
               />
               <div className="text-sm text-muted-foreground">Or upload an image:</div>
               <ImageUpload
                 value={currentValue || ''}
-                onChange={(url) => onChange(property.property_name, url)}
+                onChange={(url) => onChange(property.name, url)}
                 bucket="device-images"
                 folder="devices"
               />
@@ -331,7 +380,7 @@ export function DeviceTemplateForm({ templateProperties, values, onChange, selec
             <textarea
               className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               value={currentValue || ''}
-              onChange={(e) => onChange(property.property_name, e.target.value)}
+              onChange={(e) => onChange(property.name, e.target.value)}
               placeholder={`Enter ${property.label_en.toLowerCase()}`}
               rows={3}
             />
@@ -340,25 +389,15 @@ export function DeviceTemplateForm({ templateProperties, values, onChange, selec
         return (
           <Input
             value={currentValue || ''}
-            onChange={(e) => onChange(property.property_name, e.target.value)}
+            onChange={(e) => onChange(property.name, e.target.value)}
             placeholder={`Enter ${property.label_en.toLowerCase()}`}
           />
         );
 
       case 'select':
-        const selectOptions = (() => {
-          if (!property.property_options) return [];
-          if (typeof property.property_options === 'string') {
-            try {
-              return JSON.parse(property.property_options);
-            } catch {
-              return [];
-            }
-          }
-          return Array.isArray(property.property_options) ? property.property_options : [];
-        })();
+        const selectOptions = property.options || [];
         return (
-          <Select value={currentValue || ''} onValueChange={(value) => onChange(property.property_name, value)}>
+          <Select value={currentValue || ''} onValueChange={(value) => onChange(property.name, value)}>
             <SelectTrigger>
               <SelectValue placeholder={`Select ${property.label_en.toLowerCase()}`} />
             </SelectTrigger>
@@ -373,17 +412,7 @@ export function DeviceTemplateForm({ templateProperties, values, onChange, selec
         );
 
       case 'multiselect':
-        const multiselectOptions = (() => {
-          if (!property.property_options) return [];
-          if (typeof property.property_options === 'string') {
-            try {
-              return JSON.parse(property.property_options);
-            } catch {
-              return [];
-            }
-          }
-          return Array.isArray(property.property_options) ? property.property_options : [];
-        })();
+        const multiselectOptions = property.options || [];
         const selectedValues = Array.isArray(currentValue) ? currentValue : [];
         return (
           <div className="space-y-2">
@@ -394,9 +423,9 @@ export function DeviceTemplateForm({ templateProperties, values, onChange, selec
                     checked={selectedValues.includes(option.code)}
                     onCheckedChange={(checked) => {
                       if (checked) {
-                        onChange(property.property_name, [...selectedValues, option.code]);
+                        onChange(property.name, [...selectedValues, option.code]);
                       } else {
-                        onChange(property.property_name, selectedValues.filter(v => v !== option.code));
+                        onChange(property.name, selectedValues.filter(v => v !== option.code));
                       }
                     }}
                   />
@@ -420,7 +449,7 @@ export function DeviceTemplateForm({ templateProperties, values, onChange, selec
         );
 
       case 'dynamic_multiselect':
-        const dynamicCurrentValues = dynamicValues[property.property_name] || [''];
+        const dynamicCurrentValues = dynamicValues[property.name] || [''];
         return (
           <div className="space-y-2">
             <div className="text-sm text-muted-foreground mb-2">
@@ -430,7 +459,7 @@ export function DeviceTemplateForm({ templateProperties, values, onChange, selec
               <div key={index} className="flex gap-2">
                 <Input
                   value={value}
-                  onChange={(e) => updateDynamicValue(property.property_name, index, e.target.value)}
+                  onChange={(e) => updateDynamicValue(property.name, index, e.target.value)}
                   placeholder={`Enter ${property.label_en.toLowerCase()} value`}
                 />
                 {dynamicCurrentValues.length > 1 && (
@@ -438,7 +467,7 @@ export function DeviceTemplateForm({ templateProperties, values, onChange, selec
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => removeDynamicValue(property.property_name, index)}
+                    onClick={() => removeDynamicValue(property.name, index)}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -449,14 +478,14 @@ export function DeviceTemplateForm({ templateProperties, values, onChange, selec
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => addDynamicValue(property.property_name)}
+              onClick={() => addDynamicValue(property.name)}
             >
               <Plus className="h-4 w-4 mr-2" />
               Add Value
             </Button>
-            {dynamicValues[property.property_name]?.filter(v => v.trim()).length > 0 && (
+            {dynamicValues[property.name]?.filter(v => v.trim()).length > 0 && (
               <div className="flex flex-wrap gap-1 mt-2">
-                {dynamicValues[property.property_name]?.filter(v => v.trim()).map((value, index) => (
+                {dynamicValues[property.name]?.filter(v => v.trim()).map((value, index) => (
                   <Badge key={index} variant="secondary" className="text-xs">
                     {value}
                   </Badge>
@@ -470,7 +499,7 @@ export function DeviceTemplateForm({ templateProperties, values, onChange, selec
         return (
           <Input
             value={currentValue || ''}
-            onChange={(e) => onChange(property.property_name, e.target.value)}
+            onChange={(e) => onChange(property.name, e.target.value)}
             placeholder={`Enter ${property.label_en.toLowerCase()}`}
           />
         );
@@ -495,8 +524,8 @@ export function DeviceTemplateForm({ templateProperties, values, onChange, selec
     );
   };
 
-  const renderFixedPropertyInput = (property: any) => {
-    if (property.property_name === 'cost_price_currency_id') {
+  const renderFixedPropertyInput = (property: DeviceTemplateProperty) => {
+    if (property.name === 'cost_price_currency_id') {
       return renderCurrencySelect();
     }
     return renderPropertyInput(property);
@@ -573,9 +602,9 @@ export function DeviceTemplateForm({ templateProperties, values, onChange, selec
                 property.data_type === 'textarea' ? 'md:col-span-2 lg:col-span-3' : 
                 property.data_type === 'image' ? 'md:col-span-2 lg:col-span-3' : ''
               }`}>
-                <Label htmlFor={property.property_name}>
+                <Label htmlFor={property.name}>
                   {property.label_en}
-                  {property.is_required && <span className="text-destructive ml-1">*</span>}
+                  {property.required && <span className="text-destructive ml-1">*</span>}
                   {property.is_identifier && (
                     <Badge variant="outline" className="ml-2 text-xs">Identifier</Badge>
                   )}
@@ -594,13 +623,13 @@ export function DeviceTemplateForm({ templateProperties, values, onChange, selec
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {templateProperties.map((property) => (
               <div key={property.id} className={`space-y-2 ${
-                property.property_type === 'multiselect' || property.property_type === 'dynamic_multiselect' 
+                property.type === 'multiselect' || property.type === 'dynamic_multiselect' 
                   ? 'md:col-span-2 lg:col-span-2' 
                   : ''
               }`}>
-                <Label htmlFor={property.property_name}>
+                <Label htmlFor={property.name}>
                   {property.label_en}
-                  {property.is_required && <span className="text-destructive ml-1">*</span>}
+                  {property.required && <span className="text-destructive ml-1">*</span>}
                   {property.is_identifier && (
                     <Badge variant="outline" className="ml-2 text-xs">Identifier</Badge>
                   )}

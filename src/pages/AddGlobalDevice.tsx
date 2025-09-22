@@ -597,18 +597,37 @@ const AddGlobalDevice = () => {
                       property_type: prop.type || prop.property_type,
                       is_required: prop.required || prop.is_required || false,
                       is_identifier: prop.is_identifier || false,
-                      property_options: prop.property_options
+                      is_device_name: prop.is_device_name || false,
+                      property_options: prop.property_options || []
                     }));
                   }
                   
                   if (templateProps.length > 0) {
+                    const convertedProps = templateProps.map((prop: any) => ({
+                      id: prop.id,
+                      name: prop.property_name,
+                      label_en: prop.label_en,
+                      label_ar: prop.label_ar || '',
+                      type: prop.property_type,
+                      data_type: prop.property_type,
+                      required: prop.is_required,
+                      is_identifier: prop.is_identifier || false,
+                      is_device_name: prop.is_device_name || false,
+                      unit: prop.property_unit,
+                      sort_order: prop.sort_order || 0,
+                      property_options: prop.property_options || [],
+                      options: prop.property_options || [],
+                      formula: prop.formula || '',
+                      depends_on_properties: prop.depends_on_properties || []
+                    }));
+
                     return (
                       <div className="border-t pt-6">
                 <DeviceTemplateForm
-                  templateProperties={templateProps}
+                  templateProperties={convertedProps}
                   values={templateProperties}
                   onChange={handleTemplatePropertyChange}
-                  selectedTemplate={selectedTemplate}
+                  selectedTemplate={undefined}
                 />
                       </div>
                     );
