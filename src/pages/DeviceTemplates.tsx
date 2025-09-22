@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Download, Search } from 'lucide-react';
+import { Plus, Download, Search, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { DeviceTemplatesManager } from '@/components/settings/DeviceTemplatesManager';
+import { TemplateImportDialog } from '@/components/templates/TemplateImportDialog';
 
 interface DeviceTemplate {
   id: string;
@@ -24,6 +25,22 @@ interface DeviceTemplate {
   active: boolean;
   created_at: string;
   updated_at: string;
+  // Import tracking fields
+  source_template_id?: string;
+  import_status: string;
+  imported_at?: string;
+  last_synced_at?: string;
+  sync_version: number;
+}
+
+interface ImportLog {
+  id: string;
+  action_type: string;
+  status: string;
+  devices_imported: number;
+  devices_skipped: number;
+  created_at: string;
+  notes?: string;
 }
 
 export default function DeviceTemplates() {
@@ -31,13 +48,34 @@ export default function DeviceTemplates() {
   const { toast } = useToast();
   const [globalTemplates, setGlobalTemplates] = useState<DeviceTemplate[]>([]);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [isImportHistoryOpen, setIsImportHistoryOpen] = useState(false);
+  const [importLogs, setImportLogs] = useState<ImportLog[]>([]);
   const [selectedTemplates, setSelectedTemplates] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     loadGlobalTemplates();
+    loadImportLogs();
   }, []);
+
+  const loadImportLogs = async () => {
+    if (!currentTenant) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('template_import_logs')
+        .select('*')
+        .eq('tenant_id', currentTenant.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+      
+      if (error) throw error;
+      setImportLogs(data || []);
+    } catch (error) {
+      console.error('Error loading import logs:', error);
+    }
+  };
 
   const loadGlobalTemplates = async () => {
     try {
@@ -64,56 +102,10 @@ export default function DeviceTemplates() {
     }
   };
 
-  const handleImportTemplates = async () => {
-    if (!currentTenant || selectedTemplates.length === 0) {
-      toast({
-        title: "Error",
-        description: "Please select templates to import",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      setLoading(true);
-      
-      // Get selected global templates
-      const templatesData = globalTemplates.filter(t => selectedTemplates.includes(t.id));
-      
-      // Create tenant copies
-      const tenantTemplates = templatesData.map(template => ({
-        name: template.name + ' (Imported)',
-        category: template.category,
-        description: template.description,
-        properties_schema: template.properties_schema,
-        is_global: false,
-        tenant_id: currentTenant.id,
-        active: true
-      }));
-
-      const { error } = await supabase
-        .from('device_templates')
-        .insert(tenantTemplates);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: `Imported ${selectedTemplates.length} template(s) successfully`
-      });
-
-      setIsImportDialogOpen(false);
-      setSelectedTemplates([]);
-    } catch (error: any) {
-      console.error('Error importing templates:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to import templates",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
+  const handleImportComplete = () => {
+    loadImportLogs();
+    // Refresh templates in DeviceTemplatesManager
+    window.location.reload(); // Simple approach - in production you'd use proper state management
   };
 
   const toggleTemplateSelection = (templateId: string) => {
@@ -139,102 +131,84 @@ export default function DeviceTemplates() {
               Manage device templates for your tenant
             </p>
           </div>
-          <Button onClick={() => setIsImportDialogOpen(true)}>
-            <Download className="mr-2 h-4 w-4" />
-            Import Global Templates
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => setIsImportDialogOpen(true)}>
+              <Download className="mr-2 h-4 w-4" />
+              Import Templates
+            </Button>
+            <Button variant="outline" onClick={() => setIsImportHistoryOpen(true)}>
+              <History className="mr-2 h-4 w-4" />
+              Import History
+            </Button>
+          </div>
         </div>
 
         <DeviceTemplatesManager />
 
-        <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+        <TemplateImportDialog 
+          open={isImportDialogOpen} 
+          onOpenChange={setIsImportDialogOpen}
+          onImportComplete={handleImportComplete}
+        />
+
+        {/* Import History Dialog */}
+        <Dialog open={isImportHistoryOpen} onOpenChange={setIsImportHistoryOpen}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Import Global Templates</DialogTitle>
+              <DialogTitle>Template Import History</DialogTitle>
               <DialogDescription>
-                Select global device templates to import to your tenant
+                View history of template and device imports
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4">
-              <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search templates..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8"
-                />
-              </div>
-
-              <div className="border rounded-lg">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12">
-                        <input
-                          type="checkbox"
-                          checked={selectedTemplates.length === filteredGlobalTemplates.length && filteredGlobalTemplates.length > 0}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedTemplates(filteredGlobalTemplates.map(t => t.id));
-                            } else {
-                              setSelectedTemplates([]);
-                            }
-                          }}
-                        />
-                      </TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Properties</TableHead>
-                      <TableHead>Description</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredGlobalTemplates.map((template) => (
-                      <TableRow key={template.id}>
-                        <TableCell>
-                          <input
-                            type="checkbox"
-                            checked={selectedTemplates.includes(template.id)}
-                            onChange={() => toggleTemplateSelection(template.id)}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-medium">{template.name}</div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{template.category}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          {Object.keys(template.properties_schema || {}).length} properties
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm text-muted-foreground">
-                            {template.description || 'No description'}
-                          </div>
-                        </TableCell>
+              {importLogs.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No import history found
+                </div>
+              ) : (
+                <div className="border rounded-lg">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Action</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Devices Imported</TableHead>
+                        <TableHead>Devices Skipped</TableHead>
+                        <TableHead>Notes</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              <div className="flex justify-between items-center">
-                <div className="text-sm text-muted-foreground">
-                  {selectedTemplates.length} template(s) selected
+                    </TableHeader>
+                    <TableBody>
+                      {importLogs.map((log) => (
+                        <TableRow key={log.id}>
+                          <TableCell>
+                            {new Date(log.created_at).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{log.action_type}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={log.status === 'success' ? 'default' : log.status === 'partial' ? 'secondary' : 'destructive'}>
+                              {log.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{log.devices_imported}</TableCell>
+                          <TableCell>{log.devices_skipped}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
+                            {log.notes || 'N/A'}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
-                <div className="space-x-2">
-                  <Button variant="outline" onClick={() => setIsImportDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button 
-                    onClick={handleImportTemplates}
-                    disabled={selectedTemplates.length === 0 || loading}
-                  >
-                    {loading ? 'Importing...' : `Import ${selectedTemplates.length} Template(s)`}
-                  </Button>
-                </div>
+              )}
+              
+              <div className="flex justify-end">
+                <Button onClick={() => setIsImportHistoryOpen(false)}>
+                  Close
+                </Button>
               </div>
             </div>
           </DialogContent>

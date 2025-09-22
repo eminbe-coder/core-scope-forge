@@ -2135,6 +2135,44 @@ export type Database = {
           },
         ]
       }
+      device_import_conflicts: {
+        Row: {
+          conflict_reason: string
+          created_at: string
+          device_data: Json
+          global_device_id: string
+          id: string
+          import_log_id: string
+          tenant_id: string
+        }
+        Insert: {
+          conflict_reason: string
+          created_at?: string
+          device_data: Json
+          global_device_id: string
+          id?: string
+          import_log_id: string
+          tenant_id: string
+        }
+        Update: {
+          conflict_reason?: string
+          created_at?: string
+          device_data?: Json
+          global_device_id?: string
+          id?: string
+          import_log_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_import_conflicts_import_log_id_fkey"
+            columns: ["import_log_id"]
+            isOneToOne: false
+            referencedRelation: "template_import_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       device_template_drafts: {
         Row: {
           created_at: string
@@ -2306,9 +2344,12 @@ export type Database = {
           device_type_id: string | null
           id: string
           image_url: string | null
+          import_status: string | null
+          imported_at: string | null
           is_global: boolean
           label_ar: string | null
           last_modified_by: string | null
+          last_synced_at: string | null
           name: string
           properties_schema: Json
           short_description_ar_formula: string | null
@@ -2317,7 +2358,9 @@ export type Database = {
           short_description_generation_type: string | null
           sku_formula: string | null
           sku_generation_type: string
+          source_template_id: string | null
           supports_multilang: boolean
+          sync_version: number | null
           template_version: number
           tenant_id: string | null
           updated_at: string
@@ -2338,9 +2381,12 @@ export type Database = {
           device_type_id?: string | null
           id?: string
           image_url?: string | null
+          import_status?: string | null
+          imported_at?: string | null
           is_global?: boolean
           label_ar?: string | null
           last_modified_by?: string | null
+          last_synced_at?: string | null
           name: string
           properties_schema?: Json
           short_description_ar_formula?: string | null
@@ -2349,7 +2395,9 @@ export type Database = {
           short_description_generation_type?: string | null
           sku_formula?: string | null
           sku_generation_type?: string
+          source_template_id?: string | null
           supports_multilang?: boolean
+          sync_version?: number | null
           template_version?: number
           tenant_id?: string | null
           updated_at?: string
@@ -2370,9 +2418,12 @@ export type Database = {
           device_type_id?: string | null
           id?: string
           image_url?: string | null
+          import_status?: string | null
+          imported_at?: string | null
           is_global?: boolean
           label_ar?: string | null
           last_modified_by?: string | null
+          last_synced_at?: string | null
           name?: string
           properties_schema?: Json
           short_description_ar_formula?: string | null
@@ -2381,7 +2432,9 @@ export type Database = {
           short_description_generation_type?: string | null
           sku_formula?: string | null
           sku_generation_type?: string
+          source_template_id?: string | null
           supports_multilang?: boolean
+          sync_version?: number | null
           template_version?: number
           tenant_id?: string | null
           updated_at?: string
@@ -2399,6 +2452,13 @@ export type Database = {
             columns: ["device_type_id"]
             isOneToOne: false
             referencedRelation: "device_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "device_templates_source_template_id_fkey"
+            columns: ["source_template_id"]
+            isOneToOne: false
+            referencedRelation: "device_templates"
             referencedColumns: ["id"]
           },
           {
@@ -2467,15 +2527,21 @@ export type Database = {
           created_at: string
           currency_id: string | null
           id: string
+          identity_hash: string | null
           image_url: string | null
+          import_status: string | null
+          imported_at: string | null
           is_global: boolean
+          last_synced_at: string | null
           model: string | null
           msrp: number | null
           msrp_currency_id: string | null
           name: string
           pricing_formula: string | null
           pricing_type: string | null
+          source_device_id: string | null
           specifications: Json | null
+          sync_version: number | null
           template_id: string | null
           template_properties: Json | null
           tenant_id: string | null
@@ -2491,15 +2557,21 @@ export type Database = {
           created_at?: string
           currency_id?: string | null
           id?: string
+          identity_hash?: string | null
           image_url?: string | null
+          import_status?: string | null
+          imported_at?: string | null
           is_global?: boolean
+          last_synced_at?: string | null
           model?: string | null
           msrp?: number | null
           msrp_currency_id?: string | null
           name: string
           pricing_formula?: string | null
           pricing_type?: string | null
+          source_device_id?: string | null
           specifications?: Json | null
+          sync_version?: number | null
           template_id?: string | null
           template_properties?: Json | null
           tenant_id?: string | null
@@ -2515,15 +2587,21 @@ export type Database = {
           created_at?: string
           currency_id?: string | null
           id?: string
+          identity_hash?: string | null
           image_url?: string | null
+          import_status?: string | null
+          imported_at?: string | null
           is_global?: boolean
+          last_synced_at?: string | null
           model?: string | null
           msrp?: number | null
           msrp_currency_id?: string | null
           name?: string
           pricing_formula?: string | null
           pricing_type?: string | null
+          source_device_id?: string | null
           specifications?: Json | null
+          sync_version?: number | null
           template_id?: string | null
           template_properties?: Json | null
           tenant_id?: string | null
@@ -2550,6 +2628,13 @@ export type Database = {
             columns: ["msrp_currency_id"]
             isOneToOne: false
             referencedRelation: "currencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "devices_source_device_id_fkey"
+            columns: ["source_device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
             referencedColumns: ["id"]
           },
           {
@@ -3878,6 +3963,59 @@ export type Database = {
           },
         ]
       }
+      template_import_logs: {
+        Row: {
+          action_type: string
+          conflict_report: Json | null
+          created_at: string
+          created_by: string
+          devices_imported: number | null
+          devices_skipped: number | null
+          devices_updated: number | null
+          id: string
+          notes: string | null
+          status: string
+          template_id: string
+          tenant_id: string
+        }
+        Insert: {
+          action_type: string
+          conflict_report?: Json | null
+          created_at?: string
+          created_by: string
+          devices_imported?: number | null
+          devices_skipped?: number | null
+          devices_updated?: number | null
+          id?: string
+          notes?: string | null
+          status: string
+          template_id: string
+          tenant_id: string
+        }
+        Update: {
+          action_type?: string
+          conflict_report?: Json | null
+          created_at?: string
+          created_by?: string
+          devices_imported?: number | null
+          devices_skipped?: number | null
+          devices_updated?: number | null
+          id?: string
+          notes?: string | null
+          status?: string
+          template_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_import_logs_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "device_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenant_invitations: {
         Row: {
           accepted_at: string | null
@@ -4988,6 +5126,14 @@ export type Database = {
           _tenant_id: string
           _title: string
           _user_id: string
+        }
+        Returns: string
+      }
+      generate_device_identity_hash: {
+        Args: {
+          device_brand: string
+          device_model: string
+          device_name: string
         }
         Returns: string
       }

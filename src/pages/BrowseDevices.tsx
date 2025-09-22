@@ -7,11 +7,12 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { usePermissions } from '@/hooks/use-permissions';
 import { toast } from 'sonner';
-import { Loader2, Search, Settings, Zap, Eye } from 'lucide-react';
+import { Loader2, Search, Settings, Zap, Eye, RefreshCw, Copy, Lock, Shield } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 
 interface Device {
@@ -21,6 +22,7 @@ interface Device {
   brand?: string;
   model?: string;
   unit_price?: number;
+  currency_id?: string;
   currency?: {
     code: string;
     symbol: string;
@@ -29,6 +31,7 @@ interface Device {
   specifications?: any;
   image_url?: string;
   is_global: boolean;
+  tenant_id?: string;
   template_id?: string;
   template?: {
     id: string;
@@ -36,6 +39,13 @@ interface Device {
     sku_formula?: string;
     description_formula?: string;
   };
+  // Import tracking fields
+  source_device_id?: string;
+  import_status: string;
+  imported_at?: string;
+  last_synced_at?: string;
+  sync_version: number;
+  identity_hash?: string;
 }
 
 interface DeviceTemplate {
@@ -58,6 +68,10 @@ export default function BrowseDevices() {
   const [configuredProperties, setConfiguredProperties] = useState<Record<string, any>>({});
   const [generatedSku, setGeneratedSku] = useState('');
   const [generatedDescription, setGeneratedDescription] = useState('');
+  const [filterImportStatus, setFilterImportStatus] = useState<string>('all');
+  const [syncing, setSyncing] = useState(false);
+  const [cloneDialogOpen, setCloneDialogOpen] = useState(false);
+  const [deviceToClone, setDeviceToClone] = useState<Device | null>(null);
 
   useEffect(() => {
     fetchDevices();
@@ -74,15 +88,23 @@ export default function BrowseDevices() {
     try {
       setLoading(true);
       
-      const { data, error } = await supabase
+      let query = supabase
         .from('devices')
         .select(`
           *,
           currency:currencies!devices_currency_id_fkey(code, symbol),
           template:device_templates(id, name, sku_formula, description_formula)
         `)
-        .eq('active', true)
-        .order('name');
+        .eq('active', true);
+
+      // Only show devices visible to tenant (global + tenant-owned + imported)
+      if (currentTenant) {
+        query = query.or(`tenant_id.eq.${currentTenant.id},tenant_id.is.null`);
+      } else {
+        query = query.is('tenant_id', null); // Only global devices if no tenant
+      }
+
+      const { data, error } = await query.order('name');
 
       if (error) throw error;
       setDevices((data || []).map(device => ({
@@ -151,6 +173,112 @@ export default function BrowseDevices() {
     }));
   };
 
+  const syncImportedDevices = async () => {
+    if (!currentTenant) return;
+    
+    try {
+      setSyncing(true);
+      
+      // Get all imported devices for this tenant
+      const { data: importedDevices, error: fetchError } = await supabase
+        .from('devices')
+        .select('*')
+        .eq('tenant_id', currentTenant.id)
+        .eq('import_status', 'imported')
+        .not('source_device_id', 'is', null);
+
+      if (fetchError) throw fetchError;
+
+      if (!importedDevices || importedDevices.length === 0) {
+        toast.success('No imported devices to sync');
+        return;
+      }
+
+      // Get source devices to check for updates
+      const sourceIds = importedDevices.map(d => d.source_device_id).filter(Boolean);
+      const { data: sourceDevices, error: sourceError } = await supabase
+        .from('devices')
+        .select('*')
+        .in('id', sourceIds);
+
+      if (sourceError) throw sourceError;
+
+      let updatedCount = 0;
+      const updatePromises = importedDevices.map(async (imported) => {
+        const source = sourceDevices?.find(s => s.id === imported.source_device_id);
+        if (!source) return;
+
+        // Check if source has newer version
+        if (source.sync_version > imported.sync_version) {
+          const { error } = await supabase
+            .from('devices')
+            .update({
+              name: source.name,
+              category: source.category,
+              brand: source.brand,
+              model: source.model,
+              unit_price: source.unit_price,
+              specifications: source.specifications,
+              template_properties: source.template_properties,
+              image_url: source.image_url,
+              sync_version: source.sync_version,
+              last_synced_at: new Date().toISOString()
+            })
+            .eq('id', imported.id);
+
+          if (!error) updatedCount++;
+        }
+      });
+
+      await Promise.all(updatePromises);
+      
+      toast.success(`Synced ${updatedCount} device(s)`);
+      fetchDevices();
+    } catch (error) {
+      console.error('Error syncing devices:', error);
+      toast.error('Failed to sync devices');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const cloneDevice = async (device: Device) => {
+    if (!currentTenant) return;
+
+    try {
+      const clonedDevice = {
+        name: `${device.name} (Copy)`,
+        category: device.category,
+        brand: device.brand,
+        model: device.model,
+        unit_price: device.unit_price,
+        currency_id: device.currency_id,
+        specifications: device.specifications,
+        template_properties: device.template_properties,
+        template_id: device.template_id,
+        image_url: device.image_url,
+        tenant_id: currentTenant.id,
+        is_global: false,
+        import_status: 'original',
+        active: true
+      };
+
+      const { error } = await supabase
+        .from('devices')
+        .insert(clonedDevice);
+
+      if (error) throw error;
+
+      toast.success('Device cloned successfully');
+      setCloneDialogOpen(false);
+      setDeviceToClone(null);
+      fetchDevices();
+    } catch (error) {
+      console.error('Error cloning device:', error);
+      toast.error('Failed to clone device');
+    }
+  };
+
   const categories = [...new Set(devices.map(d => d.category))];
   
   const filteredDevices = devices.filter(device => {
@@ -158,8 +286,12 @@ export default function BrowseDevices() {
                          device.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (device.brand && device.brand.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesCategory = selectedCategory === 'all' || device.category === selectedCategory;
+    const matchesImportStatus = filterImportStatus === 'all' || 
+                              (filterImportStatus === 'imported' && device.import_status === 'imported') ||
+                              (filterImportStatus === 'original' && device.import_status === 'original') ||
+                              (filterImportStatus === 'global' && device.tenant_id === null);
     
-    return matchesSearch && matchesCategory;
+    return matchesSearch && matchesCategory && matchesImportStatus;
   });
 
   const formatPrice = (price?: number, currency?: any) => {
@@ -175,8 +307,22 @@ export default function BrowseDevices() {
           <div>
             <h1 className="text-2xl font-bold">Browse Devices</h1>
             <p className="text-muted-foreground">
-              Select devices and configure their properties to generate SKUs and descriptions
+              Browse imported global devices and tenant-owned devices. Configure properties to generate SKUs and descriptions.
             </p>
+          </div>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={syncImportedDevices}
+              disabled={syncing}
+            >
+              {syncing ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              )}
+              Sync Imported
+            </Button>
           </div>
         </div>
 
@@ -213,6 +359,20 @@ export default function BrowseDevices() {
                         {category}
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-full sm:w-48">
+                <Label htmlFor="import-status">Source</Label>
+                <Select value={filterImportStatus} onValueChange={setFilterImportStatus}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="All Sources" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Sources</SelectItem>
+                    <SelectItem value="global">Global Only</SelectItem>
+                    <SelectItem value="imported">Imported Only</SelectItem>
+                    <SelectItem value="original">Tenant Original</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -261,7 +421,9 @@ export default function BrowseDevices() {
                             <div className="flex-1">
                               <div className="flex items-center space-x-2 mb-1">
                                 <h3 className="font-semibold">{device.name}</h3>
-                                {device.is_global && <Badge variant="secondary">Global</Badge>}
+                                {device.tenant_id === null && <Badge variant="secondary">Global</Badge>}
+                                {device.import_status === 'imported' && <Badge variant="outline"><Shield className="h-3 w-3 mr-1" />Imported</Badge>}
+                                {device.import_status === 'imported' && <Lock className="h-4 w-4 text-muted-foreground" />}
                               </div>
                               <p className="text-sm text-muted-foreground mb-1">
                                 {device.category} {device.brand && `• ${device.brand}`} {device.model && `• ${device.model}`}
@@ -281,16 +443,31 @@ export default function BrowseDevices() {
                               </div>
                             </div>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(`/devices/${device.id}`);
-              }}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/devices/${device.id}`);
+                              }}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            {(device.tenant_id === null || device.import_status === 'imported') && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeviceToClone(device);
+                                  setCloneDialogOpen(true);
+                                }}
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -310,12 +487,22 @@ export default function BrowseDevices() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {selectedDevice ? (
+                 {selectedDevice ? (
                   <>
                     {/* Device Info */}
                     <div className="p-3 bg-muted/50 rounded-lg">
-                      <h4 className="font-medium mb-1">{selectedDevice.name}</h4>
+                      <div className="flex items-center justify-between mb-1">
+                        <h4 className="font-medium">{selectedDevice.name}</h4>
+                        {selectedDevice.import_status === 'imported' && (
+                          <Lock className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </div>
                       <p className="text-sm text-muted-foreground">{selectedDevice.category}</p>
+                      {selectedDevice.import_status === 'imported' && (
+                        <p className="text-xs text-orange-600 mt-1">
+                          This is an imported read-only device. Clone it to make editable changes.
+                        </p>
+                      )}
                     </div>
 
                     <Separator />
@@ -376,6 +563,32 @@ export default function BrowseDevices() {
             </Card>
           </div>
         </div>
+
+        {/* Clone Device Dialog */}
+        <Dialog open={cloneDialogOpen} onOpenChange={setCloneDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Clone Device</DialogTitle>
+              <DialogDescription>
+                Create an editable copy of "{deviceToClone?.name}" in your tenant
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                This will create a new device in your tenant that you can fully edit and customize. 
+                The cloned device will not be linked to the original.
+              </p>
+              <div className="flex justify-end space-x-2">
+                <Button variant="outline" onClick={() => setCloneDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={() => deviceToClone && cloneDevice(deviceToClone)}>
+                  Clone Device
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
