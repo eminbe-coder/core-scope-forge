@@ -276,28 +276,55 @@ export const TodoList: React.FC<TodoListProps> = ({
       filtered = filtered.filter(todo => todo.assigned_to === filterAssignee);
     }
 
-    // Status filters
-    if (showOverdue) {
-      filtered = filtered.filter(todo => 
-        todo.due_date && isPast(new Date(todo.due_date)) && todo.status !== 'completed'
-      );
-    } else if (showDue) {
-      filtered = filtered.filter(todo => 
-        todo.due_date && (isToday(new Date(todo.due_date)) || isTomorrow(new Date(todo.due_date)))
-      );
-    } else if (showLater) {
+    // Group filters - combine multiple groups when multiple toggles are ON
+    const hasActiveGroupFilters = showOverdue || showDue || showLater || showCompleted || showCreatedByMe;
+    
+    if (hasActiveGroupFilters) {
       filtered = filtered.filter(todo => {
-        if (todo.status === 'completed') return false;
-        if (!todo.due_date) return true; // No due date = Later
-        const dueDate = new Date(todo.due_date);
         const now = new Date();
-        const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-        return dueDate > endOfDay; // Future dates = Later
+        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000 - 1);
+        
+        // Check if todo belongs to any of the selected groups
+        let belongsToSelectedGroup = false;
+        
+        // Overdue group
+        if (showOverdue && todo.due_date && new Date(todo.due_date) < startOfDay && todo.status !== 'completed') {
+          belongsToSelectedGroup = true;
+        }
+        
+        // Due Today group
+        if (showDue && todo.due_date && todo.status !== 'completed') {
+          const dueDate = new Date(todo.due_date);
+          if (dueDate >= startOfDay && dueDate <= endOfDay) {
+            belongsToSelectedGroup = true;
+          }
+        }
+        
+        // Later group (future dates or no due date, not completed)
+        if (showLater && todo.status !== 'completed') {
+          if (!todo.due_date) {
+            belongsToSelectedGroup = true;
+          } else {
+            const dueDate = new Date(todo.due_date);
+            if (dueDate > endOfDay) {
+              belongsToSelectedGroup = true;
+            }
+          }
+        }
+        
+        // Completed group
+        if (showCompleted && todo.status === 'completed') {
+          belongsToSelectedGroup = true;
+        }
+        
+        // Created by me group
+        if (showCreatedByMe && todo.created_by === currentUserId) {
+          belongsToSelectedGroup = true;
+        }
+        
+        return belongsToSelectedGroup;
       });
-    } else if (showCompleted) {
-      filtered = filtered.filter(todo => todo.status === 'completed');
-    } else if (showCreatedByMe) {
-      filtered = filtered.filter(todo => todo.created_by === currentUserId);
     }
 
     // Sort todos

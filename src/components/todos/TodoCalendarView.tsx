@@ -101,25 +101,50 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
           return false;
         }
 
-        // Status filters
-        if (!externalFilters.showCompleted && todo.status === 'completed') return false;
+        // Group filters - show todo if it belongs to any selected group
+        const hasActiveGroupFilters = externalFilters.showOverdue || externalFilters.showDue || externalFilters.showLater || externalFilters.showCompleted || externalFilters.showCreatedByMe;
         
-        // Later filter - todos with future due dates or no due date (not completed)
-        if (!externalFilters.showLater && todo.status !== 'completed') {
-          if (!todo.due_date) return false; // No due date = Later
-          const dueDate = new Date(todo.due_date);
+        if (hasActiveGroupFilters) {
           const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000 - 1);
-          if (dueDate > endOfDay) return false; // Future dates = Later
-        }
-        
-        // Due date filters
-        if (todo.due_date) {
-          const dueDate = new Date(todo.due_date);
-          const isOverdue = dueDate < startOfDay && todo.status !== 'completed';
-          const isDueToday = dueDate >= startOfDay && dueDate < new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
           
-          if (!externalFilters.showOverdue && isOverdue) return false;
-          if (!externalFilters.showDue && isDueToday) return false;
+          let belongsToSelectedGroup = false;
+          
+          // Overdue group
+          if (externalFilters.showOverdue && todo.due_date && new Date(todo.due_date) < startOfDay && todo.status !== 'completed') {
+            belongsToSelectedGroup = true;
+          }
+          
+          // Due Today group
+          if (externalFilters.showDue && todo.due_date && todo.status !== 'completed') {
+            const dueDate = new Date(todo.due_date);
+            if (dueDate >= startOfDay && dueDate <= endOfDay) {
+              belongsToSelectedGroup = true;
+            }
+          }
+          
+          // Later group (future dates or no due date, not completed)
+          if (externalFilters.showLater && todo.status !== 'completed') {
+            if (!todo.due_date) {
+              belongsToSelectedGroup = true;
+            } else {
+              const dueDate = new Date(todo.due_date);
+              if (dueDate > endOfDay) {
+                belongsToSelectedGroup = true;
+              }
+            }
+          }
+          
+          // Completed group
+          if (externalFilters.showCompleted && todo.status === 'completed') {
+            belongsToSelectedGroup = true;
+          }
+          
+          // Created by me group (would need current user context)
+          // if (externalFilters.showCreatedByMe && todo.created_by === currentUser?.id) {
+          //   belongsToSelectedGroup = true;
+          // }
+          
+          if (!belongsToSelectedGroup) return false;
         }
 
         // Created by me filter (would need current user)
