@@ -55,7 +55,7 @@ export const TodoWidget = ({
         </div>
       )}
       <TodoList
-        todos={todos}
+        todos={todos as any}
         loading={loading}
         error={error}
         showFilters={!compact}

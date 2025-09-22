@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
-import { TodoListEnhanced } from '@/components/todos/TodoListEnhanced';
+import { TodoList } from '@/components/todos/TodoList';
 import { TodoCalendarView } from '@/components/todos/TodoCalendarView';
 import { TodoDetailModal } from '@/components/todos/TodoDetailModal';
 import { TodoFilters } from '@/components/todos/TodoFilters';
@@ -431,7 +431,7 @@ const MyTodos = () => {
                 />
               </CardHeader>
               <CardContent>
-                <TodoListEnhanced
+                <TodoList
                   todos={todos}
                   onTodoClick={handleTodoClick}
                   showAssigneeFilter={false}

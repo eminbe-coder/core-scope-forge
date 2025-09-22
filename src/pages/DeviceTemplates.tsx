@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { AdvancedDeviceTemplatesManager } from '@/components/settings/AdvancedDeviceTemplatesManager';
+import { DeviceTemplatesManager } from '@/components/settings/DeviceTemplatesManager';
 
 interface DeviceTemplate {
   id: string;
@@ -145,7 +145,7 @@ export default function DeviceTemplates() {
           </Button>
         </div>
 
-        <AdvancedDeviceTemplatesManager />
+        <DeviceTemplatesManager />
 
         <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
