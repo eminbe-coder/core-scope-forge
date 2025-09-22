@@ -2,17 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Plus, Edit2, Trash2, Eye, Languages, Code, Sparkles, RefreshCw, Copy } from 'lucide-react';
+import { Trash2, Languages, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useTenant } from '@/hooks/use-tenant';
 import { useAuth } from '@/hooks/use-auth';
@@ -107,30 +100,13 @@ export function DeviceTemplatesManager() {
   
   const [activeTab, setActiveTab] = useState('global');
   const [templates, setTemplates] = useState<DeviceTemplate[]>([]);
-  const [deviceTypes, setDeviceTypes] = useState<DeviceType[]>([]);
   const [loading, setLoading] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<DeviceTemplate | null>(null);
-  
-  const [formData, setFormData] = useState<DeviceTemplate>({
-    name: '',
-    category: '',
-    description: '',
-    is_global: false,
-    active: true,
-    supports_multilang: false,
-    sku_generation_type: 'formula',
-    description_generation_type: 'formula'
-  });
-  
-  const [templateProperties, setTemplateProperties] = useState<DeviceTemplateProperty[]>([]);
-  const [templateOptions, setTemplateOptions] = useState<DeviceTemplateOption[]>([]);
   const [syncing, setSyncing] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      await Promise.all([loadDeviceTypes(), loadTemplates()]);
+      await loadTemplates();
     } finally {
       setLoading(false);
     }
@@ -140,24 +116,6 @@ export function DeviceTemplatesManager() {
     loadData();
   }, [loadData]);
 
-  const loadDeviceTypes = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('device_types')
-        .select('*')
-        .eq('active', true)
-        .order('sort_order', { ascending: true });
-
-      if (error) throw error;
-      setDeviceTypes(data || []);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to load device types",
-        variant: "destructive"
-      });
-    }
-  };
 
   const loadTemplates = async () => {
     try {
@@ -280,169 +238,6 @@ export function DeviceTemplatesManager() {
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      category: '',
-      description: '',
-      is_global: activeTab === 'global',
-      active: true,
-      supports_multilang: false,
-      sku_generation_type: 'formula',
-      description_generation_type: 'formula'
-    });
-    setTemplateProperties([]);
-    setTemplateOptions([]);
-    setEditingTemplate(null);
-  };
-
-  const handleSaveTemplate = async () => {
-    try {
-      if (!formData.name || !formData.category) {
-        toast({
-          title: "Validation Error",
-          description: "Name and category are required",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      const templateData = {
-        ...formData,
-        tenant_id: formData.is_global ? null : currentTenant?.id,
-        created_by: user?.id,
-        properties_schema: templateProperties as any
-      };
-
-      let result;
-      if (editingTemplate) {
-        const { data, error } = await supabase
-          .from('device_templates')
-          .update(templateData)
-          .eq('id', editingTemplate.id)
-          .select()
-          .single();
-        
-        if (error) throw error;
-        result = data;
-      } else {
-        const { data, error } = await supabase
-          .from('device_templates')
-          .insert(templateData)
-          .select()
-          .single();
-        
-        if (error) throw error;
-        result = data;
-      }
-
-      // Save properties and options if template was saved successfully
-      if (result?.id) {
-        await Promise.all([
-          saveTemplateProperties(result.id),
-          saveTemplateOptions(result.id)
-        ]);
-      }
-
-      toast({
-        title: "Success",
-        description: `Template ${editingTemplate ? 'updated' : 'created'} successfully`
-      });
-
-      setDialogOpen(false);
-      resetForm();
-      loadTemplates();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: `Failed to ${editingTemplate ? 'update' : 'create'} template`,
-        variant: "destructive"
-      });
-    }
-  };
-
-  const saveTemplateProperties = async (templateId: string) => {
-    if (templateProperties.length === 0) return;
-
-    // Delete existing properties
-    await supabase
-      .from('device_template_properties')
-      .delete()
-      .eq('template_id', templateId);
-
-    // Insert new properties
-    const properties = templateProperties.map(prop => ({
-      ...prop,
-      template_id: templateId,
-      tenant_id: formData.is_global ? null : currentTenant?.id
-    }));
-
-    const { error } = await supabase
-      .from('device_template_properties')
-      .insert(properties);
-
-    if (error) throw error;
-  };
-
-  const saveTemplateOptions = async (templateId: string) => {
-    if (templateOptions.length === 0) return;
-
-    // Delete existing options
-    await supabase
-      .from('device_template_options')
-      .delete()
-      .eq('template_id', templateId);
-
-    // Insert new options
-    const options = templateOptions.map(option => ({
-      ...option,
-      template_id: templateId,
-      tenant_id: formData.is_global ? null : currentTenant?.id
-    }));
-
-    const { error } = await supabase
-      .from('device_template_options')
-      .insert(options);
-
-    if (error) throw error;
-  };
-
-  const handleEditTemplate = async (template: DeviceTemplate) => {
-    setEditingTemplate(template);
-    setFormData(template);
-    
-    // Load template properties and options
-    if (template.id) {
-      try {
-        const [propertiesRes, optionsRes] = await Promise.all([
-          supabase
-            .from('device_template_properties')
-            .select('*')
-            .eq('template_id', template.id)
-            .order('sort_order'),
-          supabase
-            .from('device_template_options')
-            .select('*')
-            .eq('template_id', template.id)
-            .order('sort_order')
-        ]);
-
-        if (propertiesRes.error) throw propertiesRes.error;
-        if (optionsRes.error) throw optionsRes.error;
-
-        setTemplateProperties(propertiesRes.data || []);
-        setTemplateOptions(optionsRes.data || []);
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to load template details",
-          variant: "destructive"
-        });
-      }
-    }
-    
-    setDialogOpen(true);
-  };
 
   const handleDeleteTemplate = async (templateId: string) => {
     try {
@@ -468,52 +263,6 @@ export function DeviceTemplatesManager() {
     }
   };
 
-  const addProperty = () => {
-    setTemplateProperties([
-      ...templateProperties,
-      {
-        property_name: '',
-        property_type: 'text',
-        label_en: '',
-        is_required: false,
-        is_identifier: false,
-        sort_order: templateProperties.length
-      }
-    ]);
-  };
-
-  const updateProperty = (index: number, field: keyof DeviceTemplateProperty, value: any) => {
-    const updated = [...templateProperties];
-    updated[index] = { ...updated[index], [field]: value };
-    setTemplateProperties(updated);
-  };
-
-  const removeProperty = (index: number) => {
-    setTemplateProperties(templateProperties.filter((_, i) => i !== index));
-  };
-
-  const addOption = () => {
-    setTemplateOptions([
-      ...templateOptions,
-      {
-        code: '',
-        label_en: '',
-        data_type: 'text',
-        sort_order: templateOptions.length,
-        active: true
-      }
-    ]);
-  };
-
-  const updateOption = (index: number, field: keyof DeviceTemplateOption, value: any) => {
-    const updated = [...templateOptions];
-    updated[index] = { ...updated[index], [field]: value };
-    setTemplateOptions(updated);
-  };
-
-  const removeOption = (index: number) => {
-    setTemplateOptions(templateOptions.filter((_, i) => i !== index));
-  };
 
   const handleSyncTemplate = async (template: DeviceTemplate) => {
     if (!template.source_template_id || !template.id) {
@@ -715,10 +464,6 @@ export function DeviceTemplatesManager() {
             Manage device templates and their properties
           </p>
         </div>
-        <Button onClick={() => { resetForm(); setDialogOpen(true); }}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Template
-        </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -802,23 +547,16 @@ export function DeviceTemplatesManager() {
                               );
                             } else {
                               return (
-                                <>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleEditTemplate(template)}
-                                  >
-                                    <Edit2 className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => template.id && handleDeleteTemplate(template.id)}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </>
-                              );
+                                 <>
+                                   <Button
+                                     variant="ghost"
+                                     size="sm"
+                                     onClick={() => template.id && handleDeleteTemplate(template.id)}
+                                   >
+                                     <Trash2 className="h-4 w-4" />
+                                   </Button>
+                                 </>
+                               );
                             }
                           })()}
                         </div>
@@ -832,173 +570,6 @@ export function DeviceTemplatesManager() {
         </TabsContent>
       </Tabs>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {editingTemplate ? 'Edit Template' : 'Create New Template'}
-            </DialogTitle>
-            <DialogDescription>
-              Configure template details, properties, and generation formulas
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-6">
-            {/* Basic Information */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Name *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Template name"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="category">Category *</Label>
-                <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {deviceTypes.map((type) => (
-                      <SelectItem key={type.id} value={type.name}>
-                        {type.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={formData.description || ''}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Template description"
-              />
-            </div>
-
-            {/* Template Properties */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="font-medium">Template Properties</h4>
-                <Button type="button" variant="outline" size="sm" onClick={addProperty}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Property
-                </Button>
-              </div>
-
-              {templateProperties.map((property, index) => (
-                <div key={index} className="border rounded-lg p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h5 className="font-medium">Property {index + 1}</h5>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeProperty(index)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="space-y-2">
-                      <Label>Property Name</Label>
-                      <Input
-                        value={property.property_name}
-                        onChange={(e) => updateProperty(index, 'property_name', e.target.value)}
-                        placeholder="property_name"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Label (English)</Label>
-                      <Input
-                        value={property.label_en}
-                        onChange={(e) => updateProperty(index, 'label_en', e.target.value)}
-                        placeholder="Display label"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Type</Label>
-                      <Select
-                        value={property.property_type}
-                        onValueChange={(value) => updateProperty(index, 'property_type', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {PROPERTY_TYPES.map((type) => (
-                            <SelectItem key={type.value} value={type.value}>
-                              {type.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        checked={property.is_required}
-                        onCheckedChange={(checked) => updateProperty(index, 'is_required', checked)}
-                      />
-                      <Label>Required</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        checked={property.is_identifier || false}
-                        onCheckedChange={(checked) => updateProperty(index, 'is_identifier', checked)}
-                      />
-                      <Label>Identifier</Label>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Formula Fields */}
-            <div className="space-y-4">
-              <h4 className="font-medium">Generation Formulas</h4>
-              
-              <div className="space-y-2">
-                <Label htmlFor="sku_formula">SKU Formula</Label>
-                <Textarea
-                  id="sku_formula"
-                  value={formData.sku_formula || ''}
-                  onChange={(e) => setFormData({ ...formData, sku_formula: e.target.value })}
-                  placeholder="e.g., {device.brand}-{device.model}-{property_name}"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="description_formula">Description Formula</Label>
-                <Textarea
-                  id="description_formula"
-                  value={formData.description_formula || ''}
-                  onChange={(e) => setFormData({ ...formData, description_formula: e.target.value })}
-                  placeholder="e.g., {device.name} - {property_name} variant"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleSaveTemplate}>
-                {editingTemplate ? 'Update' : 'Create'} Template
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
