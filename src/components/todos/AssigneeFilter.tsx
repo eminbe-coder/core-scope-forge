@@ -215,7 +215,7 @@ export function AssigneeFilter({ selectedUserIds, onSelectionChange }: AssigneeF
 
   const getDisplayText = () => {
     if (selectedUserIds.length === 0) {
-      return visibilityLevel === 'own' ? 'My Tasks' : 'All Users';
+      return 'All Assignees';
     }
     if (selectedUserIds.length === 1) {
       const user = profiles.find(p => p.id === selectedUserIds[0]);
@@ -223,11 +223,6 @@ export function AssigneeFilter({ selectedUserIds, onSelectionChange }: AssigneeF
     }
     return `${selectedUserIds.length} Users Selected`;
   };
-
-  // If user has 'own' visibility, don't show filter at all
-  if (visibilityLevel === 'own') {
-    return null;
-  }
 
   return (
     <div className="flex items-center gap-2">

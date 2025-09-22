@@ -84,9 +84,17 @@ const MyTodos = () => {
             assignees:todo_assignees(
               user_id,
               profiles!todo_assignees_user_id_fkey(id, first_name, last_name)
+            ),
+            assigned_profile:profiles!assigned_to(first_name, last_name),
+            contact:contacts(first_name, last_name),
+            todo_assignees(
+              id,
+              user_id,
+              profiles(id, first_name, last_name)
             )
           `)
-          .eq('tenant_id', currentTenant.id);
+          .eq('tenant_id', currentTenant.id)
+          .is('deleted_at', null);
 
         if (error) {
           console.error('Error fetching todos:', error);
@@ -104,9 +112,17 @@ const MyTodos = () => {
             assignees:todo_assignees(
               user_id,
               profiles!todo_assignees_user_id_fkey(id, first_name, last_name)
+            ),
+            assigned_profile:profiles!assigned_to(first_name, last_name),
+            contact:contacts(first_name, last_name),
+            todo_assignees(
+              id,
+              user_id,
+              profiles(id, first_name, last_name)
             )
           `)
           .eq('tenant_id', currentTenant.id)
+          .is('deleted_at', null)
           .or(`assigned_to.eq.${user.id},created_by.eq.${user.id}`);
 
         if (assignedError) {
@@ -122,9 +138,17 @@ const MyTodos = () => {
             assignees:todo_assignees(
               user_id,
               profiles!todo_assignees_user_id_fkey(id, first_name, last_name)
+            ),
+            assigned_profile:profiles!assigned_to(first_name, last_name),
+            contact:contacts(first_name, last_name),
+            todo_assignees(
+              id,
+              user_id,
+              profiles(id, first_name, last_name)
             )
           `)
           .eq('tenant_id', currentTenant.id)
+          .is('deleted_at', null)
           .eq('todo_assignees.user_id', user.id);
 
         if (multiError) {
@@ -132,12 +156,20 @@ const MyTodos = () => {
           return;
         }
 
-        // Combine and deduplicate
-        const allUserTodos = [...(assignedTodos || []), ...(multiAssignedTodos || [])];
-        filteredTodos = allUserTodos.filter((todo, index, self) => 
-          index === self.findIndex(t => t.id === todo.id)
-        );
-      }
+      // Combine and deduplicate
+      const allUserTodos = [...(assignedTodos || []), ...(multiAssignedTodos || [])];
+      filteredTodos = allUserTodos.filter((todo, index, self) => 
+        index === self.findIndex(t => t.id === todo.id)
+      );
+    }
+
+    // Add entity names to all todos
+    filteredTodos = await Promise.all(
+      filteredTodos.map(async (todo) => {
+        const entityName = await fetchEntityName(todo.entity_type, todo.entity_id);
+        return { ...todo, entity_name: entityName };
+      })
+    );
 
       // Apply user-based filtering if selectedUserIds is provided and not empty
       let userFilteredTodos = filteredTodos;
@@ -249,6 +281,39 @@ const MyTodos = () => {
       fetchStats();
     } catch (error) {
       console.error('Error updating todo:', error);
+    }
+  };
+
+  const fetchEntityName = async (type: string, id: string): Promise<string> => {
+    try {
+      let query;
+      switch (type) {
+        case 'deal':
+          query = supabase.from('deals').select('name').eq('id', id).single();
+          break;
+        case 'project':
+          query = supabase.from('projects').select('name').eq('id', id).single();
+          break;
+        case 'contact':
+          const { data: contact } = await supabase.from('contacts').select('first_name, last_name').eq('id', id).single();
+          return contact ? `${contact.first_name} ${contact.last_name}` : 'Unknown Contact';
+        case 'company':
+          query = supabase.from('companies').select('name').eq('id', id).single();
+          break;
+        case 'site':
+          query = supabase.from('sites').select('name').eq('id', id).single();
+          break;
+        case 'contract':
+          query = supabase.from('contracts').select('name').eq('id', id).single();
+          break;
+        default:
+          return 'Unknown Entity';
+      }
+
+      const { data } = await query;
+      return data?.name || 'Unknown';
+    } catch {
+      return 'Unknown';
     }
   };
 
