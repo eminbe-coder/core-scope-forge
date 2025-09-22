@@ -240,15 +240,12 @@ export function DeviceTemplatesManager() {
 
 
   const handleDeleteTemplate = async (templateId: string, template: DeviceTemplate) => {
-    // Prevent deletion of imported (read-only) templates
-    const templateType = getTemplateTypeInfo(template);
-    if (templateType.isReadOnly) {
-      toast({
-        title: "Cannot Delete",
-        description: "Imported templates cannot be deleted. Clone the template to create an editable copy.",
-        variant: "destructive"
-      });
-      return;
+    // Warn users about imported templates and linked devices
+    if (template.source_template_id) {
+      const confirmMessage = "Deleting this imported template will remove it and all its linked devices from your tenant. This action cannot be undone.\n\nAre you sure you want to continue?";
+      if (!window.confirm(confirmMessage)) {
+        return;
+      }
     }
 
     try {
@@ -269,6 +266,48 @@ export function DeviceTemplatesManager() {
       toast({
         title: "Error",
         description: "Failed to delete template",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleCloneTemplate = async (template: DeviceTemplate) => {
+    try {
+      // Create a cloned template (tenant-owned)
+      const clonedTemplate = {
+        name: `${template.name} (Copy)`,
+        category: template.category,
+        description: template.description,
+        sku_formula: template.sku_formula,
+        description_formula: template.description_formula,
+        device_type_id: template.device_type_id,
+        tenant_id: currentTenant!.id,
+        is_global: false,
+        active: true,
+        created_by: user!.id,
+        source_template_id: null, // Cloned templates are independent
+        supports_multilang: template.supports_multilang
+      };
+
+      const { data: newTemplate, error } = await supabase
+        .from('device_templates')
+        .insert(clonedTemplate)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `Template '${template.name}' cloned successfully as '${clonedTemplate.name}'`
+      });
+
+      loadTemplates();
+    } catch (error) {
+      console.error('Error cloning template:', error);
+      toast({
+        title: "Error",
+        description: "Failed to clone template",
         variant: "destructive"
       });
     }
@@ -538,43 +577,65 @@ export function DeviceTemplatesManager() {
                           {(() => {
                             const templateType = getTemplateTypeInfo(template);
                             
-                            if (templateType.type === 'imported') {
-                              return (
-                                <>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => template.id && handleSyncTemplate(template)}
-                                    disabled={syncing === template.id}
-                                  >
-                                    {syncing === template.id ? (
-                                      <RefreshCw className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <RefreshCw className="h-4 w-4" />
-                                    )}
-                                  </Button>
-                                   <Button
-                                     variant="ghost"
-                                     size="sm"
-                                     onClick={() => template.id && handleDeleteTemplate(template.id, template)}
-                                   >
-                                     <Trash2 className="h-4 w-4" />
-                                   </Button>
-                                </>
-                              );
-                            } else {
-                              return (
+                             if (templateType.type === 'imported') {
+                               return (
                                  <>
                                    <Button
                                      variant="ghost"
                                      size="sm"
+                                     onClick={() => template.id && handleSyncTemplate(template)}
+                                     disabled={syncing === template.id}
+                                     title="Sync with global template"
+                                   >
+                                     {syncing === template.id ? (
+                                       <RefreshCw className="h-4 w-4 animate-spin" />
+                                     ) : (
+                                       <RefreshCw className="h-4 w-4" />
+                                     )}
+                                   </Button>
+                                   <Button
+                                     variant="ghost"
+                                     size="sm"
+                                     onClick={() => template.id && handleCloneTemplate(template)}
+                                     title="Clone to create editable copy"
+                                   >
+                                     <Plus className="h-4 w-4" />
+                                   </Button>
+                                   <Button
+                                     variant="destructive"
+                                     size="sm"
                                      onClick={() => template.id && handleDeleteTemplate(template.id, template)}
+                                     title="Delete imported template and all its devices"
                                    >
                                      <Trash2 className="h-4 w-4" />
                                    </Button>
                                  </>
                                );
-                            }
+                             } else if (templateType.isReadOnly) {
+                               return (
+                                 <Button
+                                   variant="ghost"
+                                   size="sm"
+                                   onClick={() => template.id && handleCloneTemplate(template)}
+                                   title="Clone to create editable copy"
+                                 >
+                                   <Plus className="h-4 w-4" />
+                                 </Button>
+                               );
+                             } else {
+                               return (
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => template.id && handleDeleteTemplate(template.id, template)}
+                                      title="Delete template"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </>
+                                );
+                             }
                           })()}
                         </div>
                       </div>

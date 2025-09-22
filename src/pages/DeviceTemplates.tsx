@@ -128,7 +128,7 @@ export default function DeviceTemplates() {
           <div>
             <h1 className="text-3xl font-bold">Device Templates</h1>
             <p className="text-muted-foreground">
-              {isSuperAdmin ? 'Global template import center and tenant management' : 'Import global templates and manage local templates'}
+               {isSuperAdmin ? 'Global template import center and tenant management' : 'Import global templates and manage your templates'}
             </p>
           </div>
           <div className="flex gap-2">
