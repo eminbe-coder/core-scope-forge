@@ -186,9 +186,9 @@ export const CreateSiteForm = ({ isLead = false, createMode = 'new', onSuccess }
         .update({
           is_lead: true,
           high_value: false,
-          source_id: sourceValues.sourceCategory || null,
-          source_company_id: sourceValues.companySource || null,
-          source_contact_id: sourceValues.contactSource || null,
+          source_id: sourceValues.sourceCategory && sourceValues.sourceCategory.length > 0 ? sourceValues.sourceCategory : null,
+          source_company_id: sourceValues.companySource && sourceValues.companySource.length > 0 ? sourceValues.companySource : null,
+          source_contact_id: sourceValues.contactSource && sourceValues.contactSource.length > 0 ? sourceValues.contactSource : null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', selectedSiteId);
@@ -244,11 +244,11 @@ export const CreateSiteForm = ({ isLead = false, createMode = 'new', onSuccess }
           ...data,
           is_lead: isLead,
           tenant_id: currentTenant.id,
-          stage_id: data.stage_id || null,
-          quality_id: data.quality_id || null,
-          source_id: sourceValues.sourceCategory || null,
-          source_company_id: sourceValues.companySource || null,
-          source_contact_id: sourceValues.contactSource || null,
+          stage_id: data.stage_id && data.stage_id.length > 0 ? data.stage_id : null,
+          quality_id: data.quality_id && data.quality_id.length > 0 ? data.quality_id : null,
+          source_id: sourceValues.sourceCategory && sourceValues.sourceCategory.length > 0 ? sourceValues.sourceCategory : null,
+          source_company_id: sourceValues.companySource && sourceValues.companySource.length > 0 ? sourceValues.companySource : null,
+          source_contact_id: sourceValues.contactSource && sourceValues.contactSource.length > 0 ? sourceValues.contactSource : null,
           source_user_id: null,
           solution_category_ids: data.solution_category_ids || [],
         })
@@ -319,6 +319,10 @@ export const CreateSiteForm = ({ isLead = false, createMode = 'new', onSuccess }
       } else if (error.code === '42501') {
         errorTitle = 'Permission Denied';
         errorMessage = 'You do not have access to create sites for this tenant.';
+      } else if (error.code === '22P02') {
+        // Invalid UUID format
+        errorTitle = 'Invalid Data Format';
+        errorMessage = 'Invalid format provided for ID fields. Please refresh the page and try again.';
       } else if (error.code === '23514') {
         // Check constraint violation
         errorTitle = 'Invalid Data';

@@ -5,6 +5,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
+import { usePermissions } from '@/hooks/use-permissions';
 import { EntityListing } from '@/components/entity-listing';
 import { DeleteConfirmationModal } from '@/components/modals/DeleteConfirmationModal';
 
@@ -34,6 +35,7 @@ const Sites = () => {
   const { currentTenant } = useTenant();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { hasPermission, loading: permissionsLoading } = usePermissions();
   const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,6 +44,34 @@ const Sites = () => {
     site: null,
   });
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Check module access permissions
+  const canViewSites = hasPermission('crm.sites.view');
+  
+  // Show loading or access denied if no permissions
+  if (permissionsLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <p>Loading...</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!canViewSites) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <MapPin className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
+            <p className="text-muted-foreground">You don't have permission to view sites.</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   const fetchSites = async () => {
     if (!currentTenant) return;
@@ -205,6 +235,7 @@ const Sites = () => {
         editPermission="crm.sites.edit"
         deletePermission="crm.sites.delete"
         leadPermission="crm.sites.edit"
+        createPermission="crm.sites.create"
         emptyStateMessage="Add physical locations and sites to track your projects and deals."
       />
       

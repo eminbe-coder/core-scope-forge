@@ -1,4 +1,5 @@
 import { useState, ReactNode } from 'react';
+import { usePermissions } from '@/hooks/use-permissions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -69,6 +70,7 @@ interface EntityListingProps {
   editPermission?: string;
   deletePermission?: string;
   leadPermission?: string;
+  createPermission?: string;
   
   // Empty state
   emptyStateMessage?: string;
@@ -94,10 +96,15 @@ export const EntityListing = ({
   editPermission,
   deletePermission,
   leadPermission,
+  createPermission,
   emptyStateMessage,
   emptyStateIcon: EmptyIcon,
 }: EntityListingProps) => {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const { hasPermission } = usePermissions();
+
+  // Check if user can add new entities
+  const canAdd = !createPermission || hasPermission(createPermission);
 
   if (loading) {
     return (
@@ -133,7 +140,7 @@ export const EntityListing = ({
               <List className="h-4 w-4" />
             </Button>
           </div>
-          {onAdd && (
+          {onAdd && canAdd && (
             <Button onClick={onAdd}>
               <Plus className="mr-2 h-4 w-4" />
               {addButtonText}
@@ -162,7 +169,7 @@ export const EntityListing = ({
             <p className="text-muted-foreground text-center max-w-sm">
               {emptyStateMessage || `Get started by adding your first ${title.toLowerCase().slice(0, -1)}.`}
             </p>
-            {onAdd && (
+            {onAdd && canAdd && (
               <Button className="mt-4" onClick={onAdd}>
                 <Plus className="mr-2 h-4 w-4" />
                 {addButtonText}

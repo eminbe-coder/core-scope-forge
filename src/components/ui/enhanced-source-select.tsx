@@ -244,7 +244,7 @@ export const EnhancedSourceSelect = React.forwardRef<HTMLDivElement, EnhancedSou
                         variant="ghost"
                         className="w-full justify-start h-auto p-2"
                         onClick={() => {
-                          onValueChange({ ...value, companySource: company.id });
+                          onValueChange({ ...value, companySource: company.id || null });
                           setCompanyOpen(false);
                         }}
                       >
@@ -333,7 +333,7 @@ export const EnhancedSourceSelect = React.forwardRef<HTMLDivElement, EnhancedSou
                         variant="ghost"
                         className="w-full justify-start h-auto p-2"
                         onClick={() => {
-                          onValueChange({ ...value, contactSource: contact.id });
+                          onValueChange({ ...value, contactSource: contact.id || null });
                           setContactOpen(false);
                         }}
                       >
@@ -378,7 +378,7 @@ export const EnhancedSourceSelect = React.forwardRef<HTMLDivElement, EnhancedSou
           onCompanyCreated={(company) => {
             onValueChange({
               ...value,
-              companySource: company.id,
+              companySource: company.id || null,
             });
             searchCompanies(companySearch);
           }}
@@ -390,7 +390,7 @@ export const EnhancedSourceSelect = React.forwardRef<HTMLDivElement, EnhancedSou
           onContactCreated={(contact) => {
             onValueChange({
               ...value,
-              contactSource: contact.id,
+              contactSource: contact.id || null,
             });
             searchContacts(contactSearch);
           }}
