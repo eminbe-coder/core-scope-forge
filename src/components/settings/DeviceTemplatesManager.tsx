@@ -102,7 +102,7 @@ const DATA_TYPES = [
 export function DeviceTemplatesManager() {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { currentTenant } = useTenant();
+  const { currentTenant, isSuperAdmin } = useTenant();
   const { user } = useAuth();
   
   const [activeTab, setActiveTab] = useState('global');
@@ -161,30 +161,97 @@ export function DeviceTemplatesManager() {
 
   const loadTemplates = async () => {
     try {
-      let query = supabase
-        .from('device_templates')
-        .select('*')
-        .eq('active', true);
-
+      setLoading(true);
+      
       if (activeTab === 'global') {
-        // For global tab, show imported global templates for tenants
-        query = query.or(`and(is_global.eq.false,tenant_id.eq.${currentTenant?.id},import_status.eq.imported),and(is_global.eq.true,tenant_id.is.null)`);
+        if (isSuperAdmin) {
+          // Super admins see all original global templates
+          const { data, error } = await supabase
+            .from('device_templates')
+            .select(`
+              *,
+              device_type:device_types(name),
+              template_properties:device_template_properties(*),
+              template_options:device_template_options(*)
+            `)
+            .eq('is_global', true)
+            .eq('active', true)
+            .order('name');
+          
+          if (error) {
+            console.error('Error loading global templates:', error);
+            toast({
+              title: "Error",
+              description: `Failed to load global templates: ${error.message}`,
+              variant: "destructive"
+            });
+            return;
+          }
+          
+          setTemplates(data || []);
+        } else {
+          // Regular users see global templates they can import
+          const { data, error } = await supabase
+            .from('device_templates')
+            .select(`
+              *,
+              device_type:device_types(name),
+              template_properties:device_template_properties(*),
+              template_options:device_template_options(*)
+            `)
+            .eq('is_global', true)
+            .eq('active', true)
+            .order('name');
+          
+          if (error) {
+            console.error('Error loading global templates:', error);
+            toast({
+              title: "Error", 
+              description: `Failed to load global templates: ${error.message}`,
+              variant: "destructive"
+            });
+            return;
+          }
+          
+          setTemplates(data || []);
+        }
       } else {
-        // For tenant tab, show only templates created by this tenant (not imported)
-        query = query.eq('tenant_id', currentTenant?.id).eq('is_global', false).neq('import_status', 'imported');
+        // Tenant tab: show only tenant-created templates (exclude imported ones)
+        const { data, error } = await supabase
+          .from('device_templates')
+          .select(`
+            *,
+            device_type:device_types(name),
+            template_properties:device_template_properties(*),
+            template_options:device_template_options(*)
+          `)
+          .eq('tenant_id', currentTenant?.id)
+          .eq('is_global', false)
+          .eq('active', true)
+          .neq('import_status', 'imported')
+          .order('name');
+        
+        if (error) {
+          console.error('Error loading tenant templates:', error);
+          toast({
+            title: "Error",
+            description: `Failed to load tenant templates: ${error.message}`,
+            variant: "destructive"
+          });
+          return;
+        }
+        
+        setTemplates(data || []);
       }
-
-      const { data, error } = await query.order('name');
-      if (error) throw error;
-      setTemplates(data || []);
     } catch (error) {
-      console.error('Error loading templates:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Unexpected error loading templates:', error);
       toast({
         title: "Error",
-        description: `Failed to load templates: ${errorMessage}`,
+        description: 'An unexpected error occurred while loading templates. Please try again.',
         variant: "destructive"
       });
+    } finally {
+      setLoading(false);
     }
   };
 
