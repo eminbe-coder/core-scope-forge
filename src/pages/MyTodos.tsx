@@ -32,6 +32,20 @@ const MyTodos = () => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
+  // Initialize selected user IDs with current user
+  useEffect(() => {
+    const initializeDefaultFilter = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && selectedUserIds.length === 0) {
+        setSelectedUserIds([user.id]);
+      }
+    };
+    
+    if (currentTenant?.id) {
+      initializeDefaultFilter();
+    }
+  }, [currentTenant?.id]);
+  
   // Filter states for unified filtering
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('due_date');
@@ -247,9 +261,9 @@ const MyTodos = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">My Tasks</h1>
+            <h1 className="text-3xl font-bold text-foreground">To-Do Page</h1>
             <p className="text-muted-foreground mt-1">
-              Manage and track your personal to-do items
+              Manage and track your to-do items
             </p>
           </div>
           
@@ -361,7 +375,7 @@ const MyTodos = () => {
           <div className="space-y-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                <CardTitle>Task List</CardTitle>
+                <CardTitle>To-Do List</CardTitle>
                 <AssigneeFilter 
                   selectedUserIds={selectedUserIds}
                   onSelectionChange={setSelectedUserIds}
