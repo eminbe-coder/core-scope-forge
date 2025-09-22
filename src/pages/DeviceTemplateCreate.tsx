@@ -62,6 +62,10 @@ interface DeviceTemplate {
   description_formula?: string;
   short_description_generation_type: 'fixed' | 'dynamic';
   short_description_formula?: string;
+  description_ar_generation_type?: 'fixed' | 'dynamic';
+  description_ar_formula?: string;
+  short_description_ar_generation_type?: 'fixed' | 'dynamic';
+  short_description_ar_formula?: string;
   image_url?: string;
   is_global: boolean;
   properties: DeviceTemplateProperty[];
@@ -106,6 +110,10 @@ export default function DeviceTemplateCreate() {
     description_formula: '',
     short_description_generation_type: 'dynamic',
     short_description_formula: '',
+    description_ar_generation_type: 'dynamic',
+    description_ar_formula: '',
+    short_description_ar_generation_type: 'dynamic',
+    short_description_ar_formula: '',
     image_url: '',
     is_global: true,
     properties: []
@@ -369,6 +377,10 @@ export default function DeviceTemplateCreate() {
           description_formula: templateData.description_formula || '',
           short_description_generation_type: (templateData.short_description_generation_type as 'fixed' | 'dynamic') || 'dynamic',
           short_description_formula: templateData.short_description_formula || '',
+          description_ar_generation_type: (templateData.description_ar_generation_type as 'fixed' | 'dynamic') || 'dynamic',
+          description_ar_formula: templateData.description_ar_formula || '',
+          short_description_ar_generation_type: (templateData.short_description_ar_generation_type as 'fixed' | 'dynamic') || 'dynamic',
+          short_description_ar_formula: templateData.short_description_ar_formula || '',
           image_url: templateData.image_url || '',
           is_global: templateData.is_global || false,
           properties,
@@ -1130,10 +1142,98 @@ export default function DeviceTemplateCreate() {
                       Enter a fixed short description that will be used for all devices
                     </p>
                   </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                 )}
+               </div>
+
+               <div>
+                 <Label className="text-base font-medium">Arabic Long Description Generation</Label>
+                 <RadioGroup
+                   value={template.description_ar_generation_type || 'dynamic'}
+                   onValueChange={(value: 'fixed' | 'dynamic') => setTemplate(prev => ({ ...prev, description_ar_generation_type: value }))}
+                   className="mt-2"
+                 >
+                   <div className="flex items-center space-x-2">
+                     <RadioGroupItem value="fixed" id="desc-ar-fixed-global" />
+                     <Label htmlFor="desc-ar-fixed-global">Fixed Arabic Description</Label>
+                   </div>
+                   <div className="flex items-center space-x-2">
+                     <RadioGroupItem value="dynamic" id="desc-ar-dynamic-global" />
+                     <Label htmlFor="desc-ar-dynamic-global">Dynamic Arabic Description (Formula-based)</Label>
+                   </div>
+                 </RadioGroup>
+                 
+                 {template.description_ar_generation_type === 'dynamic' ? (
+                   <div className="mt-3">
+                     <FormulaBuilder
+                       label="Arabic Description Formula"
+                       value={template.description_ar_formula || ''}
+                       onChange={(value) => setTemplate(prev => ({ ...prev, description_ar_formula: value }))}
+                       properties={getAllAvailableProperties()}
+                       placeholder="{item_code} - لوحة LED بقوة {wattage}W - {color_temperature}K - جودة مهنية"
+                       description="Generate detailed Arabic descriptions for product pages and specifications"
+                     />
+                   </div>
+                 ) : (
+                   <div className="mt-3">
+                     <Label>Fixed Arabic Description</Label>
+                     <Textarea
+                       value={template.description_ar_formula || ''}
+                       onChange={(e) => setTemplate(prev => ({ ...prev, description_ar_formula: e.target.value }))}
+                       placeholder="لوحة إضاءة LED عالية الجودة مع مواصفات مهنية"
+                       className="mt-1"
+                     />
+                     <p className="text-sm text-muted-foreground mt-1">
+                       Enter a fixed Arabic description that will be used for all devices
+                     </p>
+                   </div>
+                 )}
+               </div>
+
+               <div>
+                 <Label className="text-base font-medium">Arabic Short Description Generation</Label>
+                 <RadioGroup
+                   value={template.short_description_ar_generation_type || 'dynamic'}
+                   onValueChange={(value: 'fixed' | 'dynamic') => setTemplate(prev => ({ ...prev, short_description_ar_generation_type: value }))}
+                   className="mt-2"
+                 >
+                   <div className="flex items-center space-x-2">
+                     <RadioGroupItem value="fixed" id="short-desc-ar-fixed-global" />
+                     <Label htmlFor="short-desc-ar-fixed-global">Fixed Arabic Short Description</Label>
+                   </div>
+                   <div className="flex items-center space-x-2">
+                     <RadioGroupItem value="dynamic" id="short-desc-ar-dynamic-global" />
+                     <Label htmlFor="short-desc-ar-dynamic-global">Dynamic Arabic Short Description (Formula-based)</Label>
+                   </div>
+                 </RadioGroup>
+                 
+                 {template.short_description_ar_generation_type === 'dynamic' ? (
+                   <div className="mt-3">
+                     <FormulaBuilder
+                       label="Arabic Short Description Formula"
+                       value={template.short_description_ar_formula || ''}
+                       onChange={(value) => setTemplate(prev => ({ ...prev, short_description_ar_formula: value }))}
+                       properties={getAllAvailableProperties()}
+                       placeholder="{item_code} - LED {wattage}W - {color_temperature}K"
+                       description="Generate brief Arabic descriptions for listings and summaries"
+                     />
+                   </div>
+                 ) : (
+                   <div className="mt-3">
+                     <Label>Fixed Arabic Short Description</Label>
+                     <Input
+                       value={template.short_description_ar_formula || ''}
+                       onChange={(e) => setTemplate(prev => ({ ...prev, short_description_ar_formula: e.target.value }))}
+                       placeholder="لوحة LED - جودة مهنية"
+                       className="mt-1"
+                     />
+                     <p className="text-sm text-muted-foreground mt-1">
+                       Enter a fixed Arabic short description that will be used for all devices
+                     </p>
+                   </div>
+                 )}
+               </div>
+             </CardContent>
+           </Card>
 
           <Card>
             <CardHeader>
