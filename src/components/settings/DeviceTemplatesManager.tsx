@@ -164,59 +164,7 @@ export function DeviceTemplatesManager() {
       setLoading(true);
       
       if (activeTab === 'global') {
-        if (isSuperAdmin) {
-          // Super admins see all original global templates
-          const { data, error } = await supabase
-            .from('device_templates')
-            .select(`
-              *,
-              device_type:device_types(name),
-              template_properties:device_template_properties(*),
-              template_options:device_template_options(*)
-            `)
-            .eq('is_global', true)
-            .eq('active', true)
-            .order('name');
-          
-          if (error) {
-            console.error('Error loading global templates:', error);
-            toast({
-              title: "Error",
-              description: `Failed to load global templates: ${error.message}`,
-              variant: "destructive"
-            });
-            return;
-          }
-          
-          setTemplates(data || []);
-        } else {
-          // Regular users see global templates they can import
-          const { data, error } = await supabase
-            .from('device_templates')
-            .select(`
-              *,
-              device_type:device_types(name),
-              template_properties:device_template_properties(*),
-              template_options:device_template_options(*)
-            `)
-            .eq('is_global', true)
-            .eq('active', true)
-            .order('name');
-          
-          if (error) {
-            console.error('Error loading global templates:', error);
-            toast({
-              title: "Error", 
-              description: `Failed to load global templates: ${error.message}`,
-              variant: "destructive"
-            });
-            return;
-          }
-          
-          setTemplates(data || []);
-        }
-      } else {
-        // Tenant tab: show only tenant-created templates (exclude imported ones)
+        // For global tab, show global templates (RLS will handle permissions)
         const { data, error } = await supabase
           .from('device_templates')
           .select(`
@@ -225,14 +173,52 @@ export function DeviceTemplatesManager() {
             template_properties:device_template_properties(*),
             template_options:device_template_options(*)
           `)
-          .eq('tenant_id', currentTenant?.id)
+          .eq('is_global', true)
+          .eq('active', true)
+          .order('name');
+        
+        if (error) {
+          console.error('Error loading global templates:', error);
+          console.error('Error details:', { code: error.code, message: error.message, details: error.details });
+          toast({
+            title: "Error",
+            description: `Failed to load global templates: ${error.message}`,
+            variant: "destructive"
+          });
+          return;
+        }
+        
+        console.log('Loaded global templates:', data?.length || 0);
+        setTemplates(data || []);
+      } else {
+        // For tenant tab, show only tenant-created templates (not imported ones)
+        if (!currentTenant?.id) {
+          console.error('No current tenant found');
+          toast({
+            title: "Error",
+            description: "No tenant selected. Please select a tenant first.",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from('device_templates')
+          .select(`
+            *,
+            device_type:device_types(name),
+            template_properties:device_template_properties(*),
+            template_options:device_template_options(*)
+          `)
+          .eq('tenant_id', currentTenant.id)
           .eq('is_global', false)
           .eq('active', true)
-          .neq('import_status', 'imported')
+          .is('source_template_id', null)
           .order('name');
         
         if (error) {
           console.error('Error loading tenant templates:', error);
+          console.error('Error details:', { code: error.code, message: error.message, details: error.details });
           toast({
             title: "Error",
             description: `Failed to load tenant templates: ${error.message}`,
@@ -241,13 +227,14 @@ export function DeviceTemplatesManager() {
           return;
         }
         
+        console.log('Loaded tenant templates:', data?.length || 0);
         setTemplates(data || []);
       }
     } catch (error) {
       console.error('Unexpected error loading templates:', error);
       toast({
         title: "Error",
-        description: 'An unexpected error occurred while loading templates. Please try again.',
+        description: 'An unexpected error occurred while loading templates. Please check your permissions and try again.',
         variant: "destructive"
       });
     } finally {
