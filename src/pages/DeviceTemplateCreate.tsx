@@ -956,6 +956,19 @@ export default function DeviceTemplateCreate() {
     shortDescriptionAr: generateShortDescriptionAr(template.properties)
   };
 
+  // Clear formula fields when switching from dynamic to fixed
+  const handleGenerationTypeChange = (field: string, value: 'fixed' | 'dynamic') => {
+    const updates: any = { [field]: value };
+    
+    // Clear formula when switching to fixed
+    if (value === 'fixed') {
+      const formulaField = field.replace('_generation_type', '_formula');
+      updates[formulaField] = '';
+    }
+    
+    setTemplate(prev => ({ ...prev, ...updates }));
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto p-6 flex items-center justify-center">
@@ -1107,7 +1120,7 @@ export default function DeviceTemplateCreate() {
                 <Label className="text-base font-medium">SKU Generation</Label>
                 <RadioGroup
                   value={template.sku_generation_type}
-                  onValueChange={(value: 'fixed' | 'dynamic') => setTemplate(prev => ({ ...prev, sku_generation_type: value }))}
+                  onValueChange={(value: 'fixed' | 'dynamic') => handleGenerationTypeChange('sku_generation_type', value)}
                   className="mt-2"
                 >
                   <div className="flex items-center space-x-2">
@@ -1149,7 +1162,7 @@ export default function DeviceTemplateCreate() {
                 <Label className="text-base font-medium">Long Description Generation</Label>
                 <RadioGroup
                   value={template.description_generation_type}
-                  onValueChange={(value: 'fixed' | 'dynamic') => setTemplate(prev => ({ ...prev, description_generation_type: value }))}
+                  onValueChange={(value: 'fixed' | 'dynamic') => handleGenerationTypeChange('description_generation_type', value)}
                   className="mt-2"
                 >
                   <div className="flex items-center space-x-2">
@@ -1191,7 +1204,7 @@ export default function DeviceTemplateCreate() {
                 <Label className="text-base font-medium">Short Description Generation</Label>
                 <RadioGroup
                   value={template.short_description_generation_type}
-                  onValueChange={(value: 'fixed' | 'dynamic') => setTemplate(prev => ({ ...prev, short_description_generation_type: value }))}
+                  onValueChange={(value: 'fixed' | 'dynamic') => handleGenerationTypeChange('short_description_generation_type', value)}
                   className="mt-2"
                 >
                   <div className="flex items-center space-x-2">
@@ -1231,11 +1244,11 @@ export default function DeviceTemplateCreate() {
 
                <div>
                  <Label className="text-base font-medium">Arabic Long Description Generation</Label>
-                 <RadioGroup
-                   value={template.description_ar_generation_type || 'dynamic'}
-                   onValueChange={(value: 'fixed' | 'dynamic') => setTemplate(prev => ({ ...prev, description_ar_generation_type: value }))}
-                   className="mt-2"
-                 >
+                  <RadioGroup
+                    value={template.description_ar_generation_type || 'dynamic'}
+                    onValueChange={(value: 'fixed' | 'dynamic') => handleGenerationTypeChange('description_ar_generation_type', value)}
+                    className="mt-2"
+                  >
                    <div className="flex items-center space-x-2">
                      <RadioGroupItem value="fixed" id="desc-ar-fixed-global" />
                      <Label htmlFor="desc-ar-fixed-global">Fixed Arabic Description</Label>
@@ -1273,11 +1286,11 @@ export default function DeviceTemplateCreate() {
 
                <div>
                  <Label className="text-base font-medium">Arabic Short Description Generation</Label>
-                 <RadioGroup
-                   value={template.short_description_ar_generation_type || 'dynamic'}
-                   onValueChange={(value: 'fixed' | 'dynamic') => setTemplate(prev => ({ ...prev, short_description_ar_generation_type: value }))}
-                   className="mt-2"
-                 >
+                  <RadioGroup
+                    value={template.short_description_ar_generation_type || 'dynamic'}
+                    onValueChange={(value: 'fixed' | 'dynamic') => handleGenerationTypeChange('short_description_ar_generation_type', value)}
+                    className="mt-2"
+                  >
                    <div className="flex items-center space-x-2">
                      <RadioGroupItem value="fixed" id="short-desc-ar-fixed-global" />
                      <Label htmlFor="short-desc-ar-fixed-global">Fixed Arabic Short Description</Label>
