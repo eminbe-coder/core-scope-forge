@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MapPin, Calendar, FileText, CheckSquare, Building2, Users, Plus, Search, X, FileSignature, UserCheck } from 'lucide-react';
+import { MapPin, Calendar, FileText, CheckSquare, Building2, Users, Plus, Search, X, FileSignature, UserCheck, Link } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,11 @@ import { SiteStatistics } from '@/components/site-details/SiteStatistics';
 import { SiteActivityTimeline } from '@/components/site-details/SiteActivityTimeline';
 import { SiteRelationships } from '@/components/site-details/SiteRelationships';
 import { MapDisplay } from '@/components/ui/map-display';
+import { CreateDealForm } from '@/components/forms/CreateDealForm';
+import { CreateContractForm } from '@/components/forms/CreateContractForm';
+import { CreateContactForm } from '@/components/forms/CreateContactForm';
+import { CreateCompanyForm } from '@/components/forms/CreateCompanyForm';
+import { useDynamicDeals, useDynamicContracts, useDynamicContacts, useDynamicCompanies } from '@/hooks/use-dynamic-entities';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
@@ -106,6 +111,18 @@ const SiteDetail = () => {
   const [selectedCompany, setSelectedCompany] = useState<string>('');
   const [contactNote, setContactNote] = useState('');
   const [companyNote, setCompanyNote] = useState('');
+  
+  // Quick action states
+  const [linkDealDialog, setLinkDealDialog] = useState(false);
+  const [linkContractDialog, setLinkContractDialog] = useState(false);
+  const [linkLeadDialog, setLinkLeadDialog] = useState(false);
+  const [createDealDialog, setCreateDealDialog] = useState(false);
+  const [createContractDialog, setCreateContractDialog] = useState(false);
+  const [createLeadDialog, setCreateLeadDialog] = useState(false);
+  const [leadType, setLeadType] = useState<'contact' | 'company'>('contact');
+  const [selectedDeal, setSelectedDeal] = useState('');
+  const [selectedContract, setSelectedContract] = useState('');
+  const [selectedLead, setSelectedLead] = useState('');
 
   // UUID validation helper
   const isValidUUID = (uuid: string): boolean => {
@@ -131,6 +148,12 @@ const SiteDetail = () => {
   }
   const [availableContacts, setAvailableContacts] = useState<any[]>([]);
   const [availableCompanies, setAvailableCompanies] = useState<any[]>([]);
+  
+  // Dynamic entity hooks for quick actions
+  const { deals: availableDeals } = useDynamicDeals({ enabled: linkDealDialog });
+  const { contracts: availableContracts } = useDynamicContracts({ enabled: linkContractDialog });
+  const { contacts: availableLeadContacts } = useDynamicContacts({ enabled: linkLeadDialog && leadType === 'contact' });
+  const { companies: availableLeadCompanies } = useDynamicCompanies({ enabled: linkLeadDialog && leadType === 'company' });
 
   useEffect(() => {
     if (currentTenant && id) {
@@ -453,6 +476,102 @@ const SiteDetail = () => {
     }
   };
 
+  // Quick action functions
+  const linkDealToSite = async () => {
+    if (!selectedDeal || !id) return;
+    
+    try {
+      const { error } = await supabase
+        .from('deals')
+        .update({ site_id: id })
+        .eq('id', selectedDeal);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Deal linked to site successfully',
+      });
+
+      fetchSiteData();
+      setLinkDealDialog(false);
+      setSelectedDeal('');
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const linkContractToSite = async () => {
+    if (!selectedContract || !id) return;
+    
+    try {
+      const { error } = await supabase
+        .from('contracts')
+        .update({ site_id: id })
+        .eq('id', selectedContract);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Contract linked to site successfully',
+      });
+
+      fetchSiteData();
+      setLinkContractDialog(false);
+      setSelectedContract('');
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const linkLeadToSite = async () => {
+    if (!selectedLead || !id) return;
+    
+    try {
+      if (leadType === 'contact') {
+        // Mark contact as lead and link to site
+        await supabase.from('contacts').update({ is_lead: true }).eq('id', selectedLead);
+        await supabase.from('contact_sites').insert({
+          contact_id: selectedLead,
+          site_id: id,
+          notes: 'Linked as lead'
+        });
+      } else {
+        // Mark company as lead and link to site
+        await supabase.from('companies').update({ is_lead: true }).eq('id', selectedLead);
+        await supabase.from('company_sites').insert({
+          company_id: selectedLead,
+          site_id: id,
+          notes: 'Linked as lead'
+        });
+      }
+
+      toast({
+        title: 'Success',
+        description: 'Lead linked to site successfully',
+      });
+
+      fetchSiteData();
+      setLinkLeadDialog(false);
+      setSelectedLead('');
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -608,11 +727,69 @@ const SiteDetail = () => {
         <div className="grid gap-6 md:grid-cols-3">
           {/* Deals */}
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-4 w-4" />
                 Deals ({deals.length})
               </CardTitle>
+              <div className="flex gap-1">
+                <Dialog open={linkDealDialog} onOpenChange={setLinkDealDialog}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                      <Link className="h-4 w-4" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Link Existing Deal</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <SearchableSelect
+                        value={selectedDeal}
+                        onValueChange={setSelectedDeal}
+                        placeholder="Search deals..."
+                        searchPlaceholder="Type to search deals..."
+                        emptyText="No deals found"
+                        options={availableDeals.map(deal => ({
+                          id: deal.id,
+                          name: deal.name,
+                          value: deal.value,
+                          status: deal.status
+                        }))}
+                        renderOption={(deal) => `${deal.name} - $${deal.value?.toLocaleString() || '0'} (${deal.status})`}
+                      />
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" onClick={() => setLinkDealDialog(false)}>
+                          Cancel
+                        </Button>
+                        <Button onClick={linkDealToSite} disabled={!selectedDeal}>
+                          Link Deal
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+                <Dialog open={createDealDialog} onOpenChange={setCreateDealDialog}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Create New Deal</DialogTitle>
+                    </DialogHeader>
+                    <CreateDealForm 
+                      leadType="site"
+                      leadId={id}
+                      onSuccess={() => {
+                        setCreateDealDialog(false);
+                        fetchSiteData();
+                      }}
+                    />
+                  </DialogContent>
+                </Dialog>
+              </div>
             </CardHeader>
             <CardContent className="max-h-96 overflow-y-auto">
               {deals.length > 0 ? (
@@ -643,11 +820,67 @@ const SiteDetail = () => {
 
           {/* Contracts */}
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="flex items-center gap-2">
                 <FileSignature className="h-4 w-4" />
                 Contracts ({contracts.length})
               </CardTitle>
+              <div className="flex gap-1">
+                <Dialog open={linkContractDialog} onOpenChange={setLinkContractDialog}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                      <Link className="h-4 w-4" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Link Existing Contract</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <SearchableSelect
+                        value={selectedContract}
+                        onValueChange={setSelectedContract}
+                        placeholder="Search contracts..."
+                        searchPlaceholder="Type to search contracts..."
+                        emptyText="No contracts found"
+                        options={availableContracts.map(contract => ({
+                          id: contract.id,
+                          name: contract.name,
+                          value: (contract as any).value,
+                          status: contract.status
+                        }))}
+                        renderOption={(contract) => `${contract.name} - $${(contract as any).value?.toLocaleString() || '0'} (${contract.status})`}
+                      />
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" onClick={() => setLinkContractDialog(false)}>
+                          Cancel
+                        </Button>
+                        <Button onClick={linkContractToSite} disabled={!selectedContract}>
+                          Link Contract
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+                <Dialog open={createContractDialog} onOpenChange={setCreateContractDialog}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Create New Contract</DialogTitle>
+                    </DialogHeader>
+                    <CreateContractForm 
+                      onSuccess={() => {
+                        setCreateContractDialog(false);
+                        fetchSiteData();
+                      }}
+                    />
+                  </DialogContent>
+                </Dialog>
+              </div>
             </CardHeader>
             <CardContent className="max-h-96 overflow-y-auto">
               {contracts.length > 0 ? (
@@ -678,11 +911,126 @@ const SiteDetail = () => {
 
           {/* Leads */}
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="flex items-center gap-2">
                 <UserCheck className="h-4 w-4" />
                 Leads ({leads.length})
               </CardTitle>
+              <div className="flex gap-1">
+                <Dialog open={linkLeadDialog} onOpenChange={setLinkLeadDialog}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                      <Link className="h-4 w-4" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Link Existing Lead</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label>Lead Type</Label>
+                        <div className="flex gap-2 mt-1">
+                          <Button
+                            type="button"
+                            variant={leadType === 'contact' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setLeadType('contact')}
+                          >
+                            Contact
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={leadType === 'company' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setLeadType('company')}
+                          >
+                            Company
+                          </Button>
+                        </div>
+                      </div>
+                      <SearchableSelect
+                        value={selectedLead}
+                        onValueChange={setSelectedLead}
+                        placeholder={`Search ${leadType}s...`}
+                        searchPlaceholder={`Type to search ${leadType}s...`}
+                        emptyText={`No ${leadType}s found`}
+                        options={leadType === 'contact' 
+                          ? availableLeadContacts.map(contact => ({
+                              id: contact.id,
+                              name: `${contact.first_name} ${contact.last_name}`,
+                              email: contact.email
+                            }))
+                          : availableLeadCompanies.map(company => ({
+                              id: company.id,
+                              name: company.name,
+                              email: (company as any).email
+                            }))
+                        }
+                        renderOption={(item) => `${item.name}${item.email ? ` (${item.email})` : ''}`}
+                      />
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" onClick={() => setLinkLeadDialog(false)}>
+                          Cancel
+                        </Button>
+                        <Button onClick={linkLeadToSite} disabled={!selectedLead}>
+                          Link Lead
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+                <Dialog open={createLeadDialog} onOpenChange={setCreateLeadDialog}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Create New Lead</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label>Lead Type</Label>
+                        <div className="flex gap-2 mt-1">
+                          <Button
+                            type="button"
+                            variant={leadType === 'contact' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setLeadType('contact')}
+                          >
+                            Contact Lead
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={leadType === 'company' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setLeadType('company')}
+                          >
+                            Company Lead
+                          </Button>
+                        </div>
+                      </div>
+                      {leadType === 'contact' ? (
+                        <CreateContactForm 
+                          onSuccess={() => {
+                            setCreateLeadDialog(false);
+                            fetchSiteData();
+                          }}
+                        />
+                      ) : (
+                        <CreateCompanyForm 
+                          onSuccess={() => {
+                            setCreateLeadDialog(false);
+                            fetchSiteData();
+                          }}
+                        />
+                      )}
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </CardHeader>
             <CardContent className="max-h-96 overflow-y-auto">
               {leads.length > 0 ? (
