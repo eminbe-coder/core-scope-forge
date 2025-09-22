@@ -44,7 +44,7 @@ interface DeviceTemplateProperty {
   unit?: string;
   sort_order: number;
   property_options: DeviceTemplatePropertyOption[];
-  options?: Array<{ code: string; label_en: string; }>; // Add this alias for FormulaBuilder
+  options?: Array<{ code: string; label_en: string; label_ar?: string; }>; // Add this alias for FormulaBuilder
   formula?: string;
   depends_on_properties?: string[];
 }
@@ -316,6 +316,84 @@ export default function DeviceTemplateCreate() {
     return FormulaEngine.evaluateText(template.short_description_formula, propertyValues, 'description_en');
   };
 
+  const generateDescriptionAr = (properties: DeviceTemplateProperty[]) => {
+    if (!template.description_ar_formula || properties.length === 0) return 'Enter Arabic description formula to see preview';
+
+    const allProperties = getAllAvailableProperties(properties);
+    const propertyValues: PropertyValue[] = allProperties.map(prop => {
+      let sampleValue: string | number = '';
+      let options: Array<{ code: string; label_en: string; label_ar?: string; }> | undefined;
+      
+      switch (prop.data_type) {
+        case 'number':
+          sampleValue = 100;
+          break;
+        case 'select':
+          options = prop.options;
+          sampleValue = prop.options?.[0]?.label_ar || prop.options?.[0]?.label_en || 'Option 1';
+          break;
+        case 'multiselect':
+          options = prop.options;
+          sampleValue = prop.options?.[0]?.label_ar || prop.options?.[0]?.label_en || 'Option 1';
+          break;
+        case 'dynamic_multiselect':
+          sampleValue = 'Value1, Value2, Value3';
+          break;
+        case 'text':
+          sampleValue = prop.name === 'item_code' ? 'ITM001' : 'نص عينة';
+          break;
+        case 'boolean':
+          sampleValue = 'نعم';
+          break;
+        default:
+          sampleValue = prop.name === 'item_code' ? 'ITM001' : 'عينة';
+      }
+
+      return { name: prop.name, value: sampleValue, options };
+    });
+
+    return FormulaEngine.evaluateText(template.description_ar_formula, propertyValues, 'description_ar');
+  };
+
+  const generateShortDescriptionAr = (properties: DeviceTemplateProperty[]) => {
+    if (!template.short_description_ar_formula || properties.length === 0) return 'Enter Arabic short description formula to see preview';
+
+    const allProperties = getAllAvailableProperties(properties);
+    const propertyValues: PropertyValue[] = allProperties.map(prop => {
+      let sampleValue: string | number = '';
+      let options: Array<{ code: string; label_en: string; label_ar?: string; }> | undefined;
+      
+      switch (prop.data_type) {
+        case 'number':
+          sampleValue = 100;
+          break;
+        case 'select':
+          options = prop.options;
+          sampleValue = prop.options?.[0]?.label_ar || prop.options?.[0]?.label_en || 'Option 1';
+          break;
+        case 'multiselect':
+          options = prop.options;
+          sampleValue = prop.options?.[0]?.label_ar || prop.options?.[0]?.label_en || 'Option 1';
+          break;
+        case 'dynamic_multiselect':
+          sampleValue = 'Value1, Value2, Value3';
+          break;
+        case 'text':
+          sampleValue = prop.name === 'item_code' ? 'ITM001' : 'نص عينة';
+          break;
+        case 'boolean':
+          sampleValue = 'نعم';
+          break;
+        default:
+          sampleValue = prop.name === 'item_code' ? 'ITM001' : 'عينة';
+      }
+
+      return { name: prop.name, value: sampleValue, options };
+    });
+
+    return FormulaEngine.evaluateText(template.short_description_ar_formula, propertyValues, 'description_ar');
+  };
+
   // Load existing template for edit mode
   useEffect(() => {
     const loadTemplate = async () => {
@@ -357,7 +435,8 @@ export default function DeviceTemplateCreate() {
           property_options: (prop.property_options as any) || [],
           options: ((prop.property_options as any) || []).map((opt: any) => ({ 
             code: opt.code, 
-            label_en: opt.label_en 
+            label_en: opt.label_en,
+            label_ar: opt.label_ar
           })),
           formula: prop.formula || '',
           depends_on_properties: prop.depends_on_properties || []
@@ -505,6 +584,11 @@ export default function DeviceTemplateCreate() {
       return;
     }
 
+    if (!template.device_type_id) {
+      toast.error("Device type is required");
+      return;
+    }
+
     setIsSaving(true);
     try {
       let templateData;
@@ -527,6 +611,10 @@ export default function DeviceTemplateCreate() {
             description_formula: template.description_formula,
             short_description_generation_type: template.short_description_generation_type,
             short_description_formula: template.short_description_formula,
+            description_ar_generation_type: template.description_ar_generation_type,
+            description_ar_formula: template.description_ar_formula,
+            short_description_ar_generation_type: template.short_description_ar_generation_type,
+            short_description_ar_formula: template.short_description_ar_formula,
             image_url: template.image_url,
             is_global: template.is_global,
             last_modified_by: user?.id,
@@ -555,6 +643,10 @@ export default function DeviceTemplateCreate() {
             description_formula: template.description_formula,
             short_description_generation_type: template.short_description_generation_type,
             short_description_formula: template.short_description_formula,
+            description_ar_generation_type: template.description_ar_generation_type,
+            description_ar_formula: template.description_ar_formula,
+            short_description_ar_generation_type: template.short_description_ar_generation_type,
+            short_description_ar_formula: template.short_description_ar_formula,
             image_url: template.image_url,
             is_global: template.is_global,
             created_by: user?.id,
@@ -637,9 +729,43 @@ export default function DeviceTemplateCreate() {
 
       toast.success(isEditMode ? "Template updated successfully" : "Template created successfully");
       navigate('/global-admin');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving template:', error);
-      toast.error("Failed to save template");
+      
+      // Provide detailed error messages
+      let errorMessage = "Failed to save template";
+      
+      if (error?.message) {
+        errorMessage = `Failed to save template: ${error.message}`;
+      }
+      
+      if (error?.code) {
+        switch (error.code) {
+          case '23505':
+            errorMessage = "A template with this name already exists. Please choose a different name.";
+            break;
+          case '23502':
+            errorMessage = "Missing required fields. Please check all required fields are filled.";
+            break;
+          case '42P17':
+            errorMessage = "Database policy error. Please try again or contact support.";
+            break;
+          case '23503':
+            errorMessage = "Invalid reference to device type or brand. Please refresh the page and try again.";
+            break;
+          default:
+            if (error.code && error.message) {
+              errorMessage = `Database error (${error.code}): ${error.message}`;
+            }
+        }
+      }
+      
+      if (error?.details) {
+        console.error('Error details:', error.details);
+        errorMessage += ` Details: ${error.details}`;
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setIsSaving(false);
     }
@@ -821,35 +947,14 @@ export default function DeviceTemplateCreate() {
     return validation.isValid ? null : validation.error || "Invalid formula";
   };
 
-  const generatePreview = () => {
-    const sampleData: Record<string, any> = {
-      // Fixed properties
-      item_code: 'SAMPLE-001'
-    };
-    
-    // Add custom properties that are identifiers
-    template.properties.forEach(prop => {
-      if (prop.is_identifier) {
-        sampleData[prop.name] = prop.type === 'number' ? '100' : 'SAMPLE';
-      }
-    });
-
-    const replacedSku = template.sku_formula?.replace(/\{(\w+)\}/g, (match, key) => {
-      return sampleData[key] || match;
-    }) || '';
-
-    const replacedDescription = template.description_formula?.replace(/\{(\w+)\}/g, (match, key) => {
-      return sampleData[key] || match;
-    }) || '';
-
-    const replacedShortDescription = template.short_description_formula?.replace(/\{(\w+)\}/g, (match, key) => {
-      return sampleData[key] || match;
-    }) || '';
-
-    return { sku: replacedSku, description: replacedDescription, shortDescription: replacedShortDescription };
+  // Generate previews using individual preview functions
+  const preview = {
+    sku: generateSKU(template.properties),
+    description: generateDescription(template.properties),
+    shortDescription: generateShortDescription(template.properties),
+    descriptionAr: generateDescriptionAr(template.properties),
+    shortDescriptionAr: generateShortDescriptionAr(template.properties)
   };
-
-  const preview = generatePreview();
 
   if (loading) {
     return (
@@ -1162,18 +1267,23 @@ export default function DeviceTemplateCreate() {
                    </div>
                  </RadioGroup>
                  
-                 {template.description_ar_generation_type === 'dynamic' ? (
-                   <div className="mt-3">
-                     <FormulaBuilder
-                       label="Arabic Description Formula"
-                       value={template.description_ar_formula || ''}
-                       onChange={(value) => setTemplate(prev => ({ ...prev, description_ar_formula: value }))}
-                       properties={getAllAvailableProperties()}
-                       placeholder="{item_code} - لوحة LED بقوة {wattage}W - {color_temperature}K - جودة مهنية"
-                       description="Generate detailed Arabic descriptions for product pages and specifications"
-                     />
-                   </div>
-                 ) : (
+                  {template.description_ar_generation_type === 'dynamic' ? (
+                    <div className="mt-3">
+                      <FormulaBuilder
+                        label="Arabic Description Formula"
+                        value={template.description_ar_formula || ''}
+                        onChange={(value) => setTemplate(prev => ({ ...prev, description_ar_formula: value }))}
+                        properties={getAllAvailableProperties()}
+                        placeholder="{item_code} - لوحة LED بقوة {wattage}W - {color_temperature}K - جودة مهنية"
+                        description="Generate detailed Arabic descriptions for product pages and specifications"
+                      />
+                      <div className="mt-2">
+                        <p className="text-sm text-muted-foreground">
+                          Preview: <Badge variant="outline">{preview.descriptionAr || 'Enter formula above'}</Badge>
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
                    <div className="mt-3">
                      <Label>Fixed Arabic Description</Label>
                      <Textarea
@@ -1206,18 +1316,23 @@ export default function DeviceTemplateCreate() {
                    </div>
                  </RadioGroup>
                  
-                 {template.short_description_ar_generation_type === 'dynamic' ? (
-                   <div className="mt-3">
-                     <FormulaBuilder
-                       label="Arabic Short Description Formula"
-                       value={template.short_description_ar_formula || ''}
-                       onChange={(value) => setTemplate(prev => ({ ...prev, short_description_ar_formula: value }))}
-                       properties={getAllAvailableProperties()}
-                       placeholder="{item_code} - LED {wattage}W - {color_temperature}K"
-                       description="Generate brief Arabic descriptions for listings and summaries"
-                     />
-                   </div>
-                 ) : (
+                  {template.short_description_ar_generation_type === 'dynamic' ? (
+                    <div className="mt-3">
+                      <FormulaBuilder
+                        label="Arabic Short Description Formula"
+                        value={template.short_description_ar_formula || ''}
+                        onChange={(value) => setTemplate(prev => ({ ...prev, short_description_ar_formula: value }))}
+                        properties={getAllAvailableProperties()}
+                        placeholder="{item_code} - LED {wattage}W - {color_temperature}K"
+                        description="Generate brief Arabic descriptions for listings and summaries"
+                      />
+                      <div className="mt-2">
+                        <p className="text-sm text-muted-foreground">
+                          Preview: <Badge variant="outline">{preview.shortDescriptionAr || 'Enter formula above'}</Badge>
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
                    <div className="mt-3">
                      <Label>Fixed Arabic Short Description</Label>
                      <Input
