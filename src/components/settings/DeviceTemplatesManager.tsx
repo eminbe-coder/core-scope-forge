@@ -12,7 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Plus, Edit2, Trash2, Eye, Languages, Code, Sparkles } from 'lucide-react';
+import { Plus, Edit2, Trash2, Eye, Languages, Code, Sparkles, RefreshCw, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useTenant } from '@/hooks/use-tenant';
 import { useAuth } from '@/hooks/use-auth';
@@ -48,6 +48,11 @@ interface DeviceTemplate {
   template_version?: number;
   last_modified_by?: string;
   active: boolean;
+  source_template_id?: string;
+  import_status?: string;
+  imported_at?: string;
+  last_synced_at?: string;
+  sync_version?: number;
   properties?: DeviceTemplateProperty[];
   options?: DeviceTemplateOption[];
 }
@@ -120,6 +125,7 @@ export function DeviceTemplatesManager() {
   
   const [templateProperties, setTemplateProperties] = useState<DeviceTemplateProperty[]>([]);
   const [templateOptions, setTemplateOptions] = useState<DeviceTemplateOption[]>([]);
+  const [syncing, setSyncing] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -161,9 +167,11 @@ export function DeviceTemplatesManager() {
         .eq('active', true);
 
       if (activeTab === 'global') {
-        query = query.eq('is_global', true);
+        // For global tab, show imported global templates for tenants
+        query = query.or(`and(is_global.eq.false,tenant_id.eq.${currentTenant?.id},import_status.eq.imported),and(is_global.eq.true,tenant_id.is.null)`);
       } else {
-        query = query.eq('tenant_id', currentTenant?.id).eq('is_global', false);
+        // For tenant tab, show only templates created by this tenant (not imported)
+        query = query.eq('tenant_id', currentTenant?.id).eq('is_global', false).neq('import_status', 'imported');
       }
 
       const { data, error } = await query.order('name');
@@ -413,6 +421,197 @@ export function DeviceTemplatesManager() {
     setTemplateOptions(templateOptions.filter((_, i) => i !== index));
   };
 
+  const handleSyncTemplate = async (template: DeviceTemplate) => {
+    if (!template.source_template_id || !template.id) {
+      toast({
+        title: "Error",
+        description: "Cannot sync template: missing source template ID",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setSyncing(template.id);
+
+      // Get the source global template
+      const { data: sourceTemplate, error: sourceError } = await supabase
+        .from('device_templates')
+        .select('*')
+        .eq('id', template.source_template_id)
+        .eq('is_global', true)
+        .single();
+
+      if (sourceError) throw sourceError;
+      if (!sourceTemplate) {
+        throw new Error('Source template not found');
+      }
+
+      // Update the imported template with latest data from source
+      const { error: updateError } = await supabase
+        .from('device_templates')
+        .update({
+          name: sourceTemplate.name,
+          category: sourceTemplate.category,
+          description: sourceTemplate.description,
+          properties_schema: sourceTemplate.properties_schema,
+          sku_formula: sourceTemplate.sku_formula,
+          description_formula: sourceTemplate.description_formula,
+          device_type_id: sourceTemplate.device_type_id,
+          last_synced_at: new Date().toISOString(),
+          sync_version: (template.sync_version || 1) + 1
+        })
+        .eq('id', template.id);
+
+      if (updateError) throw updateError;
+
+      // Sync all devices linked to this template
+      await syncTemplateDevices(template.id, template.source_template_id);
+
+      // Log the sync operation
+      await supabase
+        .from('template_sync_logs')
+        .insert({
+          tenant_id: currentTenant!.id,
+          template_id: template.id,
+          source_template_id: template.source_template_id,
+          action_type: 'sync',
+          status: 'success',
+          templates_updated: 1,
+          created_by: user!.id,
+          notes: `Template '${template.name}' synced successfully`
+        });
+
+      toast({
+        title: "Success",
+        description: `Template '${template.name}' synced successfully`
+      });
+
+      loadTemplates();
+    } catch (error) {
+      console.error('Error syncing template:', error);
+      toast({
+        title: "Error",
+        description: "Failed to sync template",
+        variant: "destructive"
+      });
+    } finally {
+      setSyncing(null);
+    }
+  };
+
+  const syncTemplateDevices = async (tenantTemplateId: string, sourceTemplateId: string) => {
+    // Get all devices from the source global template
+    const { data: sourceDevices, error: sourceError } = await supabase
+      .from('devices')
+      .select('*')
+      .eq('template_id', sourceTemplateId)
+      .eq('active', true)
+      .is('tenant_id', null); // Global devices only
+
+    if (sourceError) throw sourceError;
+    if (!sourceDevices || sourceDevices.length === 0) return;
+
+    // Get existing imported devices for this template
+    const { data: existingDevices, error: existingError } = await supabase
+      .from('devices')
+      .select('*')
+      .eq('template_id', tenantTemplateId)
+      .eq('tenant_id', currentTenant!.id)
+      .eq('import_status', 'imported');
+
+    if (existingError) throw existingError;
+
+    const existingDeviceMap = new Map(
+      (existingDevices || []).map(device => [device.source_device_id, device])
+    );
+
+    let devicesAdded = 0;
+    let devicesUpdated = 0;
+
+    for (const sourceDevice of sourceDevices) {
+      const existingDevice = existingDeviceMap.get(sourceDevice.id);
+
+      if (existingDevice) {
+        // Update existing device
+        const { error: updateError } = await supabase
+          .from('devices')
+          .update({
+            name: sourceDevice.name,
+            category: sourceDevice.category,
+            brand: sourceDevice.brand,
+            model: sourceDevice.model,
+            unit_price: sourceDevice.unit_price,
+            specifications: sourceDevice.specifications,
+            template_properties: sourceDevice.template_properties,
+            last_synced_at: new Date().toISOString(),
+            sync_version: (existingDevice.sync_version || 1) + 1
+          })
+          .eq('id', existingDevice.id);
+
+        if (!updateError) devicesUpdated++;
+      } else {
+        // Add new device
+        const { error: insertError } = await supabase
+          .from('devices')
+          .insert({
+            name: sourceDevice.name,
+            category: sourceDevice.category,
+            brand: sourceDevice.brand,
+            model: sourceDevice.model,
+            unit_price: sourceDevice.unit_price,
+            specifications: sourceDevice.specifications,
+            template_properties: sourceDevice.template_properties,
+            template_id: tenantTemplateId,
+            tenant_id: currentTenant!.id,
+            source_device_id: sourceDevice.id,
+            import_status: 'imported',
+            imported_at: new Date().toISOString(),
+            is_global: false,
+            active: true
+          });
+
+        if (!insertError) devicesAdded++;
+      }
+    }
+
+    // Update sync log with device counts
+    await supabase
+      .from('template_sync_logs')
+      .update({
+        devices_added: devicesAdded,
+        devices_updated: devicesUpdated
+      })
+      .eq('template_id', tenantTemplateId)
+      .order('created_at', { ascending: false })
+      .limit(1);
+  };
+
+  const getTemplateTypeInfo = (template: DeviceTemplate) => {
+    if (template.import_status === 'imported' && template.source_template_id) {
+      return {
+        type: 'imported',
+        badge: 'Imported',
+        badgeVariant: 'secondary' as const,
+        isReadOnly: true
+      };
+    } else if (template.is_global && !template.tenant_id) {
+      return {
+        type: 'global',
+        badge: 'Global',
+        badgeVariant: 'default' as const,
+        isReadOnly: false
+      };
+    } else {
+      return {
+        type: 'owned',
+        badge: null,
+        badgeVariant: null,
+        isReadOnly: false
+      };
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -451,8 +650,28 @@ export function DeviceTemplatesManager() {
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <h3 className="font-semibold">{template.name}</h3>
-                            {template.is_global && <Badge variant="secondary">Global</Badge>}
-                            {template.supports_multilang && <Badge variant="outline"><Languages className="h-3 w-3 mr-1" />Multi-lang</Badge>}
+                            {(() => {
+                              const templateType = getTemplateTypeInfo(template);
+                              return (
+                                <>
+                                  {templateType.badge && (
+                                    <Badge variant={templateType.badgeVariant}>
+                                      {templateType.badge}
+                                    </Badge>
+                                  )}
+                                  {template.supports_multilang && (
+                                    <Badge variant="outline">
+                                      <Languages className="h-3 w-3 mr-1" />Multi-lang
+                                    </Badge>
+                                  )}
+                                  {template.last_synced_at && (
+                                    <Badge variant="outline" className="text-xs">
+                                      Synced {new Date(template.last_synced_at).toLocaleDateString()}
+                                    </Badge>
+                                  )}
+                                </>
+                              );
+                            })()}
                           </div>
                           <p className="text-sm text-muted-foreground mb-2">{template.category}</p>
                           {template.description && (
@@ -460,20 +679,54 @@ export function DeviceTemplatesManager() {
                           )}
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditTemplate(template)}
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => template.id && handleDeleteTemplate(template.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {(() => {
+                            const templateType = getTemplateTypeInfo(template);
+                            
+                            if (templateType.type === 'imported') {
+                              return (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => template.id && handleSyncTemplate(template)}
+                                    disabled={syncing === template.id}
+                                  >
+                                    {syncing === template.id ? (
+                                      <RefreshCw className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <RefreshCw className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => template.id && handleDeleteTemplate(template.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              );
+                            } else {
+                              return (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEditTemplate(template)}
+                                  >
+                                    <Edit2 className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => template.id && handleDeleteTemplate(template.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              );
+                            }
+                          })()}
                         </div>
                       </div>
                     </div>

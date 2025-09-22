@@ -4016,6 +4016,57 @@ export type Database = {
           },
         ]
       }
+      template_sync_logs: {
+        Row: {
+          action_type: string
+          conflict_report: Json | null
+          created_at: string | null
+          created_by: string
+          devices_added: number | null
+          devices_skipped: number | null
+          devices_updated: number | null
+          id: string
+          notes: string | null
+          source_template_id: string
+          status: string
+          template_id: string
+          templates_updated: number | null
+          tenant_id: string
+        }
+        Insert: {
+          action_type: string
+          conflict_report?: Json | null
+          created_at?: string | null
+          created_by: string
+          devices_added?: number | null
+          devices_skipped?: number | null
+          devices_updated?: number | null
+          id?: string
+          notes?: string | null
+          source_template_id: string
+          status: string
+          template_id: string
+          templates_updated?: number | null
+          tenant_id: string
+        }
+        Update: {
+          action_type?: string
+          conflict_report?: Json | null
+          created_at?: string | null
+          created_by?: string
+          devices_added?: number | null
+          devices_skipped?: number | null
+          devices_updated?: number | null
+          id?: string
+          notes?: string | null
+          source_template_id?: string
+          status?: string
+          template_id?: string
+          templates_updated?: number | null
+          tenant_id?: string
+        }
+        Relationships: []
+      }
       tenant_invitations: {
         Row: {
           accepted_at: string | null

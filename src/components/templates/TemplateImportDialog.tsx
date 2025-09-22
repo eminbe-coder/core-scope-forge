@@ -208,15 +208,28 @@ export function TemplateImportDialog({ open, onOpenChange, onImportComplete }: T
 
   const importTemplate = async (globalTemplate: GlobalTemplate) => {
     try {
-      // Check if template with same name already exists
+      // Check if template with same source already exists
       const { data: existing } = await supabase
+        .from('device_templates')
+        .select('id, name')
+        .eq('tenant_id', currentTenant!.id)
+        .eq('source_template_id', globalTemplate.id)
+        .single();
+
+      if (existing) {
+        // Template already imported, return existing
+        return existing;
+      }
+
+      // Check if template with same name already exists
+      const { data: nameConflict } = await supabase
         .from('device_templates')
         .select('id')
         .eq('tenant_id', currentTenant!.id)
         .eq('name', globalTemplate.name)
         .single();
 
-      const templateName = existing ? `${globalTemplate.name} (Imported)` : globalTemplate.name;
+      const templateName = nameConflict ? `${globalTemplate.name} (Imported)` : globalTemplate.name;
 
       const { data, error } = await supabase
         .from('device_templates')
@@ -233,6 +246,7 @@ export function TemplateImportDialog({ open, onOpenChange, onImportComplete }: T
           source_template_id: globalTemplate.id,
           import_status: 'imported',
           imported_at: new Date().toISOString(),
+          sync_version: 1,
           active: true
         })
         .select()
@@ -279,6 +293,7 @@ export function TemplateImportDialog({ open, onOpenChange, onImportComplete }: T
           source_device_id: globalDevice.id,
           import_status: 'imported',
           imported_at: new Date().toISOString(),
+          sync_version: 1,
           is_global: false,
           active: true
         });
