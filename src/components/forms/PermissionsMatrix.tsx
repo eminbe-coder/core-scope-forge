@@ -22,14 +22,15 @@ interface PermissionsMatrixProps {
     { key: 'activities', label: 'Activities' },
     { key: 'projects', label: 'Projects' },
     { key: 'devices', label: 'Devices' },
+    { key: 'device_templates', label: 'Device Templates' },
     { key: 'todos', label: 'Todos' },
     { key: 'settings', label: 'Settings' },
     { key: 'recycle_bin', label: 'Recycle Bin' },
   ];
 
 const CRUD_PERMISSIONS = [
-  { key: 'read', label: 'Read' },
-  { key: 'write', label: 'Write' },
+  { key: 'view', label: 'View' },
+  { key: 'create', label: 'Create' },
   { key: 'edit', label: 'Edit' },
   { key: 'delete', label: 'Delete' },
 ];

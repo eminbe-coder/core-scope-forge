@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -75,6 +76,7 @@ interface DeviceTemplate {
 const Devices = () => {
   const { currentTenant } = useTenant();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [devices, setDevices] = useState<Device[]>([]);
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [deviceTemplates, setDeviceTemplates] = useState<DeviceTemplate[]>([]);
@@ -484,7 +486,11 @@ const Devices = () => {
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {filteredDevices.map((device) => (
-              <Card key={device.id} className="hover:shadow-md transition-shadow cursor-pointer">
+              <Card 
+                key={device.id} 
+                className="hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => navigate(`/devices/${device.id}`)}
+              >
                 <CardHeader className="pb-3">
                   {(device as any).image_url && (
                     <div className="mb-3">

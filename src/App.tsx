@@ -17,6 +17,8 @@ import DeviceTemplates from "./pages/DeviceTemplates";
 import GlobalDevices from "./pages/GlobalDevices";
 import AddGlobalDevice from "./pages/AddGlobalDevice";
 import GlobalDeviceTemplates from "./pages/GlobalDeviceTemplates";
+import DeviceDetail from "./pages/DeviceDetail";
+import BrowseDevices from "./pages/BrowseDevices";
 
 import AcceptInvitation from "./pages/AcceptInvitation";
 import SetPassword from "./pages/SetPassword";
@@ -235,6 +237,11 @@ const App = () => (
                       <DesignCreation />
                     </ProtectedRoute>
                   } />
+                  <Route path="/browse-devices" element={
+                    <ProtectedRoute>
+                      <BrowseDevices />
+                    </ProtectedRoute>
+                  } />
                   <Route path="/activities" element={
                     <ProtectedRoute>
                       <Activities />
@@ -255,6 +262,11 @@ const App = () => (
                        <Devices />
                      </ProtectedRoute>
                    } />
+                   <Route path="/devices/:id" element={
+                     <ProtectedRoute>
+                       <DeviceDetail />
+                     </ProtectedRoute>
+                   } />
                    <Route path="/device-templates" element={
                      <ProtectedRoute>
                        <DeviceTemplates />
@@ -264,6 +276,13 @@ const App = () => (
                      <ProtectedRoute>
                        <GlobalAdminRoute>
                          <GlobalDevices />
+                       </GlobalAdminRoute>
+                     </ProtectedRoute>
+                   } />
+                   <Route path="/global-devices/:id" element={
+                     <ProtectedRoute>
+                       <GlobalAdminRoute>
+                         <DeviceDetail />
                        </GlobalAdminRoute>
                      </ProtectedRoute>
                    } />

@@ -159,6 +159,12 @@ const tenantModules: NavigationModule[] = [
         icon: FolderOpen,
         permission: 'projects.view',
       },
+      {
+        title: 'Browse Devices',
+        url: '/browse-devices',
+        icon: Smartphone,
+        permission: 'devices.view',
+      },
     ]
   },
   {
@@ -174,7 +180,7 @@ const tenantModules: NavigationModule[] = [
         title: 'Device Templates',
         url: '/device-templates',
         icon: Settings,
-        permission: 'admin.access',
+        permission: 'device_templates.view',
       },
       {
         title: 'Global Devices',
