@@ -101,29 +101,40 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
           return false;
         }
 
-        // Group filters - show todo if it belongs to any selected group
+        // Group filters - show nothing if no filters are active
         const hasActiveGroupFilters = externalFilters.showOverdue || externalFilters.showDue || externalFilters.showLater || externalFilters.showCompleted || externalFilters.showCreatedByMe;
         
-        if (hasActiveGroupFilters) {
-          const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000 - 1);
-          
-          let belongsToSelectedGroup = false;
-          
+        if (!hasActiveGroupFilters) {
+          return false; // Show nothing when all toggles are OFF
+        }
+
+        const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000 - 1);
+        
+        let belongsToSelectedGroup = false;
+
+        // Check if task is created by current user but not assigned to them
+        // For now, we'll use a placeholder since we don't have current user context
+        const isCreatedByMeButNotAssigned = false; // todo.created_by === currentUser?.id && !todo.assigned_to
+
+        // Date-based groups (only for tasks NOT created by user and not assigned to them, and not completed)
+        const isEligibleForDateGroups = todo.status !== 'completed' && !isCreatedByMeButNotAssigned;
+
+        if (isEligibleForDateGroups) {
           // Overdue group
-          if (externalFilters.showOverdue && todo.due_date && new Date(todo.due_date) < startOfDay && todo.status !== 'completed') {
+          if (externalFilters.showOverdue && todo.due_date && new Date(todo.due_date) < startOfDay) {
             belongsToSelectedGroup = true;
           }
           
           // Due Today group
-          if (externalFilters.showDue && todo.due_date && todo.status !== 'completed') {
+          if (externalFilters.showDue && todo.due_date) {
             const dueDate = new Date(todo.due_date);
             if (dueDate >= startOfDay && dueDate <= endOfDay) {
               belongsToSelectedGroup = true;
             }
           }
           
-          // Later group (future dates or no due date, not completed)
-          if (externalFilters.showLater && todo.status !== 'completed') {
+          // Later group (future dates or no due date)
+          if (externalFilters.showLater) {
             if (!todo.due_date) {
               belongsToSelectedGroup = true;
             } else {
@@ -133,24 +144,19 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
               }
             }
           }
-          
-          // Completed group
-          if (externalFilters.showCompleted && todo.status === 'completed') {
-            belongsToSelectedGroup = true;
-          }
-          
-          // Created by me group (would need current user context)
-          // if (externalFilters.showCreatedByMe && todo.created_by === currentUser?.id) {
-          //   belongsToSelectedGroup = true;
-          // }
-          
-          if (!belongsToSelectedGroup) return false;
         }
-
-        // Created by me filter (would need current user)
-        // if (externalFilters.showCreatedByMe && todo.created_by !== currentUser?.id) return false;
-
-        return true;
+        
+        // Completed group
+        if (externalFilters.showCompleted && todo.status === 'completed') {
+          belongsToSelectedGroup = true;
+        }
+        
+        // Created by me group (would need current user context)
+        if (externalFilters.showCreatedByMe && isCreatedByMeButNotAssigned) {
+          belongsToSelectedGroup = true;
+        }
+        
+        return belongsToSelectedGroup;
       });
     }
 
@@ -190,7 +196,7 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
           resource: todo,
         };
       });
-  }, [todos, calculateStartTime]);
+  }, [todos, calculateStartTime, externalFilters]);
 
   const eventStyleGetter = (event: CalendarEvent) => {
     const todo = event.resource;

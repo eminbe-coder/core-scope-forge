@@ -276,33 +276,43 @@ export const TodoList: React.FC<TodoListProps> = ({
       filtered = filtered.filter(todo => todo.assigned_to === filterAssignee);
     }
 
-    // Group filters - combine multiple groups when multiple toggles are ON
+    // Group filters - show nothing if no filters are active
     const hasActiveGroupFilters = showOverdue || showDue || showLater || showCompleted || showCreatedByMe;
     
-    if (hasActiveGroupFilters) {
-      filtered = filtered.filter(todo => {
-        const now = new Date();
-        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000 - 1);
-        
-        // Check if todo belongs to any of the selected groups
-        let belongsToSelectedGroup = false;
-        
+    if (!hasActiveGroupFilters) {
+      return []; // Show nothing when all toggles are OFF
+    }
+
+    filtered = filtered.filter(todo => {
+      const now = new Date();
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000 - 1);
+      
+      let belongsToSelectedGroup = false;
+
+      // Check if task is created by current user but not assigned to them
+      const isCreatedByMeButNotAssigned = todo.created_by === currentUserId && 
+        (!todo.todo_assignees || todo.todo_assignees.length === 0 || !todo.todo_assignees.some(a => a.user_id === currentUserId));
+
+      // Date-based groups (only for tasks NOT created by user and not assigned to them, and not completed)
+      const isEligibleForDateGroups = todo.status !== 'completed' && !isCreatedByMeButNotAssigned;
+
+      if (isEligibleForDateGroups) {
         // Overdue group
-        if (showOverdue && todo.due_date && new Date(todo.due_date) < startOfDay && todo.status !== 'completed') {
+        if (showOverdue && todo.due_date && new Date(todo.due_date) < startOfDay) {
           belongsToSelectedGroup = true;
         }
         
         // Due Today group
-        if (showDue && todo.due_date && todo.status !== 'completed') {
+        if (showDue && todo.due_date) {
           const dueDate = new Date(todo.due_date);
           if (dueDate >= startOfDay && dueDate <= endOfDay) {
             belongsToSelectedGroup = true;
           }
         }
         
-        // Later group (future dates or no due date, not completed)
-        if (showLater && todo.status !== 'completed') {
+        // Later group (future dates or no due date)
+        if (showLater) {
           if (!todo.due_date) {
             belongsToSelectedGroup = true;
           } else {
@@ -312,20 +322,20 @@ export const TodoList: React.FC<TodoListProps> = ({
             }
           }
         }
-        
-        // Completed group
-        if (showCompleted && todo.status === 'completed') {
-          belongsToSelectedGroup = true;
-        }
-        
-        // Created by me group
-        if (showCreatedByMe && todo.created_by === currentUserId) {
-          belongsToSelectedGroup = true;
-        }
-        
-        return belongsToSelectedGroup;
-      });
-    }
+      }
+
+      // Created by me group (created by user but not assigned to them)
+      if (showCreatedByMe && isCreatedByMeButNotAssigned) {
+        belongsToSelectedGroup = true;
+      }
+      
+      // Completed group (all completed tasks)
+      if (showCompleted && todo.status === 'completed') {
+        belongsToSelectedGroup = true;
+      }
+      
+      return belongsToSelectedGroup;
+    });
 
     // Sort todos
     filtered.sort((a, b) => {
