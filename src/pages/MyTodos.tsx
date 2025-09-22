@@ -23,7 +23,7 @@ const MyTodos = () => {
   const [stats, setStats] = useState({
     total: 0,
     completed: 0,
-    pending: 0,
+    later: 0,
     overdue: 0,
     dueToday: 0
   });
@@ -52,7 +52,7 @@ const MyTodos = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [showOverdue, setShowOverdue] = useState(true);
   const [showDue, setShowDue] = useState(true);
-  const [showPending, setShowPending] = useState(true);
+  const [showLater, setShowLater] = useState(true);
   const [showCreatedByMe, setShowCreatedByMe] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
 
@@ -191,7 +191,6 @@ const MyTodos = () => {
         const completedDate = new Date(todo.completed_at);
         return completedDate >= startOfMonth && completedDate <= endOfMonth;
       }).length;
-      const pending = userFilteredTodos.filter(todo => todo.status === 'pending').length;
       const overdue = userFilteredTodos.filter(todo => {
         if (todo.status === 'completed') return false;
         if (!todo.due_date) return false;
@@ -204,11 +203,17 @@ const MyTodos = () => {
         const dueDate = new Date(todo.due_date);
         return dueDate >= startOfDay && dueDate <= endOfDay;
       }).length;
+      const later = userFilteredTodos.filter(todo => {
+        if (todo.status === 'completed') return false;
+        if (!todo.due_date) return true; // No due date = Later
+        const dueDate = new Date(todo.due_date);
+        return dueDate > endOfDay; // Future dates = Later
+      }).length;
 
       setStats({
         total: totalActive,
         completed: completedThisMonth,
-        pending,
+        later,
         overdue,
         dueToday
       });
@@ -370,11 +375,11 @@ const MyTodos = () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending</CardTitle>
+              <CardTitle className="text-sm font-medium">Later</CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
+              <div className="text-2xl font-bold text-yellow-600">{stats.later}</div>
             </CardContent>
           </Card>
 
@@ -411,8 +416,8 @@ const MyTodos = () => {
           onShowOverdueChange={setShowOverdue}
           showDue={showDue}
           onShowDueChange={setShowDue}
-          showPending={showPending}
-          onShowPendingChange={setShowPending}
+          showLater={showLater}
+          onShowLaterChange={setShowLater}
           showCreatedByMe={showCreatedByMe}
           onShowCreatedByMeChange={setShowCreatedByMe}
           showCompleted={showCompleted}
@@ -442,7 +447,7 @@ const MyTodos = () => {
                     sortOrder,
                     showOverdue,
                     showDue,
-                    showPending,
+                    showLater,
                     showCreatedByMe,
                     showCompleted
                   }}
@@ -473,7 +478,7 @@ const MyTodos = () => {
                       sortOrder,
                       showOverdue,
                       showDue,
-                      showPending,
+                      showLater,
                       showCreatedByMe,
                       showCompleted
                     }}

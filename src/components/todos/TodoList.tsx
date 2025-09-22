@@ -60,7 +60,7 @@ interface ExternalFilters {
   sortOrder?: 'asc' | 'desc';
   showOverdue?: boolean;
   showDue?: boolean;
-  showPending?: boolean;
+  showLater?: boolean;
   showCreatedByMe?: boolean;
   showCompleted?: boolean;
 }
@@ -110,7 +110,7 @@ export const TodoList: React.FC<TodoListProps> = ({
   const [internalShowCreatedByMe, setInternalShowCreatedByMe] = useState(false);
   const [internalShowDue, setInternalShowDue] = useState(false);
   const [internalShowOverdue, setInternalShowOverdue] = useState(false);
-  const [internalShowPending, setInternalShowPending] = useState(false);
+  const [internalShowLater, setInternalShowLater] = useState(false);
   const [internalShowCompleted, setInternalShowCompleted] = useState(false);
   const [internalSortBy, setInternalSortBy] = useState('due_date');
   const [internalSortOrder, setInternalSortOrder] = useState('asc');
@@ -124,7 +124,7 @@ export const TodoList: React.FC<TodoListProps> = ({
   const sortOrder = externalFilters?.sortOrder ?? internalSortOrder;
   const showOverdue = externalFilters?.showOverdue ?? internalShowOverdue;
   const showDue = externalFilters?.showDue ?? internalShowDue;
-  const showPending = externalFilters?.showPending ?? internalShowPending;
+  const showLater = externalFilters?.showLater ?? internalShowLater;
   const showCreatedByMe = externalFilters?.showCreatedByMe ?? internalShowCreatedByMe;
   const showCompleted = externalFilters?.showCompleted ?? internalShowCompleted;
 
@@ -285,8 +285,15 @@ export const TodoList: React.FC<TodoListProps> = ({
       filtered = filtered.filter(todo => 
         todo.due_date && (isToday(new Date(todo.due_date)) || isTomorrow(new Date(todo.due_date)))
       );
-    } else if (showPending) {
-      filtered = filtered.filter(todo => todo.status === 'pending');
+    } else if (showLater) {
+      filtered = filtered.filter(todo => {
+        if (todo.status === 'completed') return false;
+        if (!todo.due_date) return true; // No due date = Later
+        const dueDate = new Date(todo.due_date);
+        const now = new Date();
+        const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+        return dueDate > endOfDay; // Future dates = Later
+      });
     } else if (showCompleted) {
       filtered = filtered.filter(todo => todo.status === 'completed');
     } else if (showCreatedByMe) {
@@ -311,7 +318,7 @@ export const TodoList: React.FC<TodoListProps> = ({
     });
 
     return filtered;
-  }, [todos, searchTerm, filterAssignee, showOverdue, showDue, showPending, showCompleted, showCreatedByMe, currentUserId, sortBy, sortOrder]);
+  }, [todos, searchTerm, filterAssignee, showOverdue, showDue, showLater, showCompleted, showCreatedByMe, currentUserId, sortBy, sortOrder]);
 
   const stats = useMemo(() => {
     const total = todos.length;
@@ -567,17 +574,16 @@ export const TodoList: React.FC<TodoListProps> = ({
                         )}
                         
                         {todo.due_date && (
-                          <div className={cn(
-                            "flex items-center gap-1",
-                            getStatusColor(todo.status, todo.due_date)
-                          )}>
-                            <Calendar className="h-3 w-3" />
-                            {formatDueDate(todo.due_date)}
-                          </div>
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          <span className="text-xs font-medium">Due:</span>
+                          {formatDueDate(todo.due_date)}
+                        </div>
                         )}
                         
                         <div className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
+                          <span className="text-xs font-medium">Created:</span>
                           {format(new Date(todo.created_at), 'MMM d, yyyy')}
                         </div>
                       </div>

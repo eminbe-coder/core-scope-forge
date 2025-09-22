@@ -36,7 +36,7 @@ interface ExternalFilters {
   sortOrder?: 'asc' | 'desc';
   showOverdue?: boolean;
   showDue?: boolean;
-  showPending?: boolean;
+  showLater?: boolean;
   showCreatedByMe?: boolean;
   showCompleted?: boolean;
 }
@@ -103,7 +103,14 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
 
         // Status filters
         if (!externalFilters.showCompleted && todo.status === 'completed') return false;
-        if (!externalFilters.showPending && todo.status === 'pending') return false;
+        
+        // Later filter - todos with future due dates or no due date (not completed)
+        if (!externalFilters.showLater && todo.status !== 'completed') {
+          if (!todo.due_date) return false; // No due date = Later
+          const dueDate = new Date(todo.due_date);
+          const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000 - 1);
+          if (dueDate > endOfDay) return false; // Future dates = Later
+        }
         
         // Due date filters
         if (todo.due_date) {

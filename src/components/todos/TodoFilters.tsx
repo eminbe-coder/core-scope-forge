@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, AlertTriangle, Calendar, Clock, User, CheckCircle } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface TodoFiltersProps {
   searchTerm: string;
@@ -15,8 +16,8 @@ interface TodoFiltersProps {
   onShowOverdueChange: (value: boolean) => void;
   showDue: boolean;
   onShowDueChange: (value: boolean) => void;
-  showPending: boolean;
-  onShowPendingChange: (value: boolean) => void;
+  showLater: boolean;
+  onShowLaterChange: (value: boolean) => void;
   showCreatedByMe: boolean;
   onShowCreatedByMeChange: (value: boolean) => void;
   showCompleted: boolean;
@@ -34,8 +35,8 @@ export const TodoFilters: React.FC<TodoFiltersProps> = ({
   onShowOverdueChange,
   showDue,
   onShowDueChange,
-  showPending,
-  onShowPendingChange,
+  showLater,
+  onShowLaterChange,
   showCreatedByMe,
   onShowCreatedByMeChange,
   showCompleted,
@@ -82,49 +83,77 @@ export const TodoFilters: React.FC<TodoFiltersProps> = ({
           variant={showOverdue ? 'destructive' : 'outline'}
           size="sm"
           onClick={() => onShowOverdueChange(!showOverdue)}
-          className={showOverdue ? 'bg-red-500 hover:bg-red-600' : 'border-red-200 text-red-600 hover:bg-red-50'}
+          className={cn(
+            "relative",
+            showOverdue ? 'bg-red-500 hover:bg-red-600' : 'border-red-200 text-red-600 hover:bg-red-50'
+          )}
         >
           <AlertTriangle className="h-4 w-4 mr-1" />
           Overdue
+          <span className="absolute -top-1 -right-1 text-[8px] bg-background px-1 rounded text-foreground">
+            {showOverdue ? 'ON' : 'OFF'}
+          </span>
         </Button>
 
         <Button
           variant={showDue ? 'default' : 'outline'}
           size="sm"
           onClick={() => onShowDueChange(!showDue)}
-          className={showDue ? 'bg-orange-500 hover:bg-orange-600' : 'border-orange-200 text-orange-600 hover:bg-orange-50'}
+          className={cn(
+            "relative",
+            showDue ? 'bg-orange-500 hover:bg-orange-600' : 'border-orange-200 text-orange-600 hover:bg-orange-50'
+          )}
         >
           <Calendar className="h-4 w-4 mr-1" />
           Due Today
+          <span className="absolute -top-1 -right-1 text-[8px] bg-background px-1 rounded text-foreground">
+            {showDue ? 'ON' : 'OFF'}
+          </span>
         </Button>
 
         <Button
-          variant={showPending ? 'default' : 'outline'}
+          variant={showLater ? 'default' : 'outline'}
           size="sm"
-          onClick={() => onShowPendingChange(!showPending)}
-          className={showPending ? 'bg-yellow-500 hover:bg-yellow-600 text-black' : 'border-yellow-200 text-yellow-600 hover:bg-yellow-50'}
+          onClick={() => onShowLaterChange(!showLater)}
+          className={cn(
+            "relative",
+            showLater ? 'bg-yellow-500 hover:bg-yellow-600 text-black' : 'border-yellow-200 text-yellow-600 hover:bg-yellow-50'
+          )}
         >
           <Clock className="h-4 w-4 mr-1" />
-          Pending
+          Later
+          <span className="absolute -top-1 -right-1 text-[8px] bg-background px-1 rounded text-foreground">
+            {showLater ? 'ON' : 'OFF'}
+          </span>
         </Button>
         
         <Button
           variant={showCreatedByMe ? 'default' : 'outline'}
           size="sm"
           onClick={() => onShowCreatedByMeChange(!showCreatedByMe)}
+          className="relative"
         >
           <User className="h-4 w-4 mr-1" />
           Created by me
+          <span className="absolute -top-1 -right-1 text-[8px] bg-background px-1 rounded text-foreground">
+            {showCreatedByMe ? 'ON' : 'OFF'}
+          </span>
         </Button>
 
         <Button
           variant={showCompleted ? 'default' : 'outline'}
           size="sm"
           onClick={() => onShowCompletedChange(!showCompleted)}
-          className={showCompleted ? 'bg-green-500 hover:bg-green-600' : 'border-green-200 text-green-600 hover:bg-green-50'}
+          className={cn(
+            "relative",
+            showCompleted ? 'bg-green-500 hover:bg-green-600' : 'border-green-200 text-green-600 hover:bg-green-50'
+          )}
         >
           <CheckCircle className="h-4 w-4 mr-1" />
           Completed
+          <span className="absolute -top-1 -right-1 text-[8px] bg-background px-1 rounded text-foreground">
+            {showCompleted ? 'ON' : 'OFF'}
+          </span>
         </Button>
       </div>
     </div>
