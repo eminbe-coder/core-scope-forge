@@ -53,46 +53,76 @@ const MyTodos = () => {
 
     try {
       const visibilityLevel = await getVisibilityLevel('todos');
+      const { data: { user } } = await supabase.auth.getUser();
       
-      let query = supabase
-        .from('todos')
-        .select(`
-          *,
-          assignees:todo_assignees(
-            user_id,
-            profiles!todo_assignees_user_id_fkey(id, first_name, last_name)
-          )
-        `)
-        .eq('tenant_id', currentTenant.id);
+      if (!user) return;
 
-      // Apply visibility filtering based on user permissions
-      if (visibilityLevel === 'own') {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          query = query.or(`assigned_to.eq.${user.id},todo_assignees.user_id.eq.${user.id}`);
-        }
-      }
-
-      const { data: todos, error } = await query;
-
-      if (error) {
-        console.error('Error fetching todos:', error);
-        return;
-      }
-
-      if (!todos) return;
-
-      // Filter todos based on visibility and user permissions
+      console.log('Debug - Visibility level:', visibilityLevel);
+      
       let filteredTodos = [];
-      for (const todo of todos) {
-        if (visibilityLevel === 'own') {
-          filteredTodos.push(todo);
-        } else {
-          const canView = await canViewEntity('todos', todo.created_by || '', undefined, undefined);
-          if (canView) {
-            filteredTodos.push(todo);
-          }
+
+      if (visibilityLevel === 'all') {
+        // Show ALL todos in tenant - no filtering needed
+        const { data: todos, error } = await supabase
+          .from('todos')
+          .select(`
+            *,
+            assignees:todo_assignees(
+              user_id,
+              profiles!todo_assignees_user_id_fkey(id, first_name, last_name)
+            )
+          `)
+          .eq('tenant_id', currentTenant.id);
+
+        if (error) {
+          console.error('Error fetching todos:', error);
+          return;
         }
+
+        filteredTodos = todos || [];
+      } else {
+        // Show only user's assigned/created todos
+        // First get todos assigned directly to user
+        const { data: assignedTodos, error: assignedError } = await supabase
+          .from('todos')
+          .select(`
+            *,
+            assignees:todo_assignees(
+              user_id,
+              profiles!todo_assignees_user_id_fkey(id, first_name, last_name)
+            )
+          `)
+          .eq('tenant_id', currentTenant.id)
+          .or(`assigned_to.eq.${user.id},created_by.eq.${user.id}`);
+
+        if (assignedError) {
+          console.error('Error fetching assigned todos:', assignedError);
+          return;
+        }
+
+        // Get todos assigned via todo_assignees table
+        const { data: multiAssignedTodos, error: multiError } = await supabase
+          .from('todos')
+          .select(`
+            *,
+            assignees:todo_assignees(
+              user_id,
+              profiles!todo_assignees_user_id_fkey(id, first_name, last_name)
+            )
+          `)
+          .eq('tenant_id', currentTenant.id)
+          .eq('todo_assignees.user_id', user.id);
+
+        if (multiError) {
+          console.error('Error fetching multi-assigned todos:', multiError);
+          return;
+        }
+
+        // Combine and deduplicate
+        const allUserTodos = [...(assignedTodos || []), ...(multiAssignedTodos || [])];
+        filteredTodos = allUserTodos.filter((todo, index, self) => 
+          index === self.findIndex(t => t.id === todo.id)
+        );
       }
 
       // Apply user-based filtering if selectedUserIds is provided and not empty
@@ -111,10 +141,10 @@ const MyTodos = () => {
         });
       }
 
-      console.log('Debug - Total todos fetched:', todos?.length || 0);
-      console.log('Debug - Filtered todos:', filteredTodos.length);
+      console.log('Debug - Total todos fetched:', filteredTodos.length);
       console.log('Debug - User filtered todos:', userFilteredTodos.length);
       console.log('Debug - Selected user IDs:', selectedUserIds);
+      console.log('Debug - Visibility level:', visibilityLevel);
 
       setTodos(userFilteredTodos);
 
