@@ -97,6 +97,7 @@ export default function DeviceTemplateCreate() {
   const isEditMode = !!id;
   const isViewMode = window.location.pathname.includes('/view/');
   const isTenantTemplate = window.location.pathname.includes('/tenant-templates/');
+  const [isImportedTemplate, setIsImportedTemplate] = useState(false);
   
   const [activeTab, setActiveTab] = useState(isTenantTemplate ? "tenant" : "global");
   const [loading, setLoading] = useState(false);
@@ -469,6 +470,9 @@ export default function DeviceTemplateCreate() {
           last_modified_by: templateData.last_modified_by,
           created_by: templateData.created_by
         });
+
+        // Check if this is an imported template (has source_template_id)
+        setIsImportedTemplate(!!templateData.source_template_id);
 
         setActiveTab(templateData.is_global ? 'global' : 'tenant');
 
@@ -996,13 +1000,14 @@ export default function DeviceTemplateCreate() {
           </Button>
           <div>
             <h1 className="text-2xl font-bold">
-              {isEditMode ? 'Edit Device Template' : 'Create Device Template'}
+              {isEditMode ? (isViewMode ? 'View' : 'Edit') : 'Create'} Device Template
+              {isImportedTemplate && <Badge variant="secondary" className="ml-2">Imported</Badge>}
             </h1>
               <p className="text-muted-foreground">
                 {isViewMode
                   ? 'Viewing template details (read-only)'
                   : isEditMode 
-                    ? `Modify the template properties and configuration${template.template_version ? ` • Version ${template.template_version}` : ''}`
+                    ? (isImportedTemplate ? 'This template is imported and read-only' : `Modify the template properties and configuration${template.template_version ? ` • Version ${template.template_version}` : ''}`)
                     : 'Build a comprehensive device template with properties and multi-language support'
                 }
               </p>
@@ -1013,7 +1018,7 @@ export default function DeviceTemplateCreate() {
               <Eye className="h-4 w-4 mr-2" />
               Preview
             </Button>
-            {isEditMode && !isViewMode && (
+            {isEditMode && !isViewMode && !isImportedTemplate && (
               <Button 
                 variant="destructive" 
                 onClick={handleDelete}
@@ -1023,7 +1028,7 @@ export default function DeviceTemplateCreate() {
                 {isDeleting ? 'Deleting...' : 'Delete Template'}
               </Button>
             )}
-            {!isViewMode && (
+            {!isViewMode && !isImportedTemplate && (
               <Button onClick={handleSave} disabled={isSaving}>
                 <Save className="h-4 w-4 mr-2" />
                 {isSaving ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Save Template')}
@@ -1051,7 +1056,7 @@ export default function DeviceTemplateCreate() {
                     value={template.name}
                     onChange={(e) => setTemplate(prev => ({ ...prev, name: e.target.value }))}
                     placeholder="LED Panel Template"
-                    disabled={isViewMode}
+                    disabled={isViewMode || isImportedTemplate}
                   />
                 </div>
                 <div>
@@ -1060,6 +1065,7 @@ export default function DeviceTemplateCreate() {
                     value={template.label_ar || ''}
                     onChange={(e) => setTemplate(prev => ({ ...prev, label_ar: e.target.value }))}
                     placeholder="قالب لوحة LED"
+                    disabled={isViewMode || isImportedTemplate}
                   />
                 </div>
               </div>
@@ -1071,6 +1077,7 @@ export default function DeviceTemplateCreate() {
                     value={template.device_type_id} 
                     onValueChange={(value) => setTemplate(prev => ({ ...prev, device_type_id: value }))}
                     placeholder="Select device type"
+                    disabled={isViewMode || isImportedTemplate}
                   />
                 </div>
                 <div>
@@ -1094,6 +1101,7 @@ export default function DeviceTemplateCreate() {
                   value={template.description || ''}
                   onChange={(e) => setTemplate(prev => ({ ...prev, description: e.target.value }))}
                   placeholder="Template description in English"
+                  disabled={isViewMode || isImportedTemplate}
                 />
               </div>
 
@@ -1102,6 +1110,7 @@ export default function DeviceTemplateCreate() {
                   id="supports_multilang"
                   checked={template.supports_multilang}
                   onCheckedChange={(checked) => setTemplate(prev => ({ ...prev, supports_multilang: checked === true }))}
+                  disabled={isViewMode || isImportedTemplate}
                 />
                 <Label htmlFor="supports_multilang">Enable Multi-language Support</Label>
               </div>
@@ -1129,6 +1138,7 @@ export default function DeviceTemplateCreate() {
                   value={template.sku_generation_type}
                   onValueChange={(value: 'fixed' | 'dynamic') => handleGenerationTypeChange('sku_generation_type', value)}
                   className="mt-2"
+                  disabled={isViewMode || isImportedTemplate}
                 >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="fixed" id="sku-fixed-global" />

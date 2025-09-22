@@ -221,39 +221,101 @@ export function TemplateImportDialog({ open, onOpenChange, onImportComplete }: T
         return existing;
       }
 
+      // Get full template data including all generation settings
+      const { data: fullTemplate, error: templateError } = await supabase
+        .from('device_templates')
+        .select('*')
+        .eq('id', globalTemplate.id)
+        .single();
+
+      if (templateError) throw templateError;
+
+      // Get template properties
+      const { data: templateProperties, error: propertiesError } = await supabase
+        .from('device_template_properties')
+        .select('*')
+        .eq('template_id', globalTemplate.id)
+        .order('sort_order');
+
+      if (propertiesError) throw propertiesError;
+
       // Check if template with same name already exists
       const { data: nameConflict } = await supabase
         .from('device_templates')
         .select('id')
         .eq('tenant_id', currentTenant!.id)
-        .eq('name', globalTemplate.name)
+        .eq('name', fullTemplate.name)
         .single();
 
-      const templateName = nameConflict ? `${globalTemplate.name} (Imported)` : globalTemplate.name;
+      const templateName = nameConflict ? `${fullTemplate.name} (Imported)` : fullTemplate.name;
 
-      const { data, error } = await supabase
+      // Create imported template with all fields
+      const { data: newTemplate, error } = await supabase
         .from('device_templates')
         .insert({
           name: templateName,
-          category: globalTemplate.category,
-          description: globalTemplate.description,
-          properties_schema: globalTemplate.properties_schema,
-          sku_formula: globalTemplate.sku_formula,
-          description_formula: globalTemplate.description_formula,
-          device_type_id: globalTemplate.device_type_id,
+          label_ar: fullTemplate.label_ar,
+          category: fullTemplate.category,
+          description: fullTemplate.description,
+          properties_schema: fullTemplate.properties_schema,
+          sku_generation_type: fullTemplate.sku_generation_type,
+          sku_formula: fullTemplate.sku_formula,
+          description_generation_type: fullTemplate.description_generation_type,
+          description_formula: fullTemplate.description_formula,
+          short_description_generation_type: fullTemplate.short_description_generation_type,
+          short_description_formula: fullTemplate.short_description_formula,
+          description_ar_generation_type: fullTemplate.description_ar_generation_type,
+          description_ar_formula: fullTemplate.description_ar_formula,
+          short_description_ar_generation_type: fullTemplate.short_description_ar_generation_type,
+          short_description_ar_formula: fullTemplate.short_description_ar_formula,
+          device_type_id: fullTemplate.device_type_id,
+          brand_id: fullTemplate.brand_id,
+          image_url: fullTemplate.image_url,
+          supports_multilang: fullTemplate.supports_multilang,
           is_global: false,
           tenant_id: currentTenant!.id,
-          source_template_id: globalTemplate.id,
+          source_template_id: fullTemplate.id,
           import_status: 'imported',
           imported_at: new Date().toISOString(),
-          sync_version: 1,
+          sync_version: fullTemplate.template_version || 1,
           active: true
         })
         .select()
         .single();
 
       if (error) throw error;
-      return data;
+
+      // Import template properties
+      if (templateProperties && templateProperties.length > 0) {
+        const propertiesToImport = templateProperties.map(prop => ({
+          template_id: newTemplate.id,
+          tenant_id: currentTenant!.id,
+          property_name: prop.property_name,
+          label_en: prop.label_en,
+          label_ar: prop.label_ar,
+          property_type: prop.property_type,
+          property_unit: prop.property_unit,
+          is_required: prop.is_required,
+          is_identifier: prop.is_identifier,
+          is_device_name: prop.is_device_name,
+          sort_order: prop.sort_order,
+          property_options: prop.property_options,
+          formula: prop.formula,
+          depends_on_properties: prop.depends_on_properties,
+          active: true
+        }));
+
+        const { error: propertiesInsertError } = await supabase
+          .from('device_template_properties')
+          .insert(propertiesToImport);
+
+        if (propertiesInsertError) {
+          console.error('Error importing template properties:', propertiesInsertError);
+          // Don't fail the import for property errors, but log them
+        }
+      }
+
+      return newTemplate;
     } catch (error) {
       console.error('Error importing template:', error);
       return null;
