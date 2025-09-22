@@ -2478,7 +2478,7 @@ export type Database = {
           specifications: Json | null
           template_id: string | null
           template_properties: Json | null
-          tenant_id: string
+          tenant_id: string | null
           unit_price: number | null
           updated_at: string
         }
@@ -2502,7 +2502,7 @@ export type Database = {
           specifications?: Json | null
           template_id?: string | null
           template_properties?: Json | null
-          tenant_id: string
+          tenant_id?: string | null
           unit_price?: number | null
           updated_at?: string
         }
@@ -2526,7 +2526,7 @@ export type Database = {
           specifications?: Json | null
           template_id?: string | null
           template_properties?: Json | null
-          tenant_id?: string
+          tenant_id?: string | null
           unit_price?: number | null
           updated_at?: string
         }

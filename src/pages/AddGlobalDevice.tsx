@@ -13,7 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ImageUpload } from '@/components/ui/image-upload';
 import { DeviceTemplateForm } from '@/components/device-creation/DeviceTemplateForm';
 import { useNavigate } from 'react-router-dom';
-import { HierarchicalDeviceTypeSelect } from '@/components/ui/hierarchical-device-type-select';
 
 interface Currency {
   id: string;
@@ -62,7 +61,6 @@ const AddGlobalDevice = () => {
   
   const [formData, setFormData] = useState({
     name: '',
-    device_type_id: '',
     brand: '',
     model: '',
     unit_price: '',
@@ -184,7 +182,6 @@ const AddGlobalDevice = () => {
       
       setFormData(prev => ({
         ...prev,
-        device_type_id: selectedTemplate.device_type_id || prev.device_type_id,
         brand: templateBrand || prev.brand,
       }));
 
@@ -205,7 +202,6 @@ const AddGlobalDevice = () => {
       // Reset form when no template selected
       setFormData({
         name: '',
-        device_type_id: '',
         brand: '',
         model: '',
         unit_price: '',
@@ -218,10 +214,29 @@ const AddGlobalDevice = () => {
   }, [selectedTemplateId, deviceTemplates, deviceTypes, brands]);
 
   const handleCreate = async () => {
-    if (!formData.name || !formData.device_type_id) {
+    if (!formData.name) {
       toast({
         title: 'Error',
-        description: 'Please fill in all required fields',
+        description: 'Device name is required',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate numeric fields
+    if (formData.unit_price && isNaN(parseFloat(formData.unit_price))) {
+      toast({
+        title: 'Error',
+        description: 'Unit price must be a valid number',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (templateProperties.cost_price && isNaN(parseFloat(templateProperties.cost_price))) {
+      toast({
+        title: 'Error',
+        description: 'Cost price must be a valid number',
         variant: 'destructive',
       });
       return;
@@ -291,12 +306,11 @@ const AddGlobalDevice = () => {
         if (costFromTemplate && !formData.unit_price) finalUnitPrice = costFromTemplate.toString();
       }
 
-      // Get the device type name for category field
-      const deviceType = deviceTypes.find(dt => dt.id === formData.device_type_id);
+      // Get the device type name for category field from template
       
       const deviceData = {
         name: formData.name,
-        category: deviceType?.name || '',
+        category: selectedTemplate?.category || 'General',
         brand: finalBrand || null,
         model: finalModel || null,
         unit_price: finalUnitPrice ? parseFloat(finalUnitPrice) : null,
@@ -316,7 +330,7 @@ const AddGlobalDevice = () => {
           description_ar: templateProperties.description_ar || '',
           device_image: templateProperties.device_image || ''
         },
-        tenant_id: null,
+        tenant_id: null, // Global devices have null tenant_id
       };
 
       const { error } = await supabase
@@ -331,11 +345,31 @@ const AddGlobalDevice = () => {
       });
 
       navigate('/global-devices');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating device:', error);
+      
+      // Provide specific error messages based on the error type
+      let errorMessage = 'Failed to create device';
+      
+      if (error?.message) {
+        if (error.message.includes('duplicate key')) {
+          errorMessage = 'A device with this name or code already exists';
+        } else if (error.message.includes('foreign key')) {
+          errorMessage = 'Invalid currency or template selection';
+        } else if (error.message.includes('check constraint')) {
+          errorMessage = 'Invalid data format - please check numeric values';
+        } else if (error.message.includes('not-null constraint')) {
+          errorMessage = 'Missing required field - please check all required fields are filled';
+        } else if (error.message.includes('permission')) {
+          errorMessage = 'You do not have permission to create global devices';
+        } else {
+          errorMessage = `Database error: ${error.message}`;
+        }
+      }
+      
       toast({
         title: 'Error',
-        description: 'Failed to create device',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -476,12 +510,11 @@ const AddGlobalDevice = () => {
                       {/* Device Type and Brand Row */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <Label htmlFor="device_type">Device Type *</Label>
-                          <HierarchicalDeviceTypeSelect
-                            value={formData.device_type_id}
-                            onValueChange={(value) => setFormData(prev => ({ ...prev, device_type_id: value }))}
-                            placeholder="From template"
+                          <Label htmlFor="device_type">Device Type (From Template)</Label>
+                          <Input
+                            value={selectedTemplate?.category || 'Not specified'}
                             disabled
+                            className="bg-muted"
                           />
                         </div>
                         
