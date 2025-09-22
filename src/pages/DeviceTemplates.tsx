@@ -44,7 +44,7 @@ interface ImportLog {
 }
 
 export default function DeviceTemplates() {
-  const { currentTenant } = useTenant();
+  const { currentTenant, isSuperAdmin } = useTenant();
   const { toast } = useToast();
   const [globalTemplates, setGlobalTemplates] = useState<DeviceTemplate[]>([]);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
@@ -128,7 +128,7 @@ export default function DeviceTemplates() {
           <div>
             <h1 className="text-3xl font-bold">Device Templates</h1>
             <p className="text-muted-foreground">
-              Manage device templates for your tenant
+              {isSuperAdmin ? 'Global template import center and tenant management' : 'Import global templates and manage local templates'}
             </p>
           </div>
           <div className="flex gap-2">

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Languages, RefreshCw } from 'lucide-react';
+import { Trash2, Languages, RefreshCw, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useTenant } from '@/hooks/use-tenant';
 import { useAuth } from '@/hooks/use-auth';
@@ -98,7 +98,8 @@ export function DeviceTemplatesManager() {
   const { currentTenant, isSuperAdmin } = useTenant();
   const { user } = useAuth();
   
-  const [activeTab, setActiveTab] = useState('global');
+  // Only show global tab for super admins
+  const [activeTab, setActiveTab] = useState(isSuperAdmin ? 'global' : 'tenant');
   const [templates, setTemplates] = useState<DeviceTemplate[]>([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState<string | null>(null);
@@ -110,7 +111,7 @@ export function DeviceTemplatesManager() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, currentTenant]);
+  }, [activeTab, currentTenant, isSuperAdmin]);
 
   useEffect(() => {
     loadData();
@@ -168,7 +169,7 @@ export function DeviceTemplatesManager() {
         console.log('Loaded global templates:', data?.length || 0);
         setTemplates(data || []);
       } else {
-        // For tenant tab, show only tenant-created templates (not imported ones)
+        // For tenant tab, show tenant-created templates AND imported templates
         if (!currentTenant?.id) {
           console.error('No current tenant found');
           toast({
@@ -191,7 +192,6 @@ export function DeviceTemplatesManager() {
           .eq('tenant_id', currentTenant.id)
           .eq('is_global', false)
           .eq('active', true)
-          .is('source_template_id', null)
           .order('name');
         
         if (error) {
@@ -239,7 +239,18 @@ export function DeviceTemplatesManager() {
   };
 
 
-  const handleDeleteTemplate = async (templateId: string) => {
+  const handleDeleteTemplate = async (templateId: string, template: DeviceTemplate) => {
+    // Prevent deletion of imported (read-only) templates
+    const templateType = getTemplateTypeInfo(template);
+    if (templateType.isReadOnly) {
+      toast({
+        title: "Cannot Delete",
+        description: "Imported templates cannot be deleted. Clone the template to create an editable copy.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('device_templates')
@@ -431,7 +442,7 @@ export function DeviceTemplatesManager() {
   };
 
   const getTemplateTypeInfo = (template: DeviceTemplate) => {
-    if (template.import_status === 'imported' && template.source_template_id) {
+    if (template.source_template_id) {
       return {
         type: 'imported',
         badge: 'Imported',
@@ -443,7 +454,7 @@ export function DeviceTemplatesManager() {
         type: 'global',
         badge: 'Global',
         badgeVariant: 'default' as const,
-        isReadOnly: false
+        isReadOnly: isSuperAdmin ? false : true // Global templates are read-only for non-super-admins
       };
     } else {
       return {
@@ -464,12 +475,18 @@ export function DeviceTemplatesManager() {
             Manage device templates and their properties
           </p>
         </div>
+        {activeTab === 'tenant' && (
+          <Button onClick={() => navigate('/device-template-create')}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create Local Template
+          </Button>
+        )}
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="global">Global Templates</TabsTrigger>
-          <TabsTrigger value="tenant">Tenant Templates</TabsTrigger>
+          {isSuperAdmin && <TabsTrigger value="global">Global Templates</TabsTrigger>}
+          <TabsTrigger value="tenant">{isSuperAdmin ? 'Tenant Templates' : 'Templates'}</TabsTrigger>
         </TabsList>
 
         <TabsContent value={activeTab} className="space-y-4">
@@ -536,13 +553,13 @@ export function DeviceTemplatesManager() {
                                       <RefreshCw className="h-4 w-4" />
                                     )}
                                   </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => template.id && handleDeleteTemplate(template.id)}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                                   <Button
+                                     variant="ghost"
+                                     size="sm"
+                                     onClick={() => template.id && handleDeleteTemplate(template.id, template)}
+                                   >
+                                     <Trash2 className="h-4 w-4" />
+                                   </Button>
                                 </>
                               );
                             } else {
@@ -551,7 +568,7 @@ export function DeviceTemplatesManager() {
                                    <Button
                                      variant="ghost"
                                      size="sm"
-                                     onClick={() => template.id && handleDeleteTemplate(template.id)}
+                                     onClick={() => template.id && handleDeleteTemplate(template.id, template)}
                                    >
                                      <Trash2 className="h-4 w-4" />
                                    </Button>
