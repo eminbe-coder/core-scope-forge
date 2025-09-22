@@ -9,6 +9,7 @@ import { ImageUpload } from '@/components/ui/image-upload';
 import { Plus, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { DynamicFieldPreview } from './DynamicFieldPreview';
+import { FormulaEngine } from '@/lib/formula-engine';
 
 interface DeviceTemplateProperty {
   id: string;
@@ -19,6 +20,7 @@ interface DeviceTemplateProperty {
   is_required: boolean;
   is_identifier?: boolean;
   property_options?: any;
+  formula?: string;
 }
 
 interface DeviceTemplate {
@@ -220,6 +222,36 @@ export function DeviceTemplateForm({ templateProperties, values, onChange, selec
 
   const renderPropertyInput = (property: DeviceTemplateProperty) => {
     const currentValue = values[property.property_name];
+
+    // Handle calculated properties with formulas
+    if (property.property_type === 'calculation' || property.formula) {
+      const calculatedValue = React.useMemo(() => {
+        if (property.formula) {
+          try {
+            return FormulaEngine.evaluate(property.formula, getPropertyValues);
+          } catch (error) {
+            return 0;
+          }
+        }
+        return 0;
+      }, [property.formula, getPropertyValues]);
+
+      return (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 p-3 bg-muted/30 border border-dashed rounded-md">
+            <div className="text-sm font-medium">
+              {calculatedValue !== 0 ? calculatedValue.toLocaleString() : 'Calculating...'}
+            </div>
+            <Badge variant="secondary" className="text-xs">Calculated</Badge>
+          </div>
+          {property.formula && (
+            <div className="text-xs text-muted-foreground">
+              Formula: {property.formula}
+            </div>
+          )}
+        </div>
+      );
+    }
 
     switch (property.property_type) {
       case 'url':
