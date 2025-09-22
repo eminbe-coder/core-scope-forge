@@ -1749,7 +1749,14 @@ export default function DeviceTemplateCreate() {
                 <Label className="text-base font-medium">SKU Generation</Label>
                 <RadioGroup
                   value={template.sku_generation_type}
-                  onValueChange={(value: 'fixed' | 'dynamic') => setTemplate(prev => ({ ...prev, sku_generation_type: value }))}
+                  onValueChange={(value: 'fixed' | 'dynamic') => {
+                    setTemplate(prev => ({ 
+                      ...prev, 
+                      sku_generation_type: value,
+                      // Clear formula when switching to fixed
+                      sku_formula: value === 'fixed' ? '' : prev.sku_formula
+                    }));
+                  }}
                   className="mt-2"
                 >
                   <div className="flex items-center space-x-2">
@@ -1782,7 +1789,14 @@ export default function DeviceTemplateCreate() {
                 <Label className="text-base font-medium">Description Generation</Label>
                 <RadioGroup
                   value={template.description_generation_type}
-                  onValueChange={(value: 'fixed' | 'dynamic') => setTemplate(prev => ({ ...prev, description_generation_type: value }))}
+                  onValueChange={(value: 'fixed' | 'dynamic') => {
+                    setTemplate(prev => ({ 
+                      ...prev, 
+                      description_generation_type: value,
+                      // Clear formula when switching to fixed
+                      description_formula: value === 'fixed' ? '' : prev.description_formula
+                    }));
+                  }}
                   className="mt-2"
                 >
                   <div className="flex items-center space-x-2">
@@ -1831,7 +1845,14 @@ export default function DeviceTemplateCreate() {
                 <Label className="text-base font-medium">Short Description Generation</Label>
                 <RadioGroup
                   value={template.short_description_generation_type}
-                  onValueChange={(value: 'fixed' | 'dynamic') => setTemplate(prev => ({ ...prev, short_description_generation_type: value }))}
+                  onValueChange={(value: 'fixed' | 'dynamic') => {
+                    setTemplate(prev => ({ 
+                      ...prev, 
+                      short_description_generation_type: value,
+                      // Clear formula when switching to fixed
+                      short_description_formula: value === 'fixed' ? '' : prev.short_description_formula
+                    }));
+                  }}
                   className="mt-2"
                 >
                   <div className="flex items-center space-x-2">
