@@ -179,12 +179,31 @@ export function DeviceTemplatesManager() {
         
         if (error) {
           console.error('Error loading global templates:', error);
-          console.error('Error details:', { code: error.code, message: error.message, details: error.details });
+          console.error('Error details:', { 
+            code: error.code, 
+            message: error.message, 
+            details: error.details,
+            hint: error.hint 
+          });
+          
+          // Provide specific error messages
+          let errorMessage = 'Failed to load global templates';
+          if (error.code === 'PGRST301') {
+            errorMessage = 'Access denied: You may not have permission to view global templates';
+          } else if (error.code === '42501') {
+            errorMessage = 'Permission denied: Row-level security policy violation';
+          } else if (error.message.includes('infinite recursion')) {
+            errorMessage = 'Database policy error: Please contact support';
+          } else {
+            errorMessage = `Failed to load global templates: ${error.message}`;
+          }
+          
           toast({
-            title: "Error",
-            description: `Failed to load global templates: ${error.message}`,
+            title: "Error Loading Global Templates",
+            description: errorMessage,
             variant: "destructive"
           });
+          setTemplates([]);
           return;
         }
         
@@ -199,6 +218,7 @@ export function DeviceTemplatesManager() {
             description: "No tenant selected. Please select a tenant first.",
             variant: "destructive"
           });
+          setTemplates([]);
           return;
         }
 
@@ -218,25 +238,43 @@ export function DeviceTemplatesManager() {
         
         if (error) {
           console.error('Error loading tenant templates:', error);
-          console.error('Error details:', { code: error.code, message: error.message, details: error.details });
+          console.error('Error details:', { 
+            code: error.code, 
+            message: error.message, 
+            details: error.details,
+            hint: error.hint 
+          });
+          
+          // Provide specific error messages
+          let errorMessage = 'Failed to load tenant templates';
+          if (error.code === 'PGRST301') {
+            errorMessage = 'Access denied: You may not have permission to view tenant templates';
+          } else if (error.code === '42501') {
+            errorMessage = 'Permission denied: Row-level security policy violation';
+          } else {
+            errorMessage = `Failed to load tenant templates: ${error.message}`;
+          }
+          
           toast({
-            title: "Error",
-            description: `Failed to load tenant templates: ${error.message}`,
+            title: "Error Loading Tenant Templates",
+            description: errorMessage,
             variant: "destructive"
           });
+          setTemplates([]);
           return;
         }
         
         console.log('Loaded tenant templates:', data?.length || 0);
         setTemplates(data || []);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Unexpected error loading templates:', error);
       toast({
-        title: "Error",
-        description: 'An unexpected error occurred while loading templates. Please check your permissions and try again.',
+        title: "Unexpected Error",
+        description: `An unexpected error occurred: ${error?.message || 'Unknown error'}. Please refresh the page and try again.`,
         variant: "destructive"
       });
+      setTemplates([]);
     } finally {
       setLoading(false);
     }
