@@ -437,12 +437,13 @@ export const RewardSystemManager = () => {
       setLoading(true);
       const { error } = await supabase
         .from('user_reward_targets')
-        .upsert({
-          user_id: userId,
-          tenant_id: currentTenant?.id,
-          period_cycle_id: currentCycle.id,
-          target_points: targetPoints
-        });
+        .update({
+          target_points: targetPoints,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId)
+        .eq('tenant_id', currentTenant?.id)
+        .eq('period_cycle_id', currentCycle.id);
 
       if (error) throw error;
 
