@@ -202,9 +202,9 @@ const Sites = () => {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onToggleLead={toggleLeadStatus}
-        editPermission="sites.edit"
-        deletePermission="sites.delete"
-        leadPermission="sites.manage_leads"
+        editPermission="crm.sites.edit"
+        deletePermission="crm.sites.delete"
+        leadPermission="crm.sites.edit"
         emptyStateMessage="Add physical locations and sites to track your projects and deals."
       />
       
