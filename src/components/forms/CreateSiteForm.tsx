@@ -287,9 +287,58 @@ export const CreateSiteForm = ({ isLead = false, createMode = 'new', onSuccess }
         navigate(isLead ? `/leads/site/${site.id}` : '/sites');
       }
     } catch (error: any) {
+      console.error('Error creating site:', error);
+      
+      let errorMessage = 'Unknown error occurred';
+      let errorTitle = 'Error';
+      
+      // Parse specific error types and provide detailed messages
+      if (error.code === '23505') {
+        if (error.message.includes('sites_name_tenant_id_key')) {
+          errorTitle = 'Duplicate Site Name';
+          errorMessage = 'A site with this name already exists in this tenant. Please choose a different name.';
+        } else {
+          errorTitle = 'Duplicate Entry';
+          errorMessage = 'A site with this information already exists.';
+        }
+      } else if (error.code === '23502') {
+        // Not null constraint violation
+        const field = error.message.match(/column "(\w+)"/)?.[1];
+        errorTitle = 'Missing Required Information';
+        if (field === 'tenant_id') {
+          errorMessage = 'Authentication error: Please log out and log back in.';
+        } else if (field === 'name') {
+          errorMessage = 'Site name is required.';
+        } else if (field === 'address') {
+          errorMessage = 'Address is required.';
+        } else if (field === 'country') {
+          errorMessage = 'Country is required.';
+        } else {
+          errorMessage = `Missing required field: ${field}`;
+        }
+      } else if (error.code === '42501') {
+        errorTitle = 'Permission Denied';
+        errorMessage = 'You do not have access to create sites for this tenant.';
+      } else if (error.code === '23514') {
+        // Check constraint violation
+        errorTitle = 'Invalid Data';
+        errorMessage = 'Invalid data provided. Please check all fields and try again.';
+      } else if (error.message?.includes('JWT')) {
+        errorTitle = 'Session Expired';
+        errorMessage = 'Your session has expired. Please refresh the page and try again.';
+      } else if (error.message?.includes('Network')) {
+        errorTitle = 'Network Error';
+        errorMessage = 'Please check your internet connection and try again.';
+      } else if (error.message?.includes('Row Level Security')) {
+        errorTitle = 'Access Denied';
+        errorMessage = 'You do not have permission to create sites for this tenant.';
+      } else {
+        errorMessage = error.message || 'An unexpected error occurred while creating the site.';
+      }
+      
       toast({
-        title: 'Error',
-        description: error.message,
+        title: errorTitle,
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {

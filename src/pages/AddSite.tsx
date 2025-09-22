@@ -187,13 +187,49 @@ const AddSite = () => {
       navigate('/sites');
     } catch (error: any) {
       console.error('Error creating site:', error);
+      
+      // Parse specific error types and provide detailed messages
       if (error.code === '23505') {
-        form.setError('name', {
-          type: 'manual',
-          message: 'A site with this name already exists'
-        });
+        if (error.message.includes('sites_name_tenant_id_key')) {
+          form.setError('name', {
+            type: 'manual',
+            message: 'A site with this name already exists in this tenant'
+          });
+        } else {
+          form.setError('name', {
+            type: 'manual',
+            message: 'A site with this name already exists'
+          });
+        }
+      } else if (error.code === '23502') {
+        // Not null constraint violation
+        const field = error.message.match(/column "(\w+)"/)?.[1];
+        if (field === 'tenant_id') {
+          toast.error('Authentication error: Please log out and log back in');
+        } else if (field === 'name') {
+          form.setError('name', { type: 'manual', message: 'Site name is required' });
+        } else if (field === 'address') {
+          form.setError('address', { type: 'manual', message: 'Address is required' });
+        } else if (field === 'country') {
+          form.setError('country', { type: 'manual', message: 'Country is required' });
+        } else {
+          toast.error(`Missing required field: ${field}`);
+        }
+      } else if (error.code === '42501') {
+        toast.error('Permission denied: You do not have access to create sites for this tenant');
+      } else if (error.code === '23514') {
+        // Check constraint violation
+        toast.error('Invalid data provided. Please check all fields and try again');
+      } else if (error.message?.includes('JWT')) {
+        toast.error('Session expired. Please refresh the page and try again');
+      } else if (error.message?.includes('Network')) {
+        toast.error('Network error. Please check your connection and try again');
+      } else if (error.message?.includes('Row Level Security')) {
+        toast.error('Access denied: You do not have permission to create sites for this tenant');
       } else {
-        toast.error('Failed to create site');
+        // Provide more context for generic errors
+        const errorMessage = error.message || 'Unknown error occurred';
+        toast.error(`Failed to create site: ${errorMessage}`);
       }
     } finally {
       setLoading(false);
