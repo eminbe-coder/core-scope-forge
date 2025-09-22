@@ -1138,15 +1138,8 @@ export default function DeviceTemplateCreate() {
                   </div>
                 ) : (
                   <div className="mt-3">
-                    <Label>Fixed SKU</Label>
-                    <Input
-                      value={template.sku_formula || ''}
-                      onChange={(e) => setTemplate(prev => ({ ...prev, sku_formula: e.target.value }))}
-                      placeholder="LED-PANEL-001"
-                      className="mt-1"
-                    />
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Enter a fixed SKU that will be used for all devices
+                    <p className="text-sm text-muted-foreground p-3 bg-muted/30 rounded border-dashed border">
+                      Fixed SKU will be entered during device creation. Each device can have its own unique SKU value.
                     </p>
                   </div>
                 )}
@@ -1187,15 +1180,8 @@ export default function DeviceTemplateCreate() {
                   </div>
                 ) : (
                   <div className="mt-3">
-                    <Label>Fixed Description</Label>
-                    <Textarea
-                      value={template.description_formula || ''}
-                      onChange={(e) => setTemplate(prev => ({ ...prev, description_formula: e.target.value }))}
-                      placeholder="High-quality LED Panel Light with professional-grade specifications"
-                      className="mt-1"
-                    />
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Enter a fixed description that will be used for all devices
+                    <p className="text-sm text-muted-foreground p-3 bg-muted/30 rounded border-dashed border">
+                      Fixed description will be entered during device creation. Each device can have its own custom description.
                     </p>
                   </div>
                 )}
@@ -1236,15 +1222,8 @@ export default function DeviceTemplateCreate() {
                   </div>
                 ) : (
                   <div className="mt-3">
-                    <Label>Fixed Short Description</Label>
-                    <Input
-                      value={template.short_description_formula || ''}
-                      onChange={(e) => setTemplate(prev => ({ ...prev, short_description_formula: e.target.value }))}
-                      placeholder="LED Panel Light"
-                      className="mt-1"
-                    />
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Enter a fixed short description that will be used for all devices
+                    <p className="text-sm text-muted-foreground p-3 bg-muted/30 rounded border-dashed border">
+                      Fixed short description will be entered during device creation. Each device can have its own brief description.
                     </p>
                   </div>
                  )}
@@ -1284,19 +1263,12 @@ export default function DeviceTemplateCreate() {
                       </div>
                     </div>
                   ) : (
-                   <div className="mt-3">
-                     <Label>Fixed Arabic Description</Label>
-                     <Textarea
-                       value={template.description_ar_formula || ''}
-                       onChange={(e) => setTemplate(prev => ({ ...prev, description_ar_formula: e.target.value }))}
-                       placeholder="لوحة إضاءة LED عالية الجودة مع مواصفات مهنية"
-                       className="mt-1"
-                     />
-                     <p className="text-sm text-muted-foreground mt-1">
-                       Enter a fixed Arabic description that will be used for all devices
-                     </p>
-                   </div>
-                 )}
+                    <div className="mt-3">
+                      <p className="text-sm text-muted-foreground p-3 bg-muted/30 rounded border-dashed border">
+                        Fixed Arabic description will be entered during device creation. Each device can have its own custom Arabic description.
+                      </p>
+                    </div>
+                  )}
                </div>
 
                <div>
@@ -1333,19 +1305,12 @@ export default function DeviceTemplateCreate() {
                       </div>
                     </div>
                   ) : (
-                   <div className="mt-3">
-                     <Label>Fixed Arabic Short Description</Label>
-                     <Input
-                       value={template.short_description_ar_formula || ''}
-                       onChange={(e) => setTemplate(prev => ({ ...prev, short_description_ar_formula: e.target.value }))}
-                       placeholder="لوحة LED - جودة مهنية"
-                       className="mt-1"
-                     />
-                     <p className="text-sm text-muted-foreground mt-1">
-                       Enter a fixed Arabic short description that will be used for all devices
-                     </p>
-                   </div>
-                 )}
+                    <div className="mt-3">
+                      <p className="text-sm text-muted-foreground p-3 bg-muted/30 rounded border-dashed border">
+                        Fixed Arabic short description will be entered during device creation. Each device can have its own brief Arabic description.
+                      </p>
+                    </div>
+                  )}
                </div>
              </CardContent>
            </Card>

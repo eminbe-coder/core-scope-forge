@@ -5165,10 +5165,6 @@ export type Database = {
         }
         Returns: undefined
       }
-      can_manage_global_templates: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
       can_user_assign_to: {
         Args: {
           _assignee_id: string
@@ -5265,10 +5261,6 @@ export type Database = {
       }
       is_admin_or_super_admin: {
         Args: { _tenant_id?: string }
-        Returns: boolean
-      }
-      is_global_template_viewer: {
-        Args: Record<PropertyKey, never>
         Returns: boolean
       }
       is_super_admin: {
