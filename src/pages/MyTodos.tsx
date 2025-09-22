@@ -76,22 +76,17 @@ const MyTodos = () => {
       let filteredTodos = [];
 
       if (visibilityLevel === 'all') {
-        // Show ALL todos in tenant - no filtering needed
-        const { data: todos, error } = await supabase
+        // User can see all todos
+        const { data: allTodos, error } = await supabase
           .from('todos')
           .select(`
             *,
+            assigned_profile:profiles!assigned_to(first_name, last_name),
             assignees:todo_assignees(
               user_id,
               profiles!todo_assignees_user_id_fkey(id, first_name, last_name)
             ),
-            assigned_profile:profiles!assigned_to(first_name, last_name),
-            contact:contacts(first_name, last_name),
-            todo_assignees(
-              id,
-              user_id,
-              profiles(id, first_name, last_name)
-            )
+            contact:contacts(first_name, last_name)
           `)
           .eq('tenant_id', currentTenant.id)
           .is('deleted_at', null);
@@ -101,25 +96,19 @@ const MyTodos = () => {
           return;
         }
 
-        filteredTodos = todos || [];
+        filteredTodos = allTodos || [];
       } else {
-        // Show only user's assigned/created todos
-        // First get todos assigned directly to user
+        // User can only see their assigned todos (assigned_to) or multi-assigned todos
         const { data: assignedTodos, error: assignedError } = await supabase
           .from('todos')
           .select(`
             *,
+            assigned_profile:profiles!assigned_to(first_name, last_name),
             assignees:todo_assignees(
               user_id,
               profiles!todo_assignees_user_id_fkey(id, first_name, last_name)
             ),
-            assigned_profile:profiles!assigned_to(first_name, last_name),
-            contact:contacts(first_name, last_name),
-            todo_assignees(
-              id,
-              user_id,
-              profiles(id, first_name, last_name)
-            )
+            contact:contacts(first_name, last_name)
           `)
           .eq('tenant_id', currentTenant.id)
           .is('deleted_at', null)
@@ -130,22 +119,17 @@ const MyTodos = () => {
           return;
         }
 
-        // Get todos assigned via todo_assignees table
+        // Also fetch todos where user is in multi-assignment
         const { data: multiAssignedTodos, error: multiError } = await supabase
           .from('todos')
           .select(`
             *,
+            assigned_profile:profiles!assigned_to(first_name, last_name),
             assignees:todo_assignees(
               user_id,
               profiles!todo_assignees_user_id_fkey(id, first_name, last_name)
             ),
-            assigned_profile:profiles!assigned_to(first_name, last_name),
-            contact:contacts(first_name, last_name),
-            todo_assignees(
-              id,
-              user_id,
-              profiles(id, first_name, last_name)
-            )
+            contact:contacts(first_name, last_name)
           `)
           .eq('tenant_id', currentTenant.id)
           .is('deleted_at', null)
@@ -156,12 +140,12 @@ const MyTodos = () => {
           return;
         }
 
-      // Combine and deduplicate
-      const allUserTodos = [...(assignedTodos || []), ...(multiAssignedTodos || [])];
-      filteredTodos = allUserTodos.filter((todo, index, self) => 
-        index === self.findIndex(t => t.id === todo.id)
-      );
-    }
+        // Combine and deduplicate
+        const allUserTodos = [...(assignedTodos || []), ...(multiAssignedTodos || [])];
+        filteredTodos = allUserTodos.filter((todo, index, self) => 
+          index === self.findIndex(t => t.id === todo.id)
+        );
+      }
 
     // Add entity names to all todos
     filteredTodos = await Promise.all(

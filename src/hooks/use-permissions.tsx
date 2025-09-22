@@ -82,8 +82,19 @@ export const PermissionsProvider = ({ children }: { children: React.ReactNode })
       const dbModule = moduleMap[module as keyof typeof moduleMap];
       
       if (dbModule && modulePerms && typeof modulePerms === 'object') {
+        // Handle visibility permissions
+        if (modulePerms.visibility) {
+          mappedPermissions.push(`${dbModule}.visibility.${modulePerms.visibility}`);
+        }
+        
+        // Handle assignment scope permissions
+        if (modulePerms.assignment_scope) {
+          mappedPermissions.push(`${dbModule}.assignment.${modulePerms.assignment_scope}`);
+        }
+        
+        // Handle action permissions
         Object.keys(modulePerms).forEach(action => {
-          if (modulePerms[action] === true && action !== 'visibility') {
+          if (modulePerms[action] === true && action !== 'visibility' && action !== 'assignment_scope') {
             const dbAction = action === 'read' ? 'view' : action;
             
             // Add database format permission (dot notation)
@@ -195,6 +206,29 @@ export const PermissionsProvider = ({ children }: { children: React.ReactNode })
 
   const getVisibilityLevel = async (entityType: string): Promise<string> => {
     if (isAdmin) return 'all';
+
+    // Check if user has a custom role with direct visibility setting
+    const currentMembership = userTenants.find(m => m.tenant_id === currentTenant?.id);
+    
+    if (currentMembership?.custom_role_id) {
+      try {
+        const { data: customRole, error } = await supabase
+          .from('custom_roles')
+          .select('permissions')
+          .eq('id', currentMembership.custom_role_id)
+          .eq('active', true)
+          .maybeSingle();
+        
+        if (!error && customRole?.permissions) {
+          // Check direct visibility setting in custom role
+          if (customRole.permissions[entityType]?.visibility) {
+            return customRole.permissions[entityType].visibility;
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching custom role visibility:', error);
+      }
+    }
 
     // Check which visibility permission the user has for this entity type
     const visibilityPermissions = [

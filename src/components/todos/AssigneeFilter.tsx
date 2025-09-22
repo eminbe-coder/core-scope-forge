@@ -52,16 +52,14 @@ export function AssigneeFilter({ selectedUserIds, onSelectionChange }: AssigneeF
   }, [currentTenant?.id, user?.id]);
 
   const fetchVisibilityAndData = async () => {
+    if (!user || !currentTenant) return;
+    
+    setLoading(true);
     try {
-      setLoading(true);
       const level = await getVisibilityLevel('todos');
       setVisibilityLevel(level);
-
+      
       switch (level) {
-        case 'own':
-          // No filter needed - user only sees their own tasks
-          setProfiles([]);
-          break;
         case 'department':
           await fetchDepartmentUsers();
           break;
@@ -71,7 +69,26 @@ export function AssigneeFilter({ selectedUserIds, onSelectionChange }: AssigneeF
         case 'all':
           await fetchAllUsers();
           break;
+        case 'own':
+        default:
+          // Always include current user profile even for 'own' visibility
+          const { data: currentUserProfile } = await supabase
+            .from('profiles')
+            .select('id, first_name, last_name')
+            .eq('id', user.id)
+            .single();
+          
+          if (currentUserProfile) {
+            setProfiles([{
+              id: currentUserProfile.id,
+              first_name: currentUserProfile.first_name || '',
+              last_name: currentUserProfile.last_name || ''
+            }]);
+          }
+          break;
       }
+    } catch (error) {
+      console.error('Error fetching visibility and data:', error);
     } finally {
       setLoading(false);
     }
