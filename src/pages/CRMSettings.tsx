@@ -13,7 +13,9 @@ import {
   Star,
   Navigation,
   Flag,
-  Trophy
+  Trophy,
+  Palette,
+  Boxes
 } from 'lucide-react';
 
 // Import CRM components
@@ -28,6 +30,8 @@ import { LeadQualityManager } from '@/components/settings/LeadQualityManager';
 import { DealSourcesManager } from '@/components/settings/DealSourcesManager';
 import { DealStatusesManager } from '@/components/settings/DealStatusesManager';
 import { SolutionCategoriesManager } from '@/components/settings/SolutionCategoriesManager';
+import { TenantBrandManager } from '@/components/settings/TenantBrandManager';
+import { TenantDeviceTypeManager } from '@/components/settings/TenantDeviceTypeManager';
 
 const CRMSettingsPage = () => {
   const [activeSection, setActiveSection] = useState<string>('deal-stages');
@@ -98,6 +102,18 @@ const CRMSettingsPage = () => {
       label: 'Relationship Roles',
       icon: Network,
       component: RelationshipRolesSettings
+    },
+    {
+      id: 'brands',
+      label: 'Brands',
+      icon: Palette,
+      component: TenantBrandManager
+    },
+    {
+      id: 'device-types',
+      label: 'Device Types',
+      icon: Boxes,
+      component: TenantDeviceTypeManager
     }
   ];
 

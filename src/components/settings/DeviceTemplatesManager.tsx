@@ -178,9 +178,11 @@ export function DeviceTemplatesManager() {
       if (error) throw error;
       setTemplates(data || []);
     } catch (error) {
+      console.error('Error loading templates:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       toast({
         title: "Error",
-        description: "Failed to load templates",
+        description: `Failed to load templates: ${errorMessage}`,
         variant: "destructive"
       });
     }

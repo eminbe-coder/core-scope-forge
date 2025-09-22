@@ -2360,6 +2360,8 @@ export type Database = {
           sku_generation_type: string
           source_template_id: string | null
           supports_multilang: boolean
+          sync_error: string | null
+          sync_status: string | null
           sync_version: number | null
           template_version: number
           tenant_id: string | null
@@ -2397,6 +2399,8 @@ export type Database = {
           sku_generation_type?: string
           source_template_id?: string | null
           supports_multilang?: boolean
+          sync_error?: string | null
+          sync_status?: string | null
           sync_version?: number | null
           template_version?: number
           tenant_id?: string | null
@@ -2434,6 +2438,8 @@ export type Database = {
           sku_generation_type?: string
           source_template_id?: string | null
           supports_multilang?: boolean
+          sync_error?: string | null
+          sync_status?: string | null
           sync_version?: number | null
           template_version?: number
           tenant_id?: string | null
