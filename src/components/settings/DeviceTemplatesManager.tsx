@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Languages, RefreshCw, Plus } from 'lucide-react';
+import { Trash2, Languages, RefreshCw, Plus, Eye, Edit } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useTenant } from '@/hooks/use-tenant';
 import { useAuth } from '@/hooks/use-auth';
@@ -515,7 +515,7 @@ export function DeviceTemplatesManager() {
           </p>
         </div>
         {activeTab === 'tenant' && (
-          <Button onClick={() => navigate('/device-template-create')}>
+          <Button onClick={() => navigate('/tenant-templates/create')}>
             <Plus className="mr-2 h-4 w-4" />
             Create Local Template
           </Button>
@@ -577,65 +577,73 @@ export function DeviceTemplatesManager() {
                           {(() => {
                             const templateType = getTemplateTypeInfo(template);
                             
-                             if (templateType.type === 'imported') {
-                               return (
-                                 <>
-                                   <Button
-                                     variant="ghost"
-                                     size="sm"
-                                     onClick={() => template.id && handleSyncTemplate(template)}
-                                     disabled={syncing === template.id}
-                                     title="Sync with global template"
-                                   >
-                                     {syncing === template.id ? (
-                                       <RefreshCw className="h-4 w-4 animate-spin" />
-                                     ) : (
-                                       <RefreshCw className="h-4 w-4" />
-                                     )}
-                                   </Button>
-                                   <Button
-                                     variant="ghost"
-                                     size="sm"
-                                     onClick={() => template.id && handleCloneTemplate(template)}
-                                     title="Clone to create editable copy"
-                                   >
-                                     <Plus className="h-4 w-4" />
-                                   </Button>
-                                   <Button
-                                     variant="destructive"
-                                     size="sm"
-                                     onClick={() => template.id && handleDeleteTemplate(template.id, template)}
-                                     title="Delete imported template and all its devices"
-                                   >
-                                     <Trash2 className="h-4 w-4" />
-                                   </Button>
-                                 </>
-                               );
-                             } else if (templateType.isReadOnly) {
-                               return (
-                                 <Button
-                                   variant="ghost"
-                                   size="sm"
-                                   onClick={() => template.id && handleCloneTemplate(template)}
-                                   title="Clone to create editable copy"
-                                 >
-                                   <Plus className="h-4 w-4" />
-                                 </Button>
-                               );
-                             } else {
-                               return (
+                              if (templateType.type === 'imported') {
+                                return (
                                   <>
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      onClick={() => template.id && handleDeleteTemplate(template.id, template)}
-                                      title="Delete template"
+                                      onClick={() => navigate(`/tenant-templates/view/${template.id}`)}
+                                      title="View template details"
                                     >
-                                      <Trash2 className="h-4 w-4" />
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => template.id && handleSyncTemplate(template)}
+                                      disabled={syncing === template.id}
+                                      title="Sync with global template"
+                                    >
+                                      {syncing === template.id ? (
+                                        <RefreshCw className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <RefreshCw className="h-4 w-4" />
+                                      )}
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => template.id && handleCloneTemplate(template)}
+                                      title="Clone to create editable copy"
+                                    >
+                                      <Plus className="h-4 w-4" />
                                     </Button>
                                   </>
                                 );
-                             }
+                              } else if (templateType.isReadOnly) {
+                                return (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => template.id && handleCloneTemplate(template)}
+                                    title="Clone to create editable copy"
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                  </Button>
+                                );
+                              } else {
+                                return (
+                                   <>
+                                     <Button
+                                       variant="ghost"
+                                       size="sm"
+                                       onClick={() => navigate(`/tenant-templates/edit/${template.id}`)}
+                                       title="Edit template"
+                                     >
+                                       <Edit className="h-4 w-4" />
+                                     </Button>
+                                     <Button
+                                       variant="destructive"
+                                       size="sm"
+                                       onClick={() => template.id && handleDeleteTemplate(template.id, template)}
+                                       title="Delete template"
+                                     >
+                                       <Trash2 className="h-4 w-4" />
+                                     </Button>
+                                   </>
+                                 );
+                              }
                           })()}
                         </div>
                       </div>

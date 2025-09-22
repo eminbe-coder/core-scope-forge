@@ -94,7 +94,11 @@ export default function DeviceTemplateCreate() {
   const { brands, loading: brandsLoading } = useBrands();
   const { deviceTypes, loading: deviceTypesLoading } = useDeviceTypes();
   
-  const [activeTab, setActiveTab] = useState("global");
+  const isEditMode = !!id;
+  const isViewMode = window.location.pathname.includes('/view/');
+  const isTenantTemplate = window.location.pathname.includes('/tenant-templates/');
+  
+  const [activeTab, setActiveTab] = useState(isTenantTemplate ? "tenant" : "global");
   const [loading, setLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [template, setTemplate] = useState<DeviceTemplate>({
@@ -115,13 +119,11 @@ export default function DeviceTemplateCreate() {
     short_description_ar_generation_type: 'dynamic',
     short_description_ar_formula: '',
     image_url: '',
-    is_global: true,
+    is_global: !isTenantTemplate,
     properties: []
   });
   const [isSaving, setIsSaving] = useState(false);
   const [autoSaveId, setAutoSaveId] = useState<string | null>(null);
-
-  const isEditMode = !!id;
 
   // Fixed properties that are always available in formulas
   const getFixedProperties = (): DeviceTemplateProperty[] => {
@@ -996,37 +998,41 @@ export default function DeviceTemplateCreate() {
             <h1 className="text-2xl font-bold">
               {isEditMode ? 'Edit Device Template' : 'Create Device Template'}
             </h1>
-            <p className="text-muted-foreground">
-              {isEditMode 
-                ? `Modify the template properties and configuration${template.template_version ? ` • Version ${template.template_version}` : ''}`
-                : 'Build a comprehensive device template with properties and multi-language support'
-              }
-            </p>
+              <p className="text-muted-foreground">
+                {isViewMode
+                  ? 'Viewing template details (read-only)'
+                  : isEditMode 
+                    ? `Modify the template properties and configuration${template.template_version ? ` • Version ${template.template_version}` : ''}`
+                    : 'Build a comprehensive device template with properties and multi-language support'
+                }
+              </p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => console.log(preview)}>
-            <Eye className="h-4 w-4 mr-2" />
-            Preview
-          </Button>
-          {isEditMode && (
-            <Button 
-              variant="destructive" 
-              onClick={handleDelete}
-              disabled={isDeleting}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              {isDeleting ? 'Deleting...' : 'Delete Template'}
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => console.log(preview)}>
+              <Eye className="h-4 w-4 mr-2" />
+              Preview
             </Button>
-          )}
-          <Button onClick={handleSave} disabled={isSaving}>
-            <Save className="h-4 w-4 mr-2" />
-            {isSaving ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Save Template')}
-          </Button>
-        </div>
+            {isEditMode && !isViewMode && (
+              <Button 
+                variant="destructive" 
+                onClick={handleDelete}
+                disabled={isDeleting}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                {isDeleting ? 'Deleting...' : 'Delete Template'}
+              </Button>
+            )}
+            {!isViewMode && (
+              <Button onClick={handleSave} disabled={isSaving}>
+                <Save className="h-4 w-4 mr-2" />
+                {isSaving ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Save Template')}
+              </Button>
+            )}
+          </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={isViewMode ? undefined : setActiveTab}>
         <TabsList>
           <TabsTrigger value="global">Global Template</TabsTrigger>
           <TabsTrigger value="tenant">Tenant Template</TabsTrigger>
@@ -1045,6 +1051,7 @@ export default function DeviceTemplateCreate() {
                     value={template.name}
                     onChange={(e) => setTemplate(prev => ({ ...prev, name: e.target.value }))}
                     placeholder="LED Panel Template"
+                    disabled={isViewMode}
                   />
                 </div>
                 <div>

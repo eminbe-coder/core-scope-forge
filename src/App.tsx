@@ -351,6 +351,21 @@ const App = () => (
                        </GlobalAdminRoute>
                      </ProtectedRoute>
                    } />
+                   <Route path="/tenant-templates/create" element={
+                     <ProtectedRoute>
+                       <DeviceTemplateCreate />
+                     </ProtectedRoute>
+                   } />
+                   <Route path="/tenant-templates/edit/:id" element={
+                     <ProtectedRoute>
+                       <DeviceTemplateCreate />
+                     </ProtectedRoute>
+                   } />
+                   <Route path="/tenant-templates/view/:id" element={
+                     <ProtectedRoute>
+                       <DeviceTemplateCreate />
+                     </ProtectedRoute>
+                   } />
                   <Route path="/users-roles" element={
                     <ProtectedRoute>
                       <UsersRoles />
