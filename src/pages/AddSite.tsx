@@ -42,7 +42,7 @@ const siteSchema = z.object({
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),
   notes: z.string().optional(),
-  customer_id: z.string().optional(), // Site Owner
+  customer_id: z.string().optional().transform(val => val && val.length > 0 ? val : undefined), // Site Owner
 });
 
 type SiteFormData = z.infer<typeof siteSchema>;
@@ -70,7 +70,7 @@ const AddSite = () => {
       latitude: undefined,
       longitude: undefined,
       notes: '',
-      customer_id: '',
+      customer_id: undefined,
     },
   });
 
@@ -161,9 +161,10 @@ const AddSite = () => {
       // Upload images
       const imageUrls = await uploadImages();
 
-      // Prepare data for submission
+      // Prepare data for submission - exclude customer_id as it's not a field in sites table
+      const { customer_id, ...siteFormData } = data;
       const submitData = {
-        ...data,
+        ...siteFormData,
         images: imageUrls.length > 0 ? imageUrls : null,
         tenant_id: currentTenant.id,
         active: true
@@ -181,6 +182,20 @@ const AddSite = () => {
       // Save entity relationships if any exist
       if (relationships.length > 0) {
         await saveEntityRelationships('site', siteData.id, relationships, currentTenant.id);
+      }
+
+      // If customer_id was selected, create a company relationship
+      if (customer_id && customer_id.length > 0) {
+        const isCompany = companies.some(c => c.id === customer_id);
+        
+        if (isCompany) {
+          await supabase.from('company_sites').insert({
+            site_id: siteData.id,
+            company_id: customer_id,
+            notes: 'Site owner',
+          });
+        }
+        // Note: Contact relationships can be handled through the EntityRelationshipSelector
       }
 
       toast.success('Site created successfully');
@@ -201,6 +216,12 @@ const AddSite = () => {
             message: 'A site with this name already exists'
           });
         }
+      } else if (error.code === '22P02') {
+        // Invalid UUID format
+        toast.error('Invalid data format provided. Please refresh the page and try again.');
+      } else if (error.code === '42703') {
+        // Column does not exist
+        toast.error('Database schema error. Please contact support.');
       } else if (error.code === '23502') {
         // Not null constraint violation
         const field = error.message.match(/column "(\w+)"/)?.[1];
