@@ -11,45 +11,33 @@ import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { toast } from 'sonner';
 import { Search, AlertTriangle, CheckCircle, Download, Loader2 } from 'lucide-react';
+import { TemplateImportService, type TemplateImportResult, type ImportConflict } from '@/lib/template-import-service';
 
 interface GlobalTemplate {
   id: string;
   name: string;
+  label_ar?: string;
   category: string;
   description?: string;
   properties_schema?: any;
+  sku_generation_type?: string;
   sku_formula?: string;
+  description_generation_type?: string;
   description_formula?: string;
+  short_description_generation_type?: string;
+  short_description_formula?: string;
+  description_ar_generation_type?: string;
+  description_ar_formula?: string;
+  short_description_ar_generation_type?: string;
+  short_description_ar_formula?: string;
   device_type_id?: string;
+  brand_id?: string;
+  image_url?: string;
+  supports_multilang?: boolean;
+  template_version?: number;
   is_global: boolean;
+  active: boolean;
   created_at: string;
-}
-
-interface GlobalDevice {
-  id: string;
-  name: string;
-  category: string;
-  brand?: string;
-  model?: string;
-  unit_price?: number;
-  template_id?: string;
-  is_global: boolean;
-  identity_hash?: string;
-}
-
-interface ImportConflict {
-  device_id: string;
-  device_name: string;
-  conflict_reason: string;
-  existing_device_name?: string;
-}
-
-interface ImportResult {
-  templates_imported: number;
-  devices_imported: number;
-  devices_skipped: number;
-  conflicts: ImportConflict[];
-  log_id: string;
 }
 
 interface TemplateImportDialogProps {
@@ -65,7 +53,7 @@ export function TemplateImportDialog({ open, onOpenChange, onImportComplete }: T
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [importResult, setImportResult] = useState<TemplateImportResult | null>(null);
   const [step, setStep] = useState<'select' | 'importing' | 'results'>('select');
 
   useEffect(() => {
@@ -108,14 +96,27 @@ export function TemplateImportDialog({ open, onOpenChange, onImportComplete }: T
       setImporting(true);
       setStep('importing');
 
-      const result = await importTemplatesWithDevices(selectedTemplates);
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Use the new import service
+      const importService = new TemplateImportService(currentTenant, user.id);
+      const result = await importService.importTemplatesWithDevices(selectedTemplates);
+      
       setImportResult(result);
       setStep('results');
       
-      if (result.conflicts.length === 0) {
-        toast.success(`Successfully imported ${result.templates_imported} template(s) and ${result.devices_imported} device(s)`);
+      if (result.success) {
+        if (result.conflicts.length === 0) {
+          toast.success(`Successfully imported ${result.templates_imported} template(s) and ${result.devices_imported} device(s)`);
+        } else {
+          toast.success(`Imported ${result.templates_imported} template(s) and ${result.devices_imported} device(s) with ${result.conflicts.length} conflict(s)`);
+        }
       } else {
-        toast.success(`Imported ${result.templates_imported} template(s) and ${result.devices_imported} device(s) with ${result.conflicts.length} conflict(s)`);
+        toast.error(`Import failed: ${result.errors.join(', ')}`);
       }
       
       onImportComplete();
@@ -128,325 +129,7 @@ export function TemplateImportDialog({ open, onOpenChange, onImportComplete }: T
     }
   };
 
-  const importTemplatesWithDevices = async (templateIds: string[]): Promise<ImportResult> => {
-    const result: ImportResult = {
-      templates_imported: 0,
-      devices_imported: 0,
-      devices_skipped: 0,
-      conflicts: [],
-      log_id: ''
-    };
-
-    // Get templates to import
-    const { data: templates, error: templateError } = await supabase
-      .from('device_templates')
-      .select('*')
-      .in('id', templateIds)
-      .eq('is_global', true);
-
-    if (templateError) throw templateError;
-    if (!templates) return result;
-
-    for (const template of templates) {
-      // Import template
-      const importedTemplate = await importTemplate(template);
-      if (importedTemplate) {
-        result.templates_imported++;
-
-        // Get devices for this template
-        const { data: globalDevices, error: devicesError } = await supabase
-          .from('devices')
-          .select('*')
-          .eq('template_id', template.id)
-          .eq('active', true)
-          .is('tenant_id', null); // Global devices only
-
-        if (devicesError) throw devicesError;
-
-        // Import devices
-        if (globalDevices) {
-          for (const device of globalDevices) {
-            const importResult = await importDevice(device, importedTemplate.id);
-            if (importResult.success) {
-              result.devices_imported++;
-            } else {
-              result.devices_skipped++;
-              result.conflicts.push({
-                device_id: device.id,
-                device_name: device.name,
-                conflict_reason: importResult.reason || 'Unknown conflict',
-                existing_device_name: importResult.existing_device_name
-              });
-            }
-          }
-        }
-      }
-    }
-
-    // Log the import
-    const { data: logData, error: logError } = await supabase
-      .from('template_import_logs')
-      .insert({
-        tenant_id: currentTenant!.id,
-        template_id: templates[0].id, // Use first template as reference
-        action_type: 'import',
-        status: result.conflicts.length === 0 ? 'success' : 'partial',
-        devices_imported: result.devices_imported,
-        devices_skipped: result.devices_skipped,
-        conflict_report: result.conflicts as any,
-        created_by: (await supabase.auth.getUser()).data.user?.id || '',
-        notes: `Imported ${result.templates_imported} template(s) and ${result.devices_imported} device(s)`
-      })
-      .select()
-      .single();
-
-    if (logError) console.error('Error logging import:', logError);
-    result.log_id = logData?.id || '';
-
-    return result;
-  };
-
-  const importTemplate = async (globalTemplate: GlobalTemplate) => {
-    try {
-      // Check if template with same source already exists
-      const { data: existing } = await supabase
-        .from('device_templates')
-        .select('id, name')
-        .eq('tenant_id', currentTenant!.id)
-        .eq('source_template_id', globalTemplate.id)
-        .single();
-
-      if (existing) {
-        // Template already imported, return existing
-        return existing;
-      }
-
-      // Get full template data including all generation settings
-      const { data: fullTemplate, error: templateError } = await supabase
-        .from('device_templates')
-        .select('*')
-        .eq('id', globalTemplate.id)
-        .single();
-
-      if (templateError) throw templateError;
-
-      // Get template properties
-      const { data: templateProperties, error: propertiesError } = await supabase
-        .from('device_template_properties')
-        .select('*')
-        .eq('template_id', globalTemplate.id)
-        .order('sort_order');
-
-      if (propertiesError) throw propertiesError;
-
-      // Check if template with same name already exists
-      const { data: nameConflict } = await supabase
-        .from('device_templates')
-        .select('id')
-        .eq('tenant_id', currentTenant!.id)
-        .eq('name', fullTemplate.name)
-        .single();
-
-      const templateName = nameConflict ? `${fullTemplate.name} (Imported)` : fullTemplate.name;
-
-      // Create imported template with all fields
-      const { data: newTemplate, error } = await supabase
-        .from('device_templates')
-        .insert({
-          name: templateName,
-          label_ar: fullTemplate.label_ar,
-          category: fullTemplate.category,
-          description: fullTemplate.description,
-          properties_schema: fullTemplate.properties_schema,
-          sku_generation_type: fullTemplate.sku_generation_type,
-          sku_formula: fullTemplate.sku_formula,
-          description_generation_type: fullTemplate.description_generation_type,
-          description_formula: fullTemplate.description_formula,
-          short_description_generation_type: fullTemplate.short_description_generation_type,
-          short_description_formula: fullTemplate.short_description_formula,
-          description_ar_generation_type: fullTemplate.description_ar_generation_type,
-          description_ar_formula: fullTemplate.description_ar_formula,
-          short_description_ar_generation_type: fullTemplate.short_description_ar_generation_type || 'fixed',
-          short_description_ar_formula: fullTemplate.short_description_ar_formula || '',
-          device_type_id: fullTemplate.device_type_id,
-          brand_id: fullTemplate.brand_id,
-          image_url: fullTemplate.image_url || '',
-          supports_multilang: fullTemplate.supports_multilang || false,
-          is_global: false,
-          tenant_id: currentTenant!.id,
-          source_template_id: fullTemplate.id,
-          import_status: 'imported',
-          imported_at: new Date().toISOString(),
-          sync_version: fullTemplate.template_version || 1,
-          active: true
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Create fixed properties that the form expects
-      const fixedProperties = [
-        {
-          template_id: newTemplate.id,
-          tenant_id: currentTenant!.id,
-          property_name: 'item_code',
-          label_en: 'Item Code',
-          label_ar: 'رمز الصنف',
-          property_type: 'text',
-          property_unit: '',
-          is_required: true,
-          is_identifier: true,
-          is_device_name: false,
-          sort_order: -4,
-          property_options: [] as any,
-          formula: null,
-          depends_on_properties: [] as any,
-          active: true
-        },
-        {
-          template_id: newTemplate.id,
-          tenant_id: currentTenant!.id,
-          property_name: 'cost_price',
-          label_en: 'Cost Price',
-          label_ar: 'سعر التكلفة',
-          property_type: 'number',
-          property_unit: '',
-          is_required: false,
-          is_identifier: false,
-          is_device_name: false,
-          sort_order: -3,
-          property_options: [] as any,
-          formula: null,
-          depends_on_properties: [] as any,
-          active: true
-        },
-        {
-          template_id: newTemplate.id,
-          tenant_id: currentTenant!.id,
-          property_name: 'cost_price_currency_id',
-          label_en: 'Cost Price Currency',
-          label_ar: 'عملة سعر التكلفة',
-          property_type: 'select',
-          property_unit: '',
-          is_required: false,
-          is_identifier: false,
-          is_device_name: false,
-          sort_order: -2,
-          property_options: [] as any,
-          formula: null,
-          depends_on_properties: [] as any,
-          active: true
-        },
-        {
-          template_id: newTemplate.id,
-          tenant_id: currentTenant!.id,
-          property_name: 'device_image',
-          label_en: 'Device Image',
-          label_ar: 'صورة الجهاز',
-          property_type: 'image',
-          property_unit: '',
-          is_required: false,
-          is_identifier: false,
-          is_device_name: false,
-          sort_order: -1,
-          property_options: [] as any,
-          formula: null,
-          depends_on_properties: [] as any,
-          active: true
-        }
-      ];
-
-      // Import template properties (both fixed and custom)
-      const allProperties = [...fixedProperties];
-      
-      if (templateProperties && templateProperties.length > 0) {
-        const customProperties = templateProperties.map(prop => ({
-          template_id: newTemplate.id,
-          tenant_id: currentTenant!.id,
-          property_name: prop.property_name,
-          label_en: prop.label_en,
-          label_ar: prop.label_ar,
-          property_type: prop.property_type,
-          property_unit: prop.property_unit,
-          is_required: prop.is_required,
-          is_identifier: prop.is_identifier,
-          is_device_name: prop.is_device_name,
-          sort_order: prop.sort_order,
-          property_options: prop.property_options,
-          formula: prop.formula,
-          depends_on_properties: prop.depends_on_properties,
-          active: true
-        }));
-        
-        allProperties.push(...customProperties);
-      }
-
-      if (allProperties.length > 0) {
-        const { error: propertiesInsertError } = await supabase
-          .from('device_template_properties')
-          .insert(allProperties);
-
-        if (propertiesInsertError) {
-          console.error('Error importing template properties:', propertiesInsertError);
-          // Don't fail the import for property errors, but log them
-        }
-      }
-
-      return newTemplate;
-    } catch (error) {
-      console.error('Error importing template:', error);
-      return null;
-    }
-  };
-
-  const importDevice = async (globalDevice: GlobalDevice, tenantTemplateId: string): Promise<{ success: boolean; reason?: string; existing_device_name?: string }> => {
-    try {
-      // Check for identity conflicts
-      if (globalDevice.identity_hash) {
-        const { data: existingDevice } = await supabase
-          .from('devices')
-          .select('name')
-          .eq('tenant_id', currentTenant!.id)
-          .eq('identity_hash', globalDevice.identity_hash)
-          .single();
-
-        if (existingDevice) {
-          return {
-            success: false,
-            reason: 'Device with same identity (name, brand, model) already exists',
-            existing_device_name: existingDevice.name
-          };
-        }
-      }
-
-      const { error } = await supabase
-        .from('devices')
-        .insert({
-          name: globalDevice.name,
-          category: globalDevice.category,
-          brand: globalDevice.brand,
-          model: globalDevice.model,
-          unit_price: globalDevice.unit_price,
-          template_id: tenantTemplateId,
-          tenant_id: currentTenant!.id,
-          source_device_id: globalDevice.id,
-          import_status: 'imported',
-          imported_at: new Date().toISOString(),
-          sync_version: 1,
-          is_global: false,
-          active: true
-        });
-
-      if (error) throw error;
-      return { success: true };
-    } catch (error) {
-      return {
-        success: false,
-        reason: 'Database error during import'
-      };
-    }
-  };
+  // Legacy import functions removed - now using TemplateImportService
 
   const toggleTemplateSelection = (templateId: string) => {
     setSelectedTemplates(prev => 
