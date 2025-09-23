@@ -248,9 +248,79 @@ export class TemplateImportService {
    * Load all template properties from the database
    */
   private async loadTemplateProperties(templateId: string): Promise<TemplateProperty[]> {
-    // For now, return empty array to avoid TypeScript issues
-    // This can be implemented later if needed for property import
-    return [];
+    try {
+      // Simple query to avoid TypeScript issues
+      const response = await fetch(`/api/template-properties/${templateId}`);
+      if (!response.ok) {
+        // Fallback to direct supabase query
+        const result = await this.loadPropertiesDirectly(templateId);
+        return result;
+      }
+      const data = await response.json();
+      return data || [];
+    } catch (error) {
+      console.error('Error in loadTemplateProperties:', error);
+      return this.loadPropertiesDirectly(templateId);
+    }
+  }
+
+  /**
+   * Direct database query fallback
+   */
+  private async loadPropertiesDirectly(templateId: string): Promise<TemplateProperty[]> {
+    try {
+      console.log('Loading properties for template:', templateId);
+      
+      // Try a simple select without 'active' column since it doesn't exist
+      const propertiesResponse = await supabase
+        .from('device_template_properties')
+        .select('id, template_id, property_name, label_en, label_ar, property_type, property_unit, is_required, is_identifier, is_device_name, sort_order, formula, depends_on_properties')
+        .eq('template_id', templateId);
+
+      if (propertiesResponse.error) {
+        console.error('Properties query failed:', propertiesResponse.error);
+        return [];
+      }
+
+      const properties = propertiesResponse.data || [];
+      console.log(`Found ${properties.length} properties for template ${templateId}`);
+      
+      // Load options separately without 'active' column
+      const optionsResponse = await supabase
+        .from('device_template_options')
+        .select('id, template_id, code, label_en, label_ar, unit, data_type, cost_modifier, cost_modifier_type, sort_order')
+        .eq('template_id', templateId);
+
+      if (optionsResponse.error) {
+        console.error('Options query failed:', optionsResponse.error);
+      }
+
+      const options = optionsResponse.data || [];
+      console.log(`Found ${options.length} options for template ${templateId}`);
+
+      return properties.map(prop => ({
+        id: prop.id,
+        template_id: templateId,
+        tenant_id: '',
+        property_name: prop.property_name,
+        label_en: prop.label_en,
+        label_ar: prop.label_ar || '',
+        property_type: prop.property_type,
+        property_unit: prop.property_unit || '',
+        is_required: prop.is_required,
+        is_identifier: prop.is_identifier,
+        is_device_name: prop.is_device_name,
+        sort_order: prop.sort_order,
+        property_options: options, // All options for now
+        formula: prop.formula || '',
+        depends_on_properties: prop.depends_on_properties || [],
+        active: true
+      }));
+
+    } catch (error) {
+      console.error('Error in loadPropertiesDirectly:', error);
+      return [];
+    }
   }
 
   /**
@@ -363,9 +433,10 @@ export class TemplateImportService {
 
     allProperties.push(...customProperties);
 
-    // Insert all properties
+    // Insert all properties in batches to handle large numbers
     if (allProperties.length > 0) {
-      const insertData = allProperties.map(prop => ({
+      // First insert the properties
+      const propertyInsertData = allProperties.map(prop => ({
         template_id: prop.template_id,
         tenant_id: prop.tenant_id,
         property_name: prop.property_name,
@@ -377,19 +448,57 @@ export class TemplateImportService {
         is_identifier: prop.is_identifier,
         is_device_name: prop.is_device_name,
         sort_order: prop.sort_order,
-        property_options: prop.property_options || [],
         formula: prop.formula || '',
         depends_on_properties: prop.depends_on_properties || [],
         active: prop.active
       }));
 
-      const { error } = await supabase
+      const { data: insertedProperties, error: propertiesError } = await supabase
         .from('device_template_properties')
-        .insert(insertData);
+        .insert(propertyInsertData)
+        .select();
 
-      if (error) {
-        console.error('Error importing template properties:', error);
-        throw new Error(`Failed to import template properties: ${error.message}`);
+      if (propertiesError) {
+        console.error('Error importing template properties:', propertiesError);
+        throw new Error(`Failed to import template properties: ${propertiesError.message}`);
+      }
+
+      // Now insert property options for properties that have them
+      const optionsToInsert: any[] = [];
+      
+      for (let i = 0; i < allProperties.length; i++) {
+        const prop = allProperties[i];
+        const insertedProp = insertedProperties?.[i];
+        
+        if (insertedProp && prop.property_options && Array.isArray(prop.property_options) && prop.property_options.length > 0) {
+          for (const option of prop.property_options) {
+            optionsToInsert.push({
+              template_id: templateId,
+              tenant_id: this.currentTenant.id,
+              code: option.code || '',
+              label_en: option.label_en || '',
+              label_ar: option.label_ar || '',
+              unit: option.unit || '',
+              data_type: option.data_type || 'text',
+              cost_modifier: option.cost_modifier || 0,
+              cost_modifier_type: option.cost_modifier_type || 'fixed',
+              sort_order: option.sort_order || 0,
+              active: option.active !== false
+            });
+          }
+        }
+      }
+
+      // Insert all options if any exist
+      if (optionsToInsert.length > 0) {
+        const { error: optionsError } = await supabase
+          .from('device_template_options')
+          .insert(optionsToInsert);
+
+        if (optionsError) {
+          console.error('Error importing template options:', optionsError);
+          throw new Error(`Failed to import template options: ${optionsError.message}`);
+        }
       }
     }
   }
