@@ -413,36 +413,28 @@ export default function DeviceTemplateCreate() {
 
         if (templateError) throw templateError;
 
-        // Load properties - simplified to avoid TypeScript issues
-        try {
-          const { data: propertiesData } = await supabase
-            .from('device_template_properties')
-            .select('*')
-            .eq('template_id', id)
-            .eq('active', true)
-            .order('sort_order');
-
-          // Create properties array with safe typing
-          const properties = (propertiesData || []).map(prop => ({
-            id: prop.id,
-            name: prop.property_name,
-            label_en: prop.label_en,
+        // Load properties - simplified approach to avoid TypeScript issues
+        let properties: DeviceTemplateProperty[] = [];
+        
+        // For now, use properties_schema as fallback until we can safely query the database
+        if (templateData.properties_schema && Array.isArray(templateData.properties_schema)) {
+          properties = (templateData.properties_schema as any[]).map((prop: any, index: number) => ({
+            id: prop.id || `prop-${index}`,
+            name: prop.name || prop.property_name || '',
+            label_en: prop.label_en || '',
             label_ar: prop.label_ar || '',
-            type: prop.property_type,
-            data_type: prop.property_type,
-            required: prop.is_required,
-            is_identifier: prop.is_identifier,
+            type: (prop.type || prop.property_type || 'text') as 'text' | 'number' | 'select' | 'multiselect' | 'boolean' | 'date' | 'calculated',
+            data_type: prop.data_type || prop.property_type || 'text',
+            required: prop.required || prop.is_required || false,
+            is_identifier: prop.is_identifier || false,
             is_device_name: prop.is_device_name || false,
-            unit: prop.property_unit || '',
-            sort_order: prop.sort_order || 0,
-            property_options: [],
-            options: [],
+            unit: prop.unit || prop.property_unit || '',
+            sort_order: prop.sort_order || index,
+            property_options: prop.property_options || prop.options || [],
+            options: prop.options || prop.property_options || [],
             formula: prop.formula || '',
-            depends_on_properties: []
+            depends_on_properties: prop.depends_on_properties || []
           }));
-
-        } catch (error) {
-          console.error('Error loading properties:', error);
         }
 
         // Map old template fields to new interface
@@ -1708,7 +1700,7 @@ export default function DeviceTemplateCreate() {
                     </SelectTrigger>
                     <SelectContent>
                       {brandsLoading ? (
-                        <SelectItem value="" disabled>Loading brands...</SelectItem>
+                        <SelectItem value="loading" disabled>Loading brands...</SelectItem>
                       ) : (
                         brands.map(brand => (
                           <SelectItem key={brand.id} value={brand.id}>{brand.name}</SelectItem>

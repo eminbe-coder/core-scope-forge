@@ -324,12 +324,12 @@ export const TodoCalendarEnhanced: React.FC<TodoCalendarEnhancedProps> = ({
           <CardTitle className="flex items-center justify-between">
             <span>Todo Calendar</span>
             <div className="flex items-center gap-2">
-              <Select value={selectedUser} onValueChange={setSelectedUser}>
+              <Select value={selectedUser} onValueChange={(value) => setSelectedUser(value === 'all' ? '' : value)}>
                 <SelectTrigger className="w-40">
                   <SelectValue placeholder="All users" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All users</SelectItem>
+                  <SelectItem value="all">All users</SelectItem>
                   {profiles.map(profile => (
                     <SelectItem key={profile.id} value={profile.id}>
                       {profile.first_name} {profile.last_name}
