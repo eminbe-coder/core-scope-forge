@@ -191,7 +191,7 @@ const AddGlobalDevice = () => {
         cost_price_currency_id: '',
         sku: '',
         short_description: '',
-        long_description: '',
+        description: '',
         short_description_ar: '',
         description_ar: '',
         device_image: ''
@@ -258,7 +258,7 @@ const AddGlobalDevice = () => {
     if (selectedTemplate?.short_description_generation_type === 'fixed' && !templateProperties.short_description) {
       requiredFixedFields.push('short description');
     }
-    if (selectedTemplate?.description_generation_type === 'fixed' && !templateProperties.long_description) {
+    if (selectedTemplate?.description_generation_type === 'fixed' && !templateProperties.description) {
       requiredFixedFields.push('long description');
     }
     if (selectedTemplate?.short_description_ar_generation_type === 'fixed' && !templateProperties.short_description_ar) {
@@ -325,7 +325,7 @@ const AddGlobalDevice = () => {
           cost_price_currency_id: templateProperties.cost_price_currency_id || '',
           sku: templateProperties.sku || '',
           short_description: templateProperties.short_description || '',
-          long_description: templateProperties.long_description || '',
+          description: templateProperties.description || '',
           short_description_ar: templateProperties.short_description_ar || '',
           description_ar: templateProperties.description_ar || '',
           device_image: templateProperties.device_image || ''
