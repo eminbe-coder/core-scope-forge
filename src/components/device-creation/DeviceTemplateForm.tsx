@@ -154,6 +154,44 @@ export function DeviceTemplateForm({ templateProperties, values, onChange, selec
       });
     }
 
+    if (selectedTemplate?.short_description_generation_type === 'fixed') {
+      baseProperties.push({
+        id: 'short_description',
+        name: 'short_description',
+        label_en: 'Short Description',
+        label_ar: 'الوصف المختصر',
+        type: 'text' as const,
+        data_type: 'textarea',
+        required: true,
+        is_identifier: false,
+        is_device_name: false,
+        sort_order: 3.5,
+        property_options: [],
+        options: [],
+        formula: '',
+        depends_on_properties: []
+      });
+    }
+
+    if (selectedTemplate?.short_description_ar_generation_type === 'fixed') {
+      baseProperties.push({
+        id: 'short_description_ar',
+        name: 'short_description_ar',
+        label_en: 'Short Description (Arabic)',
+        label_ar: 'الوصف المختصر بالعربية',
+        type: 'text' as const,
+        data_type: 'textarea',
+        required: false,
+        is_identifier: false,
+        is_device_name: false,
+        sort_order: 3.7,
+        property_options: [],
+        options: [],
+        formula: '',
+        depends_on_properties: []
+      });
+    }
+
     if (selectedTemplate?.description_generation_type === 'fixed') {
       baseProperties.push({
         id: 'description',

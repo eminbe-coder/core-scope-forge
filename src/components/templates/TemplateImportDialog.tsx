@@ -68,7 +68,9 @@ export function TemplateImportDialog({ open, onOpenChange, onImportComplete }: T
   const loadGlobalTemplates = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      
+      // First get all global templates
+      const { data: globalTemplatesData, error: globalError } = await supabase
         .from('device_templates')
         .select('*')
         .eq('is_global', true)
@@ -76,8 +78,24 @@ export function TemplateImportDialog({ open, onOpenChange, onImportComplete }: T
         .is('deleted_at', null)
         .order('name');
       
-      if (error) throw error;
-      setGlobalTemplates(data || []);
+      if (globalError) throw globalError;
+
+      // Get already imported templates for current tenant
+      const { data: importedTemplates, error: importedError } = await supabase
+        .from('device_templates')
+        .select('source_template_id')
+        .eq('tenant_id', currentTenant?.id)
+        .not('source_template_id', 'is', null);
+      
+      if (importedError) throw importedError;
+
+      // Filter out already imported templates
+      const importedTemplateIds = new Set(importedTemplates?.map(t => t.source_template_id) || []);
+      const availableTemplates = globalTemplatesData?.filter(template => 
+        !importedTemplateIds.has(template.id)
+      ) || [];
+
+      setGlobalTemplates(availableTemplates);
     } catch (error) {
       console.error('Error loading global templates:', error);
       toast.error('Failed to load global templates');
