@@ -1051,15 +1051,17 @@ export default function DeviceTemplateCreate() {
                     disabled={isViewMode || isImportedTemplate}
                   />
                 </div>
-                <div>
-                  <Label>Template Name (Arabic)</Label>
-                  <Input
-                    value={template.label_ar || ''}
-                    onChange={(e) => setTemplate(prev => ({ ...prev, label_ar: e.target.value }))}
-                    placeholder="قالب لوحة LED"
-                    disabled={isViewMode || isImportedTemplate}
-                  />
-                </div>
+                {template.supports_multilang && (
+                  <div>
+                    <Label>Template Name (Arabic) <span className="text-muted-foreground">(Optional)</span></Label>
+                    <Input
+                      value={template.label_ar || ''}
+                      onChange={(e) => setTemplate(prev => ({ ...prev, label_ar: e.target.value }))}
+                      placeholder="قالب لوحة LED"
+                      disabled={isViewMode || isImportedTemplate}
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -1251,89 +1253,93 @@ export default function DeviceTemplateCreate() {
                  )}
                </div>
 
-               <div>
-                 <Label className="text-base font-medium">Arabic Long Description Generation</Label>
-                  <RadioGroup
-                    value={template.description_ar_generation_type || 'dynamic'}
-                    onValueChange={(value: 'fixed' | 'dynamic') => handleGenerationTypeChange('description_ar_generation_type', value)}
-                    className="mt-2"
-                  >
-                   <div className="flex items-center space-x-2">
-                     <RadioGroupItem value="fixed" id="desc-ar-fixed-global" />
-                     <Label htmlFor="desc-ar-fixed-global">Fixed Arabic Description</Label>
-                   </div>
-                   <div className="flex items-center space-x-2">
-                     <RadioGroupItem value="dynamic" id="desc-ar-dynamic-global" />
-                     <Label htmlFor="desc-ar-dynamic-global">Dynamic Arabic Description (Formula-based)</Label>
-                   </div>
-                 </RadioGroup>
-                 
-                  {template.description_ar_generation_type === 'dynamic' ? (
-                    <div className="mt-3">
-                      <FormulaBuilder
-                        label="Arabic Description Formula"
-                        value={template.description_ar_formula || ''}
-                        onChange={(value) => setTemplate(prev => ({ ...prev, description_ar_formula: value }))}
-                        properties={getAllAvailableProperties()}
-                        placeholder="{item_code} - لوحة LED بقوة {wattage}W - {color_temperature}K - جودة مهنية"
-                        description="Generate detailed Arabic descriptions for product pages and specifications"
-                      />
-                      <div className="mt-2">
-                        <p className="text-sm text-muted-foreground">
-                          Preview: <Badge variant="outline">{preview.descriptionAr || 'Enter formula above'}</Badge>
-                        </p>
+               {template.supports_multilang && (
+                 <>
+                   <div>
+                     <Label className="text-base font-medium">Arabic Long Description Generation <span className="text-muted-foreground">(Optional)</span></Label>
+                     <RadioGroup
+                       value={template.description_ar_generation_type || 'dynamic'}
+                       onValueChange={(value: 'fixed' | 'dynamic') => handleGenerationTypeChange('description_ar_generation_type', value)}
+                       className="mt-2"
+                     >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="fixed" id="desc-ar-fixed-global" />
+                        <Label htmlFor="desc-ar-fixed-global">Fixed Arabic Description</Label>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="mt-3">
-                      <p className="text-sm text-muted-foreground p-3 bg-muted/30 rounded border-dashed border">
-                        Fixed Arabic description will be entered during device creation. Each device can have its own custom Arabic description.
-                      </p>
-                    </div>
-                  )}
-               </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="dynamic" id="desc-ar-dynamic-global" />
+                        <Label htmlFor="desc-ar-dynamic-global">Dynamic Arabic Description (Formula-based)</Label>
+                      </div>
+                    </RadioGroup>
+                    
+                     {template.description_ar_generation_type === 'dynamic' ? (
+                       <div className="mt-3">
+                         <FormulaBuilder
+                           label="Arabic Description Formula"
+                           value={template.description_ar_formula || ''}
+                           onChange={(value) => setTemplate(prev => ({ ...prev, description_ar_formula: value }))}
+                           properties={getAllAvailableProperties()}
+                           placeholder="{item_code} - لوحة LED بقوة {wattage}W - {color_temperature}K - جودة مهنية"
+                           description="Generate detailed Arabic descriptions for product pages and specifications"
+                         />
+                         <div className="mt-2">
+                           <p className="text-sm text-muted-foreground">
+                             Preview: <Badge variant="outline">{preview.descriptionAr || 'Enter formula above'}</Badge>
+                           </p>
+                         </div>
+                       </div>
+                     ) : (
+                       <div className="mt-3">
+                         <p className="text-sm text-muted-foreground p-3 bg-muted/30 rounded border-dashed border">
+                           Fixed Arabic description will be entered during device creation. Each device can have its own custom Arabic description.
+                         </p>
+                       </div>
+                     )}
+                   </div>
 
-               <div>
-                 <Label className="text-base font-medium">Arabic Short Description Generation</Label>
-                  <RadioGroup
-                    value={template.short_description_ar_generation_type || 'dynamic'}
-                    onValueChange={(value: 'fixed' | 'dynamic') => handleGenerationTypeChange('short_description_ar_generation_type', value)}
-                    className="mt-2"
-                  >
-                   <div className="flex items-center space-x-2">
-                     <RadioGroupItem value="fixed" id="short-desc-ar-fixed-global" />
-                     <Label htmlFor="short-desc-ar-fixed-global">Fixed Arabic Short Description</Label>
-                   </div>
-                   <div className="flex items-center space-x-2">
-                     <RadioGroupItem value="dynamic" id="short-desc-ar-dynamic-global" />
-                     <Label htmlFor="short-desc-ar-dynamic-global">Dynamic Arabic Short Description (Formula-based)</Label>
-                   </div>
-                 </RadioGroup>
-                 
-                  {template.short_description_ar_generation_type === 'dynamic' ? (
-                    <div className="mt-3">
-                      <FormulaBuilder
-                        label="Arabic Short Description Formula"
-                        value={template.short_description_ar_formula || ''}
-                        onChange={(value) => setTemplate(prev => ({ ...prev, short_description_ar_formula: value }))}
-                        properties={getAllAvailableProperties()}
-                        placeholder="{item_code} - LED {wattage}W - {color_temperature}K"
-                        description="Generate brief Arabic descriptions for listings and summaries"
-                      />
-                      <div className="mt-2">
-                        <p className="text-sm text-muted-foreground">
-                          Preview: <Badge variant="outline">{preview.shortDescriptionAr || 'Enter formula above'}</Badge>
-                        </p>
+                   <div>
+                     <Label className="text-base font-medium">Arabic Short Description Generation <span className="text-muted-foreground">(Optional)</span></Label>
+                     <RadioGroup
+                       value={template.short_description_ar_generation_type || 'dynamic'}
+                       onValueChange={(value: 'fixed' | 'dynamic') => handleGenerationTypeChange('short_description_ar_generation_type', value)}
+                       className="mt-2"
+                     >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="fixed" id="short-desc-ar-fixed-global" />
+                        <Label htmlFor="short-desc-ar-fixed-global">Fixed Arabic Short Description</Label>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="mt-3">
-                      <p className="text-sm text-muted-foreground p-3 bg-muted/30 rounded border-dashed border">
-                        Fixed Arabic short description will be entered during device creation. Each device can have its own brief Arabic description.
-                      </p>
-                    </div>
-                  )}
-               </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="dynamic" id="short-desc-ar-dynamic-global" />
+                        <Label htmlFor="short-desc-ar-dynamic-global">Dynamic Arabic Short Description (Formula-based)</Label>
+                      </div>
+                    </RadioGroup>
+                    
+                     {template.short_description_ar_generation_type === 'dynamic' ? (
+                       <div className="mt-3">
+                         <FormulaBuilder
+                           label="Arabic Short Description Formula"
+                           value={template.short_description_ar_formula || ''}
+                           onChange={(value) => setTemplate(prev => ({ ...prev, short_description_ar_formula: value }))}
+                           properties={getAllAvailableProperties()}
+                           placeholder="{item_code} - LED {wattage}W - {color_temperature}K"
+                           description="Generate brief Arabic descriptions for listings and summaries"
+                         />
+                         <div className="mt-2">
+                           <p className="text-sm text-muted-foreground">
+                             Preview: <Badge variant="outline">{preview.shortDescriptionAr || 'Enter formula above'}</Badge>
+                           </p>
+                         </div>
+                       </div>
+                     ) : (
+                       <div className="mt-3">
+                         <p className="text-sm text-muted-foreground p-3 bg-muted/30 rounded border-dashed border">
+                           Fixed Arabic short description will be entered during device creation. Each device can have its own brief Arabic description.
+                         </p>
+                       </div>
+                     )}
+                   </div>
+                 </>
+               )}
              </CardContent>
            </Card>
 
@@ -1407,7 +1413,7 @@ export default function DeviceTemplateCreate() {
                           </Button>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-4 mb-4">
+                        <div className={`grid gap-4 mb-4 ${template.supports_multilang ? 'grid-cols-3' : 'grid-cols-2'}`}>
                           <div>
                             <Label>Property Name</Label>
                             <Input
@@ -1424,14 +1430,16 @@ export default function DeviceTemplateCreate() {
                               placeholder="Wattage"
                             />
                           </div>
-                          <div>
-                            <Label>Label (Arabic)</Label>
-                            <Input
-                              value={property.label_ar}
-                              onChange={(e) => updateProperty(index, 'label_ar', e.target.value)}
-                              placeholder="القوة الكهربائية"
-                            />
-                          </div>
+                          {template.supports_multilang && (
+                            <div>
+                              <Label>Label (Arabic) <span className="text-muted-foreground">(Optional)</span></Label>
+                              <Input
+                                value={property.label_ar}
+                                onChange={(e) => updateProperty(index, 'label_ar', e.target.value)}
+                                placeholder="القوة الكهربائية"
+                              />
+                            </div>
+                          )}
                         </div>
 
                         <div className="grid grid-cols-5 gap-4 mb-4">
@@ -1517,11 +1525,13 @@ export default function DeviceTemplateCreate() {
                                       value={option.label_en || ''}
                                       onChange={(e) => updatePropertyOption(index, optionIndex, 'label_en', e.target.value)}
                                     />
-                                    <Input
-                                      placeholder="Arabic Label"
-                                      value={option.label_ar || ''}
-                                      onChange={(e) => updatePropertyOption(index, optionIndex, 'label_ar', e.target.value)}
-                                    />
+                                    {template.supports_multilang && (
+                                      <Input
+                                        placeholder="Arabic Label (Optional)"
+                                        value={option.label_ar || ''}
+                                        onChange={(e) => updatePropertyOption(index, optionIndex, 'label_ar', e.target.value)}
+                                      />
+                                    )}
                                     <Button
                                       type="button"
                                       size="sm"
@@ -1690,14 +1700,16 @@ export default function DeviceTemplateCreate() {
                     placeholder="LED Panel Template"
                   />
                 </div>
-                <div>
-                  <Label>Template Name (Arabic)</Label>
-                  <Input
-                    value={template.label_ar || ''}
-                    onChange={(e) => setTemplate(prev => ({ ...prev, label_ar: e.target.value }))}
-                    placeholder="قالب لوحة LED"
-                  />
-                </div>
+                {template.supports_multilang && (
+                  <div>
+                    <Label>Template Name (Arabic) <span className="text-muted-foreground">(Optional)</span></Label>
+                    <Input
+                      value={template.label_ar || ''}
+                      onChange={(e) => setTemplate(prev => ({ ...prev, label_ar: e.target.value }))}
+                      placeholder="قالب لوحة LED"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -1971,7 +1983,7 @@ export default function DeviceTemplateCreate() {
                           </Button>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-4 mb-4">
+                        <div className={`grid gap-4 mb-4 ${template.supports_multilang ? 'grid-cols-3' : 'grid-cols-2'}`}>
                           <div>
                             <Label>Property Name</Label>
                             <Input
@@ -1988,14 +2000,16 @@ export default function DeviceTemplateCreate() {
                               placeholder="Wattage"
                             />
                           </div>
-                          <div>
-                            <Label>Label (Arabic)</Label>
-                            <Input
-                              value={property.label_ar}
-                              onChange={(e) => updateProperty(index, 'label_ar', e.target.value)}
-                              placeholder="القوة الكهربائية"
-                            />
-                          </div>
+                          {template.supports_multilang && (
+                            <div>
+                              <Label>Label (Arabic) <span className="text-muted-foreground">(Optional)</span></Label>
+                              <Input
+                                value={property.label_ar}
+                                onChange={(e) => updateProperty(index, 'label_ar', e.target.value)}
+                                placeholder="القوة الكهربائية"
+                              />
+                            </div>
+                          )}
                         </div>
 
                         <div className="grid grid-cols-5 gap-4 mb-4">
@@ -2090,11 +2104,13 @@ export default function DeviceTemplateCreate() {
                                     value={option.label_en}
                                     onChange={(e) => updatePropertyOption(index, optionIndex, 'label_en', e.target.value)}
                                   />
-                                  <Input
-                                    placeholder="Arabic Label"
-                                    value={option.label_ar}
-                                    onChange={(e) => updatePropertyOption(index, optionIndex, 'label_ar', e.target.value)}
-                                  />
+                                  {template.supports_multilang && (
+                                    <Input
+                                      placeholder="Arabic Label (Optional)"
+                                      value={option.label_ar}
+                                      onChange={(e) => updatePropertyOption(index, optionIndex, 'label_ar', e.target.value)}
+                                    />
+                                  )}
                                   <Button
                                     size="sm"
                                     variant="ghost"
