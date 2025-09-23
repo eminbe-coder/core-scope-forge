@@ -266,12 +266,12 @@ export function TemplateImportDialog({ open, onOpenChange, onImportComplete }: T
           short_description_formula: fullTemplate.short_description_formula,
           description_ar_generation_type: fullTemplate.description_ar_generation_type,
           description_ar_formula: fullTemplate.description_ar_formula,
-          short_description_ar_generation_type: fullTemplate.short_description_ar_generation_type,
-          short_description_ar_formula: fullTemplate.short_description_ar_formula,
+          short_description_ar_generation_type: fullTemplate.short_description_ar_generation_type || 'fixed',
+          short_description_ar_formula: fullTemplate.short_description_ar_formula || '',
           device_type_id: fullTemplate.device_type_id,
           brand_id: fullTemplate.brand_id,
-          image_url: fullTemplate.image_url,
-          supports_multilang: fullTemplate.supports_multilang,
+          image_url: fullTemplate.image_url || '',
+          supports_multilang: fullTemplate.supports_multilang || false,
           is_global: false,
           tenant_id: currentTenant!.id,
           source_template_id: fullTemplate.id,
@@ -285,9 +285,83 @@ export function TemplateImportDialog({ open, onOpenChange, onImportComplete }: T
 
       if (error) throw error;
 
-      // Import template properties
+      // Create fixed properties that the form expects
+      const fixedProperties = [
+        {
+          template_id: newTemplate.id,
+          tenant_id: currentTenant!.id,
+          property_name: 'item_code',
+          label_en: 'Item Code',
+          label_ar: 'رمز الصنف',
+          property_type: 'text',
+          property_unit: '',
+          is_required: true,
+          is_identifier: true,
+          is_device_name: false,
+          sort_order: -4,
+          property_options: [] as any,
+          formula: null,
+          depends_on_properties: [] as any,
+          active: true
+        },
+        {
+          template_id: newTemplate.id,
+          tenant_id: currentTenant!.id,
+          property_name: 'cost_price',
+          label_en: 'Cost Price',
+          label_ar: 'سعر التكلفة',
+          property_type: 'number',
+          property_unit: '',
+          is_required: false,
+          is_identifier: false,
+          is_device_name: false,
+          sort_order: -3,
+          property_options: [] as any,
+          formula: null,
+          depends_on_properties: [] as any,
+          active: true
+        },
+        {
+          template_id: newTemplate.id,
+          tenant_id: currentTenant!.id,
+          property_name: 'cost_price_currency_id',
+          label_en: 'Cost Price Currency',
+          label_ar: 'عملة سعر التكلفة',
+          property_type: 'select',
+          property_unit: '',
+          is_required: false,
+          is_identifier: false,
+          is_device_name: false,
+          sort_order: -2,
+          property_options: [] as any,
+          formula: null,
+          depends_on_properties: [] as any,
+          active: true
+        },
+        {
+          template_id: newTemplate.id,
+          tenant_id: currentTenant!.id,
+          property_name: 'device_image',
+          label_en: 'Device Image',
+          label_ar: 'صورة الجهاز',
+          property_type: 'image',
+          property_unit: '',
+          is_required: false,
+          is_identifier: false,
+          is_device_name: false,
+          sort_order: -1,
+          property_options: [] as any,
+          formula: null,
+          depends_on_properties: [] as any,
+          active: true
+        }
+      ];
+
+      // Import template properties (both fixed and custom)
+      const allProperties = [...fixedProperties];
+      
       if (templateProperties && templateProperties.length > 0) {
-        const propertiesToImport = templateProperties.map(prop => ({
+        const customProperties = templateProperties.map(prop => ({
           template_id: newTemplate.id,
           tenant_id: currentTenant!.id,
           property_name: prop.property_name,
@@ -304,10 +378,14 @@ export function TemplateImportDialog({ open, onOpenChange, onImportComplete }: T
           depends_on_properties: prop.depends_on_properties,
           active: true
         }));
+        
+        allProperties.push(...customProperties);
+      }
 
+      if (allProperties.length > 0) {
         const { error: propertiesInsertError } = await supabase
           .from('device_template_properties')
-          .insert(propertiesToImport);
+          .insert(allProperties);
 
         if (propertiesInsertError) {
           console.error('Error importing template properties:', propertiesInsertError);
