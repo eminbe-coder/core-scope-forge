@@ -1489,10 +1489,11 @@ export default function DeviceTemplateCreate() {
                         </div>
 
                         {(property.type === 'select' || property.type === 'multiselect') && (
-                          <div>
+                          <div className="mt-4">
                             <div className="flex items-center justify-between mb-2">
                               <Label>Options</Label>
                               <Button
+                                type="button"
                                 size="sm"
                                 variant="outline"
                                 onClick={() => addPropertyOption(index)}
@@ -1502,26 +1503,27 @@ export default function DeviceTemplateCreate() {
                               </Button>
                             </div>
                             <div className="space-y-3">
-                              {property.property_options.map((option, optionIndex) => (
+                              {property.property_options?.map((option, optionIndex) => (
                                 <div key={optionIndex} className="border p-3 rounded-lg space-y-3">
                                   <div className="flex gap-2 items-center">
                                     <Input
                                       placeholder="Code"
-                                      value={option.code}
+                                      value={option.code || ''}
                                       onChange={(e) => updatePropertyOption(index, optionIndex, 'code', e.target.value)}
                                       className="w-20"
                                     />
                                     <Input
                                       placeholder="English Label"
-                                      value={option.label_en}
+                                      value={option.label_en || ''}
                                       onChange={(e) => updatePropertyOption(index, optionIndex, 'label_en', e.target.value)}
                                     />
                                     <Input
                                       placeholder="Arabic Label"
-                                      value={option.label_ar}
+                                      value={option.label_ar || ''}
                                       onChange={(e) => updatePropertyOption(index, optionIndex, 'label_ar', e.target.value)}
                                     />
                                     <Button
+                                      type="button"
                                       size="sm"
                                       variant="ghost"
                                       onClick={() => removePropertyOption(index, optionIndex)}
@@ -1535,6 +1537,7 @@ export default function DeviceTemplateCreate() {
                                        <div className="flex items-center justify-between mb-2">
                                          <Label className="text-sm font-medium">Cost Impact</Label>
                                          <Button
+                                           type="button"
                                            size="sm"
                                            variant="ghost"
                                            onClick={() => updatePropertyOption(index, optionIndex, 'has_cost_impact', false)}
@@ -1582,6 +1585,7 @@ export default function DeviceTemplateCreate() {
                                    ) : (
                                      <div className="border-t pt-3">
                                        <Button
+                                         type="button"
                                          size="sm"
                                          variant="outline"
                                          onClick={() => {
@@ -1598,9 +1602,14 @@ export default function DeviceTemplateCreate() {
                                    )}
                                 </div>
                               ))}
+                              {property.property_options?.length === 0 && (
+                                <p className="text-sm text-muted-foreground italic">
+                                  No options added yet. Click "Add Option" to create options for this select field.
+                                </p>
+                              )}
                             </div>
                           </div>
-                         )}
+                        )}
 
                          {property.type === 'calculated' && (
                            <div className="space-y-4">
