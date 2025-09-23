@@ -21,7 +21,7 @@ interface Currency {
   name: string;
 }
 
-interface DeviceTemplate {
+interface GlobalDeviceTemplate {
   id: string;
   name: string;
   category: string;
@@ -37,6 +37,9 @@ interface DeviceTemplate {
   short_description_ar_formula?: string;
   description_ar_generation_type?: string;
   description_ar_formula?: string;
+  supports_multilang?: boolean;
+  is_global?: boolean;
+  properties?: any;
   device_template_properties: Array<{
     id: string;
     property_name: string;
@@ -55,9 +58,10 @@ const AddGlobalDevice = () => {
   const { currencySymbol } = useCurrency();
   const navigate = useNavigate();
   const [currencies, setCurrencies] = useState<Currency[]>([]);
-  const [deviceTemplates, setDeviceTemplates] = useState<DeviceTemplate[]>([]);
+  const [deviceTemplates, setDeviceTemplates] = useState<GlobalDeviceTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [selectedTemplate, setSelectedTemplate] = useState<GlobalDeviceTemplate | null>(null);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -169,14 +173,16 @@ const AddGlobalDevice = () => {
 
   // Auto-populate form fields from selected template
   useEffect(() => {
-    const selectedTemplate = deviceTemplates.find(t => t.id === selectedTemplateId);
-    if (selectedTemplate) {
-      const deviceType = deviceTypes.find(dt => dt.id === selectedTemplate.device_type_id);
+    const selectedTemplateObj = deviceTemplates.find(t => t.id === selectedTemplateId);
+    setSelectedTemplate(selectedTemplateObj || null);
+    
+    if (selectedTemplateObj) {
+      const deviceType = deviceTypes.find(dt => dt.id === selectedTemplateObj.device_type_id);
       
       // Set brand from template's brand_id
       let templateBrand = '';
-      if (selectedTemplate.brand_id) {
-        const brand = brands.find(b => b.id === selectedTemplate.brand_id);
+      if (selectedTemplateObj.brand_id) {
+        const brand = brands.find(b => b.id === selectedTemplateObj.brand_id);
         templateBrand = brand?.name || '';
       }
       
@@ -623,12 +629,12 @@ const AddGlobalDevice = () => {
 
                     return (
                       <div className="border-t pt-6">
-                <DeviceTemplateForm
-                  templateProperties={convertedProps}
-                  values={templateProperties}
-                  onChange={handleTemplatePropertyChange}
-                  selectedTemplate={undefined}
-                />
+                       <DeviceTemplateForm
+                         templateProperties={convertedProps}
+                         values={templateProperties}
+                         onChange={handleTemplatePropertyChange}
+                         selectedTemplate={selectedTemplate as any}
+                       />
                       </div>
                     );
                   }
