@@ -10,7 +10,10 @@ const AddDeal = () => {
   const [searchParams] = useSearchParams();
   const leadType = searchParams.get('leadType');
   const leadId = searchParams.get('leadId');
+  const siteId = searchParams.get('siteId');
+  const siteName = searchParams.get('siteName');
   const isConversion = leadType && leadId;
+  const isFromSite = siteId && siteName;
 
   return (
     <DashboardLayout>
@@ -22,11 +25,13 @@ const AddDeal = () => {
           </Button>
           <div>
             <h1 className="text-3xl font-bold">
-              {isConversion ? 'Convert Lead to Deal' : 'Create New Deal'}
+              {isConversion ? 'Convert Lead to Deal' : isFromSite ? `Create Deal for ${siteName}` : 'Create New Deal'}
             </h1>
             <p className="text-muted-foreground">
               {isConversion 
                 ? 'Convert this lead into a sales opportunity' 
+                : isFromSite 
+                ? 'Create a new deal for this site'
                 : 'Create a new sales opportunity'
               }
             </p>
@@ -36,6 +41,8 @@ const AddDeal = () => {
         <CreateDealForm 
           leadType={leadType as 'company' | 'contact' | 'site' | null}
           leadId={leadId}
+          siteId={siteId}
+          siteName={siteName || undefined}
           onSuccess={() => navigate('/deals')}
         />
       </div>

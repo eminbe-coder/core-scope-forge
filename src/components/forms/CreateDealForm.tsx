@@ -43,6 +43,8 @@ type DealFormData = z.infer<typeof dealSchema>;
 interface CreateDealFormProps {
   leadType?: 'company' | 'contact' | 'site' | null;
   leadId?: string | null;
+  siteId?: string | null;
+  siteName?: string;
   onSuccess?: () => void;
 }
 
@@ -106,7 +108,7 @@ interface PaymentTerm {
   notes?: string;
 }
 
-export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormProps) {
+export function CreateDealForm({ leadType, leadId, siteId, siteName, onSuccess }: CreateDealFormProps) {
   const { currentTenant } = useTenant();
   const { user } = useAuth();
   const { hasPermission, isAdmin } = usePermissions();
@@ -164,6 +166,22 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
       loadLeadData();
     }
   }, [leadType, leadId]);
+
+  // Handle site pre-selection when coming from site page
+  useEffect(() => {
+    if (siteId && siteName && sites.length > 0) {
+      const site = sites.find(s => s.id === siteId);
+      if (site) {
+        form.setValue('site_id', siteId);
+        form.setValue('name', `Deal for ${siteName}`);
+        
+        // If site has a customer, pre-select it
+        if (site.customer_id) {
+          form.setValue('customer_id', site.customer_id);
+        }
+      }
+    }
+  }, [siteId, siteName, sites, form]);
 
   const loadData = async () => {
     try {
@@ -335,6 +353,7 @@ export function CreateDealForm({ leadType, leadId, onSuccess }: CreateDealFormPr
         form.setValue('name', `Deal with ${contactName}`);
       } else if (leadType === 'site') {
         form.setValue('name', `Deal for ${data.name}`);
+        form.setValue('site_id', leadId);
         if (data.customer_id) {
           form.setValue('customer_id', data.customer_id);
         }
