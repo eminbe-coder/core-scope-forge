@@ -22,6 +22,9 @@ interface PaymentTerm {
   due_date?: string;
   stage_id?: string;
   notes?: string;
+  payment_status?: string;
+  received_amount?: number;
+  received_date?: string;
   contract_payment_stages?: {
     name: string;
     sort_order: number;
@@ -126,6 +129,19 @@ export const ContractPaymentTerms = ({
     }
   };
   const getAutomaticStage = (paymentTerm: PaymentTerm, triggerType: 'due_date_change' | 'all_tasks_completed' | 'initial_load') => {
+    // Check payment status first
+    if (paymentTerm.payment_status === 'paid' || 
+        (paymentTerm.received_amount && paymentTerm.calculated_amount && 
+         paymentTerm.received_amount >= paymentTerm.calculated_amount)) {
+      return paymentStages.find(stage => stage.name === 'Paid') || null;
+    }
+
+    if (paymentTerm.payment_status === 'partial' || 
+        (paymentTerm.received_amount && paymentTerm.received_amount > 0 && 
+         paymentTerm.calculated_amount && paymentTerm.received_amount < paymentTerm.calculated_amount)) {
+      return paymentStages.find(stage => stage.name === 'Partially Paid') || null;
+    }
+
     const paymentTodos = todos.filter(todo => todo.payment_term_id === paymentTerm.id);
     const incompleteTodos = paymentTodos.filter(todo => todo.status !== 'completed');
     const today = new Date();
@@ -491,6 +507,12 @@ export const ContractPaymentTerms = ({
                         ({paymentTerm.amount_type === 'percentage' ? `${paymentTerm.amount_value}%` : 'Fixed'})
                       </span>
                     </p>
+                    {paymentTerm.received_amount && paymentTerm.received_amount > 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        Received: {formatCurrency(paymentTerm.received_amount)}
+                        {paymentTerm.received_date && ` on ${formatDate(paymentTerm.received_date)}`}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Due Date</label>

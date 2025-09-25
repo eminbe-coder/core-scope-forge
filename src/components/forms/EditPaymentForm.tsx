@@ -20,6 +20,9 @@ interface PaymentTerm {
   due_date?: string;
   stage_id?: string;
   notes?: string;
+  payment_status?: string;
+  received_amount?: number;
+  received_date?: string;
   contract_payment_stages?: {
     name: string;
     sort_order: number;
@@ -37,15 +40,42 @@ export const EditPaymentForm = ({ payment, contractId, onSuccess, onCancel }: Ed
   const { currentTenant } = useTenant();
   const [loading, setLoading] = useState(false);
   const [paymentStages, setPaymentStages] = useState<any[]>([]);
+  const [contractValue, setContractValue] = useState<number>(0);
   const [formData, setFormData] = useState({
     name: payment.name || `Payment ${payment.installment_number}`,
     amount_type: payment.amount_type,
     amount_value: payment.amount_value,
     due_date: payment.due_date || '',
-    notes: payment.notes || ''
+    notes: payment.notes || '',
+    payment_status: payment.payment_status || 'pending',
+    received_amount: payment.received_amount || 0,
+    received_date: payment.received_date || ''
   });
 
-  const getAutomaticStage = async (dueDate: string | null) => {
+  useEffect(() => {
+    const fetchContractValue = async () => {
+      const { data: contract } = await supabase
+        .from('contracts')
+        .select('value')
+        .eq('id', contractId)
+        .single();
+      
+      if (contract?.value) {
+        setContractValue(contract.value);
+      }
+    };
+    
+    fetchContractValue();
+  }, [contractId]);
+
+  const calculateAmount = () => {
+    if (formData.amount_type === 'percentage') {
+      return (formData.amount_value / 100) * contractValue;
+    }
+    return formData.amount_value;
+  };
+
+  const getAutomaticStage = async (dueDate: string | null, paymentStatus: string, receivedAmount: number, calculatedAmount: number) => {
     try {
       // Get payment stages
       const { data: stages } = await supabase
@@ -54,6 +84,15 @@ export const EditPaymentForm = ({ payment, contractId, onSuccess, onCancel }: Ed
         .eq('tenant_id', currentTenant?.id);
 
       if (!stages) return null;
+
+      // Check payment status first
+      if (paymentStatus === 'paid' || receivedAmount >= calculatedAmount) {
+        return stages.find(stage => stage.name === 'Paid')?.id || null;
+      }
+
+      if (paymentStatus === 'partial' || (receivedAmount > 0 && receivedAmount < calculatedAmount)) {
+        return stages.find(stage => stage.name === 'Partially Paid')?.id || null;
+      }
 
       // Get todos for this payment
       const { data: todos } = await supabase
@@ -87,16 +126,27 @@ export const EditPaymentForm = ({ payment, contractId, onSuccess, onCancel }: Ed
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
+      const calculatedAmount = calculateAmount();
+      
       // Get automatic stage based on current rules
-      const automaticStageId = await getAutomaticStage(formData.due_date || null);
+      const automaticStageId = await getAutomaticStage(
+        formData.due_date || null, 
+        formData.payment_status, 
+        formData.received_amount, 
+        calculatedAmount
+      );
       
       const updates = {
         name: formData.name,
         amount_type: formData.amount_type,
         amount_value: parseFloat(formData.amount_value.toString()),
+        calculated_amount: calculatedAmount,
         due_date: formData.due_date || null,
         stage_id: automaticStageId,
         notes: formData.notes,
+        payment_status: formData.payment_status,
+        received_amount: formData.received_amount,
+        received_date: formData.received_date || null,
         updated_at: new Date().toISOString()
       };
 
@@ -226,6 +276,60 @@ export const EditPaymentForm = ({ payment, contractId, onSuccess, onCancel }: Ed
               onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
               rows={3}
             />
+          </div>
+
+          <div className="border-t pt-4">
+            <h4 className="font-medium mb-3">Payment Receipt</h4>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="payment_status">Status</Label>
+                <Select 
+                  value={formData.payment_status} 
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, payment_status: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="partial">Partially Paid</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="received_amount">Received Amount</Label>
+                <Input
+                  id="received_amount"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max={calculateAmount()}
+                  value={formData.received_amount}
+                  onChange={(e) => setFormData(prev => ({ ...prev, received_amount: parseFloat(e.target.value) || 0 }))}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="received_date">Received Date</Label>
+                <Input
+                  id="received_date"
+                  type="date"
+                  value={formData.received_date}
+                  onChange={(e) => setFormData(prev => ({ ...prev, received_date: e.target.value }))}
+                />
+              </div>
+            </div>
+            
+            {formData.amount_type === 'percentage' && contractValue > 0 && (
+              <p className="text-sm text-muted-foreground mt-2">
+                Calculated amount: {(formData.amount_value / 100 * contractValue).toLocaleString('en-US', { 
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2 
+                })}
+              </p>
+            )}
           </div>
 
           <DialogFooter>
