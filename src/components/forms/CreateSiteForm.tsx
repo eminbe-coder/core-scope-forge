@@ -12,8 +12,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
-import { EntityRelationshipSelector, EntityRelationship } from '@/components/forms/EntityRelationshipSelector';
-import { saveEntityRelationships, EntityRelationshipData } from '@/utils/entity-relationships';
 import { EnhancedSourceSelect, SourceValues } from '@/components/ui/enhanced-source-select';
 import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
@@ -58,7 +56,6 @@ export const CreateSiteForm = ({ isLead = false, createMode = 'new', onSuccess }
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [companyRelationships, setCompanyRelationships] = useState<EntityRelationshipData[]>([]);
   const [leadStages, setLeadStages] = useState<LeadStage[]>([]);
   const [leadQualities, setLeadQualities] = useState<LeadQuality[]>([]);
   const [defaultQualityId, setDefaultQualityId] = useState<string | null>(null);
@@ -256,12 +253,6 @@ export const CreateSiteForm = ({ isLead = false, createMode = 'new', onSuccess }
         .single();
 
       if (error) throw error;
-
-      // Save company relationships
-      if (companyRelationships.length > 0) {
-        const entityType = isLead ? 'lead_site' : 'site';
-        await saveEntityRelationships(entityType, site.id, companyRelationships, currentTenant.id);
-      }
 
       // Log activity
       await supabase
@@ -597,17 +588,9 @@ export const CreateSiteForm = ({ isLead = false, createMode = 'new', onSuccess }
                    </FormItem>
                  )}
                />
-             </div>
+              </div>
 
-             {/* Company Relationships */}
-              <EntityRelationshipSelector
-                relationships={companyRelationships}
-                onChange={setCompanyRelationships}
-                title="Company Relationships"
-                description="Link companies with specific roles (e.g., Consultant, Contractor, etc.)"
-              />
-
-             <FormField
+              <FormField
               control={form.control}
               name="notes"
               render={({ field }) => (

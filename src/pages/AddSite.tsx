@@ -17,8 +17,6 @@ import { toast } from 'sonner';
 import { validateSiteData } from '@/lib/site-validation';
 import { MapPin, Building, Upload, Download, Camera, X } from 'lucide-react';
 import { parseSiteCSV, importSites, downloadSiteTemplate } from '@/lib/site-import';
-import { EntityRelationshipSelector, EntityRelationship } from '@/components/forms/EntityRelationshipSelector';
-import { saveEntityRelationships, EntityRelationshipData } from '@/utils/entity-relationships';
 import { LocationPicker } from '@/components/ui/location-picker';
 
 // GCC Countries list
@@ -53,7 +51,6 @@ const AddSite = () => {
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [uploadedImages, setUploadedImages] = useState<File[]>([]);
-  const [relationships, setRelationships] = useState<EntityRelationshipData[]>([]);
   const [companies, setCompanies] = useState<any[]>([]);
   const [contacts, setContacts] = useState<any[]>([]);
 
@@ -178,11 +175,6 @@ const AddSite = () => {
         .single();
 
       if (error) throw error;
-
-      // Save entity relationships if any exist
-      if (relationships.length > 0) {
-        await saveEntityRelationships('site', siteData.id, relationships, currentTenant.id);
-      }
 
       // If customer_id was selected, create a company relationship
       if (customer_id && customer_id.length > 0) {
@@ -579,16 +571,6 @@ const AddSite = () => {
                     form.setValue('latitude', lat);
                     form.setValue('longitude', lng);
                   }}
-                />
-              </div>
-
-              {/* Company Relationships */}
-              <div className="md:col-span-2">
-                <EntityRelationshipSelector
-                  relationships={relationships}
-                  onChange={setRelationships}
-                  title="Site Relationships" 
-                  description="Add companies or contacts related to this site (e.g., contractors, consultants, etc.)"
                 />
               </div>
 
