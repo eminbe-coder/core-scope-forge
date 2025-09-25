@@ -308,13 +308,9 @@ const ContractDetail = () => {
                   </div>
                   {canEdit && (
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => toast.info('Edit payment terms is coming soon')}>
+                      <Button variant="outline" size="sm" onClick={() => navigate(`/contracts/edit/${contract.id}`)}>
                         <Edit className="h-4 w-4 mr-2" />
-                        Edit Terms
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => toast.info('Add installment is coming soon')}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Installment
+                        Edit Contract
                       </Button>
                     </div>
                   )}

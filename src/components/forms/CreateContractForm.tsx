@@ -56,10 +56,27 @@ interface PaymentTerm {
 
 interface CreateContractFormProps {
   deal?: Deal | null;
+  contract?: {
+    id: string;
+    name: string;
+    description?: string;
+    value?: number;
+    currency_id?: string;
+    customer_id?: string;
+    site_id?: string;
+    customer_reference_number?: string;
+    assigned_to?: string;
+    notes?: string;
+    status: string;
+    signed_date?: string;
+    start_date?: string;
+    end_date?: string;
+    solution_category_ids?: string[];
+  };
   onSuccess: () => void;
 }
 
-export const CreateContractForm = ({ deal, onSuccess }: CreateContractFormProps) => {
+export const CreateContractForm = ({ deal, contract, onSuccess }: CreateContractFormProps) => {
   const { currentTenant } = useTenant();
   const [loading, setLoading] = useState(false);
   const [currencies, setCurrencies] = useState<any[]>([]);
@@ -75,7 +92,20 @@ export const CreateContractForm = ({ deal, onSuccess }: CreateContractFormProps)
 
   const form = useForm<z.infer<typeof contractSchema>>({
     resolver: zodResolver(contractSchema),
-    defaultValues: deal ? {
+    defaultValues: contract ? {
+      name: contract.name,
+      description: contract.description || '',
+      value: contract.value || undefined,
+      currency_id: contract.currency_id || '',
+      customer_id: contract.customer_id || '',
+      site_id: contract.site_id || '',
+      customer_reference_number: contract.customer_reference_number || '',
+      assigned_to: contract.assigned_to || '',
+      notes: contract.notes || '',
+      signed_date: contract.signed_date || '',
+      end_date: contract.end_date || '',
+      solution_category_ids: contract.solution_category_ids || [],
+    } : deal ? {
       name: deal.name,
       description: deal.description || '',
       value: deal.value || undefined,
@@ -107,6 +137,9 @@ export const CreateContractForm = ({ deal, onSuccess }: CreateContractFormProps)
       fetchData();
       if (deal?.id) {
         fetchDealPaymentTerms();
+      }
+      if (contract?.id) {
+        fetchContractPaymentTerms();
       }
       // Set default currency to tenant's default
       if (currentTenant?.default_currency_id && !deal?.currency_id) {
@@ -173,6 +206,31 @@ export const CreateContractForm = ({ deal, onSuccess }: CreateContractFormProps)
     }
   };
 
+  const fetchContractPaymentTerms = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('contract_payment_terms')
+        .select('*')
+        .eq('contract_id', contract?.id)
+        .order('installment_number');
+
+      if (error) throw error;
+      
+      const terms = data?.map(term => ({
+        installment_number: term.installment_number,
+        amount_type: term.amount_type,
+        amount_value: term.amount_value,
+        due_date: term.due_date || '',
+        stage_id: term.stage_id || paymentStages.find(stage => stage.name === 'Pending')?.id || '',
+        notes: term.notes || '',
+      })) || [];
+
+      setPaymentTerms(terms);
+    } catch (error) {
+      console.error('Error fetching contract payment terms:', error);
+    }
+  };
+
   const addPaymentTerm = () => {
     setPaymentTerms([
       ...paymentTerms,
@@ -213,7 +271,7 @@ export const CreateContractForm = ({ deal, onSuccess }: CreateContractFormProps)
       const paidStage = stages?.find(s => s.name === 'Paid');
 
       // Create contract
-      const { data: contract, error: contractError } = await supabase
+      const { data: contractData, error: contractError } = await supabase
         .from('contracts')
         .insert({
           tenant_id: currentTenant.id,
@@ -266,7 +324,7 @@ export const CreateContractForm = ({ deal, onSuccess }: CreateContractFormProps)
           .from('contract_payment_terms')
           .insert(
             finalPaymentTerms.map((term, index) => ({
-              contract_id: contract.id,
+              contract_id: contractData.id,
               tenant_id: currentTenant.id,
               installment_number: term.installment_number,
               amount_type: term.amount_type,
@@ -289,7 +347,7 @@ export const CreateContractForm = ({ deal, onSuccess }: CreateContractFormProps)
           .from('contract_contacts')
           .insert(
             selectedContacts.map(contactId => ({
-              contract_id: contract.id,
+              contract_id: contractData.id,
               contact_id: contactId,
               role: 'contact',
             }))
@@ -304,7 +362,7 @@ export const CreateContractForm = ({ deal, onSuccess }: CreateContractFormProps)
           .from('contract_companies')
           .insert(
             selectedCompanies.map(companyId => ({
-              contract_id: contract.id,
+              contract_id: contractData.id,
               company_id: companyId,
               relationship_type: 'client',
             }))
@@ -313,11 +371,11 @@ export const CreateContractForm = ({ deal, onSuccess }: CreateContractFormProps)
         if (companiesError) throw companiesError;
       }
 
-      toast.success('Contract created successfully');
+      toast.success(contract?.id ? 'Contract updated successfully' : 'Contract created successfully');
       onSuccess();
     } catch (error) {
       console.error('Error creating contract:', error);
-      toast.error('Failed to create contract');
+      toast.error(contract?.id ? 'Failed to update contract' : 'Failed to create contract');
     } finally {
       setLoading(false);
     }

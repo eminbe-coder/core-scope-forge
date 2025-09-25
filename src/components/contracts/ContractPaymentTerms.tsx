@@ -2,17 +2,18 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-
-
+import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Calendar, DollarSign, Clock, CheckCircle, FileText, Upload } from 'lucide-react';
+import { Calendar, DollarSign, Clock, CheckCircle, FileText, Upload, Edit } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { toast } from 'sonner';
 import { TodoWidget } from '@/components/todos/TodoWidget';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { EditPaymentForm } from '@/components/forms/EditPaymentForm';
 interface PaymentTerm {
   id: string;
+  contract_id: string;
   installment_number: number;
   name?: string;
   amount_type: string;
@@ -48,6 +49,7 @@ export const ContractPaymentTerms = ({
   const [tenantCurrency, setTenantCurrency] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [canUserEdit, setCanUserEdit] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<PaymentTerm | null>(null);
   const autoUpdatingRef = useRef(false);
   const initialLoadRef = useRef(false);
   useEffect(() => {
@@ -391,6 +393,16 @@ export const ContractPaymentTerms = ({
   const getPaymentAttachments = (paymentTermId: string) => {
     return attachments.filter(att => att.payment_term_id === paymentTermId);
   };
+
+  const handleEditPayment = (payment: PaymentTerm) => {
+    setEditingPayment(payment);
+  };
+
+  const handleEditPaymentSuccess = () => {
+    setEditingPayment(null);
+    fetchData();
+    onUpdate();
+  };
   if (loading) {
     return <Card>
         <CardContent className="p-6">
@@ -424,6 +436,19 @@ export const ContractPaymentTerms = ({
                     <span>{paymentTerm.name || `Instalment ${paymentTerm.installment_number}`}</span>
                   </CardTitle>
                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                     {canUserEdit && canEdit && (
+                       <Button
+                         variant="outline"
+                         size="sm"
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           handleEditPayment(paymentTerm);
+                         }}
+                       >
+                         <Edit className="h-3 w-3 mr-1" />
+                         Edit
+                       </Button>
+                     )}
                      {canUserEdit && canEdit ? (
                        <DropdownMenu>
                          <DropdownMenuTrigger asChild>
@@ -526,5 +551,14 @@ export const ContractPaymentTerms = ({
               </CardContent>
             </Card>;
     })}
+    
+    {editingPayment && (
+      <EditPaymentForm
+        payment={editingPayment}
+        contractId={contractId}
+        onSuccess={handleEditPaymentSuccess}
+        onCancel={() => setEditingPayment(null)}
+      />
+    )}
     </div>;
 };
