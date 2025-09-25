@@ -475,8 +475,8 @@ export default function InstallmentDetail() {
               </CardHeader>
               <CardContent>
                 <TodoWidget 
-                  entityType="contract" 
-                  entityId={contract.id} 
+                  entityType="installment" 
+                  entityId={payment.id} 
                   paymentTermId={payment.id}
                   canEdit={canEdit} 
                   compact={false}

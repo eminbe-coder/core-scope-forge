@@ -12,6 +12,7 @@ interface QuickAddTodoFormProps {
   trigger?: React.ReactNode;
   defaultEntityType?: string;
   defaultEntityId?: string;
+  paymentTermId?: string;
 }
 
 const ENTITY_TYPES = [
@@ -32,9 +33,10 @@ const INSTALLMENT_PARENT_TYPES = [
 
 export const QuickAddTodoForm = ({ 
   onSuccess, 
-  trigger,
-  defaultEntityType,
-  defaultEntityId 
+  trigger, 
+  defaultEntityType, 
+  defaultEntityId,
+  paymentTermId 
 }: QuickAddTodoFormProps) => {
   const [open, setOpen] = useState(false);
   const [todoModalOpen, setTodoModalOpen] = useState(false);
@@ -296,6 +298,7 @@ export const QuickAddTodoForm = ({
         <TodoForm
           entityType={defaultEntityType || selectedEntityType}
           entityId={defaultEntityId || selectedEntityId || (selectedEntityType === 'standalone' ? 'standalone' : '')}
+          paymentTermId={paymentTermId}
           onSuccess={handleTodoSuccess}
           defaultOpen={todoModalOpen}
         />
