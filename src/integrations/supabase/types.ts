@@ -4616,7 +4616,7 @@ export type Database = {
           action: string
           created_at: string
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           new_values: Json | null
           old_values: Json | null
           resource_id: string | null
@@ -4629,7 +4629,7 @@ export type Database = {
           action: string
           created_at?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           new_values?: Json | null
           old_values?: Json | null
           resource_id?: string | null
@@ -4642,7 +4642,7 @@ export type Database = {
           action?: string
           created_at?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           new_values?: Json | null
           old_values?: Json | null
           resource_id?: string | null
@@ -5195,7 +5195,7 @@ export type Database = {
         Returns: string
       }
       get_all_tenant_memberships_for_super_admin: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           active: boolean
           created_at: string
@@ -5209,7 +5209,7 @@ export type Database = {
         }[]
       }
       get_all_tenants_for_super_admin: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           active: boolean
           created_at: string
@@ -5222,10 +5222,7 @@ export type Database = {
           updated_at: string
         }[]
       }
-      get_current_tenant_id: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      get_current_tenant_id: { Args: never; Returns: string }
       get_effective_currency: {
         Args: {
           entity_id: string
@@ -5263,14 +5260,8 @@ export type Database = {
         Args: { _tenant_id?: string }
         Returns: boolean
       }
-      is_super_admin: {
-        Args: { _user_id: string }
-        Returns: boolean
-      }
-      is_tenant_admin_for: {
-        Args: { _tenant_id: string }
-        Returns: boolean
-      }
+      is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_tenant_admin_for: { Args: { _tenant_id: string }; Returns: boolean }
       permanently_delete_entity: {
         Args: { _deleted_item_id: string }
         Returns: undefined

@@ -53,6 +53,7 @@ import RecycleBin from "./pages/RecycleBin";
 import RewardHistory from "./pages/RewardHistory";
 import { ContractTestDashboard } from "./components/testing/ContractTestDashboard";
 import DesignCreation from "./pages/DesignCreation";
+import ProjectDetail from "./pages/ProjectDetail";
 import Activities from "./pages/Activities";
 import Todos from "./pages/Todos";
 import MyTodos from "./pages/MyTodos";
@@ -235,6 +236,11 @@ const App = () => (
                   <Route path="/projects" element={
                     <ProtectedRoute>
                       <DesignCreation />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/projects/:id" element={
+                    <ProtectedRoute>
+                      <ProjectDetail />
                     </ProtectedRoute>
                   } />
                   <Route path="/browse-devices" element={
