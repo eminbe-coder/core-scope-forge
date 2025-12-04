@@ -201,7 +201,7 @@ export function DeviceImportDialog({ open, onOpenChange, onImportComplete, isGlo
         true // Include generation columns for dynamic SKU/Description support
       );
       
-      const blob = new Blob([templateData], { 
+      const blob = new Blob([templateData as BlobPart], { 
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
       });
       
