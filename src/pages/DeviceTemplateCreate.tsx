@@ -125,6 +125,64 @@ export default function DeviceTemplateCreate() {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [autoSaveId, setAutoSaveId] = useState<string | null>(null);
+  const [hasLoadedDraft, setHasLoadedDraft] = useState(false);
+
+  // Generate a unique storage key for this form session
+  const getStorageKey = () => {
+    const isGlobal = new URLSearchParams(window.location.search).get('global') === 'true';
+    const editId = new URLSearchParams(window.location.search).get('edit') || id;
+    if (editId) {
+      return `device-template-draft-edit-${editId}`;
+    }
+    return `device-template-draft-create-${isGlobal ? 'global' : 'tenant'}`;
+  };
+
+  // Save to localStorage on every template change
+  useEffect(() => {
+    if (!hasLoadedDraft) return; // Don't save until we've loaded any existing draft
+    
+    const storageKey = getStorageKey();
+    const dataToSave = {
+      template,
+      activeTab,
+      savedAt: new Date().toISOString()
+    };
+    localStorage.setItem(storageKey, JSON.stringify(dataToSave));
+  }, [template, activeTab, hasLoadedDraft]);
+
+  // Load from localStorage on mount (runs once)
+  useEffect(() => {
+    if (isEditMode) return; // Don't load localStorage draft in edit mode - will load from DB
+    
+    const storageKey = getStorageKey();
+    const savedData = localStorage.getItem(storageKey);
+    
+    if (savedData) {
+      try {
+        const parsed = JSON.parse(savedData);
+        if (parsed.template) {
+          setTemplate(parsed.template);
+          if (parsed.activeTab) {
+            setActiveTab(parsed.activeTab);
+          }
+          toast.info("Restored unsaved draft", { duration: 3000 });
+        }
+      } catch (e) {
+        console.error('Failed to parse saved draft:', e);
+        localStorage.removeItem(storageKey);
+      }
+    }
+    setHasLoadedDraft(true);
+  }, []);
+
+  // Clear localStorage draft after successful save
+  const clearLocalDraft = () => {
+    const storageKey = getStorageKey();
+    localStorage.removeItem(storageKey);
+    // Also clear the other potential key (in case user switched between global/tenant)
+    localStorage.removeItem(`device-template-draft-create-global`);
+    localStorage.removeItem(`device-template-draft-create-tenant`);
+  };
 
   // Fixed properties that are always available in formulas
   const getFixedProperties = (): DeviceTemplateProperty[] => {
@@ -491,6 +549,7 @@ export default function DeviceTemplateCreate() {
         navigate('/global-admin');
       } finally {
         setLoading(false);
+        setHasLoadedDraft(true);
       }
     };
 
@@ -724,6 +783,9 @@ export default function DeviceTemplateCreate() {
           .delete()
           .eq('id', autoSaveId);
       }
+      
+      // Clear localStorage draft
+      clearLocalDraft();
 
       toast.success(isEditMode ? "Template updated successfully" : "Template created successfully");
       navigate('/global-admin');
