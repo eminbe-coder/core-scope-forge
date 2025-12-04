@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Edit, Trash2, Eye } from 'lucide-react';
+import { Plus, Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,12 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useNavigate } from 'react-router-dom';
+import { DeleteConfirmationModal } from '@/components/modals/DeleteConfirmationModal';
+
+interface DeviceType {
+  id: string;
+  name: string;
+}
 
 interface DeviceTemplate {
   id: string;
@@ -22,11 +28,16 @@ interface DeviceTemplate {
   created_at: string;
   updated_at: string;
   deleted_at?: string;
+  device_type_id?: string;
+  device_type?: DeviceType;
 }
 
 export default function GlobalDeviceTemplates() {
   const [templates, setTemplates] = useState<DeviceTemplate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [templateToDelete, setTemplateToDelete] = useState<DeviceTemplate | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -39,9 +50,13 @@ export default function GlobalDeviceTemplates() {
       setLoading(true);
       const { data, error } = await supabase
         .from('device_templates')
-        .select('*')
+        .select(`
+          *,
+          device_type:device_types(id, name)
+        `)
         .eq('is_global', true)
-        .is('deleted_at', null) // Fix soft delete filtering
+        .eq('active', true)
+        .is('deleted_at', null)
         .order('name');
       
       if (error) throw error;
@@ -58,6 +73,54 @@ export default function GlobalDeviceTemplates() {
     }
   };
 
+  const handleEdit = (templateId: string) => {
+    navigate(`/device-templates/create?edit=${templateId}&global=true`);
+  };
+
+  const handleDelete = (template: DeviceTemplate) => {
+    setTemplateToDelete(template);
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!templateToDelete) return;
+    
+    try {
+      setDeleting(true);
+      const { error } = await supabase
+        .from('device_templates')
+        .update({ active: false, deleted_at: new Date().toISOString() })
+        .eq('id', templateToDelete.id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: "Template deleted successfully"
+      });
+      
+      loadGlobalTemplates();
+    } catch (error) {
+      console.error('Error deleting template:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete template",
+        variant: "destructive"
+      });
+    } finally {
+      setDeleting(false);
+      setDeleteModalOpen(false);
+      setTemplateToDelete(null);
+    }
+  };
+
+  const getPropertiesCount = (schema: any) => {
+    if (!schema) return 0;
+    if (Array.isArray(schema)) return schema.length;
+    if (typeof schema === 'object') return Object.keys(schema).length;
+    return 0;
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -65,12 +128,12 @@ export default function GlobalDeviceTemplates() {
           <div>
             <h1 className="text-3xl font-bold">Global Device Templates</h1>
             <p className="text-muted-foreground">
-              View global device templates. For full management, visit the Global Admin panel.
+              Manage global device templates available to all tenants
             </p>
           </div>
-          <Button onClick={() => navigate('/global-admin')}>
-            <Edit className="w-4 h-4 mr-2" />
-            Manage Templates
+          <Button onClick={() => navigate('/device-templates/create?global=true')}>
+            <Plus className="w-4 h-4 mr-2" />
+            Create Template
           </Button>
         </div>
 
@@ -84,6 +147,10 @@ export default function GlobalDeviceTemplates() {
           <CardContent>
             {loading ? (
               <div className="text-center py-8">Loading global templates...</div>
+            ) : templates.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No global templates found. Create your first template to get started.
+              </div>
             ) : (
               <Table>
                 <TableHeader>
@@ -93,7 +160,7 @@ export default function GlobalDeviceTemplates() {
                     <TableHead>Properties</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Created</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -110,10 +177,12 @@ export default function GlobalDeviceTemplates() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">{template.category}</Badge>
+                        <Badge variant="outline">
+                          {template.device_type?.name || template.category || 'Uncategorized'}
+                        </Badge>
                       </TableCell>
                       <TableCell>
-                        {Object.keys(template.properties_schema || {}).length} properties
+                        {getPropertiesCount(template.properties_schema)} properties
                       </TableCell>
                       <TableCell>
                         <Badge variant={template.active ? "default" : "secondary"}>
@@ -124,13 +193,21 @@ export default function GlobalDeviceTemplates() {
                         {new Date(template.created_at).toLocaleDateString()}
                       </TableCell>
                       <TableCell>
-                        <div className="flex space-x-2">
+                        <div className="flex justify-end space-x-2">
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => navigate('/global-admin')}
+                            onClick={() => handleEdit(template.id)}
                           >
-                            <Eye className="w-4 h-4" />
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => handleDelete(template)}
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
                       </TableCell>
@@ -141,22 +218,19 @@ export default function GlobalDeviceTemplates() {
             )}
           </CardContent>
         </Card>
-
-        {/* Note: Full template management is available in Global Admin */}
-        <Card className="mt-8">
-          <CardContent className="py-8">
-            <div className="text-center space-y-4">
-              <h3 className="text-lg font-semibold">Need to manage templates?</h3>
-              <p className="text-muted-foreground">
-                Visit the Global Admin panel for full template creation, editing, and management capabilities.
-              </p>
-              <Button onClick={() => navigate('/global-admin')}>
-                Go to Global Admin
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
       </div>
+
+      <DeleteConfirmationModal
+        open={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setTemplateToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        title="Delete Template"
+        description={`Are you sure you want to delete "${templateToDelete?.name}"? This action cannot be undone.`}
+        isDeleting={deleting}
+      />
     </DashboardLayout>
   );
 }
