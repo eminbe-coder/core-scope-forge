@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,8 +30,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { CalendarIcon, Plus, Trash2 } from 'lucide-react';
+import { CalendarIcon, Plus, Trash2, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { DeviceBrowserDialog, SelectedDevice } from '@/components/projects/DeviceBrowserDialog';
 
 interface Deal {
   id: string;
@@ -64,6 +66,7 @@ interface CreateProjectFormProps {
 }
 
 export const CreateProjectForm = ({ isOpen, onClose, onSuccess }: CreateProjectFormProps) => {
+  const navigate = useNavigate();
   const { currentTenant } = useTenant();
   const { toast } = useToast();
   
@@ -82,7 +85,9 @@ export const CreateProjectForm = ({ isOpen, onClose, onSuccess }: CreateProjectF
   const [deals, setDeals] = useState<Deal[]>([]);
   const [devices, setDevices] = useState<Device[]>([]);
   const [selectedDevices, setSelectedDevices] = useState<ProjectDevice[]>([]);
+  const [selectedBOQDevices, setSelectedBOQDevices] = useState<SelectedDevice[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isDeviceBrowserOpen, setIsDeviceBrowserOpen] = useState(false);
 
   const fetchDeals = async () => {
     if (!currentTenant) return;
@@ -178,18 +183,25 @@ export const CreateProjectForm = ({ isOpen, onClose, onSuccess }: CreateProjectF
 
       if (projectError) throw projectError;
 
-      // Add devices to project
-      if (selectedDevices.length > 0) {
-        const deviceData = selectedDevices.map(device => ({
-          project_id: project.id,
-          device_id: device.device_id,
-          quantity: device.quantity,
-          unit_price: device.unit_price || null,
-        }));
+      // Add devices to project (for BOQ type, use selectedBOQDevices)
+      const devicesToAdd = formData.type === 'BOQ' 
+        ? selectedBOQDevices.map(d => ({
+            project_id: project.id,
+            device_id: d.device_id,
+            quantity: d.quantity,
+            unit_price: d.unit_price,
+          }))
+        : selectedDevices.map(device => ({
+            project_id: project.id,
+            device_id: device.device_id,
+            quantity: device.quantity,
+            unit_price: device.unit_price || null,
+          }));
 
+      if (devicesToAdd.length > 0) {
         const { error: devicesError } = await supabase
           .from('project_devices')
-          .insert(deviceData);
+          .insert(devicesToAdd);
 
         if (devicesError) throw devicesError;
       }
@@ -198,6 +210,13 @@ export const CreateProjectForm = ({ isOpen, onClose, onSuccess }: CreateProjectF
         title: 'Success',
         description: 'Project created successfully',
       });
+
+      // For BOQ type, navigate to project detail page
+      if (formData.type === 'BOQ') {
+        handleClose();
+        navigate(`/projects/${project.id}`);
+        return;
+      }
 
       onSuccess();
       handleClose();
@@ -213,6 +232,10 @@ export const CreateProjectForm = ({ isOpen, onClose, onSuccess }: CreateProjectF
     }
   };
 
+  const handleBOQDevicesConfirm = (devices: SelectedDevice[]) => {
+    setSelectedBOQDevices(devices);
+  };
+
   const handleClose = () => {
     setFormData({
       name: '',
@@ -225,6 +248,7 @@ export const CreateProjectForm = ({ isOpen, onClose, onSuccess }: CreateProjectF
       end_date: undefined,
       notes: '',
     });
+    setSelectedBOQDevices([]);
     setSelectedDevices([]);
     onClose();
   };
@@ -380,68 +404,102 @@ export const CreateProjectForm = ({ isOpen, onClose, onSuccess }: CreateProjectF
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label>Project Devices</Label>
-              <Button type="button" variant="outline" size="sm" onClick={addDevice}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Device
-              </Button>
-            </div>
-            
-            {selectedDevices.map((projectDevice, index) => (
-              <div key={index} className="grid grid-cols-12 gap-2 items-end">
-                <div className="col-span-6">
-                  <Select 
-                    value={projectDevice.device_id} 
-                    onValueChange={(value) => updateDevice(index, 'device_id', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select device" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {devices.map((device) => (
-                        <SelectItem key={device.id} value={device.id}>
-                          {device.name} - {device.category}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="col-span-2">
-                  <Input
-                    type="number"
-                    min="1"
-                    value={projectDevice.quantity}
-                    onChange={(e) => updateDevice(index, 'quantity', parseInt(e.target.value) || 1)}
-                    placeholder="Qty"
-                  />
-                </div>
-                
-                <div className="col-span-3">
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={projectDevice.unit_price || ''}
-                    onChange={(e) => updateDevice(index, 'unit_price', parseFloat(e.target.value) || undefined)}
-                    placeholder="Unit price"
-                  />
-                </div>
-                
-                <div className="col-span-1">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => removeDevice(index)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+          {/* BOQ Device Selection */}
+          {formData.type === 'BOQ' ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label>BOQ Devices</Label>
+                <Button type="button" variant="outline" size="sm" onClick={() => setIsDeviceBrowserOpen(true)}>
+                  <Package className="mr-2 h-4 w-4" />
+                  Select Devices
+                </Button>
               </div>
-            ))}
-          </div>
+              
+              {selectedBOQDevices.length > 0 ? (
+                <div className="border rounded-lg p-3 space-y-2 bg-muted/30">
+                  <p className="text-sm font-medium">{selectedBOQDevices.length} device(s) selected</p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedBOQDevices.slice(0, 5).map(d => (
+                      <Badge key={d.device_id} variant="secondary">
+                        {d.device.name} × {d.quantity}
+                      </Badge>
+                    ))}
+                    {selectedBOQDevices.length > 5 && (
+                      <Badge variant="outline">+{selectedBOQDevices.length - 5} more</Badge>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Total: ${selectedBOQDevices.reduce((sum, d) => sum + (d.unit_price * d.quantity), 0).toLocaleString()}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Click "Select Devices" to add items to your BOQ</p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label>Project Devices</Label>
+                <Button type="button" variant="outline" size="sm" onClick={addDevice}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Device
+                </Button>
+              </div>
+              
+              {selectedDevices.map((projectDevice, index) => (
+                <div key={index} className="grid grid-cols-12 gap-2 items-end">
+                  <div className="col-span-6">
+                    <Select 
+                      value={projectDevice.device_id} 
+                      onValueChange={(value) => updateDevice(index, 'device_id', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select device" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {devices.map((device) => (
+                          <SelectItem key={device.id} value={device.id}>
+                            {device.name} - {device.category}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="col-span-2">
+                    <Input
+                      type="number"
+                      min="1"
+                      value={projectDevice.quantity}
+                      onChange={(e) => updateDevice(index, 'quantity', parseInt(e.target.value) || 1)}
+                      placeholder="Qty"
+                    />
+                  </div>
+                  
+                  <div className="col-span-3">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={projectDevice.unit_price || ''}
+                      onChange={(e) => updateDevice(index, 'unit_price', parseFloat(e.target.value) || undefined)}
+                      placeholder="Unit price"
+                    />
+                  </div>
+                  
+                  <div className="col-span-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => removeDevice(index)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleClose}>
@@ -452,6 +510,13 @@ export const CreateProjectForm = ({ isOpen, onClose, onSuccess }: CreateProjectF
             </Button>
           </DialogFooter>
         </form>
+
+        <DeviceBrowserDialog
+          isOpen={isDeviceBrowserOpen}
+          onClose={() => setIsDeviceBrowserOpen(false)}
+          onConfirm={handleBOQDevicesConfirm}
+          initialDevices={selectedBOQDevices}
+        />
       </DialogContent>
     </Dialog>
   );
