@@ -52,7 +52,7 @@ export const DeviceBrowserDialog = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedBrand, setSelectedBrand] = useState<string>('all');
-  const [selectedSource, setSelectedSource] = useState<string>('all');
+  
   const [selectedDevices, setSelectedDevices] = useState<Map<string, SelectedDevice>>(new Map());
 
   useEffect(() => {
@@ -85,7 +85,7 @@ export const DeviceBrowserDialog = ({
           currencies!devices_currency_id_fkey(symbol, code)
         `)
         .eq('active', true)
-        .or(`tenant_id.eq.${currentTenant.id},tenant_id.is.null`)
+        .eq('tenant_id', currentTenant.id)
         .order('name');
 
       if (error) throw error;
@@ -116,13 +116,10 @@ export const DeviceBrowserDialog = ({
       
       const matchesCategory = selectedCategory === 'all' || device.category === selectedCategory;
       const matchesBrand = selectedBrand === 'all' || device.brand === selectedBrand;
-      const matchesSource = selectedSource === 'all' || 
-        (selectedSource === 'global' && !device.tenant_id) ||
-        (selectedSource === 'tenant' && device.tenant_id);
 
-      return matchesSearch && matchesCategory && matchesBrand && matchesSource;
+      return matchesSearch && matchesCategory && matchesBrand;
     });
-  }, [devices, searchTerm, selectedCategory, selectedBrand, selectedSource]);
+  }, [devices, searchTerm, selectedCategory, selectedBrand]);
 
   const toggleDevice = (device: Device) => {
     const newSelected = new Map(selectedDevices);
@@ -167,7 +164,6 @@ export const DeviceBrowserDialog = ({
     setSearchTerm('');
     setSelectedCategory('all');
     setSelectedBrand('all');
-    setSelectedSource('all');
     onClose();
   };
 
@@ -222,16 +218,6 @@ export const DeviceBrowserDialog = ({
                   </SelectContent>
                 </Select>
 
-                <Select value={selectedSource} onValueChange={setSelectedSource}>
-                  <SelectTrigger className="w-32">
-                    <SelectValue placeholder="Source" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Sources</SelectItem>
-                    <SelectItem value="global">Global</SelectItem>
-                    <SelectItem value="tenant">Tenant</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
             </div>
 

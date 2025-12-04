@@ -26,10 +26,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Search, Cpu, DollarSign, Upload, Download } from 'lucide-react';
+import { Plus, Search, Cpu, DollarSign, Upload, Globe } from 'lucide-react';
 import { ImageUpload } from '@/components/ui/image-upload';
 import { DeviceImportDialog } from '@/components/device-import/DeviceImportDialog';
 import { DeviceTemplateForm } from '@/components/device-creation/DeviceTemplateForm';
+import { GlobalDeviceImportDialog } from '@/components/devices/GlobalDeviceImportDialog';
+import { DeviceSyncIndicator } from '@/components/devices/DeviceSyncIndicator';
 
 interface Device {
   id: string;
@@ -41,6 +43,9 @@ interface Device {
   specifications: any;
   active: boolean;
   created_at: string;
+  source_device_id: string | null;
+  sync_version: number | null;
+  import_status: string | null;
   currencies: {
     symbol: string;
   } | null;
@@ -84,6 +89,8 @@ const Devices = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [isGlobalImportDialogOpen, setIsGlobalImportDialogOpen] = useState(false);
+  const [globalSyncVersions, setGlobalSyncVersions] = useState<Record<string, number>>({});
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   
   const [formData, setFormData] = useState({
@@ -117,6 +124,22 @@ const Devices = () => {
 
       if (error) throw error;
       setDevices(data || []);
+      
+      // Fetch sync versions for imported devices
+      const importedDevices = data?.filter(d => d.source_device_id) || [];
+      if (importedDevices.length > 0) {
+        const sourceIds = importedDevices.map(d => d.source_device_id).filter(Boolean);
+        const { data: globalDevices } = await supabase
+          .from('devices')
+          .select('id, sync_version')
+          .in('id', sourceIds);
+        
+        const versions: Record<string, number> = {};
+        globalDevices?.forEach(gd => {
+          versions[gd.id] = gd.sync_version || 1;
+        });
+        setGlobalSyncVersions(versions);
+      }
     } catch (error) {
       console.error('Error fetching devices:', error);
       toast({
@@ -479,8 +502,8 @@ const Devices = () => {
               <Upload className="mr-2 h-4 w-4" />
               Import from Excel
             </Button>
-            <Button variant="outline">
-              <Download className="mr-2 h-4 w-4" />
+            <Button variant="outline" onClick={() => setIsGlobalImportDialogOpen(true)}>
+              <Globe className="mr-2 h-4 w-4" />
               Import from Global
             </Button>
           </div>
@@ -521,6 +544,14 @@ const Devices = () => {
                   <div className="flex items-center gap-2">
                     <Cpu className="h-4 w-4 text-primary" />
                     <CardTitle className="text-lg">{device.name}</CardTitle>
+                    {device.source_device_id && (
+                      <DeviceSyncIndicator
+                        device={device}
+                        globalSyncVersion={globalSyncVersions[device.source_device_id]}
+                        onSyncComplete={fetchDevices}
+                        compact
+                      />
+                    )}
                   </div>
                   <Badge variant="outline">{device.category}</Badge>
                 </CardHeader>
@@ -558,6 +589,12 @@ const Devices = () => {
       <DeviceImportDialog
         open={isImportDialogOpen}
         onOpenChange={setIsImportDialogOpen}
+        onImportComplete={fetchDevices}
+      />
+      
+      <GlobalDeviceImportDialog
+        isOpen={isGlobalImportDialogOpen}
+        onClose={() => setIsGlobalImportDialogOpen(false)}
         onImportComplete={fetchDevices}
       />
     </DashboardLayout>
