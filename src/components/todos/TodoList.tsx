@@ -276,15 +276,11 @@ export const TodoList: React.FC<TodoListProps> = ({
       const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000 - 1);
       
-      // Check if task is created by current user but not assigned to them
-      const isCreatedByMeButNotAssigned = todo.created_by === currentUserId && 
-        (!todo.todo_assignees || todo.todo_assignees.length === 0 || !todo.todo_assignees.some(a => a.user_id === currentUserId));
-
-      // If "Created by me" is ON, show those separately  
-      if (showCreatedByMe && isCreatedByMeButNotAssigned) {
-        return true;
-      }
-
+      // ENTITY CONTEXT MODE: When viewing todos inside an entity widget (entityId + entityType provided),
+      // show ALL tasks linked to that entity regardless of assignment or "created by me" filters.
+      // This ensures users see every task on a Deal, Contract, etc.
+      const isEntityContext = entityType && entityId;
+      
       // Handle completed filter - if OFF, hide completed tasks; if ON, show all statuses
       if (!showCompleted && todo.status === 'completed') {
         return false;
@@ -292,6 +288,41 @@ export const TodoList: React.FC<TodoListProps> = ({
 
       // If showing completed and task is completed, include it
       if (showCompleted && todo.status === 'completed') {
+        return true;
+      }
+
+      // In entity context, skip the "created by me" exclusion logic - show all entity tasks
+      if (isEntityContext) {
+        // Only apply timeframe filter in entity context
+        if (timeframe === 'all') {
+          return true;
+        }
+
+        if (timeframe === 'overdue') {
+          return todo.due_date && new Date(todo.due_date) < startOfDay;
+        }
+
+        if (timeframe === 'due_today') {
+          if (!todo.due_date) return false;
+          const dueDate = new Date(todo.due_date);
+          return dueDate >= startOfDay && dueDate <= endOfDay;
+        }
+
+        if (timeframe === 'later') {
+          if (!todo.due_date) return true;
+          const dueDate = new Date(todo.due_date);
+          return dueDate > endOfDay;
+        }
+
+        return true;
+      }
+
+      // NON-ENTITY CONTEXT (Central To-Do Module): Apply "created by me" filtering
+      const isCreatedByMeButNotAssigned = todo.created_by === currentUserId && 
+        (!todo.todo_assignees || todo.todo_assignees.length === 0 || !todo.todo_assignees.some(a => a.user_id === currentUserId));
+
+      // If "Created by me" is ON, show those separately  
+      if (showCreatedByMe && isCreatedByMeButNotAssigned) {
         return true;
       }
 
