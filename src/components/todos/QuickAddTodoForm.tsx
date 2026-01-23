@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus } from 'lucide-react';
@@ -46,6 +46,15 @@ export const QuickAddTodoForm = ({
   // For installment selection flow
   const [installmentParentType, setInstallmentParentType] = useState<string>('');
   const [installmentParentId, setInstallmentParentId] = useState<string>('');
+
+  // Auto-open todo form when defaults are provided and trigger is hidden
+  useEffect(() => {
+    if (defaultEntityType && defaultEntityId) {
+      setSelectedEntityType(defaultEntityType);
+      setSelectedEntityId(defaultEntityId);
+      setTodoModalOpen(true);
+    }
+  }, [defaultEntityType, defaultEntityId]);
 
   const handleEntitySelection = () => {
     if (selectedEntityType === 'installment') {
