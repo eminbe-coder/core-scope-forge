@@ -3351,6 +3351,275 @@ export type Database = {
           },
         ]
       }
+      quote_items: {
+        Row: {
+          created_at: string
+          description: string | null
+          device_id: string | null
+          id: string
+          margin_percentage: number | null
+          name: string
+          notes: string | null
+          quantity: number
+          quote_version_id: string
+          sku: string | null
+          sort_order: number | null
+          tenant_id: string
+          total_cost: number | null
+          total_price: number | null
+          unit_cost: number
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          device_id?: string | null
+          id?: string
+          margin_percentage?: number | null
+          name: string
+          notes?: string | null
+          quantity?: number
+          quote_version_id: string
+          sku?: string | null
+          sort_order?: number | null
+          tenant_id: string
+          total_cost?: number | null
+          total_price?: number | null
+          unit_cost?: number
+          unit_price?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          device_id?: string | null
+          id?: string
+          margin_percentage?: number | null
+          name?: string
+          notes?: string | null
+          quantity?: number
+          quote_version_id?: string
+          sku?: string | null
+          sort_order?: number | null
+          tenant_id?: string
+          total_cost?: number | null
+          total_price?: number | null
+          unit_cost?: number
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_items_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_items_quote_version_id_fkey"
+            columns: ["quote_version_id"]
+            isOneToOne: false
+            referencedRelation: "quote_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quote_versions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_primary: boolean
+          margin_percentage: number | null
+          notes: string | null
+          quote_id: string
+          tenant_id: string
+          total_amount: number | null
+          updated_at: string
+          version_name: string
+          version_number: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_primary?: boolean
+          margin_percentage?: number | null
+          notes?: string | null
+          quote_id: string
+          tenant_id: string
+          total_amount?: number | null
+          updated_at?: string
+          version_name?: string
+          version_number?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_primary?: boolean
+          margin_percentage?: number | null
+          notes?: string | null
+          quote_id?: string
+          tenant_id?: string
+          total_amount?: number | null
+          updated_at?: string
+          version_name?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_versions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_versions_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_versions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quotes: {
+        Row: {
+          assigned_to: string | null
+          contact_id: string | null
+          created_at: string
+          created_by: string | null
+          currency_id: string | null
+          deal_id: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          expiry_date: string | null
+          id: string
+          name: string
+          notes: string | null
+          reference_number: string | null
+          site_id: string | null
+          status: string
+          tenant_id: string
+          total_amount: number | null
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency_id?: string | null
+          deal_id?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          expiry_date?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          reference_number?: string | null
+          site_id?: string | null
+          status?: string
+          tenant_id: string
+          total_amount?: number | null
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency_id?: string | null
+          deal_id?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          expiry_date?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          reference_number?: string | null
+          site_id?: string | null
+          status?: string
+          tenant_id?: string
+          total_amount?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotes_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_currency_id_fkey"
+            columns: ["currency_id"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       relationship_roles: {
         Row: {
           active: boolean
@@ -5247,6 +5516,10 @@ export type Database = {
           _tenant_id: string
         }
         Returns: boolean
+      }
+      convert_quote_to_project: {
+        Args: { _project_id: string; _quote_id: string; _version_id?: string }
+        Returns: undefined
       }
       create_notification: {
         Args: {

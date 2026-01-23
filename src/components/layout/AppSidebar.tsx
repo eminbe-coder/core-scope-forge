@@ -21,6 +21,7 @@ import {
   MapPin, 
   FolderOpen, 
   Zap,
+  FileSpreadsheet,
   Smartphone,
   Shield,
   Target,
@@ -104,6 +105,12 @@ const tenantModules: NavigationModule[] = [
         title: 'Contracts',
         url: '/contracts',
         icon: FileText,
+        permission: 'crm.deals.view',
+      },
+      {
+        title: 'Quotes',
+        url: '/quotes',
+        icon: FileSpreadsheet,
         permission: 'crm.deals.view',
       },
       {
