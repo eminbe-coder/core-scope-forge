@@ -2,8 +2,12 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, AlertTriangle, Calendar, Clock, User, CheckCircle, X } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Search, AlertTriangle, Calendar, Clock, User, CheckCircle, X, ListFilter } from 'lucide-react';
+
+export type TimeframeFilter = 'all' | 'overdue' | 'due_today' | 'later';
 
 interface TodoFiltersProps {
   searchTerm: string;
@@ -12,12 +16,8 @@ interface TodoFiltersProps {
   onSortChange: (value: string) => void;
   sortOrder: 'asc' | 'desc';
   onSortOrderChange: (value: 'asc' | 'desc') => void;
-  showOverdue: boolean;
-  onShowOverdueChange: (value: boolean) => void;
-  showDue: boolean;
-  onShowDueChange: (value: boolean) => void;
-  showLater: boolean;
-  onShowLaterChange: (value: boolean) => void;
+  timeframe: TimeframeFilter;
+  onTimeframeChange: (value: TimeframeFilter) => void;
   showCreatedByMe: boolean;
   onShowCreatedByMeChange: (value: boolean) => void;
   showCompleted: boolean;
@@ -32,12 +32,8 @@ export const TodoFilters: React.FC<TodoFiltersProps> = ({
   onSortChange,
   sortOrder,
   onSortOrderChange,
-  showOverdue,
-  onShowOverdueChange,
-  showDue,
-  onShowDueChange,
-  showLater,
-  onShowLaterChange,
+  timeframe,
+  onTimeframeChange,
   showCreatedByMe,
   onShowCreatedByMeChange,
   showCompleted,
@@ -48,13 +44,13 @@ export const TodoFilters: React.FC<TodoFiltersProps> = ({
   const hasActiveFilters = searchTerm !== '' || 
     sortBy !== 'due_date' || 
     sortOrder !== 'asc' || 
-    !showOverdue || 
-    !showDue || 
-    !showLater || 
+    timeframe !== 'all' ||
     showCreatedByMe || 
     showCompleted;
+
   return (
     <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
+      {/* Search and Sort Row */}
       <div className="flex items-center gap-4">
         <div className="flex-1">
           <div className="relative">
@@ -89,7 +85,47 @@ export const TodoFilters: React.FC<TodoFiltersProps> = ({
         </Button>
       </div>
 
-      <div className="flex flex-wrap gap-2 items-center">
+      {/* Timeframe Filter - Single Select */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+          <ListFilter className="h-4 w-4" />
+          <span>Show tasks</span>
+        </div>
+        <RadioGroup 
+          value={timeframe} 
+          onValueChange={(value) => onTimeframeChange(value as TimeframeFilter)}
+          className="flex flex-wrap gap-3"
+        >
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="all" id="tf-all" />
+            <Label htmlFor="tf-all" className="cursor-pointer font-normal">All</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="overdue" id="tf-overdue" className="border-destructive text-destructive" />
+            <Label htmlFor="tf-overdue" className="cursor-pointer font-normal flex items-center gap-1 text-destructive">
+              <AlertTriangle className="h-3 w-3" />
+              Overdue
+            </Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="due_today" id="tf-due-today" className="border-primary text-primary" />
+            <Label htmlFor="tf-due-today" className="cursor-pointer font-normal flex items-center gap-1 text-primary">
+              <Calendar className="h-3 w-3" />
+              Due Today
+            </Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="later" id="tf-later" className="border-muted-foreground text-muted-foreground" />
+            <Label htmlFor="tf-later" className="cursor-pointer font-normal flex items-center gap-1 text-muted-foreground">
+              <Clock className="h-3 w-3" />
+              Later
+            </Label>
+          </div>
+        </RadioGroup>
+      </div>
+
+      {/* Toggle Filters */}
+      <div className="flex flex-wrap items-center gap-6 pt-2 border-t border-border">
         {/* Clear All Filters Button */}
         {onClearAllFilters && hasActiveFilters && (
           <Button
@@ -99,85 +135,35 @@ export const TodoFilters: React.FC<TodoFiltersProps> = ({
             className="text-destructive hover:text-destructive hover:bg-destructive/10"
           >
             <X className="h-4 w-4 mr-1" />
-            Clear All Filters
+            Clear All
           </Button>
         )}
-        <Button
-          variant={showOverdue ? 'destructive' : 'outline'}
-          size="sm"
-          onClick={() => onShowOverdueChange(!showOverdue)}
-          className={cn(
-            "relative",
-            showOverdue ? 'bg-red-500 hover:bg-red-600' : 'border-red-200 text-red-600 hover:bg-red-50'
-          )}
-        >
-          <AlertTriangle className="h-4 w-4 mr-1" />
-          Overdue
-          <span className="absolute -top-1 -right-1 text-[8px] bg-background px-1 rounded text-foreground">
-            {showOverdue ? 'ON' : 'OFF'}
-          </span>
-        </Button>
 
-        <Button
-          variant={showDue ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => onShowDueChange(!showDue)}
-          className={cn(
-            "relative",
-            showDue ? 'bg-orange-500 hover:bg-orange-600' : 'border-orange-200 text-orange-600 hover:bg-orange-50'
-          )}
-        >
-          <Calendar className="h-4 w-4 mr-1" />
-          Due Today
-          <span className="absolute -top-1 -right-1 text-[8px] bg-background px-1 rounded text-foreground">
-            {showDue ? 'ON' : 'OFF'}
-          </span>
-        </Button>
+        {/* Created By Me Toggle */}
+        <div className="flex items-center space-x-2">
+          <Switch
+            id="created-by-me"
+            checked={showCreatedByMe}
+            onCheckedChange={onShowCreatedByMeChange}
+          />
+          <Label htmlFor="created-by-me" className="cursor-pointer flex items-center gap-1 text-sm">
+            <User className="h-3.5 w-3.5" />
+            Created by me
+          </Label>
+        </div>
 
-        <Button
-          variant={showLater ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => onShowLaterChange(!showLater)}
-          className={cn(
-            "relative",
-            showLater ? 'bg-yellow-500 hover:bg-yellow-600 text-black' : 'border-yellow-200 text-yellow-600 hover:bg-yellow-50'
-          )}
-        >
-          <Clock className="h-4 w-4 mr-1" />
-          Later
-          <span className="absolute -top-1 -right-1 text-[8px] bg-background px-1 rounded text-foreground">
-            {showLater ? 'ON' : 'OFF'}
-          </span>
-        </Button>
-        
-        <Button
-          variant={showCreatedByMe ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => onShowCreatedByMeChange(!showCreatedByMe)}
-          className="relative"
-        >
-          <User className="h-4 w-4 mr-1" />
-          Created by me
-          <span className="absolute -top-1 -right-1 text-[8px] bg-background px-1 rounded text-foreground">
-            {showCreatedByMe ? 'ON' : 'OFF'}
-          </span>
-        </Button>
-
-        <Button
-          variant={showCompleted ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => onShowCompletedChange(!showCompleted)}
-          className={cn(
-            "relative",
-            showCompleted ? 'bg-green-500 hover:bg-green-600' : 'border-green-200 text-green-600 hover:bg-green-50'
-          )}
-        >
-          <CheckCircle className="h-4 w-4 mr-1" />
-          Completed
-          <span className="absolute -top-1 -right-1 text-[8px] bg-background px-1 rounded text-foreground">
-            {showCompleted ? 'ON' : 'OFF'}
-          </span>
-        </Button>
+        {/* Show Completed Toggle */}
+        <div className="flex items-center space-x-2">
+          <Switch
+            id="show-completed"
+            checked={showCompleted}
+            onCheckedChange={onShowCompletedChange}
+          />
+          <Label htmlFor="show-completed" className="cursor-pointer flex items-center gap-1 text-sm">
+            <CheckCircle className="h-3.5 w-3.5" />
+            Show Completed
+          </Label>
+        </div>
       </div>
     </div>
   );

@@ -34,9 +34,7 @@ interface ExternalFilters {
   searchTerm?: string;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
-  showOverdue?: boolean;
-  showDue?: boolean;
-  showLater?: boolean;
+  timeframe?: 'all' | 'overdue' | 'due_today' | 'later';
   showCreatedByMe?: boolean;
   showCompleted?: boolean;
 }
@@ -101,62 +99,41 @@ export const TodoCalendarView: React.FC<TodoCalendarViewProps> = ({
           return false;
         }
 
-        // Group filters - show nothing if no filters are active
-        const hasActiveGroupFilters = externalFilters.showOverdue || externalFilters.showDue || externalFilters.showLater || externalFilters.showCompleted || externalFilters.showCreatedByMe;
-        
-        if (!hasActiveGroupFilters) {
-          return false; // Show nothing when all toggles are OFF
-        }
-
         const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000 - 1);
-        
-        let belongsToSelectedGroup = false;
+        const timeframe = externalFilters.timeframe || 'all';
 
-        // Check if task is created by current user but not assigned to them
-        // For now, we'll use a placeholder since we don't have current user context
-        const isCreatedByMeButNotAssigned = false; // todo.created_by === currentUser?.id && !todo.assigned_to
-
-        // Date-based groups (only for tasks NOT created by user and not assigned to them, and not completed)
-        const isEligibleForDateGroups = todo.status !== 'completed' && !isCreatedByMeButNotAssigned;
-
-        if (isEligibleForDateGroups) {
-          // Overdue group
-          if (externalFilters.showOverdue && todo.due_date && new Date(todo.due_date) < startOfDay) {
-            belongsToSelectedGroup = true;
-          }
-          
-          // Due Today group
-          if (externalFilters.showDue && todo.due_date) {
-            const dueDate = new Date(todo.due_date);
-            if (dueDate >= startOfDay && dueDate <= endOfDay) {
-              belongsToSelectedGroup = true;
-            }
-          }
-          
-          // Later group (future dates or no due date)
-          if (externalFilters.showLater) {
-            if (!todo.due_date) {
-              belongsToSelectedGroup = true;
-            } else {
-              const dueDate = new Date(todo.due_date);
-              if (dueDate > endOfDay) {
-                belongsToSelectedGroup = true;
-              }
-            }
-          }
+        // Handle completed filter - if OFF, hide completed tasks; if ON, show all statuses
+        if (!externalFilters.showCompleted && todo.status === 'completed') {
+          return false;
         }
-        
-        // Completed group
+
+        // If showing completed and task is completed, include it
         if (externalFilters.showCompleted && todo.status === 'completed') {
-          belongsToSelectedGroup = true;
+          return true;
         }
-        
-        // Created by me group (would need current user context)
-        if (externalFilters.showCreatedByMe && isCreatedByMeButNotAssigned) {
-          belongsToSelectedGroup = true;
+
+        // Timeframe filter (single-select)
+        if (timeframe === 'all') {
+          return true; // Show all non-completed tasks
         }
-        
-        return belongsToSelectedGroup;
+
+        if (timeframe === 'overdue') {
+          return todo.due_date && new Date(todo.due_date) < startOfDay;
+        }
+
+        if (timeframe === 'due_today') {
+          if (!todo.due_date) return false;
+          const dueDate = new Date(todo.due_date);
+          return dueDate >= startOfDay && dueDate <= endOfDay;
+        }
+
+        if (timeframe === 'later') {
+          if (!todo.due_date) return true; // No due date = Later
+          const dueDate = new Date(todo.due_date);
+          return dueDate > endOfDay;
+        }
+
+        return true;
       });
     }
 
