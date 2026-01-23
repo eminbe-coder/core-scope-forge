@@ -9,6 +9,7 @@ import { useTenant } from '@/hooks/use-tenant';
 import { useAuth } from '@/hooks/use-auth';
 import { usePermissions } from '@/hooks/use-permissions';
 import { useToast } from '@/hooks/use-toast';
+import { usePersistentFilters } from '@/hooks/use-persistent-filters';
 import { EntityListing } from '@/components/entity-listing';
 import { DeleteConfirmationModal } from '@/components/modals/DeleteConfirmationModal';
 import { DealFilters, DealFilterOptions } from '@/components/deals/DealFilters';
@@ -75,9 +76,7 @@ const Deals = () => {
   const navigate = useNavigate();
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showArchived, setShowArchived] = useState(false);
-  const [filters, setFilters] = useState<DealFilterOptions>({
+  const defaultDealFilters: DealFilterOptions = {
     selectedStages: [],
     selectedStatuses: [],
     selectedAssignees: [],
@@ -85,7 +84,11 @@ const Deals = () => {
     showNoTasks: false,
     sortBy: 'created_at',
     sortOrder: 'desc',
-  });
+  };
+  
+  const [filters, setFilters, clearFilters] = usePersistentFilters<DealFilterOptions>('deals', defaultDealFilters);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; deal: Deal | null }>({
     open: false,
     deal: null,
@@ -373,6 +376,7 @@ const Deals = () => {
       <DealFilters
         filters={filters}
         onFiltersChange={setFilters}
+        onClearFilters={clearFilters}
         totalResults={filteredDeals.length}
       />
       

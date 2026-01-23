@@ -1,13 +1,22 @@
 import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
-import { Plus, FileText, Calendar, DollarSign } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Plus, FileText, Calendar, DollarSign, Search, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
+import { usePersistentFilters } from '@/hooks/use-persistent-filters';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface Contract {
   id: string;
@@ -34,6 +43,35 @@ const Contracts = () => {
   const [loading, setLoading] = useState(true);
   const { currentTenant } = useTenant();
   const navigate = useNavigate();
+  
+  // Persistent filters for contracts
+  interface ContractFilters {
+    searchTerm: string;
+    statusFilter: string;
+  }
+  const defaultContractFilters: ContractFilters = {
+    searchTerm: '',
+    statusFilter: 'all',
+  };
+  const [contractFilters, setContractFilters, clearContractFilters] = usePersistentFilters<ContractFilters>('contracts', defaultContractFilters);
+  
+  const searchTerm = contractFilters.searchTerm;
+  const statusFilter = contractFilters.statusFilter;
+  
+  const setSearchTerm = (value: string) => setContractFilters(prev => ({ ...prev, searchTerm: value }));
+  const setStatusFilter = (value: string) => setContractFilters(prev => ({ ...prev, statusFilter: value }));
+
+  // Filter contracts based on search and status
+  const filteredContracts = contracts.filter(contract => {
+    const matchesSearch = !searchTerm || 
+      contract.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      contract.customers?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      contract.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === 'all' || contract.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
 
   useEffect(() => {
     if (currentTenant?.id) {
@@ -121,23 +159,59 @@ const Contracts = () => {
           </Button>
         </div>
 
-        {contracts.length === 0 ? (
+        {/* Search and Filter Bar */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search contracts..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-8"
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+            </SelectContent>
+          </Select>
+          {(searchTerm || statusFilter !== 'all') && (
+            <Button variant="ghost" size="icon" onClick={clearContractFilters}>
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+
+        {filteredContracts.length === 0 ? (
           <Card>
             <CardContent className="text-center py-12">
               <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No contracts yet</h3>
+              <h3 className="text-lg font-semibold mb-2">
+                {contracts.length === 0 ? 'No contracts yet' : 'No contracts match your filters'}
+              </h3>
               <p className="text-muted-foreground mb-4">
-                Create your first contract to get started
+                {contracts.length === 0 
+                  ? 'Create your first contract to get started' 
+                  : 'Try adjusting your search or filter criteria'}
               </p>
-              <Button onClick={() => navigate('/contracts/add')}>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Contract
-              </Button>
+              {contracts.length === 0 && (
+                <Button onClick={() => navigate('/contracts/add')}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Contract
+                </Button>
+              )}
             </CardContent>
           </Card>
         ) : (
           <div className="grid gap-4">
-            {contracts.map((contract) => (
+            {filteredContracts.map((contract) => (
               <Card 
                 key={contract.id} 
                 className="cursor-pointer hover:shadow-md transition-shadow"
