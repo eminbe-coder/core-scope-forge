@@ -1365,6 +1365,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "contracts_assigned_to_profiles_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "fk_contracts_assigned_to"
             columns: ["assigned_to"]
             isOneToOne: false
@@ -3345,6 +3352,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "projects_assigned_to_profiles_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "projects_currency_id_fkey"
             columns: ["currency_id"]
             isOneToOne: false
@@ -3593,6 +3607,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "quotes_assigned_to_profiles_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "quotes_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
@@ -3601,6 +3622,13 @@ export type Database = {
           },
           {
             foreignKeyName: "quotes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_created_by_profiles_fkey"
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
