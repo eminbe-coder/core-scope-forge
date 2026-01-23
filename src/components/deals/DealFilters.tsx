@@ -32,21 +32,17 @@ interface DealStage {
   name: string;
 }
 
+interface DealStatus {
+  id: string;
+  name: string;
+}
+
 interface Profile {
   id: string;
   first_name: string;
   last_name: string;
   email: string;
 }
-
-const DEAL_STATUSES = [
-  { value: 'lead', label: 'Lead' },
-  { value: 'qualified', label: 'Qualified' },
-  { value: 'proposal', label: 'Proposal' },
-  { value: 'negotiation', label: 'Negotiation' },
-  { value: 'won', label: 'Won' },
-  { value: 'lost', label: 'Lost' },
-];
 
 const SORT_OPTIONS = [
   { value: 'expected_close_date_asc', label: 'Close Date (Earliest)' },
@@ -66,6 +62,7 @@ export const DealFilters = ({ filters, onFiltersChange, totalResults }: DealFilt
   const { user } = useAuth();
   const { getVisibilityLevel, isAdmin } = usePermissions();
   const [stages, setStages] = useState<DealStage[]>([]);
+  const [statuses, setStatuses] = useState<DealStatus[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
   const [visibilityLevel, setVisibilityLevel] = useState<string>('own');
@@ -87,6 +84,16 @@ export const DealFilters = ({ filters, onFiltersChange, totalResults }: DealFilt
         .order('sort_order');
 
       if (stagesData) setStages(stagesData);
+
+      // Fetch deal statuses
+      const { data: statusesData } = await supabase
+        .from('deal_statuses')
+        .select('id, name')
+        .eq('tenant_id', currentTenant.id)
+        .eq('active', true)
+        .order('sort_order');
+
+      if (statusesData) setStatuses(statusesData);
 
       // Fetch profiles based on visibility level
       let profilesQuery = supabase
@@ -315,17 +322,17 @@ export const DealFilters = ({ filters, onFiltersChange, totalResults }: DealFilt
             <div className="space-y-2">
               <Label>Status ({filters.selectedStatuses.length})</Label>
               <div className="border rounded-md p-2 max-h-32 overflow-y-auto">
-                {DEAL_STATUSES.map(status => (
-                  <div key={status.value} className="flex items-center space-x-2 py-1">
+                {statuses.map(status => (
+                  <div key={status.id} className="flex items-center space-x-2 py-1">
                     <input
                       type="checkbox"
-                      id={`status-${status.value}`}
-                      checked={filters.selectedStatuses.includes(status.value)}
-                      onChange={() => handleStatusToggle(status.value)}
+                      id={`status-${status.id}`}
+                      checked={filters.selectedStatuses.includes(status.id)}
+                      onChange={() => handleStatusToggle(status.id)}
                       className="rounded"
                     />
-                    <label htmlFor={`status-${status.value}`} className="text-sm">
-                      {status.label}
+                    <label htmlFor={`status-${status.id}`} className="text-sm">
+                      {status.name}
                     </label>
                   </div>
                 ))}
