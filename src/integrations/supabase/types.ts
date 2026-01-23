@@ -3289,6 +3289,7 @@ export type Database = {
           id: string
           name: string
           notes: string | null
+          site_id: string | null
           start_date: string | null
           status: Database["public"]["Enums"]["project_status"]
           tenant_id: string
@@ -3308,6 +3309,7 @@ export type Database = {
           id?: string
           name: string
           notes?: string | null
+          site_id?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"]
           tenant_id: string
@@ -3327,6 +3329,7 @@ export type Database = {
           id?: string
           name?: string
           notes?: string | null
+          site_id?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"]
           tenant_id?: string
@@ -3353,6 +3356,13 @@ export type Database = {
             columns: ["deal_id"]
             isOneToOne: false
             referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
             referencedColumns: ["id"]
           },
           {
@@ -5507,7 +5517,20 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      site_history: {
+        Row: {
+          amount: number | null
+          created_at: string | null
+          entity_id: string | null
+          entity_name: string | null
+          entity_type: string | null
+          site_id: string | null
+          site_name: string | null
+          status: string | null
+          tenant_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       award_points: {
