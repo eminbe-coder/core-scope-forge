@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -21,6 +21,7 @@ import { useTenant } from '@/hooks/use-tenant';
 import { usePermissions } from '@/hooks/use-permissions';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
+import { useFormPersist } from '@/hooks/use-form-persist';
 import { Plus, Building2, User, MapPin, Calendar, Trash2 } from 'lucide-react';
 
 const dealSchema = z.object({
@@ -154,6 +155,39 @@ export function CreateDealForm({ leadType, leadId, siteId, siteName, onSuccess }
       solution_category_ids: [],
     },
   });
+
+  // Watch all form values for persistence
+  const watchedValues = form.watch();
+
+  // Combine all form state for persistence
+  const combinedFormState = useMemo(() => ({
+    formValues: watchedValues,
+    paymentTerms,
+    sourceValues,
+    selectedCustomerType,
+  }), [watchedValues, paymentTerms, sourceValues, selectedCustomerType]);
+
+  // Restore function for form state
+  const restoreFormState = useCallback((restored: typeof combinedFormState) => {
+    if (restored.formValues) {
+      Object.entries(restored.formValues).forEach(([key, value]) => {
+        form.setValue(key as keyof DealFormData, value as any);
+      });
+    }
+    if (restored.paymentTerms) setPaymentTerms(restored.paymentTerms);
+    if (restored.sourceValues) setSourceValues(restored.sourceValues);
+    if (restored.selectedCustomerType) setSelectedCustomerType(restored.selectedCustomerType);
+  }, [form]);
+
+  // Form draft persistence - only for new deals (not lead conversions)
+  const { clearDraft } = useFormPersist(
+    leadType && leadId ? '' : 'create_deal', // Skip persistence for lead conversions
+    {
+      data: combinedFormState,
+      setData: restoreFormState,
+      showRestorePrompt: !(leadType && leadId), // Don't show for lead conversions
+    }
+  );
 
   useEffect(() => {
     if (currentTenant) {
@@ -557,6 +591,8 @@ export function CreateDealForm({ leadType, leadId, siteId, siteName, onSuccess }
         description: 'Deal created successfully',
       });
 
+      // Clear draft on successful save
+      clearDraft();
       onSuccess?.();
     } catch (error: any) {
       console.error('Error creating deal:', error);

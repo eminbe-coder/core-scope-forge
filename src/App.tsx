@@ -79,7 +79,14 @@ import VerifyRecoveryEmail from "./pages/VerifyRecoveryEmail";
 
 import RewardSystem from "./pages/RewardSystem";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false, // Stop reloading data when user clicks back on the tab
+      staleTime: 5 * 60 * 1000, // Keep data "fresh" for 5 minutes
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
