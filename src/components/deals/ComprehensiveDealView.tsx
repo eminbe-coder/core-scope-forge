@@ -434,26 +434,46 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
   };
 
   const fetchActivities = async () => {
+    // Fetch from activity_logs table for the deal timeline
     const { data, error } = await supabase
-      .from('activities')
+      .from('activity_logs')
       .select(`
         id,
         title,
         description,
-        type,
-        due_date,
-        completed,
+        activity_type,
         created_at,
-        created_by,
-        profiles!activities_created_by_fkey(first_name, last_name)
+        created_by
       `)
-      .eq('deal_id', deal.id)
-      .in('type', ['note', 'call', 'email', 'meeting'])
+      .eq('entity_type', 'deal')
+      .eq('entity_id', deal.id)
       .order('created_at', { ascending: false })
-      .limit(10);
+      .limit(20);
 
     if (error) throw error;
-    setActivities(data || []);
+    
+    // Fetch user profiles and map to expected format
+    const activitiesWithProfiles = await Promise.all(
+      (data || []).map(async (activity) => {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', activity.created_by)
+          .single();
+        
+        return {
+          id: activity.id,
+          title: activity.title,
+          description: activity.description,
+          type: activity.activity_type,
+          created_at: activity.created_at,
+          created_by: activity.created_by,
+          profiles: profile || null
+        };
+      })
+    );
+    
+    setActivities(activitiesWithProfiles);
   };
 
   const fetchTodos = async () => {
@@ -755,20 +775,21 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Write to activity_logs instead of activities
       await supabase
-        .from('activities')
+        .from('activity_logs')
         .insert({
           tenant_id: currentTenant.id,
-          deal_id: deal.id,
-          type: 'note',
-          title: 'Note',
+          entity_type: 'deal',
+          entity_id: deal.id,
+          activity_type: 'note',
+          title: 'Note Added',
           description: newNote,
           created_by: user.id,
         });
 
       setNewNote('');
       await fetchActivities();
-      await fetchTodos(); // Refresh todos in case the note was related to a task
       
       toast({
         title: 'Success',
@@ -1810,10 +1831,10 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
               
               {/* Activity list */}
               <div className="space-y-3 max-h-96 overflow-y-auto">
-                {activities.filter(activity => activity.type !== 'task').map((activity) => (
+                {activities.map((activity) => (
                   <div key={activity.id} className="flex gap-3 p-3 bg-muted rounded-lg">
                     <div className="flex-shrink-0 mt-1">
-                      <Activity className="h-4 w-4 text-green-500" />
+                      <Activity className="h-4 w-4 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
                       {activity.title && (
@@ -1832,7 +1853,7 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
                   </div>
                 ))}
                 
-                {activities.filter(activity => activity.type !== 'task').length === 0 && (
+                {activities.length === 0 && (
                   <div className="text-center py-4 text-muted-foreground">
                     No activities yet
                   </div>

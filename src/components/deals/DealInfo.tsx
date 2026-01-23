@@ -826,13 +826,15 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) return;
 
+      // Write to activity_logs instead of activities
       const { error } = await supabase
-        .from('activities')
+        .from('activity_logs')
         .insert({
           tenant_id: currentTenant.id,
-          deal_id: deal.id,
-          type: 'note',
-          title: 'Deal Note',
+          entity_type: 'deal',
+          entity_id: deal.id,
+          activity_type: 'note',
+          title: 'Note Added',
           description: newNote.trim(),
           created_by: user.user.id,
         });

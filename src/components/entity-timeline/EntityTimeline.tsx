@@ -38,8 +38,12 @@ interface ActivityLog {
   };
 }
 
-interface DealActivitiesProps {
-  dealId: string;
+interface EntityTimelineProps {
+  entityType: string;
+  entityId: string;
+  title?: string;
+  maxHeight?: string;
+  compact?: boolean;
 }
 
 const getActivityIcon = (activityType: string) => {
@@ -131,18 +135,23 @@ const getActivityLabel = (activityType: string) => {
   }
 };
 
-export const DealActivities = ({ dealId }: DealActivitiesProps) => {
+export const EntityTimeline = ({ 
+  entityType, 
+  entityId, 
+  title = "Activity Timeline",
+  maxHeight = "400px",
+  compact = false
+}: EntityTimelineProps) => {
   const { currentTenant } = useTenant();
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchActivities = async () => {
-    if (!dealId || !currentTenant) return;
+    if (!currentTenant || !entityId) return;
 
     try {
       setLoading(true);
       
-      // Fetch from activity_logs table instead of activities
       const { data, error } = await supabase
         .from('activity_logs')
         .select(`
@@ -156,8 +165,8 @@ export const DealActivities = ({ dealId }: DealActivitiesProps) => {
           created_at
         `)
         .eq('tenant_id', currentTenant.id)
-        .eq('entity_type', 'deal')
-        .eq('entity_id', dealId)
+        .eq('entity_type', entityType)
+        .eq('entity_id', entityId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -180,7 +189,7 @@ export const DealActivities = ({ dealId }: DealActivitiesProps) => {
 
       setActivities(activitiesWithProfiles);
     } catch (error) {
-      console.error('Error fetching activities:', error);
+      console.error('Error fetching activity timeline:', error);
     } finally {
       setLoading(false);
     }
@@ -188,13 +197,16 @@ export const DealActivities = ({ dealId }: DealActivitiesProps) => {
 
   useEffect(() => {
     fetchActivities();
-  }, [dealId, currentTenant]);
+  }, [currentTenant, entityType, entityId]);
 
   if (loading) {
     return (
       <Card>
-        <CardContent className="py-8">
-          <div className="text-center text-muted-foreground">Loading activities...</div>
+        <CardHeader className={compact ? "pb-2" : undefined}>
+          <CardTitle className={compact ? "text-base" : undefined}>{title}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center text-muted-foreground py-4">Loading timeline...</div>
         </CardContent>
       </Card>
     );
@@ -203,12 +215,15 @@ export const DealActivities = ({ dealId }: DealActivitiesProps) => {
   if (activities.length === 0) {
     return (
       <Card>
-        <CardContent className="py-8">
-          <div className="text-center">
-            <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">No activities logged yet.</p>
+        <CardHeader className={compact ? "pb-2" : undefined}>
+          <CardTitle className={compact ? "text-base" : undefined}>{title}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <Clock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <p className="text-muted-foreground">No activity recorded yet</p>
             <p className="text-xs text-muted-foreground mt-2">
-              Activities will appear here when you log interactions, make changes to the deal, or create tasks.
+              Activities will appear here when changes are made
             </p>
           </div>
         </CardContent>
@@ -217,63 +232,76 @@ export const DealActivities = ({ dealId }: DealActivitiesProps) => {
   }
 
   return (
-    <ScrollArea className="max-h-[500px] pr-4">
-      <div className="relative">
-        {/* Timeline line */}
-        <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border" />
-        
-        <div className="space-y-4">
-          {activities.map((activity) => (
-            <div key={activity.id} className="relative flex gap-4 pl-1">
-              {/* Timeline dot */}
-              <div className={cn(
-                "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white",
-                getActivityColor(activity.activity_type)
-              )}>
-                {getActivityIcon(activity.activity_type)}
-              </div>
-              
-              {/* Content */}
-              <div className="flex-1 rounded-lg border bg-card p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-sm">
-                        {activity.title}
-                      </span>
-                      <Badge variant="secondary" className="text-xs shrink-0">
-                        {getActivityLabel(activity.activity_type)}
-                      </Badge>
-                    </div>
-                    
-                    {activity.description && (
-                      <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">
-                        {activity.description}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    <span>{format(new Date(activity.created_at), 'MMM d, yyyy h:mm a')}</span>
+    <Card>
+      <CardHeader className={compact ? "pb-2" : undefined}>
+        <CardTitle className={compact ? "text-base" : undefined}>{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ScrollArea style={{ maxHeight }} className="pr-4">
+          <div className="relative">
+            {/* Timeline line */}
+            <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border" />
+            
+            <div className="space-y-4">
+              {activities.map((activity, index) => (
+                <div key={activity.id} className="relative flex gap-4 pl-1">
+                  {/* Timeline dot */}
+                  <div className={cn(
+                    "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white",
+                    getActivityColor(activity.activity_type)
+                  )}>
+                    {getActivityIcon(activity.activity_type)}
                   </div>
                   
-                  {activity.created_by_profile && (
-                    <div className="flex items-center gap-1">
-                      <User className="h-3 w-3" />
-                      <span>
-                        {activity.created_by_profile.first_name} {activity.created_by_profile.last_name}
-                      </span>
+                  {/* Content */}
+                  <div className={cn(
+                    "flex-1 rounded-lg border bg-card p-3",
+                    compact ? "py-2" : undefined
+                  )}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={cn(
+                            "font-medium",
+                            compact ? "text-sm" : undefined
+                          )}>
+                            {activity.title}
+                          </span>
+                          <Badge variant="secondary" className="text-xs shrink-0">
+                            {getActivityLabel(activity.activity_type)}
+                          </Badge>
+                        </div>
+                        
+                        {activity.description && (
+                          <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">
+                            {activity.description}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  )}
+                    
+                    <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        <span>{format(new Date(activity.created_at), 'MMM d, yyyy h:mm a')}</span>
+                      </div>
+                      
+                      {activity.created_by_profile && (
+                        <div className="flex items-center gap-1">
+                          <User className="h-3 w-3" />
+                          <span>
+                            {activity.created_by_profile.first_name} {activity.created_by_profile.last_name}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </div>
-    </ScrollArea>
+          </div>
+        </ScrollArea>
+      </CardContent>
+    </Card>
   );
 };
