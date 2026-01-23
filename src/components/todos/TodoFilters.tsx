@@ -5,9 +5,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Search, AlertTriangle, Calendar, Clock, User, CheckCircle, X, ListFilter } from 'lucide-react';
+import { Search, AlertTriangle, Calendar, Clock, CheckCircle, X, ListFilter, User, Users, Eye } from 'lucide-react';
 
 export type TimeframeFilter = 'all' | 'overdue' | 'due_today' | 'later';
+export type PerspectiveFilter = 'my_assigned' | 'created_by_me' | 'all_accessible';
 
 interface TodoFiltersProps {
   searchTerm: string;
@@ -18,8 +19,8 @@ interface TodoFiltersProps {
   onSortOrderChange: (value: 'asc' | 'desc') => void;
   timeframe: TimeframeFilter;
   onTimeframeChange: (value: TimeframeFilter) => void;
-  showCreatedByMe: boolean;
-  onShowCreatedByMeChange: (value: boolean) => void;
+  perspective: PerspectiveFilter;
+  onPerspectiveChange: (value: PerspectiveFilter) => void;
   showCompleted: boolean;
   onShowCompletedChange: (value: boolean) => void;
   onClearAllFilters?: () => void;
@@ -34,8 +35,8 @@ export const TodoFilters: React.FC<TodoFiltersProps> = ({
   onSortOrderChange,
   timeframe,
   onTimeframeChange,
-  showCreatedByMe,
-  onShowCreatedByMeChange,
+  perspective,
+  onPerspectiveChange,
   showCompleted,
   onShowCompletedChange,
   onClearAllFilters,
@@ -45,7 +46,7 @@ export const TodoFilters: React.FC<TodoFiltersProps> = ({
     sortBy !== 'due_date' || 
     sortOrder !== 'asc' || 
     timeframe !== 'all' ||
-    showCreatedByMe || 
+    perspective !== 'my_assigned' || 
     showCompleted;
 
   return (
@@ -83,6 +84,41 @@ export const TodoFilters: React.FC<TodoFiltersProps> = ({
         >
           {sortOrder === 'asc' ? '↑' : '↓'}
         </Button>
+      </div>
+
+      {/* Perspective Filter - Selection Group */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+          <Eye className="h-4 w-4" />
+          <span>Perspective</span>
+        </div>
+        <RadioGroup 
+          value={perspective} 
+          onValueChange={(value) => onPerspectiveChange(value as PerspectiveFilter)}
+          className="flex flex-wrap gap-3"
+        >
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="my_assigned" id="p-assigned" className="border-primary text-primary" />
+            <Label htmlFor="p-assigned" className="cursor-pointer font-normal flex items-center gap-1 text-primary">
+              <User className="h-3 w-3" />
+              My Assigned
+            </Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="created_by_me" id="p-created" className="border-muted-foreground text-muted-foreground" />
+            <Label htmlFor="p-created" className="cursor-pointer font-normal flex items-center gap-1">
+              <User className="h-3 w-3" />
+              Created by Me
+            </Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="all_accessible" id="p-all" className="border-muted-foreground text-muted-foreground" />
+            <Label htmlFor="p-all" className="cursor-pointer font-normal flex items-center gap-1">
+              <Users className="h-3 w-3" />
+              All Accessible
+            </Label>
+          </div>
+        </RadioGroup>
       </div>
 
       {/* Timeframe Filter - Single Select */}
@@ -138,19 +174,6 @@ export const TodoFilters: React.FC<TodoFiltersProps> = ({
             Clear All
           </Button>
         )}
-
-        {/* Created By Me Toggle */}
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="created-by-me"
-            checked={showCreatedByMe}
-            onCheckedChange={onShowCreatedByMeChange}
-          />
-          <Label htmlFor="created-by-me" className="cursor-pointer flex items-center gap-1 text-sm">
-            <User className="h-3.5 w-3.5" />
-            Created by me
-          </Label>
-        </div>
 
         {/* Show Completed Toggle */}
         <div className="flex items-center space-x-2">

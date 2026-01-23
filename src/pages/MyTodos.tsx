@@ -51,7 +51,7 @@ const MyTodos = () => {
   const [sortBy, setSortBy] = useState('due_date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [timeframe, setTimeframe] = useState<'all' | 'overdue' | 'due_today' | 'later'>('all');
-  const [showCreatedByMe, setShowCreatedByMe] = useState(false);
+  const [perspective, setPerspective] = useState<'my_assigned' | 'created_by_me' | 'all_accessible'>('my_assigned');
   const [showCompleted, setShowCompleted] = useState(false);
 
   // Clear all filters to default state
@@ -60,7 +60,7 @@ const MyTodos = () => {
     setSortBy('due_date');
     setSortOrder('asc');
     setTimeframe('all');
-    setShowCreatedByMe(false);
+    setPerspective('my_assigned');
     setShowCompleted(false);
   };
 
@@ -422,8 +422,8 @@ const MyTodos = () => {
           onSortOrderChange={setSortOrder}
           timeframe={timeframe}
           onTimeframeChange={setTimeframe}
-          showCreatedByMe={showCreatedByMe}
-          onShowCreatedByMeChange={setShowCreatedByMe}
+          perspective={perspective}
+          onPerspectiveChange={setPerspective}
           showCompleted={showCompleted}
           onShowCompletedChange={setShowCompleted}
           onClearAllFilters={handleClearAllFilters}
@@ -451,7 +451,7 @@ const MyTodos = () => {
                     sortBy,
                     sortOrder,
                     timeframe,
-                    showCreatedByMe,
+                    perspective,
                     showCompleted
                   }}
                 />
@@ -480,7 +480,7 @@ const MyTodos = () => {
                       sortBy,
                       sortOrder,
                       timeframe,
-                      showCreatedByMe,
+                      perspective,
                       showCompleted
                     }}
                   />
