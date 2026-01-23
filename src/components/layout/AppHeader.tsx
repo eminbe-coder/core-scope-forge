@@ -25,7 +25,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 import { useRewardPoints } from '@/hooks/use-reward-points';
 import { TenantSwitcher } from './TenantSwitcher';
 import { NotificationDropdown } from '@/components/notifications/NotificationDropdown';
-import { LogOut, User, Palette, Home, Trophy } from 'lucide-react';
+import { LogOut, User, Palette, Home, Trophy, Shield } from 'lucide-react';
 
 interface AppHeaderProps {
   title?: string;
@@ -160,6 +160,13 @@ export function AppHeader({
               <DropdownMenuItem className="text-foreground hover:bg-accent/50">
                 <User className="mr-2 h-4 w-4" />
                 Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => navigate('/security-settings')}
+                className="text-foreground hover:bg-accent/50"
+              >
+                <Shield className="mr-2 h-4 w-4" />
+                Security Settings
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-glass-border" />
               <DropdownMenuItem 
