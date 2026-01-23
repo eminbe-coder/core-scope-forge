@@ -197,7 +197,7 @@ const Deals = () => {
       }
       
       if (filters.selectedStatuses.length > 0) {
-        query = query.in('status', filters.selectedStatuses as ('lead' | 'qualified' | 'proposal' | 'negotiation' | 'won' | 'lost')[]);
+        query = query.in('deal_status_id', filters.selectedStatuses);
       }
       
       if (filters.selectedAssignees.length > 0) {
