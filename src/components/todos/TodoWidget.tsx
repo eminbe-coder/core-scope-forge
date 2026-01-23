@@ -38,7 +38,7 @@ export const TodoWidget = ({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="w-full space-y-2">
       {canEdit && (
         <div className="flex justify-end">
           <QuickAddTodoForm 
@@ -47,15 +47,17 @@ export const TodoWidget = ({
             defaultEntityId={entityId}
             paymentTermId={paymentTermId}
             trigger={
-              <Button size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Add To-Do
+              <Button size="sm" className="h-7 text-xs px-2">
+                <Plus className="h-3 w-3 mr-1" />
+                Add
               </Button>
             }
           />
         </div>
       )}
       <TodoList
+        entityType={entityType}
+        entityId={entityId}
         todos={todos as any}
         loading={loading}
         error={error}

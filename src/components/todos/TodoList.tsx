@@ -472,60 +472,60 @@ export const TodoList: React.FC<TodoListProps> = ({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="w-full space-y-3">
       {showStats && !compact && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           <Card>
-            <CardContent className="p-4">
-              <div className="text-2xl font-bold">{stats.total}</div>
-              <div className="text-sm text-muted-foreground">Total</div>
+            <CardContent className="p-2 sm:p-3">
+              <div className="text-lg sm:text-xl font-bold">{stats.total}</div>
+              <div className="text-xs text-muted-foreground">Total</div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-4">
-              <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
-              <div className="text-sm text-muted-foreground">Completed</div>
+            <CardContent className="p-2 sm:p-3">
+              <div className="text-lg sm:text-xl font-bold text-green-600">{stats.completed}</div>
+              <div className="text-xs text-muted-foreground">Completed</div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-4">
-              <div className="text-2xl font-bold text-blue-600">{stats.pending}</div>
-              <div className="text-sm text-muted-foreground">Pending</div>
+            <CardContent className="p-2 sm:p-3">
+              <div className="text-lg sm:text-xl font-bold text-blue-600">{stats.pending}</div>
+              <div className="text-xs text-muted-foreground">Pending</div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-4">
-              <div className="text-2xl font-bold text-red-600">{stats.overdue}</div>
-              <div className="text-sm text-muted-foreground">Overdue</div>
+            <CardContent className="p-2 sm:p-3">
+              <div className="text-lg sm:text-xl font-bold text-red-600">{stats.overdue}</div>
+              <div className="text-xs text-muted-foreground">Overdue</div>
             </CardContent>
           </Card>
         </div>
       )}
 
-      <Card>
+      <Card className="w-full">
         {!compact && (
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              {title}
+          <CardHeader className="p-3 sm:p-4">
+            <CardTitle className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-sm sm:text-base">
+              <span className="truncate">{title}</span>
               {showFilters && !externalFilters && (
-                <div className="flex items-center gap-2">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="relative flex-1 min-w-[120px]">
+                    <Search className="absolute left-2 top-2.5 h-3 w-3 text-muted-foreground" />
                     <Input
-                      placeholder="Search todos..."
+                      placeholder="Search..."
                       value={internalSearchTerm}
                       onChange={(e) => setInternalSearchTerm(e.target.value)}
-                      className="pl-9 w-64"
+                      className="pl-7 h-8 text-xs w-full"
                     />
                   </div>
                   
                   {showAssigneeFilter && (
                     <Select value={filterAssignee} onValueChange={setFilterAssignee}>
-                      <SelectTrigger className="w-40">
-                        <SelectValue placeholder="All assignees" />
+                      <SelectTrigger className="w-auto min-w-[100px] h-8 text-xs">
+                        <SelectValue placeholder="Assignee" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All assignees</SelectItem>
+                        <SelectItem value="all">All</SelectItem>
                         {profiles.map((profile) => (
                           <SelectItem key={profile.id} value={profile.id}>
                             {profile.first_name} {profile.last_name}
@@ -539,34 +539,37 @@ export const TodoList: React.FC<TodoListProps> = ({
             </CardTitle>
           </CardHeader>
         )}
-        <CardContent className={cn("p-6", compact && "p-4")}>
+        <CardContent className={cn(
+          "max-h-[400px] overflow-y-auto",
+          compact ? "p-2" : "p-3 sm:p-4"
+        )}>
           {filteredTodos.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
+            <div className="text-center py-6 text-sm text-muted-foreground">
               No todos found
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {filteredTodos.map((todo) => (
                 <div
                   key={todo.id}
                   className={cn(
-                    "border rounded-lg p-4 transition-all hover:shadow-sm",
+                    "border rounded-md p-2 sm:p-3 transition-all hover:shadow-sm",
                     todo.status === 'completed' && "opacity-60"
                   )}
                   onClick={() => onTodoClick?.(todo)}
                   role={onTodoClick ? "button" : undefined}
                 >
-                  <div className="flex items-start space-x-3">
+                  <div className="flex items-start gap-2">
                     <Checkbox
                       checked={todo.status === 'completed'}
                       onCheckedChange={() => toggleTodoComplete(todo.id, todo.status)}
-                      className="mt-1"
+                      className="mt-0.5 h-4 w-4 shrink-0"
                     />
                     
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
+                    <div className="flex-1 min-w-0 overflow-hidden">
+                      <div className="flex flex-wrap items-center gap-1 mb-0.5">
                         <h4 className={cn(
-                          "font-medium",
+                          "text-sm font-medium truncate max-w-full",
                           todo.status === 'completed' && "line-through"
                         )}>
                           {todo.title}
@@ -574,58 +577,54 @@ export const TodoList: React.FC<TodoListProps> = ({
                         
                         <Badge 
                           variant="outline" 
-                          className={cn("text-xs", getPriorityColor(todo.priority), "text-white")}
+                          className={cn("text-[10px] px-1 py-0 shrink-0", getPriorityColor(todo.priority), "text-white")}
                         >
                           {todo.priority}
                         </Badge>
                         
                         {todo.todo_types && (
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge variant="secondary" className="text-[10px] px-1 py-0 shrink-0 hidden sm:inline-flex">
                             {todo.todo_types.name}
                           </Badge>
                         )}
                       </div>
                       
-                      {todo.description && (
-                        <p className="text-sm text-muted-foreground mb-2">
+                      {todo.description && !compact && (
+                        <p className="text-xs text-muted-foreground mb-1 line-clamp-1">
                           {todo.description}
                         </p>
                       )}
                       
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-2 text-[10px] sm:text-xs text-muted-foreground">
                         {todo.entity_name && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               navigateToEntity(todo.entity_type, todo.entity_id);
                             }}
-                            className="flex items-center gap-1 hover:text-primary"
+                            className="flex items-center gap-0.5 hover:text-primary truncate max-w-[100px]"
                           >
-                            <ExternalLink className="h-3 w-3" />
-                            {todo.entity_name}
+                            <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+                            <span className="truncate">{todo.entity_name}</span>
                           </button>
                         )}
                         
                         {todo.assigned_profile && (
-                          <div className="flex items-center gap-1">
-                            <User className="h-3 w-3" />
-                            {todo.assigned_profile.first_name} {todo.assigned_profile.last_name}
+                          <div className="flex items-center gap-0.5 truncate max-w-[80px]">
+                            <User className="h-2.5 w-2.5 shrink-0" />
+                            <span className="truncate">{todo.assigned_profile.first_name}</span>
                           </div>
                         )}
                         
                         {todo.due_date && (
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          <span className="text-xs font-medium">Due:</span>
-                          {formatDueDate(todo.due_date)}
-                        </div>
+                          <div className={cn(
+                            "flex items-center gap-0.5 shrink-0",
+                            isPast(new Date(todo.due_date)) && todo.status !== 'completed' && "text-destructive font-medium"
+                          )}>
+                            <Calendar className="h-2.5 w-2.5" />
+                            <span>{formatDueDate(todo.due_date)}</span>
+                          </div>
                         )}
-                        
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          <span className="text-xs font-medium">Created:</span>
-                          {format(new Date(todo.created_at), 'MMM d, yyyy')}
-                        </div>
                       </div>
                     </div>
                   </div>

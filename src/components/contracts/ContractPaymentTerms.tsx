@@ -430,13 +430,13 @@ export const ContractPaymentTerms = ({
         </CardContent>
       </Card>;
   }
-  return <div className="space-y-4">
-      {paymentTerms.length === 0 ? <Card>
-          <CardContent className="text-center py-12">
-            <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No instalment terms defined</h3>
-            <p className="text-muted-foreground">
-              Instalment terms will be displayed here once they are added to the contract.
+  return <div className="w-full space-y-3 max-h-[500px] overflow-y-auto">
+      {paymentTerms.length === 0 ? <Card className="w-full">
+          <CardContent className="text-center py-8">
+            <DollarSign className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+            <h3 className="text-sm font-semibold mb-1">No instalment terms defined</h3>
+            <p className="text-xs text-muted-foreground">
+              Instalment terms will be displayed here once added.
             </p>
           </CardContent>
         </Card> : paymentTerms.map(paymentTerm => {
@@ -444,18 +444,19 @@ export const ContractPaymentTerms = ({
       const paymentTodos = todos.filter(todo => todo.payment_term_id === paymentTerm.id);
       const completedTodos = paymentTodos.filter(todo => todo.status === 'completed');
       const paymentAttachments = getPaymentAttachments(paymentTerm.id);
-        return <Card key={paymentTerm.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate(`/installments/${paymentTerm.id}`)}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <DollarSign className="h-5 w-5" />
-                    <span>{paymentTerm.name || `Instalment ${paymentTerm.installment_number}`}</span>
+        return <Card key={paymentTerm.id} className="w-full cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate(`/installments/${paymentTerm.id}`)}>
+              <CardHeader className="p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="flex items-center gap-1.5 text-sm font-medium min-w-0">
+                    <DollarSign className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{paymentTerm.name || `Instalment ${paymentTerm.installment_number}`}</span>
                   </CardTitle>
-                   <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                   <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                      {canUserEdit && canEdit && (
                        <Button
                          variant="outline"
                          size="sm"
+                         className="h-7 w-7 p-0"
                          onClick={(e) => {
                            e.stopPropagation();
                            handleEditPayment(paymentTerm);
@@ -496,75 +497,74 @@ export const ContractPaymentTerms = ({
                      )}
                    </div>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Amount</label>
-                    <p className="text-lg font-semibold">
+               </CardHeader>
+              <CardContent className="p-3 space-y-3">
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="min-w-0">
+                    <label className="text-[10px] font-medium text-muted-foreground">Amount</label>
+                    <p className="text-sm font-semibold truncate">
                       {formatCurrency(paymentTerm.calculated_amount || paymentTerm.amount_value)}
-                      <span className="text-sm text-muted-foreground ml-1">
-                        ({paymentTerm.amount_type === 'percentage' ? `${paymentTerm.amount_value}%` : 'Fixed'})
-                      </span>
                     </p>
+                    <span className="text-[10px] text-muted-foreground">
+                      ({paymentTerm.amount_type === 'percentage' ? `${paymentTerm.amount_value}%` : 'Fixed'})
+                    </span>
                     {paymentTerm.received_amount && paymentTerm.received_amount > 0 && (
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-[10px] text-muted-foreground truncate">
                         Received: {formatCurrency(paymentTerm.received_amount)}
-                        {paymentTerm.received_date && ` on ${formatDate(paymentTerm.received_date)}`}
                       </p>
                     )}
                   </div>
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Due Date</label>
-                    {canUserEdit && canEdit ? <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4" />
-                        <input type="date" value={paymentTerm.due_date || ''} onChange={e => updatePaymentDueDate(paymentTerm.id, e.target.value)} className="text-sm border rounded px-2 py-1 bg-slate-400" />
-                      </div> : <p className="flex items-center gap-1">
-                        <Calendar className="h-4 w-4" />
-                        {formatDate(paymentTerm.due_date)}
+                  <div className="min-w-0">
+                    <label className="text-[10px] font-medium text-muted-foreground">Due Date</label>
+                    {canUserEdit && canEdit ? <div className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3 shrink-0" />
+                        <input type="date" value={paymentTerm.due_date || ''} onChange={e => updatePaymentDueDate(paymentTerm.id, e.target.value)} className="text-xs border rounded px-1 py-0.5 bg-muted w-full min-w-0" />
+                      </div> : <p className="flex items-center gap-1 text-sm">
+                        <Calendar className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{formatDate(paymentTerm.due_date)}</span>
                       </p>}
                   </div>
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Progress</label>
-                    <div className="space-y-1">
-                      <Progress value={progress} className="h-2" />
-                      <p className="text-xs text-muted-foreground">
-                        {completedTodos.length}/{paymentTodos.length} tasks completed
+                  <div className="min-w-0">
+                    <label className="text-[10px] font-medium text-muted-foreground">Progress</label>
+                    <div className="space-y-0.5">
+                      <Progress value={progress} className="h-1.5" />
+                      <p className="text-[10px] text-muted-foreground">
+                        {completedTodos.length}/{paymentTodos.length} done
                       </p>
                     </div>
                   </div>
                 </div>
 
                 {paymentTerm.notes && <div>
-                    <label className="text-sm font-medium text-muted-foreground">Notes</label>
-                    <p className="text-sm">{paymentTerm.notes}</p>
+                    <label className="text-[10px] font-medium text-muted-foreground">Notes</label>
+                    <p className="text-xs line-clamp-2">{paymentTerm.notes}</p>
                   </div>}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
                   <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-sm font-medium text-muted-foreground">
-                        To-Do Items ({paymentTodos.length})
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[10px] font-medium text-muted-foreground">
+                        To-Dos ({paymentTodos.length})
                       </label>
                     </div>
-                    <div className="bg-muted/20 p-3 rounded-lg">
+                    <div className="bg-muted/20 p-2 rounded max-h-[150px] overflow-y-auto">
                       <TodoWidget entityType="contract" entityId={contractId} paymentTermId={paymentTerm.id} canEdit={canUserEdit && canEdit} compact={true} includeChildren={false} onUpdate={handleTodoUpdate} />
                     </div>
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground mb-2 block">
+                    <label className="text-[10px] font-medium text-muted-foreground mb-1 block">
                       Attachments ({paymentAttachments.length})
                     </label>
-                    <div className="space-y-1">
-                      {paymentAttachments.length === 0 ? <p className="text-xs text-muted-foreground">No attachments</p> : paymentAttachments.slice(0, 3).map(attachment => <div key={attachment.id} className="flex items-center gap-2 text-xs">
-                            <FileText className="h-3 w-3" />
-                            <span>{attachment.name}</span>
-                            <Badge variant="outline" className="text-xs">
+                    <div className="space-y-0.5 max-h-[150px] overflow-y-auto">
+                      {paymentAttachments.length === 0 ? <p className="text-[10px] text-muted-foreground">No attachments</p> : paymentAttachments.slice(0, 3).map(attachment => <div key={attachment.id} className="flex items-center gap-1 text-[10px]">
+                            <FileText className="h-2.5 w-2.5 shrink-0" />
+                            <span className="truncate flex-1">{attachment.name}</span>
+                            <Badge variant="outline" className="text-[9px] px-1 py-0 shrink-0">
                               {attachment.attachment_type}
                             </Badge>
                           </div>)}
-                      {paymentAttachments.length > 3 && <p className="text-xs text-muted-foreground">
+                      {paymentAttachments.length > 3 && <p className="text-[10px] text-muted-foreground">
                           +{paymentAttachments.length - 3} more
                         </p>}
                     </div>
