@@ -2,14 +2,16 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Plus } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
+import { usePermissions } from '@/hooks/use-permissions';
 import { useDealContractAutomation } from '@/hooks/use-deal-contract-automation';
 import { CreateActivityModal } from '@/components/modals/CreateActivityModal';
 import { TodoForm } from '@/components/todos/TodoForm';
 import { ComprehensiveDealView } from '@/components/deals/ComprehensiveDealView';
+import { DeleteConfirmationModal } from '@/components/modals/DeleteConfirmationModal';
 import type { ComprehensiveDealViewRef } from '@/components/deals/ComprehensiveDealView';
 
 interface Deal {
@@ -56,12 +58,17 @@ const EditDeal = () => {
   const navigate = useNavigate();
   const { currentTenant } = useTenant();
   const { toast } = useToast();
+  const { hasPermission } = usePermissions();
   
   const [deal, setDeal] = useState<Deal | null>(null);
   const [loading, setLoading] = useState(true);
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [showTodoModal, setShowTodoModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const dealViewRef = useRef<ComprehensiveDealViewRef>(null);
+
+  const canDelete = hasPermission('deals.delete');
 
   // Auto-trigger contract creation when deal reaches 100%
   useDealContractAutomation(deal);
@@ -95,6 +102,37 @@ const EditDeal = () => {
       navigate('/deals');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deal || !currentTenant?.id) return;
+    
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase.rpc('soft_delete_entity', {
+        _table_name: 'deals',
+        _entity_id: deal.id,
+        _tenant_id: currentTenant.id
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Deal moved to recycle bin',
+      });
+      navigate('/deals');
+    } catch (error: any) {
+      console.error('Error deleting deal:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete deal',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteModal(false);
     }
   };
 
@@ -145,6 +183,12 @@ const EditDeal = () => {
               <Plus className="h-4 w-4 mr-2" />
               Log Activity
             </Button>
+            {canDelete && (
+              <Button variant="destructive" onClick={() => setShowDeleteModal(true)}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Deal
+              </Button>
+            )}
           </div>
         </div>
 
@@ -182,6 +226,15 @@ const EditDeal = () => {
           </Button>
         }
         defaultOpen={showTodoModal}
+      />
+
+      <DeleteConfirmationModal
+        open={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDelete}
+        title="Delete Deal"
+        description={`Are you sure you want to delete "${deal.name}"? This will move the deal to the recycle bin.`}
+        isDeleting={isDeleting}
       />
     </DashboardLayout>
   );
