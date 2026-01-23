@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { TodoList } from './TodoList';
 import { QuickAddTodoForm } from './QuickAddTodoForm';
+import { TodoDetailModal } from './TodoDetailModal';
 import { useTodoHierarchy } from '@/hooks/use-todo-hierarchy';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
@@ -32,9 +34,27 @@ export const TodoWidget = ({
     includeChildren
   });
 
+  const [selectedTodo, setSelectedTodo] = useState<any | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   const handleUpdate = () => {
     refreshTodos();
     onUpdate?.();
+  };
+
+  const handleTodoClick = (todo: any) => {
+    // If external handler provided, use it; otherwise open the standard modal
+    if (onTodoClick) {
+      onTodoClick(todo);
+    } else {
+      setSelectedTodo(todo);
+      setIsModalOpen(true);
+    }
+  };
+
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setSelectedTodo(null);
   };
 
   return (
@@ -66,7 +86,16 @@ export const TodoWidget = ({
         compact={compact}
         canEdit={canEdit}
         onUpdate={handleUpdate}
-        onTodoClick={onTodoClick}
+        onTodoClick={handleTodoClick}
+      />
+
+      {/* Unified TodoDetailModal */}
+      <TodoDetailModal
+        todo={selectedTodo}
+        isOpen={isModalOpen}
+        onClose={handleModalClose}
+        onUpdate={handleUpdate}
+        canEdit={canEdit}
       />
     </div>
   );

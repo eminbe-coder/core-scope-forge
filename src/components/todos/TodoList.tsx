@@ -553,31 +553,47 @@ export const TodoList: React.FC<TodoListProps> = ({
                 <div
                   key={todo.id}
                   className={cn(
-                    "border rounded-md p-2 sm:p-3 transition-all hover:shadow-sm",
-                    todo.status === 'completed' && "opacity-60"
+                    "border rounded-md p-2 sm:p-3 transition-all cursor-pointer",
+                    "hover:bg-accent/50 hover:shadow-sm",
+                    todo.status === 'completed' && "opacity-60 bg-muted/30"
                   )}
                   onClick={() => onTodoClick?.(todo)}
-                  role={onTodoClick ? "button" : undefined}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onTodoClick?.(todo);
+                    }
+                  }}
                 >
                   <div className="flex items-start gap-2">
-                    <Checkbox
-                      checked={todo.status === 'completed'}
-                      onCheckedChange={() => toggleTodoComplete(todo.id, todo.status)}
-                      className="mt-0.5 h-4 w-4 shrink-0"
-                    />
+                    {/* Status indicator instead of checkbox */}
+                    <div className={cn(
+                      "mt-0.5 h-4 w-4 shrink-0 rounded-full border-2 flex items-center justify-center",
+                      todo.status === 'completed' 
+                        ? "bg-primary border-primary" 
+                        : todo.due_date && isPast(new Date(todo.due_date))
+                          ? "border-destructive"
+                          : "border-muted-foreground/40"
+                    )}>
+                      {todo.status === 'completed' && (
+                        <CheckCircle className="h-3 w-3 text-primary-foreground" />
+                      )}
+                    </div>
                     
                     <div className="flex-1 min-w-0 overflow-hidden">
                       <div className="flex flex-wrap items-center gap-1 mb-0.5">
                         <h4 className={cn(
                           "text-sm font-medium truncate max-w-full",
-                          todo.status === 'completed' && "line-through"
+                          todo.status === 'completed' && "line-through text-muted-foreground"
                         )}>
                           {todo.title}
                         </h4>
                         
                         <Badge 
                           variant="outline" 
-                          className={cn("text-[10px] px-1 py-0 shrink-0", getPriorityColor(todo.priority), "text-white")}
+                          className={cn("text-[10px] px-1 py-0 shrink-0", getPriorityColor(todo.priority), "text-primary-foreground")}
                         >
                           {todo.priority}
                         </Badge>
