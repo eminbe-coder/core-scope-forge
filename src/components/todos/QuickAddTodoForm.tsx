@@ -296,7 +296,7 @@ export const QuickAddTodoForm = ({
 
       {todoModalOpen && (
         <TodoForm
-          entityType={defaultEntityType || selectedEntityType}
+          entityType={(defaultEntityType || selectedEntityType).toLowerCase()}
           entityId={defaultEntityId || selectedEntityId || (selectedEntityType === 'standalone' ? 'standalone' : '')}
           paymentTermId={paymentTermId}
           onSuccess={handleTodoSuccess}

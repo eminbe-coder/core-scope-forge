@@ -267,12 +267,15 @@ export const TodoForm = ({
         typeId = defaultType.id;
       }
       
+      // Normalize entity_type to lowercase for consistent filtering
+      const normalizedEntityType = entityType === 'standalone' ? 'standalone' : entityType.toLowerCase();
+      
       const { error } = await supabase
         .from('todos')
         .insert({
           tenant_id: currentTenant.id,
-          entity_type: entityType === 'standalone' ? 'standalone' : entityType,
-          entity_id: entityType === 'standalone' ? null : entityId,
+          entity_type: normalizedEntityType,
+          entity_id: normalizedEntityType === 'standalone' ? null : entityId,
           title: values.title,
           description: values.description || null,
           due_date: values.due_date || null,
