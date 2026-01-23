@@ -71,6 +71,8 @@ import TargetsCommissionReports from "./pages/TargetsCommissionReports";
 import InstallmentDetail from "./pages/InstallmentDetail";
 import Pricing from "./pages/Pricing";
 import Devices from "./pages/Devices";
+import Quotes from "./pages/Quotes";
+import QuoteDetail from "./pages/QuoteDetail";
 import NotFound from "./pages/NotFound";
 
 import RewardSystem from "./pages/RewardSystem";
@@ -221,6 +223,16 @@ const App = () => (
                     <Route path="/contracts/edit/:id" element={
                       <ProtectedRoute>
                         <EditContract />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/quotes" element={
+                      <ProtectedRoute>
+                        <Quotes />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/quotes/:id" element={
+                      <ProtectedRoute>
+                        <QuoteDetail />
                       </ProtectedRoute>
                     } />
                     <Route path="/notification-center" element={
