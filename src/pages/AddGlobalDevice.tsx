@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useCurrency } from '@/hooks/use-currency';
+import { useFormPersist } from '@/hooks/use-form-persist';
 import { ArrowLeft, Save } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ImageUpload } from '@/components/ui/image-upload';
@@ -77,6 +78,24 @@ const AddGlobalDevice = () => {
   const [deviceTypes, setDeviceTypes] = useState<Array<{id: string; name: string}>>([]);
   const [brands, setBrands] = useState<Array<{id: string; name: string}>>([]);
   const [saving, setSaving] = useState(false);
+
+  // Combine all form state for persistence
+  const combinedFormState = useMemo(() => ({
+    formData,
+    templateProperties,
+    selectedTemplateId,
+  }), [formData, templateProperties, selectedTemplateId]);
+
+  // Form draft persistence
+  const { clearDraft } = useFormPersist('add_global_device', {
+    data: combinedFormState,
+    setData: (restored) => {
+      if (restored.formData) setFormData(restored.formData);
+      if (restored.templateProperties) setTemplateProperties(restored.templateProperties);
+      if (restored.selectedTemplateId) setSelectedTemplateId(restored.selectedTemplateId);
+    },
+  });
+
 
   const fetchCurrencies = async () => {
     try {
@@ -350,6 +369,8 @@ const AddGlobalDevice = () => {
         description: 'Global device created successfully',
       });
 
+      // Clear draft on successful save
+      clearDraft();
       navigate('/global-devices');
     } catch (error: any) {
       console.error('Error creating device:', error);
