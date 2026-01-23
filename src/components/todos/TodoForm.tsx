@@ -281,7 +281,7 @@ export const TodoForm = ({
           duration: values.duration || 10,
           priority: values.priority || 'medium',
           status: 'pending',
-          assigned_to: values.assigned_to === 'unassigned' ? null : values.assigned_to || null,
+          assigned_to: values.assigned_to === 'unassigned' ? user.id : values.assigned_to || user.id,
           payment_term_id: values.payment_term_id === 'none' ? null : values.payment_term_id || null,
           contact_id: values.contact_id === 'none' ? null : values.contact_id || null,
           type_id: typeId,
