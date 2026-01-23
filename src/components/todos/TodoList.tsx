@@ -58,9 +58,7 @@ interface ExternalFilters {
   searchTerm?: string;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
-  showOverdue?: boolean;
-  showDue?: boolean;
-  showLater?: boolean;
+  timeframe?: 'all' | 'overdue' | 'due_today' | 'later';
   showCreatedByMe?: boolean;
   showCompleted?: boolean;
 }
@@ -108,9 +106,7 @@ export const TodoList: React.FC<TodoListProps> = ({
   const [loading, setLoading] = useState(false);
   const [internalSearchTerm, setInternalSearchTerm] = useState('');
   const [internalShowCreatedByMe, setInternalShowCreatedByMe] = useState(false);
-  const [internalShowDue, setInternalShowDue] = useState(false);
-  const [internalShowOverdue, setInternalShowOverdue] = useState(false);
-  const [internalShowLater, setInternalShowLater] = useState(false);
+  const [internalTimeframe, setInternalTimeframe] = useState<'all' | 'overdue' | 'due_today' | 'later'>('all');
   const [internalShowCompleted, setInternalShowCompleted] = useState(false);
   const [internalSortBy, setInternalSortBy] = useState('due_date');
   const [internalSortOrder, setInternalSortOrder] = useState('asc');
@@ -122,9 +118,7 @@ export const TodoList: React.FC<TodoListProps> = ({
   const searchTerm = externalFilters?.searchTerm ?? internalSearchTerm;
   const sortBy = externalFilters?.sortBy ?? internalSortBy;
   const sortOrder = externalFilters?.sortOrder ?? internalSortOrder;
-  const showOverdue = externalFilters?.showOverdue ?? internalShowOverdue;
-  const showDue = externalFilters?.showDue ?? internalShowDue;
-  const showLater = externalFilters?.showLater ?? internalShowLater;
+  const timeframe = externalFilters?.timeframe ?? internalTimeframe;
   const showCreatedByMe = externalFilters?.showCreatedByMe ?? internalShowCreatedByMe;
   const showCompleted = externalFilters?.showCompleted ?? internalShowCompleted;
 
@@ -276,65 +270,58 @@ export const TodoList: React.FC<TodoListProps> = ({
       filtered = filtered.filter(todo => todo.assigned_to === filterAssignee);
     }
 
-    // Group filters - show nothing if no filters are active
-    const hasActiveGroupFilters = showOverdue || showDue || showLater || showCompleted || showCreatedByMe;
-    
-    if (!hasActiveGroupFilters) {
-      return []; // Show nothing when all toggles are OFF
-    }
-
+    // Apply filters
     filtered = filtered.filter(todo => {
       const now = new Date();
       const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000 - 1);
       
-      let belongsToSelectedGroup = false;
-
       // Check if task is created by current user but not assigned to them
       const isCreatedByMeButNotAssigned = todo.created_by === currentUserId && 
         (!todo.todo_assignees || todo.todo_assignees.length === 0 || !todo.todo_assignees.some(a => a.user_id === currentUserId));
 
-      // Date-based groups (only for tasks NOT created by user and not assigned to them, and not completed)
-      const isEligibleForDateGroups = todo.status !== 'completed' && !isCreatedByMeButNotAssigned;
-
-      if (isEligibleForDateGroups) {
-        // Overdue group
-        if (showOverdue && todo.due_date && new Date(todo.due_date) < startOfDay) {
-          belongsToSelectedGroup = true;
-        }
-        
-        // Due Today group
-        if (showDue && todo.due_date) {
-          const dueDate = new Date(todo.due_date);
-          if (dueDate >= startOfDay && dueDate <= endOfDay) {
-            belongsToSelectedGroup = true;
-          }
-        }
-        
-        // Later group (future dates or no due date)
-        if (showLater) {
-          if (!todo.due_date) {
-            belongsToSelectedGroup = true;
-          } else {
-            const dueDate = new Date(todo.due_date);
-            if (dueDate > endOfDay) {
-              belongsToSelectedGroup = true;
-            }
-          }
-        }
-      }
-
-      // Created by me group (created by user but not assigned to them)
+      // If "Created by me" is ON, show those separately  
       if (showCreatedByMe && isCreatedByMeButNotAssigned) {
-        belongsToSelectedGroup = true;
+        return true;
       }
-      
-      // Completed group (all completed tasks)
+
+      // Handle completed filter - if OFF, hide completed tasks; if ON, show all statuses
+      if (!showCompleted && todo.status === 'completed') {
+        return false;
+      }
+
+      // If showing completed and task is completed, include it
       if (showCompleted && todo.status === 'completed') {
-        belongsToSelectedGroup = true;
+        return true;
       }
-      
-      return belongsToSelectedGroup;
+
+      // Skip created-by-me tasks for timeframe filtering (they're handled above)
+      if (isCreatedByMeButNotAssigned) {
+        return false;
+      }
+
+      // Timeframe filter (single-select)
+      if (timeframe === 'all') {
+        return true; // Show all non-completed tasks
+      }
+
+      if (timeframe === 'overdue') {
+        return todo.due_date && new Date(todo.due_date) < startOfDay;
+      }
+
+      if (timeframe === 'due_today') {
+        if (!todo.due_date) return false;
+        const dueDate = new Date(todo.due_date);
+        return dueDate >= startOfDay && dueDate <= endOfDay;
+      }
+
+      if (timeframe === 'later') {
+        if (!todo.due_date) return true; // No due date = Later
+        const dueDate = new Date(todo.due_date);
+        return dueDate > endOfDay;
+      }
+
+      return true;
     });
 
     // Sort todos
@@ -355,7 +342,7 @@ export const TodoList: React.FC<TodoListProps> = ({
     });
 
     return filtered;
-  }, [todos, searchTerm, filterAssignee, showOverdue, showDue, showLater, showCompleted, showCreatedByMe, currentUserId, sortBy, sortOrder]);
+  }, [todos, searchTerm, filterAssignee, timeframe, showCompleted, showCreatedByMe, currentUserId, sortBy, sortOrder]);
 
   const stats = useMemo(() => {
     const total = todos.length;

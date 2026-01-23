@@ -50,9 +50,7 @@ const MyTodos = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('due_date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [showOverdue, setShowOverdue] = useState(true);
-  const [showDue, setShowDue] = useState(true);
-  const [showLater, setShowLater] = useState(true);
+  const [timeframe, setTimeframe] = useState<'all' | 'overdue' | 'due_today' | 'later'>('all');
   const [showCreatedByMe, setShowCreatedByMe] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
 
@@ -61,9 +59,7 @@ const MyTodos = () => {
     setSearchTerm('');
     setSortBy('due_date');
     setSortOrder('asc');
-    setShowOverdue(true);
-    setShowDue(true);
-    setShowLater(true);
+    setTimeframe('all');
     setShowCreatedByMe(false);
     setShowCompleted(false);
   };
@@ -424,12 +420,8 @@ const MyTodos = () => {
           onSortChange={setSortBy}
           sortOrder={sortOrder}
           onSortOrderChange={setSortOrder}
-          showOverdue={showOverdue}
-          onShowOverdueChange={setShowOverdue}
-          showDue={showDue}
-          onShowDueChange={setShowDue}
-          showLater={showLater}
-          onShowLaterChange={setShowLater}
+          timeframe={timeframe}
+          onTimeframeChange={setTimeframe}
           showCreatedByMe={showCreatedByMe}
           onShowCreatedByMeChange={setShowCreatedByMe}
           showCompleted={showCompleted}
@@ -458,9 +450,7 @@ const MyTodos = () => {
                     searchTerm,
                     sortBy,
                     sortOrder,
-                    showOverdue,
-                    showDue,
-                    showLater,
+                    timeframe,
                     showCreatedByMe,
                     showCompleted
                   }}
@@ -489,9 +479,7 @@ const MyTodos = () => {
                       searchTerm,
                       sortBy,
                       sortOrder,
-                      showOverdue,
-                      showDue,
-                      showLater,
+                      timeframe,
                       showCreatedByMe,
                       showCompleted
                     }}
