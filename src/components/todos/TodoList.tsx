@@ -59,7 +59,7 @@ interface ExternalFilters {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   timeframe?: 'all' | 'overdue' | 'due_today' | 'later';
-  showCreatedByMe?: boolean;
+  perspective?: 'my_assigned' | 'created_by_me' | 'all_accessible';
   showCompleted?: boolean;
 }
 
@@ -105,7 +105,7 @@ export const TodoList: React.FC<TodoListProps> = ({
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(false);
   const [internalSearchTerm, setInternalSearchTerm] = useState('');
-  const [internalShowCreatedByMe, setInternalShowCreatedByMe] = useState(false);
+  const [internalPerspective, setInternalPerspective] = useState<'my_assigned' | 'created_by_me' | 'all_accessible'>('my_assigned');
   const [internalTimeframe, setInternalTimeframe] = useState<'all' | 'overdue' | 'due_today' | 'later'>('all');
   const [internalShowCompleted, setInternalShowCompleted] = useState(false);
   const [internalSortBy, setInternalSortBy] = useState('due_date');
@@ -119,7 +119,7 @@ export const TodoList: React.FC<TodoListProps> = ({
   const sortBy = externalFilters?.sortBy ?? internalSortBy;
   const sortOrder = externalFilters?.sortOrder ?? internalSortOrder;
   const timeframe = externalFilters?.timeframe ?? internalTimeframe;
-  const showCreatedByMe = externalFilters?.showCreatedByMe ?? internalShowCreatedByMe;
+  const perspective = externalFilters?.perspective ?? internalPerspective;
   const showCompleted = externalFilters?.showCompleted ?? internalShowCompleted;
 
   const getCurrentUser = useCallback(async () => {
@@ -255,6 +255,18 @@ export const TodoList: React.FC<TodoListProps> = ({
   }, [getCurrentUser, fetchProfiles, fetchTodos]);
 
   const filteredTodos = useMemo(() => {
+    // ENTITY CONTEXT ESCAPE HATCH: When inside a Deal, Contract, etc.,
+    // bypass ALL filters except "Completed" toggle
+    if (entityType && entityId) {
+      return todos.filter(todo => {
+        // Only filter by completed status
+        if (!showCompleted && todo.status === 'completed') {
+          return false;
+        }
+        return true;
+      });
+    }
+
     let filtered = todos;
 
     // Search filter
@@ -276,11 +288,6 @@ export const TodoList: React.FC<TodoListProps> = ({
       const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000 - 1);
       
-      // ENTITY CONTEXT MODE: When viewing todos inside an entity widget (entityId + entityType provided),
-      // show ALL tasks linked to that entity regardless of assignment or "created by me" filters.
-      // This ensures users see every task on a Deal, Contract, etc.
-      const isEntityContext = entityType && entityId;
-      
       // Handle completed filter - if OFF, hide completed tasks; if ON, show all statuses
       if (!showCompleted && todo.status === 'completed') {
         return false;
@@ -291,45 +298,23 @@ export const TodoList: React.FC<TodoListProps> = ({
         return true;
       }
 
-      // In entity context, skip the "created by me" exclusion logic - show all entity tasks
-      if (isEntityContext) {
-        // Only apply timeframe filter in entity context
-        if (timeframe === 'all') {
-          return true;
-        }
+      // PERSPECTIVE FILTER LOGIC (replaces showCreatedByMe toggle)
+      const isAssignedToMe = todo.assigned_to === currentUserId || 
+        (todo.todo_assignees && todo.todo_assignees.some(a => a.user_id === currentUserId));
+      const isCreatedByMe = todo.created_by === currentUserId;
 
-        if (timeframe === 'overdue') {
-          return todo.due_date && new Date(todo.due_date) < startOfDay;
-        }
-
-        if (timeframe === 'due_today') {
-          if (!todo.due_date) return false;
-          const dueDate = new Date(todo.due_date);
-          return dueDate >= startOfDay && dueDate <= endOfDay;
-        }
-
-        if (timeframe === 'later') {
-          if (!todo.due_date) return true;
-          const dueDate = new Date(todo.due_date);
-          return dueDate > endOfDay;
-        }
-
-        return true;
-      }
-
-      // NON-ENTITY CONTEXT (Central To-Do Module): Apply "created by me" filtering
-      const isCreatedByMeButNotAssigned = todo.created_by === currentUserId && 
-        (!todo.todo_assignees || todo.todo_assignees.length === 0 || !todo.todo_assignees.some(a => a.user_id === currentUserId));
-
-      // If "Created by me" is ON, show those separately  
-      if (showCreatedByMe && isCreatedByMeButNotAssigned) {
-        return true;
-      }
-
-      // Skip created-by-me tasks for timeframe filtering (they're handled above)
-      if (isCreatedByMeButNotAssigned) {
+      // "My Assigned" perspective: Show only tasks assigned to me
+      if (perspective === 'my_assigned' && !isAssignedToMe) {
         return false;
       }
+
+      // "Created by Me" perspective: Show only tasks I created (hide others)
+      if (perspective === 'created_by_me' && !isCreatedByMe) {
+        return false;
+      }
+
+      // "All Accessible" perspective: Show everything (no filtering)
+      // No additional filter needed for 'all_accessible'
 
       // Timeframe filter (single-select)
       if (timeframe === 'all') {
@@ -373,7 +358,7 @@ export const TodoList: React.FC<TodoListProps> = ({
     });
 
     return filtered;
-  }, [todos, searchTerm, filterAssignee, timeframe, showCompleted, showCreatedByMe, currentUserId, sortBy, sortOrder]);
+  }, [todos, searchTerm, filterAssignee, timeframe, showCompleted, perspective, currentUserId, sortBy, sortOrder, entityType, entityId]);
 
   const stats = useMemo(() => {
     const total = todos.length;

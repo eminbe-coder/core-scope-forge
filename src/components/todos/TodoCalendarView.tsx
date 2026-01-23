@@ -35,7 +35,7 @@ interface ExternalFilters {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   timeframe?: 'all' | 'overdue' | 'due_today' | 'later';
-  showCreatedByMe?: boolean;
+  perspective?: 'my_assigned' | 'created_by_me' | 'all_accessible';
   showCompleted?: boolean;
 }
 
