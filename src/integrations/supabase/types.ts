@@ -3124,7 +3124,11 @@ export type Database = {
           email: string
           first_name: string | null
           id: string
+          is_recovery_email_verified: boolean | null
           last_name: string | null
+          recovery_email: string | null
+          recovery_email_token_expires_at: string | null
+          recovery_email_verification_token: string | null
           updated_at: string
         }
         Insert: {
@@ -3133,7 +3137,11 @@ export type Database = {
           email: string
           first_name?: string | null
           id: string
+          is_recovery_email_verified?: boolean | null
           last_name?: string | null
+          recovery_email?: string | null
+          recovery_email_token_expires_at?: string | null
+          recovery_email_verification_token?: string | null
           updated_at?: string
         }
         Update: {
@@ -3142,7 +3150,11 @@ export type Database = {
           email?: string
           first_name?: string | null
           id?: string
+          is_recovery_email_verified?: boolean | null
           last_name?: string | null
+          recovery_email?: string | null
+          recovery_email_token_expires_at?: string | null
+          recovery_email_verification_token?: string | null
           updated_at?: string
         }
         Relationships: []

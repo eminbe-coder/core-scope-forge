@@ -74,6 +74,8 @@ import Devices from "./pages/Devices";
 import Quotes from "./pages/Quotes";
 import QuoteDetail from "./pages/QuoteDetail";
 import NotFound from "./pages/NotFound";
+import SecuritySettings from "./pages/SecuritySettings";
+import VerifyRecoveryEmail from "./pages/VerifyRecoveryEmail";
 
 import RewardSystem from "./pages/RewardSystem";
 
@@ -429,6 +431,12 @@ const App = () => (
                        <InstallmentDetail />
                      </ProtectedRoute>
                    } />
+                   <Route path="/security-settings" element={
+                     <ProtectedRoute>
+                       <SecuritySettings />
+                     </ProtectedRoute>
+                   } />
+                   <Route path="/verify-recovery-email" element={<VerifyRecoveryEmail />} />
                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                    <Route path="*" element={<NotFound />} />
                 </Routes>

@@ -11,7 +11,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LogOut, Settings, User } from 'lucide-react';
+import { LogOut, Settings, User, Shield } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface MobileHeaderProps {
   title?: string;
@@ -20,6 +21,7 @@ interface MobileHeaderProps {
 export function MobileHeader({ title }: MobileHeaderProps) {
   const { user, signOut } = useAuth();
   const { currentTenant } = useTenant();
+  const navigate = useNavigate();
 
   const getUserInitials = () => {
     if (!user?.email) return 'U';
@@ -66,6 +68,10 @@ export function MobileHeader({ title }: MobileHeaderProps) {
               <DropdownMenuItem>
                 <User className="mr-2 h-4 w-4" />
                 Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/security-settings')}>
+                <Shield className="mr-2 h-4 w-4" />
+                Security Settings
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <Settings className="mr-2 h-4 w-4" />
