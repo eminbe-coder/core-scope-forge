@@ -76,6 +76,7 @@ import QuoteDetail from "./pages/QuoteDetail";
 import NotFound from "./pages/NotFound";
 import SecuritySettings from "./pages/SecuritySettings";
 import VerifyRecoveryEmail from "./pages/VerifyRecoveryEmail";
+import MasterActivityLog from "./pages/MasterActivityLog";
 
 import RewardSystem from "./pages/RewardSystem";
 
@@ -350,6 +351,11 @@ const App = () => (
                     <Route path="/recycle-bin" element={
                       <ProtectedRoute>
                         <RecycleBin />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/master-activity-log" element={
+                      <ProtectedRoute>
+                        <MasterActivityLog />
                       </ProtectedRoute>
                     } />
                     <Route path="/reward-history" element={

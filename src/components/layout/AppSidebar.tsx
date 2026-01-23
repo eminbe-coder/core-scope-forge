@@ -33,7 +33,8 @@ import {
   FileText,
   Bell,
   Trophy,
-  Trash2
+  Trash2,
+  History
 } from 'lucide-react';
 
 interface NavigationItem {
@@ -210,6 +211,12 @@ const tenantModules: NavigationModule[] = [
         title: 'Users & Roles',
         url: '/users-roles',
         icon: Users,
+        permission: 'admin.access',
+      },
+      {
+        title: 'Master Activity Log',
+        url: '/master-activity-log',
+        icon: History,
         permission: 'admin.access',
       },
       {
