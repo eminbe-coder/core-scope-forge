@@ -24,6 +24,7 @@ export interface DealFilterOptions {
 interface DealFiltersProps {
   filters: DealFilterOptions;
   onFiltersChange: (filters: DealFilterOptions) => void;
+  onClearFilters?: () => void; // Optional callback to also clear localStorage
   totalResults: number;
 }
 
@@ -57,7 +58,7 @@ const SORT_OPTIONS = [
   { value: 'name_desc', label: 'Name (Z-A)' },
 ];
 
-export const DealFilters = ({ filters, onFiltersChange, totalResults }: DealFiltersProps) => {
+export const DealFilters = ({ filters, onFiltersChange, onClearFilters, totalResults }: DealFiltersProps) => {
   const { currentTenant } = useTenant();
   const { user } = useAuth();
   const { getVisibilityLevel, isAdmin } = usePermissions();
@@ -227,15 +228,21 @@ export const DealFilters = ({ filters, onFiltersChange, totalResults }: DealFilt
   };
 
   const clearAllFilters = () => {
-    onFiltersChange({
-      selectedStages: [],
-      selectedStatuses: [],
-      selectedAssignees: [],
-      showOverdueTasks: false,
-      showNoTasks: false,
-      sortBy: 'created_at',
-      sortOrder: 'desc',
-    });
+    // Call the optional localStorage clear callback
+    if (onClearFilters) {
+      onClearFilters();
+    } else {
+      // Fallback to just resetting the filters
+      onFiltersChange({
+        selectedStages: [],
+        selectedStatuses: [],
+        selectedAssignees: [],
+        showOverdueTasks: false,
+        showNoTasks: false,
+        sortBy: 'created_at',
+        sortOrder: 'desc',
+      });
+    }
   };
 
   const getActiveFilterCount = () => {

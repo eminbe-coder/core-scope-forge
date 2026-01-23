@@ -10,6 +10,7 @@ import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/use-permissions';
 import { useAuth } from '@/hooks/use-auth';
+import { usePersistentFilters } from '@/hooks/use-persistent-filters';
 import { Target, Search, Building2, User, MapPin, Mail, Phone, Globe, MessageSquare, CheckSquare, Archive } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EntityListing } from '@/components/entity-listing';
@@ -42,9 +43,28 @@ const Leads = () => {
   const navigate = useNavigate();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState('all');
-  const [showArchived, setShowArchived] = useState(false);
+  
+  // Persistent filters for leads
+  interface LeadFilters {
+    searchTerm: string;
+    activeTab: string;
+    showArchived: boolean;
+  }
+  const defaultLeadFilters: LeadFilters = {
+    searchTerm: '',
+    activeTab: 'all',
+    showArchived: false,
+  };
+  const [leadFilters, setLeadFilters] = usePersistentFilters<LeadFilters>('leads', defaultLeadFilters);
+  
+  // Destructure for easier access (keeping backward compatibility)
+  const searchTerm = leadFilters.searchTerm;
+  const activeTab = leadFilters.activeTab;
+  const showArchived = leadFilters.showArchived;
+  
+  const setSearchTerm = (value: string) => setLeadFilters(prev => ({ ...prev, searchTerm: value }));
+  const setActiveTab = (value: string) => setLeadFilters(prev => ({ ...prev, activeTab: value }));
+  const setShowArchived = (value: boolean) => setLeadFilters(prev => ({ ...prev, showArchived: value }));
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; lead: Lead | null }>({
     open: false,

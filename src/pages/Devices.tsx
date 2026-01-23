@@ -8,6 +8,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
+import { usePersistentFilters } from '@/hooks/use-persistent-filters';
 import {
   Dialog,
   DialogContent,
@@ -86,7 +87,15 @@ const Devices = () => {
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [deviceTemplates, setDeviceTemplates] = useState<DeviceTemplate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  
+  // Persistent filters for devices
+  interface DeviceFilters {
+    searchTerm: string;
+  }
+  const defaultDeviceFilters: DeviceFilters = { searchTerm: '' };
+  const [deviceFilters, setDeviceFilters] = usePersistentFilters<DeviceFilters>('devices', defaultDeviceFilters);
+  const searchTerm = deviceFilters.searchTerm;
+  const setSearchTerm = (value: string) => setDeviceFilters(prev => ({ ...prev, searchTerm: value }));
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [isGlobalImportDialogOpen, setIsGlobalImportDialogOpen] = useState(false);
