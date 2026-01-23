@@ -16,6 +16,8 @@ interface DealStatus {
   description?: string;
   is_active: boolean;
   sort_order: number;
+  requires_reason: boolean;
+  is_pause_status: boolean;
 }
 
 export const DealStatusesManager = () => {
@@ -28,6 +30,8 @@ export const DealStatusesManager = () => {
     name: '',
     description: '',
     is_active: true,
+    requires_reason: false,
+    is_pause_status: false,
   });
 
   useEffect(() => {
@@ -60,6 +64,8 @@ export const DealStatusesManager = () => {
       name: '',
       description: '',
       is_active: true,
+      requires_reason: false,
+      is_pause_status: false,
     });
   };
 
@@ -74,6 +80,8 @@ export const DealStatusesManager = () => {
             name: formData.name,
             description: formData.description,
             is_active: formData.is_active,
+            requires_reason: formData.requires_reason,
+            is_pause_status: formData.is_pause_status,
             updated_at: new Date().toISOString(),
           })
           .eq('id', editingStatus.id);
@@ -90,6 +98,8 @@ export const DealStatusesManager = () => {
             name: formData.name,
             description: formData.description,
             is_active: formData.is_active,
+            requires_reason: formData.requires_reason,
+            is_pause_status: formData.is_pause_status,
             sort_order: nextSortOrder,
           });
 
@@ -113,6 +123,8 @@ export const DealStatusesManager = () => {
       name: status.name,
       description: status.description || '',
       is_active: status.is_active,
+      requires_reason: status.requires_reason || false,
+      is_pause_status: status.is_pause_status || false,
     });
     setIsDialogOpen(true);
   };
@@ -216,6 +228,30 @@ export const DealStatusesManager = () => {
                   onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
                 />
               </div>
+              <div className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                <div className="space-y-0.5">
+                  <label className="text-sm font-medium">Requires Reason</label>
+                  <div className="text-[0.8rem] text-muted-foreground">
+                    Prompt for a reason when changing to this status
+                  </div>
+                </div>
+                <Switch
+                  checked={formData.requires_reason}
+                  onCheckedChange={(checked) => setFormData({ ...formData, requires_reason: checked })}
+                />
+              </div>
+              <div className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                <div className="space-y-0.5">
+                  <label className="text-sm font-medium">Pause Status</label>
+                  <div className="text-[0.8rem] text-muted-foreground">
+                    Require a resume date when selecting this status
+                  </div>
+                </div>
+                <Switch
+                  checked={formData.is_pause_status}
+                  onCheckedChange={(checked) => setFormData({ ...formData, is_pause_status: checked, requires_reason: checked ? true : formData.requires_reason })}
+                />
+              </div>
               <DialogFooter>
                 <Button type="submit">
                   {editingStatus ? 'Update' : 'Create'}
@@ -234,10 +270,16 @@ export const DealStatusesManager = () => {
               <div className="flex items-center gap-3">
                 <GripVertical className="h-4 w-4 text-muted-foreground" />
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium">{status.name}</span>
                     {!status.is_active && (
                       <span className="text-xs bg-muted px-2 py-1 rounded">Inactive</span>
+                    )}
+                    {status.requires_reason && (
+                      <span className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 px-2 py-1 rounded">Requires Reason</span>
+                    )}
+                    {status.is_pause_status && (
+                      <span className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 px-2 py-1 rounded">Pause</span>
                     )}
                   </div>
                   {status.description && (

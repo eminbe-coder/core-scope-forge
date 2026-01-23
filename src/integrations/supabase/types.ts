@@ -1841,6 +1841,71 @@ export type Database = {
         }
         Relationships: []
       }
+      deal_status_history: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          deal_id: string
+          id: string
+          new_status_id: string | null
+          old_status_id: string | null
+          reason: string
+          resume_date: string | null
+          tenant_id: string
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          deal_id: string
+          id?: string
+          new_status_id?: string | null
+          old_status_id?: string | null
+          reason: string
+          resume_date?: string | null
+          tenant_id: string
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          deal_id?: string
+          id?: string
+          new_status_id?: string | null
+          old_status_id?: string | null
+          reason?: string
+          resume_date?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_status_history_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_status_history_new_status_id_fkey"
+            columns: ["new_status_id"]
+            isOneToOne: false
+            referencedRelation: "deal_statuses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_status_history_old_status_id_fkey"
+            columns: ["old_status_id"]
+            isOneToOne: false
+            referencedRelation: "deal_statuses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_status_history_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deal_statuses: {
         Row: {
           active: boolean
@@ -1848,7 +1913,9 @@ export type Database = {
           description: string | null
           id: string
           is_active: boolean
+          is_pause_status: boolean
           name: string
+          requires_reason: boolean
           sort_order: number
           tenant_id: string
           updated_at: string
@@ -1859,7 +1926,9 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          is_pause_status?: boolean
           name: string
+          requires_reason?: boolean
           sort_order?: number
           tenant_id: string
           updated_at?: string
@@ -1870,7 +1939,9 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          is_pause_status?: boolean
           name?: string
+          requires_reason?: boolean
           sort_order?: number
           tenant_id?: string
           updated_at?: string
@@ -1905,6 +1976,7 @@ export type Database = {
           source_user_id: string | null
           stage_id: string | null
           status: Database["public"]["Enums"]["deal_status"]
+          status_resume_date: string | null
           tenant_id: string
           updated_at: string
           value: number | null
@@ -1936,6 +2008,7 @@ export type Database = {
           source_user_id?: string | null
           stage_id?: string | null
           status?: Database["public"]["Enums"]["deal_status"]
+          status_resume_date?: string | null
           tenant_id: string
           updated_at?: string
           value?: number | null
@@ -1967,6 +2040,7 @@ export type Database = {
           source_user_id?: string | null
           stage_id?: string | null
           status?: Database["public"]["Enums"]["deal_status"]
+          status_resume_date?: string | null
           tenant_id?: string
           updated_at?: string
           value?: number | null

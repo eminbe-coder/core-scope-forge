@@ -12,6 +12,7 @@ import { QuickAddSiteModal } from '@/components/modals/QuickAddSiteModal';
 import { QuickAddCompanyModal } from '@/components/modals/QuickAddCompanyModal';
 import { UnifiedQuickAddContactModal } from '@/components/modals/UnifiedQuickAddContactModal';
 import { DollarSign, Calendar, Building, MapPin, Percent, Edit3, Save, X, Users, User, Plus, CheckSquare, Trash2, Tag } from 'lucide-react';
+import { DealStatusChangeDialog } from './DealStatusChangeDialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
@@ -28,6 +29,8 @@ interface DealStatus {
   id: string;
   name: string;
   description?: string;
+  requires_reason?: boolean;
+  is_pause_status?: boolean;
 }
 
 interface Site {
@@ -135,6 +138,9 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
   const [showSiteModal, setShowSiteModal] = useState(false);
   const [showCompanyModal, setShowCompanyModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
+  const [showStatusChangeDialog, setShowStatusChangeDialog] = useState(false);
+  const [pendingStatusChange, setPendingStatusChange] = useState<DealStatus | null>(null);
+  const [statusChangeLoading, setStatusChangeLoading] = useState(false);
   const [editedDeal, setEditedDeal] = useState({
     stage_id: deal.stage_id || '',
     deal_status_id: deal.deal_status_id || 'none',
@@ -174,7 +180,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
     try {
       const { data, error } = await supabase
         .from('deal_statuses')
-        .select('id, name, description')
+        .select('id, name, description, requires_reason, is_pause_status')
         .eq('tenant_id', currentTenant.id)
         .eq('active', true)
         .order('sort_order');
@@ -526,8 +532,34 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
     }
   };
 
-  const handleSave = async () => {
+  // Check if the new status requires a reason
+  const checkStatusRequiresReason = (statusId: string): DealStatus | null => {
+    if (statusId === 'none' || statusId === deal.deal_status_id) return null;
+    
+    const status = dealStatuses.find(s => s.id === statusId);
+    if (!status) return null;
+    
+    // Check if status requires reason (either from DB field or name pattern)
+    const requiresReason = status.requires_reason || 
+      ['lost', 'not active', 'paused', 'cancelled', 'rejected'].some(pattern => 
+        status.name.toLowerCase().includes(pattern)
+      );
+    
+    return requiresReason ? status : null;
+  };
+
+  const handleSave = async (skipStatusCheck = false) => {
     if (!currentTenant) return;
+
+    // Check if status change requires a reason
+    if (!skipStatusCheck && editedDeal.deal_status_id !== deal.deal_status_id) {
+      const statusRequiringReason = checkStatusRequiresReason(editedDeal.deal_status_id);
+      if (statusRequiringReason) {
+        setPendingStatusChange(statusRequiringReason);
+        setShowStatusChangeDialog(true);
+        return;
+      }
+    }
 
     try {
       const changes: string[] = [];
@@ -823,6 +855,66 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
     }
   };
 
+  // Handle status change confirmation from dialog
+  const handleStatusChangeConfirm = async (reason: string, resumeDate?: Date) => {
+    if (!currentTenant || !pendingStatusChange) return;
+    
+    setStatusChangeLoading(true);
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+      
+      const updateData: any = {
+        deal_status_id: pendingStatusChange.id,
+        updated_at: new Date().toISOString(),
+      };
+      
+      const isPause = pendingStatusChange.is_pause_status || 
+        pendingStatusChange.name.toLowerCase().includes('paused');
+      
+      if (isPause && resumeDate) {
+        updateData.status_resume_date = resumeDate.toISOString();
+      } else {
+        updateData.status_resume_date = null;
+      }
+      
+      await supabase.from('deals').update(updateData).eq('id', deal.id);
+      
+      await supabase.from('deal_status_history').insert({
+        tenant_id: currentTenant.id,
+        deal_id: deal.id,
+        old_status_id: deal.deal_status_id || null,
+        new_status_id: pendingStatusChange.id,
+        reason,
+        resume_date: resumeDate?.toISOString() || null,
+        changed_by: user.id,
+      });
+      
+      const resumeInfo = resumeDate ? `. Expected resume: ${resumeDate.toLocaleDateString()}` : '';
+      await supabase.from('activities').insert({
+        tenant_id: currentTenant.id,
+        deal_id: deal.id,
+        type: 'note',
+        title: 'Status Changed',
+        description: `Status changed to "${pendingStatusChange.name}". Reason: ${reason}${resumeInfo}`,
+        created_by: user.id,
+      });
+      
+      setShowStatusChangeDialog(false);
+      setPendingStatusChange(null);
+      setEditedDeal(prev => ({ ...prev, deal_status_id: pendingStatusChange.id }));
+      
+      toast({ title: 'Status Updated', description: `Deal status changed to "${pendingStatusChange.name}"` });
+      onUpdate();
+      setEditMode(false);
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Failed to update status', variant: 'destructive' });
+    } finally {
+      setStatusChangeLoading(false);
+    }
+  };
+
   const deleteNote = async (noteId: string) => {
     try {
       const { error } = await supabase
@@ -869,7 +961,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
                   <X className="h-4 w-4 mr-2" />
                   Cancel
                 </Button>
-                <Button size="sm" onClick={handleSave}>
+                <Button size="sm" onClick={() => handleSave()}>
                   <Save className="h-4 w-4 mr-2" />
                   Save
                 </Button>
@@ -1426,7 +1518,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
                 <X className="h-4 w-4 mr-2" />
                 Cancel
               </Button>
-              <Button onClick={handleSave}>
+              <Button onClick={() => handleSave()}>
                 <Save className="h-4 w-4 mr-2" />
                 Save Relations
               </Button>
@@ -1517,6 +1609,21 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
         onContactCreated={() => {
           fetchContacts();
         }}
+      />
+
+      <DealStatusChangeDialog
+        open={showStatusChangeDialog}
+        onOpenChange={(open) => {
+          setShowStatusChangeDialog(open);
+          if (!open) {
+            setPendingStatusChange(null);
+            setEditedDeal(prev => ({ ...prev, deal_status_id: deal.deal_status_id || 'none' }));
+          }
+        }}
+        newStatus={pendingStatusChange}
+        isPauseStatus={pendingStatusChange?.is_pause_status || (pendingStatusChange?.name.toLowerCase().includes('paused') ?? false)}
+        onConfirm={handleStatusChangeConfirm}
+        loading={statusChangeLoading}
       />
     </div>
   );
