@@ -108,6 +108,11 @@ export const useRecycleBin = () => {
         throw new Error('Item not found');
       }
 
+      const entityName = itemToRestore.entity_data?.name || 
+                         itemToRestore.entity_data?.title || 
+                         `${itemToRestore.entity_data?.first_name || ''} ${itemToRestore.entity_data?.last_name || ''}`.trim() ||
+                         'Unknown Item';
+
       if (itemToRestore.entity_type === 'device_templates') {
         // Handle device template restoration directly
         const { error } = await supabase
@@ -116,8 +121,22 @@ export const useRecycleBin = () => {
           .eq('id', itemToRestore.entity_id);
 
         if (error) throw error;
+        
+        // Log activity for device templates manually
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData?.user && currentTenant?.id) {
+          await supabase.from('activity_logs').insert({
+            tenant_id: currentTenant.id,
+            entity_id: itemToRestore.entity_id,
+            entity_type: 'device_templates',
+            activity_type: 'restored',
+            title: `Restored from Recycle Bin: ${entityName}`,
+            description: `Device template "${entityName}" was restored from the Recycle Bin`,
+            created_by: userData.user.id
+          });
+        }
       } else {
-        // Use the RPC function for other entities
+        // Use the RPC function for other entities (includes activity logging)
         const { error } = await supabase.rpc('restore_deleted_entity', {
           _deleted_item_id: deletedItemId
         });
@@ -183,25 +202,40 @@ export const useRecycleBin = () => {
 export const useSoftDelete = () => {
   const { currentTenant } = useTenant();
 
-  const softDelete = async (tableName: string, entityId: string) => {
+  const softDelete = async (tableName: string, entityId: string, entityName?: string) => {
     if (!currentTenant?.id) {
       throw new Error('No tenant selected');
     }
 
     try {
+      const { data: userData } = await supabase.auth.getUser();
+      
       if (tableName === 'device_templates') {
         // Handle device templates directly since they have their own soft delete columns
         const { error } = await supabase
           .from('device_templates')
           .update({ 
             deleted_at: new Date().toISOString(),
-            deleted_by: (await supabase.auth.getUser()).data.user?.id
+            deleted_by: userData?.user?.id
           })
           .eq('id', entityId);
 
         if (error) throw error;
+        
+        // Log activity for device templates manually
+        if (userData?.user) {
+          await supabase.from('activity_logs').insert({
+            tenant_id: currentTenant.id,
+            entity_id: entityId,
+            entity_type: 'device_templates',
+            activity_type: 'soft_deleted',
+            title: `Moved to Recycle Bin: ${entityName || 'Device Template'}`,
+            description: `Device template "${entityName || 'Unknown'}" was moved to the Recycle Bin`,
+            created_by: userData.user.id
+          });
+        }
       } else {
-        // Use the RPC function for other entities
+        // Use the RPC function for other entities (includes activity logging)
         const { error } = await supabase.rpc('soft_delete_entity', {
           _table_name: tableName,
           _entity_id: entityId,

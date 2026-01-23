@@ -39,7 +39,7 @@ const Leads = () => {
   const { currentTenant } = useTenant();
   const { toast } = useToast();
   const { user } = useAuth();
-  const { getVisibilityLevel, canViewEntity } = usePermissions();
+  const { getVisibilityLevel, canViewEntity, hasPermission } = usePermissions();
   const navigate = useNavigate();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -584,16 +584,18 @@ const Leads = () => {
                             >
                               Remove Lead
                             </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDelete(lead);
-                              }}
-                            >
-                              Delete
-                            </Button>
+                            {hasPermission('crm.contacts.delete') && (
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDelete(lead);
+                                }}
+                              >
+                                Delete
+                              </Button>
+                            )}
                           </div>
                         </CardContent>
                       </Card>

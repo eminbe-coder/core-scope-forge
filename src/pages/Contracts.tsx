@@ -89,6 +89,7 @@ const Contracts = () => {
           currencies (code, symbol)
         `)
         .eq('tenant_id', currentTenant?.id)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
