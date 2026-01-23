@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, AlertTriangle, Calendar, Clock, User, CheckCircle } from 'lucide-react';
+import { Search, AlertTriangle, Calendar, Clock, User, CheckCircle, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface TodoFiltersProps {
@@ -22,6 +22,7 @@ interface TodoFiltersProps {
   onShowCreatedByMeChange: (value: boolean) => void;
   showCompleted: boolean;
   onShowCompletedChange: (value: boolean) => void;
+  onClearAllFilters?: () => void;
 }
 
 export const TodoFilters: React.FC<TodoFiltersProps> = ({
@@ -41,7 +42,17 @@ export const TodoFilters: React.FC<TodoFiltersProps> = ({
   onShowCreatedByMeChange,
   showCompleted,
   onShowCompletedChange,
+  onClearAllFilters,
 }) => {
+  // Check if any filters are non-default
+  const hasActiveFilters = searchTerm !== '' || 
+    sortBy !== 'due_date' || 
+    sortOrder !== 'asc' || 
+    !showOverdue || 
+    !showDue || 
+    !showLater || 
+    showCreatedByMe || 
+    showCompleted;
   return (
     <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
       <div className="flex items-center gap-4">
@@ -78,7 +89,19 @@ export const TodoFilters: React.FC<TodoFiltersProps> = ({
         </Button>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 items-center">
+        {/* Clear All Filters Button */}
+        {onClearAllFilters && hasActiveFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClearAllFilters}
+            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+          >
+            <X className="h-4 w-4 mr-1" />
+            Clear All Filters
+          </Button>
+        )}
         <Button
           variant={showOverdue ? 'destructive' : 'outline'}
           size="sm"

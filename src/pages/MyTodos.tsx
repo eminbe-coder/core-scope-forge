@@ -56,6 +56,18 @@ const MyTodos = () => {
   const [showCreatedByMe, setShowCreatedByMe] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
 
+  // Clear all filters to default state
+  const handleClearAllFilters = () => {
+    setSearchTerm('');
+    setSortBy('due_date');
+    setSortOrder('asc');
+    setShowOverdue(true);
+    setShowDue(true);
+    setShowLater(true);
+    setShowCreatedByMe(false);
+    setShowCompleted(false);
+  };
+
   useEffect(() => {
     if (currentTenant?.id) {
       fetchStats();
@@ -422,6 +434,7 @@ const MyTodos = () => {
           onShowCreatedByMeChange={setShowCreatedByMe}
           showCompleted={showCompleted}
           onShowCompletedChange={setShowCompleted}
+          onClearAllFilters={handleClearAllFilters}
         />
 
         {/* Main Todo Content */}
