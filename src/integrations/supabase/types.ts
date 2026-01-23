@@ -5370,7 +5370,11 @@ export type Database = {
           active: boolean
           created_at: string
           custom_role_id: string | null
+          employee_id: string | null
+          hire_date: string | null
           id: string
+          job_title: string | null
+          notes: string | null
           role: Database["public"]["Enums"]["app_role"]
           tenant_id: string
           updated_at: string
@@ -5380,7 +5384,11 @@ export type Database = {
           active?: boolean
           created_at?: string
           custom_role_id?: string | null
+          employee_id?: string | null
+          hire_date?: string | null
           id?: string
+          job_title?: string | null
+          notes?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           tenant_id: string
           updated_at?: string
@@ -5390,7 +5398,11 @@ export type Database = {
           active?: boolean
           created_at?: string
           custom_role_id?: string | null
+          employee_id?: string | null
+          hire_date?: string | null
           id?: string
+          job_title?: string | null
+          notes?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           tenant_id?: string
           updated_at?: string
