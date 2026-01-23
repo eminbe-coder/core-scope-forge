@@ -4,6 +4,7 @@ import { TodoList } from '@/components/todos/TodoList';
 import { TodoCalendarView } from '@/components/todos/TodoCalendarView';
 import { TodoDetailModal } from '@/components/todos/TodoDetailModal';
 import { TodoFilters } from '@/components/todos/TodoFilters';
+import { QuickAddTodoForm } from '@/components/todos/QuickAddTodoForm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, CheckCircle, Clock, AlertTriangle, ListTodo, Calendar, CalendarCheck, Save } from 'lucide-react';
@@ -330,6 +331,15 @@ const MyTodos = () => {
           </div>
           
           <div className="flex items-center gap-2">
+            <QuickAddTodoForm
+              onSuccess={fetchStats}
+              trigger={
+                <Button size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add To-Do
+                </Button>
+              }
+            />
             <Button
               variant={preferences.view_type === 'list' ? 'default' : 'outline'}
               size="sm"

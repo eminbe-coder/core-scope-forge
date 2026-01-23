@@ -23,7 +23,7 @@ import { SubtaskManager } from './SubtaskManager';
 import { MultiAssigneeManager } from './MultiAssigneeManager';
 import { DynamicSearchableSelect } from '@/components/ui/dynamic-searchable-select';
 import { PostponeDialog } from './PostponeDialog';
-import { TodoFormModal } from './TodoFormModal';
+import { QuickAddTodoForm } from './QuickAddTodoForm';
 
 interface Todo {
   id: string;
@@ -95,7 +95,9 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
   const [assignees, setAssignees] = useState<any[]>([]);
   const [isCalculating, setIsCalculating] = useState(false);
   const [postponeDialogOpen, setPostponeDialogOpen] = useState(false);
-  const [newTodoFormOpen, setNewTodoFormOpen] = useState(false);
+  const [showQuickAddForm, setShowQuickAddForm] = useState(false);
+  const [prePopulatedEntityType, setPrePopulatedEntityType] = useState<string>('');
+  const [prePopulatedEntityId, setPrePopulatedEntityId] = useState<string>('');
 
   useEffect(() => {
     if (todo) {
@@ -399,11 +401,16 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
       if (error) throw error;
 
       toast.success('Todo completed successfully');
+      
+      // Pre-populate entity data from completed todo
+      setPrePopulatedEntityType(editedTodo.entity_type || '');
+      setPrePopulatedEntityId(editedTodo.entity_id || '');
+      
       onUpdate();
       onClose();
       
-      // Open the new todo form with pre-populated data
-      setNewTodoFormOpen(true);
+      // Open the QuickAddTodoForm with pre-populated entity
+      setShowQuickAddForm(true);
       
     } catch (error) {
       console.error('Error completing todo:', error);
@@ -731,30 +738,20 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
         loading={saving}
       />
 
-      {/* New Todo Form Modal */}
-      <TodoFormModal
-        open={newTodoFormOpen}
-        onOpenChange={setNewTodoFormOpen}
-        onSuccess={() => {
-          setNewTodoFormOpen(false);
-          onUpdate();
-        }}
-        entityType={editedTodo?.entity_type || ''}
-        entityId={editedTodo?.entity_id || ''}
-        paymentTermId={editedTodo?.payment_term_id || undefined}
-        initialData={{
-          title: editedTodo?.title,
-          description: editedTodo?.description,
-          assigned_to: editedTodo?.assigned_to,
-          due_date: editedTodo?.due_date,
-          due_time: editedTodo?.due_time,
-          start_time: editedTodo?.start_time,
-          duration: editedTodo?.duration,
-          priority: editedTodo?.priority,
-          type_id: editedTodo?.type_id,
-          contact_id: editedTodo?.contact_id,
-        }}
-      />
+      {/* Quick Add Todo Form - with pre-populated entity from completed todo */}
+      {showQuickAddForm && (
+        <QuickAddTodoForm
+          onSuccess={() => {
+            setShowQuickAddForm(false);
+            setPrePopulatedEntityType('');
+            setPrePopulatedEntityId('');
+            onUpdate();
+          }}
+          defaultEntityType={prePopulatedEntityType}
+          defaultEntityId={prePopulatedEntityId}
+          trigger={<span style={{ display: 'none' }} />}
+        />
+      )}
     </Dialog>
   );
 };
