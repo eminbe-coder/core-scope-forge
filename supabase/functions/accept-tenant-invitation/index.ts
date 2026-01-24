@@ -67,20 +67,80 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // The user should already exist from the Supabase Auth invitation
-    // Look them up by email
-    const { data: existingUser } = await supabaseAdmin.auth.admin.getUserByEmail(invitation.email);
+    // Check if there's a logged-in user via Authorization header
+    const authHeader = req.headers.get('Authorization');
+    let sessionUser = null;
     
-    if (!existingUser.user) {
-      console.error('User not found after invitation:', invitation.email);
-      return new Response(
-        JSON.stringify({ error: 'User account not found. Please check your invitation email and try the signup link first.' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (authHeader) {
+      const jwt = authHeader.replace('Bearer ', '');
+      const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(jwt);
+      if (!authError && user) {
+        sessionUser = user;
+        console.log('Session user detected:', user.id, user.email);
+      }
     }
 
-    const userId = existingUser.user.id;
-    console.log('Found existing user from auth invitation:', userId);
+    // Determine which user ID to use
+    let userId: string;
+    let userEmail: string;
+    
+    if (sessionUser) {
+      // Use the logged-in user's ID (linking scenario)
+      userId = sessionUser.id;
+      userEmail = sessionUser.email!;
+      console.log('Using session user for membership:', userId);
+      
+      // Add secondary email if different from session user's email
+      if (sessionUser.email !== invitation.email) {
+        // Check if this email is already linked to another user
+        const { data: existingEmail } = await supabaseAdmin
+          .from('user_emails')
+          .select('user_id')
+          .eq('email', invitation.email)
+          .single();
+
+        if (existingEmail && existingEmail.user_id !== sessionUser.id) {
+          return new Response(
+            JSON.stringify({ error: 'This invited email is already linked to another account' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Add the secondary email if not already linked
+        if (!existingEmail) {
+          const { error: emailError } = await supabaseAdmin
+            .from('user_emails')
+            .insert({
+              user_id: sessionUser.id,
+              email: invitation.email,
+              verified: true,
+              is_primary: false
+            });
+
+          if (emailError) {
+            console.error('Failed to add secondary email:', emailError);
+            // Non-fatal, continue with membership creation
+          } else {
+            console.log('Added secondary email:', invitation.email, 'for user:', sessionUser.id);
+          }
+        }
+      }
+    } else {
+      // No session user - look up by email (original flow)
+      const { data: existingUser } = await supabaseAdmin.auth.admin.getUserByEmail(invitation.email);
+      
+      if (!existingUser.user) {
+        console.error('User not found after invitation:', invitation.email);
+        return new Response(
+          JSON.stringify({ error: 'User account not found. Please check your invitation email and try the signup link first.' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      userId = existingUser.user.id;
+      userEmail = invitation.email;
+      console.log('Found existing user from auth invitation:', userId);
+    }
 
     // Ensure profile exists for the user
     const { data: existingProfile } = await supabaseAdmin
@@ -95,9 +155,9 @@ const handler = async (req: Request): Promise<Response> => {
         .from('profiles')
         .insert({
           id: userId,
-          email: invitation.email,
-          first_name: first_name || existingUser.user.user_metadata?.first_name || '',
-          last_name: last_name || existingUser.user.user_metadata?.last_name || ''
+          email: userEmail,
+          first_name: first_name || sessionUser?.user_metadata?.first_name || '',
+          last_name: last_name || sessionUser?.user_metadata?.last_name || ''
         });
 
       if (profileError) {
@@ -105,18 +165,37 @@ const handler = async (req: Request): Promise<Response> => {
         // Don't fail the request, but log the error
       }
     } else if (first_name || last_name) {
-      // Update profile with provided names
+      // Update profile with provided names if given
       const { error: updateProfileError } = await supabaseAdmin
         .from('profiles')
         .update({
-          first_name: first_name || existingProfile.first_name,
-          last_name: last_name || existingProfile.last_name
+          first_name: first_name,
+          last_name: last_name
         })
         .eq('id', userId);
 
       if (updateProfileError) {
         console.error('Failed to update profile:', updateProfileError);
       }
+    }
+
+    // Ensure user's primary email is in user_emails
+    const { data: primaryEmailExists } = await supabaseAdmin
+      .from('user_emails')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('email', userEmail)
+      .single();
+
+    if (!primaryEmailExists) {
+      await supabaseAdmin
+        .from('user_emails')
+        .insert({
+          user_id: userId,
+          email: userEmail,
+          verified: true,
+          is_primary: true
+        });
     }
 
     // Check if user already has membership for this tenant
@@ -177,13 +256,14 @@ const handler = async (req: Request): Promise<Response> => {
       console.error('Failed to mark invitation as accepted:', acceptError);
     }
 
-    console.log('Invitation accepted successfully');
+    console.log('Invitation accepted successfully for user:', userId);
 
     return new Response(
       JSON.stringify({ 
         success: true,
         message: 'Invitation accepted successfully',
-        tenant_name: invitation.tenants.name
+        tenant_name: invitation.tenants.name,
+        secondary_email_added: sessionUser ? sessionUser.email !== invitation.email : false
       }),
       { 
         status: 200, 
