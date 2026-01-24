@@ -199,10 +199,9 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Use production URL for redirect instead of origin header
-    // Get the current domain from the request or use a fallback
+    // Use claim-invitation page instead of set-password for better UX
     const origin = req.headers.get('origin') || 'https://711f9ef4-fcf3-4a93-9e36-e236d2f8e210.sandbox.lovable.dev';
-    const redirectUrl = `${origin}/set-password?token=${invitation.invitation_token}`;
+    const redirectUrl = `${origin}/claim-invitation?token=${invitation.invitation_token}`;
     
     const { data: authInvite, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       email,

@@ -5260,6 +5260,36 @@ export type Database = {
           },
         ]
       }
+      user_emails: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          is_primary: boolean
+          updated_at: string
+          user_id: string
+          verified: boolean
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          is_primary?: boolean
+          updated_at?: string
+          user_id: string
+          verified?: boolean
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          is_primary?: boolean
+          updated_at?: string
+          user_id?: string
+          verified?: boolean
+        }
+        Relationships: []
+      }
       user_reward_participation: {
         Row: {
           active: boolean
