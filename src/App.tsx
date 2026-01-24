@@ -22,6 +22,7 @@ import BrowseDevices from "./pages/BrowseDevices";
 
 import AcceptInvitation from "./pages/AcceptInvitation";
 import SetPassword from "./pages/SetPassword";
+import ClaimInvitation from "./pages/ClaimInvitation";
 import Companies from "./pages/Companies";
 import AddCompany from "./pages/AddCompany";
 import EditCompany from "./pages/EditCompany";
@@ -103,6 +104,7 @@ const App = () => (
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/accept-invitation" element={<AcceptInvitation />} />
                   <Route path="/set-password" element={<SetPassword />} />
+                  <Route path="/claim-invitation" element={<ClaimInvitation />} />
                   <Route path="/" element={<ProtectedRoute><MobileHome /></ProtectedRoute>} />
                   <Route path="/dashboard" element={<ProtectedRoute><Index /></ProtectedRoute>} />
                   <Route path="/companies" element={

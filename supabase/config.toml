@@ -26,3 +26,9 @@ verify_jwt = true
 
 [functions.admin-reset-user-password]
 verify_jwt = true
+
+[functions.link-invitation-to-account]
+verify_jwt = true
+
+[functions.create-account-from-invitation]
+verify_jwt = false
