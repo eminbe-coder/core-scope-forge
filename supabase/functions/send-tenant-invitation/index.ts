@@ -199,9 +199,11 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Use claim-invitation page instead of set-password for better UX
-    const origin = req.headers.get('origin') || 'https://711f9ef4-fcf3-4a93-9e36-e236d2f8e210.sandbox.lovable.dev';
-    const redirectUrl = `${origin}/claim-invitation?token=${invitation.invitation_token}`;
+    // Use accept-invitation page for the invitation flow
+    const origin = req.headers.get('origin') || 'https://id-preview--711f9ef4-fcf3-4a93-9e36-e236d2f8e210.lovable.app';
+    const redirectUrl = `${origin}/accept-invitation?token=${invitation.invitation_token}`;
+    
+    console.log('Sending invitation with redirect URL:', redirectUrl);
     
     const { data: authInvite, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       email,
