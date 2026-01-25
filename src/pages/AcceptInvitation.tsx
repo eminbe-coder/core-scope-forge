@@ -63,17 +63,43 @@ export default function AcceptInvitation() {
   });
 
   useEffect(() => {
-    if (!token) {
-      toast({
-        title: "Invalid Invitation",
-        description: "No invitation token provided.",
-        variant: "destructive",
-      });
-      navigate("/auth");
-      return;
-    }
+    // Handle Supabase auth callback - check for access_token in URL hash
+    const handleAuthCallback = async () => {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const accessToken = hashParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token');
+      
+      if (accessToken && refreshToken) {
+        console.log('Found access token in URL, setting session...');
+        const { data, error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken
+        });
+        
+        if (error) {
+          console.error('Error setting session from URL:', error);
+        } else {
+          console.log('Session set successfully:', data.user?.email);
+          setCurrentUser(data.user);
+          // Clean up the URL hash
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+      }
+    };
 
-    validateInvitation();
+    handleAuthCallback().then(() => {
+      if (!token) {
+        toast({
+          title: "Invalid Invitation",
+          description: "No invitation token provided.",
+          variant: "destructive",
+        });
+        navigate("/auth");
+        return;
+      }
+
+      validateInvitation();
+    });
   }, [token]);
 
   const validateInvitation = async () => {

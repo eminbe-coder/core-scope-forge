@@ -39,12 +39,12 @@ serve(async (req) => {
     }
 
     // Parse the request body to get tenant_id first
-    const { email, password, first_name, last_name, role, custom_role_id, tenant_id } = await req.json()
+    const { email, first_name, last_name, role, custom_role_id, tenant_id } = await req.json()
 
-    // Validate required fields
-    if (!email || !password || !first_name || !last_name || !role || !tenant_id) {
+    // Validate required fields (password no longer required - using invitation flow)
+    if (!email || !first_name || !last_name || !role || !tenant_id) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields' }),
+        JSON.stringify({ error: 'Missing required fields: email, first_name, last_name, role, tenant_id' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -78,57 +78,88 @@ serve(async (req) => {
     }
 
 
-    // Create the user
-    const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: {
-        first_name,
-        last_name,
-      },
-    })
+    // Get tenant name for the invitation email
+    const { data: tenant, error: tenantError } = await supabaseAdmin
+      .from('tenants')
+      .select('name')
+      .eq('id', tenant_id)
+      .single()
 
-    if (createError) {
+    if (tenantError || !tenant) {
       return new Response(
-        JSON.stringify({ error: createError.message }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Tenant not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    if (!newUser.user) {
-      return new Response(
-        JSON.stringify({ error: 'Failed to create user' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // Create tenant membership
-    const { error: membershipError } = await supabaseAdmin
-      .from('user_tenant_memberships')
-      .insert([{
-        user_id: newUser.user.id,
+    // First, create an invitation record in tenant_invitations table
+    const { data: invitation, error: invitationError } = await supabaseAdmin
+      .from('tenant_invitations')
+      .insert({
         tenant_id,
+        email,
         role,
         custom_role_id: custom_role_id || null,
-        active: true,
-      }])
+        invited_by: user.id
+      })
+      .select()
+      .single()
 
-    if (membershipError) {
-      // If membership creation fails, we should clean up the created user
-      await supabaseAdmin.auth.admin.deleteUser(newUser.user.id)
+    if (invitationError) {
+      console.error('Failed to create invitation record:', invitationError)
       return new Response(
-        JSON.stringify({ error: membershipError.message }),
+        JSON.stringify({ error: 'Failed to create invitation record: ' + invitationError.message }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    // Get the origin for redirect URL
+    const origin = req.headers.get('origin') || 'https://system-integrator-dream.lovable.app'
+    const redirectUrl = `${origin}/accept-invitation?token=${invitation.invitation_token}`
+
+    console.log('Sending invitation with redirect URL:', redirectUrl)
+
+    // Use inviteUserByEmail to send the official Supabase invitation email
+    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+      email,
+      {
+        redirectTo: redirectUrl,
+        data: {
+          first_name,
+          last_name,
+          tenant_id,
+          tenant_name: tenant.name,
+          role,
+          custom_role_id: custom_role_id || null,
+          invitation_token: invitation.invitation_token
+        }
+      }
+    )
+
+    if (inviteError) {
+      console.error('Failed to send invitation email:', inviteError)
+      // Clean up the invitation record
+      await supabaseAdmin
+        .from('tenant_invitations')
+        .delete()
+        .eq('id', invitation.id)
+      
+      return new Response(
+        JSON.stringify({ error: 'Failed to send invitation email: ' + inviteError.message }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    console.log('Invitation sent successfully:', inviteData)
 
     return new Response(
       JSON.stringify({ 
         success: true, 
+        message: 'Invitation sent successfully',
+        invitation_id: invitation.id,
         user: {
-          id: newUser.user.id,
-          email: newUser.user.email,
+          id: inviteData.user?.id,
+          email,
           first_name,
           last_name,
           role
