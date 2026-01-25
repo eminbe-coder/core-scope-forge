@@ -11,6 +11,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { GlobalAdminRoute } from "@/components/GlobalAdminRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import Home from "./pages/Home";
 import GlobalAdmin from "./pages/GlobalAdmin";
 import DeviceTemplateCreate from "./pages/DeviceTemplateCreate";
 import DeviceTemplates from "./pages/DeviceTemplates";
@@ -101,6 +102,7 @@ const App = () => (
               <BrowserRouter>
                 <Routes>
                   <Route path="/auth" element={<Auth />} />
+                  <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
                   <Route path="/accept-invitation" element={<AcceptInvitation />} />
                   <Route path="/claim-invitation" element={<AcceptInvitation />} />
                   <Route path="/set-password" element={<SetPassword />} />

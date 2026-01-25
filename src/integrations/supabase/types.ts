@@ -3119,6 +3119,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          account_id: number
           avatar_url: string | null
           created_at: string
           email: string
@@ -3132,6 +3133,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          account_id: number
           avatar_url?: string | null
           created_at?: string
           email: string
@@ -3145,6 +3147,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          account_id?: number
           avatar_url?: string | null
           created_at?: string
           email?: string
@@ -5659,6 +5662,7 @@ export type Database = {
         }
         Returns: string
       }
+      generate_unique_account_id: { Args: never; Returns: number }
       get_all_tenant_memberships_for_super_admin: {
         Args: never
         Returns: {
@@ -5699,6 +5703,13 @@ export type Database = {
       get_user_assignment_scope: {
         Args: { _entity_type: string; _tenant_id: string; _user_id: string }
         Returns: string
+      }
+      get_user_by_account_id: {
+        Args: { _account_id: number }
+        Returns: {
+          email: string
+          id: string
+        }[]
       }
       get_user_tenant_memberships: {
         Args: { _user_id: string }
