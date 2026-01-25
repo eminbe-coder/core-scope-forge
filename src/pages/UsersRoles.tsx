@@ -7,9 +7,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useTenant } from '@/hooks/use-tenant';
 import { supabase } from '@/integrations/supabase/client';
 import { useEffect, useState } from 'react';
-import { Search, Users, Plus, Edit, Trash2, Key, Shield } from 'lucide-react';
+import { Search, Users, Plus, Edit, Trash2, Key, Shield, Hash } from 'lucide-react';
 import { EditUserModal } from '@/components/forms/EditUserModal';
-import { CreateUserModal } from '@/components/forms/CreateUserModal';
+import { AddUserBySIDModal } from '@/components/forms/AddUserBySIDModal';
 import { EditRoleModal } from '@/components/forms/EditRoleModal';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -276,9 +276,9 @@ const UsersRoles = () => {
                       Manage users in your tenant
                     </CardDescription>
                   </div>
-                  <Button onClick={() => setShowCreateUser(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Invite User
+                  <Button onClick={() => setShowCreateUser(true)} className="gap-2">
+                    <Hash className="h-4 w-4" />
+                    Add User by SID
                   </Button>
                 </div>
               </CardHeader>
@@ -585,7 +585,7 @@ const UsersRoles = () => {
         )}
 
         {showCreateUser && currentTenant && (
-          <CreateUserModal
+          <AddUserBySIDModal
             open={showCreateUser}
             onClose={() => setShowCreateUser(false)}
             tenantId={currentTenant.id}
@@ -593,6 +593,7 @@ const UsersRoles = () => {
               setShowCreateUser(false);
               fetchTenantData();
             }}
+            customRoles={customRoles}
           />
         )}
 
