@@ -3,13 +3,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SearchableSelect } from '@/components/ui/searchable-select';
-import { DynamicCompanySelect } from '@/components/ui/dynamic-searchable-select';
+import { CompanySelect } from '@/components/ui/entity-select';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { QuickAddCompanyModal } from '@/components/modals/QuickAddCompanyModal';
 import { toast } from 'sonner';
 import { Plus, Trash2, Building2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -54,7 +52,6 @@ export function CompanyRelationshipSelector({
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [showCompanyModal, setShowCompanyModal] = useState(false);
   const [formData, setFormData] = useState({
     company_id: '',
     relationship_role_id: '',
@@ -139,13 +136,7 @@ export function CompanyRelationshipSelector({
     const updated = relationships.filter((_, i) => i !== index);
     onChange(updated);
   };
-
-  const handleCompanyCreated = (company: { id: string; name: string }) => {
-    setCompanies(prev => [...prev, company]);
-    setFormData(prev => ({ ...prev, company_id: company.id }));
-    setShowCompanyModal(false);
-    toast.success('Company added successfully');
-  };
+  // Note: Quick Add modal is now handled internally by CompanySelect component
 
   const resetForm = () => {
     setFormData({
@@ -195,14 +186,11 @@ export function CompanyRelationshipSelector({
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <Label htmlFor="company">Company</Label>
-                  <DynamicCompanySelect
+                  <CompanySelect
                     value={formData.company_id}
                     onValueChange={(value) => setFormData({ ...formData, company_id: value })}
                     placeholder="Select a company"
-                    searchPlaceholder="Search companies..."
-                    emptyText="No companies found"
-                    onAddNew={() => setShowCompanyModal(true)}
-                    addNewLabel="Add Company"
+                    showQuickAdd={true}
                   />
                 </div>
 
@@ -312,12 +300,6 @@ export function CompanyRelationshipSelector({
           </div>
         )}
       </CardContent>
-
-      <QuickAddCompanyModal
-        open={showCompanyModal}
-        onClose={() => setShowCompanyModal(false)}
-        onCompanyCreated={handleCompanyCreated}
-      />
     </Card>
   );
 }
