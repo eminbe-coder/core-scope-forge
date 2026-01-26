@@ -17,7 +17,9 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     }
   }, [user, authLoading]);
 
-  if (authLoading || tenantLoading) {
+  // Only show full-screen loader on initial load when user is null
+  // Once user exists, never show loader again to prevent form data loss during background refreshes
+  if (authLoading && !user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">

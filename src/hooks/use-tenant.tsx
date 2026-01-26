@@ -132,7 +132,10 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
     console.log('refreshTenants called for user:', user.id);
 
     try {
-      setLoading(true);
+      // Only show loading state on initial load, not during background refreshes
+      if (!currentTenant) {
+        setLoading(true);
+      }
       
       // Check if user is a super admin by querying their memberships
       const { data: superAdminCheck, error: superAdminError } = await supabase
@@ -272,16 +275,24 @@ export const TenantProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  // Track user ID to prevent unnecessary refreshes
+  const [lastUserId, setLastUserId] = useState<string | null>(null);
+
   useEffect(() => {
     if (user) {
-      refreshTenants();
+      // Only refresh if user ID actually changed, not on every re-render
+      if (user.id !== lastUserId) {
+        setLastUserId(user.id);
+        refreshTenants();
+      }
     } else {
+      setLastUserId(null);
       setCurrentTenantState(null);
       setUserTenants([]);
       setUserRole(null);
       setLoading(false);
     }
-  }, [user]);
+  }, [user?.id]);
 
   return (
     <TenantContext.Provider value={{

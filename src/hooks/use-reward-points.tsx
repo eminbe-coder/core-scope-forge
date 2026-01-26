@@ -48,43 +48,44 @@ export const useRewardPoints = () => {
     try {
       setLoading(true);
       
-      // Load all-time total points
+      // Load all-time total points - use maybeSingle to avoid 406 error when no row exists
       const { data: pointsData, error: pointsError } = await supabase
         .from('user_reward_points')
         .select('total_points')
         .eq('user_id', user?.id)
         .eq('tenant_id', currentTenant?.id)
-        .single();
+        .maybeSingle();
 
-      if (pointsError && pointsError.code !== 'PGRST116') {
+      if (pointsError) {
         throw pointsError;
       }
 
       setTotalPoints(pointsData?.total_points || 0);
 
-      // Load current period target and progress
+      // Load current period target and progress - use maybeSingle to avoid 406 error
       const { data: cycleData, error: cycleError } = await supabase
         .from('reward_period_cycles')
         .select('id')
         .eq('tenant_id', currentTenant?.id)
         .eq('is_current', true)
-        .single();
+        .maybeSingle();
 
-      if (cycleError && cycleError.code !== 'PGRST116') {
-        console.error('No current cycle found');
+      if (cycleError) {
+        console.error('Error loading cycle:', cycleError);
         return;
       }
 
       if (cycleData) {
+        // Use maybeSingle to avoid 406 error when no target exists
         const { data: targetData, error: targetError } = await supabase
           .from('user_reward_targets')
           .select('target_points, current_points, achieved')
           .eq('user_id', user?.id)
           .eq('tenant_id', currentTenant?.id)
           .eq('period_cycle_id', cycleData.id)
-          .single();
+          .maybeSingle();
 
-        if (targetError && targetError.code !== 'PGRST116') {
+        if (targetError) {
           console.error('Error loading target:', targetError);
         }
 
