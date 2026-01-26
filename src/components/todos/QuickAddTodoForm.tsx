@@ -47,12 +47,11 @@ export const QuickAddTodoForm = ({
   const [installmentParentType, setInstallmentParentType] = useState<string>('');
   const [installmentParentId, setInstallmentParentId] = useState<string>('');
 
-  // Auto-open todo form when defaults are provided and trigger is hidden
+  // Set entity defaults when provided (modal only opens on explicit user action)
   useEffect(() => {
     if (defaultEntityType && defaultEntityId) {
       setSelectedEntityType(defaultEntityType);
       setSelectedEntityId(defaultEntityId);
-      setTodoModalOpen(true);
     }
   }, [defaultEntityType, defaultEntityId]);
 
