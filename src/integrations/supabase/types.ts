@@ -4907,7 +4907,7 @@ export type Database = {
           due_date: string | null
           due_time: string | null
           duration: number | null
-          entity_id: string
+          entity_id: string | null
           entity_type: string
           id: string
           notes: string | null
@@ -4934,7 +4934,7 @@ export type Database = {
           due_date?: string | null
           due_time?: string | null
           duration?: number | null
-          entity_id: string
+          entity_id?: string | null
           entity_type: string
           id?: string
           notes?: string | null
@@ -4961,7 +4961,7 @@ export type Database = {
           due_date?: string | null
           due_time?: string | null
           duration?: number | null
-          entity_id?: string
+          entity_id?: string | null
           entity_type?: string
           id?: string
           notes?: string | null

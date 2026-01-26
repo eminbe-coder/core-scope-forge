@@ -14,6 +14,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { DurationInput } from '@/components/ui/duration-input';
 import { useWorkingHours } from '@/hooks/use-working-hours';
+import { ContactSelect } from '@/components/ui/entity-select';
+import { TodoDetailModal } from './TodoDetailModal';
 
 const todoSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -66,8 +68,11 @@ export const TodoFormModal = ({
   const [todoTypes, setTodoTypes] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [paymentTerms, setPaymentTerms] = useState<any[]>([]);
-  const [contacts, setContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  // State for opening TodoDetailModal after creation
+  const [createdTodo, setCreatedTodo] = useState<any>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(todoSchema),
@@ -108,7 +113,7 @@ export const TodoFormModal = ({
 
   const fetchFormData = async () => {
     try {
-      const [todoTypesRes, profilesRes, contactsRes, paymentTermsRes] = await Promise.all([
+      const [todoTypesRes, profilesRes, paymentTermsRes] = await Promise.all([
         supabase
           .from('todo_types')
           .select('*')
@@ -126,13 +131,6 @@ export const TodoFormModal = ({
           )
         `).eq('tenant_id', currentTenant?.id).eq('active', true),
 
-        supabase
-          .from('contacts')
-          .select('id, first_name, last_name, email')
-          .eq('tenant_id', currentTenant?.id)
-          .eq('active', true)
-          .order('first_name'),
-
         // Conditionally fetch payment terms for contracts
         ...(entityType === 'contract' ? [
           supabase
@@ -145,7 +143,6 @@ export const TodoFormModal = ({
 
       setTodoTypes(todoTypesRes.data || []);
       setProfiles((profilesRes.data || []).map((membership: any) => membership.profiles).filter(Boolean));
-      setContacts(contactsRes.data || []);
       
       if (entityType === 'contract' && paymentTermsRes && !paymentTermsRes.error) {
         setPaymentTerms(paymentTermsRes.data || []);
@@ -171,12 +168,15 @@ export const TodoFormModal = ({
         typeId = defaultType.id;
       }
       
-      const { error } = await supabase
+      // Normalize entity_type to lowercase for consistent filtering
+      const normalizedEntityType = entityType === 'standalone' ? 'standalone' : entityType.toLowerCase();
+      
+      const { data: newTodo, error } = await supabase
         .from('todos')
         .insert({
           tenant_id: currentTenant.id,
-          entity_type: entityType,
-          entity_id: entityId,
+          entity_type: normalizedEntityType,
+          entity_id: normalizedEntityType === 'standalone' ? null : entityId,
           title: values.title,
           description: values.description || null,
           due_date: values.due_date || null,
@@ -190,13 +190,22 @@ export const TodoFormModal = ({
           contact_id: values.contact_id === 'none' ? null : values.contact_id || null,
           type_id: typeId,
           created_by: user.id,
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
       toast.success('To-Do item created successfully');
       onOpenChange(false);
       form.reset();
+      
+      // Open the TodoDetailModal for the newly created todo
+      if (newTodo) {
+        setCreatedTodo(newTodo);
+        setShowDetailModal(true);
+      }
+      
       onSuccess?.();
     } catch (error) {
       console.error('Error creating todo:', error);
@@ -206,7 +215,13 @@ export const TodoFormModal = ({
     }
   };
 
+  const handleDetailModalClose = () => {
+    setShowDetailModal(false);
+    setCreatedTodo(null);
+  };
+
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -296,6 +311,26 @@ export const TodoFormModal = ({
               )}
             />
 
+            {/* Contact Selection using unified ContactSelect */}
+            <FormField
+              control={form.control}
+              name="contact_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Related Contact (Optional)</FormLabel>
+                  <FormControl>
+                    <ContactSelect
+                      value={field.value === 'none' ? '' : field.value}
+                      onValueChange={(value) => field.onChange(value || 'none')}
+                      placeholder="Select contact"
+                      showQuickAdd={true}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <FormField
               control={form.control}
               name="due_date"
@@ -330,5 +365,17 @@ export const TodoFormModal = ({
         </Form>
       </DialogContent>
     </Dialog>
+    
+    {/* TodoDetailModal opens automatically after creation */}
+    {createdTodo && (
+      <TodoDetailModal
+        todo={createdTodo}
+        isOpen={showDetailModal}
+        onClose={handleDetailModalClose}
+        onUpdate={() => onSuccess?.()}
+        canEdit={true}
+      />
+    )}
+    </>
   );
 };

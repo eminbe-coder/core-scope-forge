@@ -15,6 +15,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus } from 'lucide-react';
 import { DurationInput } from '@/components/ui/duration-input';
 import { useWorkingHours } from '@/hooks/use-working-hours';
+import { ContactSelect } from '@/components/ui/entity-select';
+import { TodoDetailModal } from './TodoDetailModal';
 
 const todoSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -54,9 +56,13 @@ export const TodoForm = ({
   const [todoTypes, setTodoTypes] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [paymentTerms, setPaymentTerms] = useState<any[]>([]);
-  const [contacts, setContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [lastChangedField, setLastChangedField] = useState<'start_time' | 'due_time' | 'duration' | null>(null);
+  
+  // State for opening TodoDetailModal after creation
+  const [createdTodoId, setCreatedTodoId] = useState<string | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [createdTodo, setCreatedTodo] = useState<any>(null);
 
   React.useEffect(() => {
     setOpen(defaultOpen);
@@ -101,7 +107,7 @@ export const TodoForm = ({
 
   const fetchFormData = async () => {
     try {
-      const [todoTypesRes, profilesRes, contactsRes, paymentTermsRes] = await Promise.all([
+      const [todoTypesRes, profilesRes, paymentTermsRes] = await Promise.all([
         supabase
           .from('todo_types')
           .select('*')
@@ -119,13 +125,6 @@ export const TodoForm = ({
           )
         `).eq('tenant_id', currentTenant?.id).eq('active', true),
 
-        supabase
-          .from('contacts')
-          .select('id, first_name, last_name, email')
-          .eq('tenant_id', currentTenant?.id)
-          .eq('active', true)
-          .order('first_name'),
-
         // Conditionally fetch payment terms for contracts
         ...(entityType === 'contract' ? [
           supabase
@@ -138,11 +137,9 @@ export const TodoForm = ({
 
       if (todoTypesRes.error) throw todoTypesRes.error;
       if (profilesRes.error) throw profilesRes.error;
-      if (contactsRes.error) throw contactsRes.error;
 
       setTodoTypes(todoTypesRes.data || []);
       setProfiles((profilesRes.data || []).map((membership: any) => membership.profiles).filter(Boolean));
-      setContacts(contactsRes.data || []);
       
       if (entityType === 'contract' && paymentTermsRes && !paymentTermsRes.error) {
         setPaymentTerms(paymentTermsRes.data || []);
@@ -270,7 +267,7 @@ export const TodoForm = ({
       // Normalize entity_type to lowercase for consistent filtering
       const normalizedEntityType = entityType === 'standalone' ? 'standalone' : entityType.toLowerCase();
       
-      const { error } = await supabase
+      const { data: newTodo, error } = await supabase
         .from('todos')
         .insert({
           tenant_id: currentTenant.id,
@@ -289,13 +286,23 @@ export const TodoForm = ({
           contact_id: values.contact_id === 'none' ? null : values.contact_id || null,
           type_id: typeId,
           created_by: user.id,
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
       toast.success('To-Do item created successfully');
       setOpen(false);
       form.reset();
+      
+      // Open the TodoDetailModal for the newly created todo
+      if (newTodo) {
+        setCreatedTodoId(newTodo.id);
+        setCreatedTodo(newTodo);
+        setShowDetailModal(true);
+      }
+      
       onSuccess?.();
     } catch (error) {
       console.error('Error creating todo:', error);
@@ -303,6 +310,12 @@ export const TodoForm = ({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDetailModalClose = () => {
+    setShowDetailModal(false);
+    setCreatedTodoId(null);
+    setCreatedTodo(null);
   };
 
   const defaultTrigger = (
@@ -313,6 +326,7 @@ export const TodoForm = ({
   );
 
   return (
+    <>
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger || defaultTrigger}
@@ -494,28 +508,21 @@ export const TodoForm = ({
               )}
             />
 
-            {/* Contact dropdown */}
+            {/* Contact Selection using unified ContactSelect */}
             <FormField
               control={form.control}
               name="contact_id"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Related Contact (Optional)</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select contact" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent className="bg-background border border-border shadow-md z-50">
-                      <SelectItem value="none">No contact</SelectItem>
-                      {contacts.map((contact) => (
-                        <SelectItem key={contact.id} value={contact.id}>
-                          {contact.first_name} {contact.last_name} {contact.email && `(${contact.email})`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <ContactSelect
+                      value={field.value === 'none' ? '' : field.value}
+                      onValueChange={(value) => field.onChange(value || 'none')}
+                      placeholder="Select contact"
+                      showQuickAdd={true}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -567,5 +574,17 @@ export const TodoForm = ({
         </Form>
       </DialogContent>
     </Dialog>
+    
+    {/* TodoDetailModal opens automatically after creation */}
+    {createdTodo && (
+      <TodoDetailModal
+        todo={createdTodo}
+        isOpen={showDetailModal}
+        onClose={handleDetailModalClose}
+        onUpdate={() => onSuccess?.()}
+        canEdit={true}
+      />
+    )}
+    </>
   );
 };

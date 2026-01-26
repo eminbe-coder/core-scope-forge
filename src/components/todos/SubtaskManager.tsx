@@ -17,6 +17,8 @@ interface Subtask {
   status: 'pending' | 'in_progress' | 'completed';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   assigned_to?: string;
+  due_date?: string;
+  due_time?: string;
   created_at: string;
   assignees?: Array<{
     id: string;
@@ -44,7 +46,9 @@ export const SubtaskManager: React.FC<SubtaskManagerProps> = ({
   const [newSubtask, setNewSubtask] = useState({
     title: '',
     description: '',
-    priority: 'medium' as const
+    priority: 'medium' as const,
+    due_date: '',
+    due_time: ''
   });
   const [loading, setLoading] = useState(false);
   const { currentTenant } = useTenant();
@@ -114,6 +118,8 @@ export const SubtaskManager: React.FC<SubtaskManagerProps> = ({
           title: newSubtask.title,
           description: newSubtask.description || null,
           priority: newSubtask.priority,
+          due_date: newSubtask.due_date || null,
+          due_time: newSubtask.due_time || null,
           status: 'pending',
           entity_type: 'todo',
           entity_id: todoId,
@@ -126,7 +132,7 @@ export const SubtaskManager: React.FC<SubtaskManagerProps> = ({
 
       if (error) throw error;
 
-      setNewSubtask({ title: '', description: '', priority: 'medium' });
+      setNewSubtask({ title: '', description: '', priority: 'medium', due_date: '', due_time: '' });
       setIsAddingSubtask(false);
       fetchSubtasks();
       onSubtaskChange?.();
@@ -254,11 +260,31 @@ export const SubtaskManager: React.FC<SubtaskManagerProps> = ({
               onChange={(e) => setNewSubtask(prev => ({ ...prev, description: e.target.value }))}
               rows={2}
             />
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Due Date</label>
+                <Input
+                  type="date"
+                  value={newSubtask.due_date}
+                  onChange={(e) => setNewSubtask(prev => ({ ...prev, due_date: e.target.value }))}
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Due Time</label>
+                <Input
+                  type="time"
+                  value={newSubtask.due_time}
+                  onChange={(e) => setNewSubtask(prev => ({ ...prev, due_time: e.target.value }))}
+                  className="h-9"
+                />
+              </div>
+            </div>
             <div className="flex items-center justify-between">
               <select
                 value={newSubtask.priority}
                 onChange={(e) => setNewSubtask(prev => ({ ...prev, priority: e.target.value as any }))}
-                className="text-sm border rounded px-2 py-1"
+                className="text-sm border rounded px-2 py-1 bg-background"
               >
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
@@ -314,6 +340,15 @@ export const SubtaskManager: React.FC<SubtaskManagerProps> = ({
                         <p className="text-xs text-muted-foreground mt-1">
                           {subtask.description}
                         </p>
+                      )}
+                      {(subtask.due_date || subtask.due_time) && (
+                        <div className="flex items-center gap-1 mt-1">
+                          <Clock className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">
+                            {subtask.due_date && new Date(subtask.due_date).toLocaleDateString()}
+                            {subtask.due_time && ` at ${subtask.due_time}`}
+                          </span>
+                        </div>
                       )}
                       {subtask.assignees && subtask.assignees.length > 0 && (
                         <div className="flex items-center gap-1 mt-2">
