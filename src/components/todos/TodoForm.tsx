@@ -267,12 +267,18 @@ export const TodoForm = ({
       // Normalize entity_type to lowercase for consistent filtering
       const normalizedEntityType = entityType === 'standalone' ? 'standalone' : entityType.toLowerCase();
       
+      // Sanitize optional UUID fields - convert empty strings to null to prevent UUID syntax errors
+      const sanitizedEntityId = normalizedEntityType === 'standalone' || !entityId || entityId.trim() === '' ? null : entityId;
+      const sanitizedAssignedTo = !values.assigned_to || values.assigned_to === 'unassigned' || values.assigned_to.trim() === '' ? user.id : values.assigned_to;
+      const sanitizedPaymentTermId = !values.payment_term_id || values.payment_term_id === 'none' || values.payment_term_id.trim() === '' ? null : values.payment_term_id;
+      const sanitizedContactId = !values.contact_id || values.contact_id === 'none' || values.contact_id.trim() === '' ? null : values.contact_id;
+      
       const { data: newTodo, error } = await supabase
         .from('todos')
         .insert({
           tenant_id: currentTenant.id,
           entity_type: normalizedEntityType,
-          entity_id: normalizedEntityType === 'standalone' ? null : entityId,
+          entity_id: sanitizedEntityId,
           title: values.title,
           description: values.description || null,
           due_date: values.due_date || null,
@@ -281,9 +287,9 @@ export const TodoForm = ({
           duration: values.duration || 10,
           priority: values.priority || 'medium',
           status: 'pending',
-          assigned_to: values.assigned_to === 'unassigned' ? user.id : values.assigned_to || user.id,
-          payment_term_id: values.payment_term_id === 'none' ? null : values.payment_term_id || null,
-          contact_id: values.contact_id === 'none' ? null : values.contact_id || null,
+          assigned_to: sanitizedAssignedTo,
+          payment_term_id: sanitizedPaymentTermId,
+          contact_id: sanitizedContactId,
           type_id: typeId,
           created_by: user.id,
         })
