@@ -23,9 +23,11 @@ import { useTheme } from '@/hooks/use-theme';
 import { useTenant } from '@/hooks/use-tenant';
 import { usePermissions } from '@/hooks/use-permissions';
 import { useRewardPoints } from '@/hooks/use-reward-points';
+import { useProfile } from '@/hooks/use-profile';
 import { TenantSwitcher } from './TenantSwitcher';
 import { NotificationDropdown } from '@/components/notifications/NotificationDropdown';
-import { LogOut, User, Palette, Home, Trophy, Shield } from 'lucide-react';
+import { UniversalSearchBar } from '@/components/search/UniversalSearchBar';
+import { LogOut, User, Palette, Home, Trophy, Shield, Hash } from 'lucide-react';
 
 interface AppHeaderProps {
   title?: string;
@@ -42,8 +44,13 @@ export function AppHeader({
   const { theme, setTheme } = useTheme();
   const { currentTenant, isSuperAdmin } = useTenant();
   const { totalPoints, currentPoints, targetPoints, achieved } = useRewardPoints();
+  const { profile } = useProfile();
   const navigate = useNavigate();
   const [rewardModalOpen, setRewardModalOpen] = useState(false);
+
+  const displayName = profile 
+    ? [profile.first_name, profile.last_name].filter(Boolean).join(' ') || profile.email
+    : user?.email || 'User';
 
   const getUserInitials = () => {
     if (!user?.email) return 'U';
@@ -84,6 +91,9 @@ export function AppHeader({
         </div>
 
         <div className="flex items-center gap-4">
+          {/* Universal Search Bar */}
+          <UniversalSearchBar />
+          
           {/* Custom Actions */}
           {customActions && (
             <div className="flex items-center gap-2">
@@ -145,18 +155,32 @@ export function AppHeader({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent 
-              className="w-56 bg-popover/95 backdrop-blur-md border-glass-border" 
+              className="w-64 bg-popover/95 backdrop-blur-md border-glass-border" 
               align="end"
             >
-              <div className="flex items-center justify-start gap-2 p-2">
-                <div className="flex flex-col space-y-1 leading-none">
-                  <p className="font-medium text-foreground">{user?.email}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {currentTenant?.name}
-                  </p>
-                </div>
+              <div className="p-3">
+                <p className="font-medium text-foreground">{displayName}</p>
+                <p className="text-sm text-muted-foreground truncate">
+                  {user?.email}
+                </p>
+                {profile?.account_id && (
+                  <div className="flex items-center gap-1.5 mt-2">
+                    <Hash className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-sm font-mono font-semibold text-primary">
+                      {profile.account_id}
+                    </span>
+                    <span className="text-xs text-muted-foreground">SID</span>
+                  </div>
+                )}
               </div>
               <DropdownMenuSeparator className="bg-glass-border" />
+              <DropdownMenuItem 
+                onClick={() => navigate('/home')}
+                className="text-foreground hover:bg-accent/50"
+              >
+                <Home className="mr-2 h-4 w-4" />
+                Personal Home Page
+              </DropdownMenuItem>
               <DropdownMenuItem className="text-foreground hover:bg-accent/50">
                 <User className="mr-2 h-4 w-4" />
                 Profile

@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/use-auth";
+import { ProfileProvider } from "@/hooks/use-profile";
 import { TenantProvider } from "@/hooks/use-tenant";
 import { PermissionsProvider } from "@/hooks/use-permissions";
 import { EntityRefreshProvider } from "@/components/ui/entity-refresh-context";
@@ -94,9 +95,10 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AuthProvider>
-        <TenantProvider>
-          <PermissionsProvider>
-            <EntityRefreshProvider>
+        <ProfileProvider>
+          <TenantProvider>
+            <PermissionsProvider>
+              <EntityRefreshProvider>
               <Toaster />
               <Sonner />
               <BrowserRouter>
@@ -460,7 +462,8 @@ const App = () => (
             </EntityRefreshProvider>
           </PermissionsProvider>
         </TenantProvider>
-      </AuthProvider>
+      </ProfileProvider>
+    </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
