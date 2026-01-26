@@ -476,22 +476,30 @@ export function CreateDealForm({ leadType, leadId, siteId, siteName, onSuccess }
       const selectedStage = stages.find(s => s.id === data.stage_id);
       const probability = selectedStage ? selectedStage.win_percentage : 0;
 
+      // Sanitize optional UUID fields - convert empty strings to null to prevent UUID syntax errors
+      const sanitizedSiteId = data.site_id?.trim() === '' ? null : data.site_id || null;
+      const sanitizedCurrencyId = data.currency_id?.trim() === '' ? null : (data.currency_id || currentTenant.default_currency_id || null);
+      const sanitizedSourceId = sourceValues.sourceCategory?.trim() === '' ? null : sourceValues.sourceCategory || null;
+      const sanitizedSourceCompanyId = sourceValues.companySource?.trim() === '' ? null : sourceValues.companySource || null;
+      const sanitizedSourceContactId = sourceValues.contactSource?.trim() === '' ? null : sourceValues.contactSource || null;
+      const sanitizedAssignedTo = !data.assigned_to || data.assigned_to === 'unassigned' || data.assigned_to?.trim() === '' ? null : data.assigned_to;
+
       const dealData = {
         name: data.name,
         description: data.description || null,
         customer_id: customerId,
-        site_id: data.site_id || null,
+        site_id: sanitizedSiteId,
         value: data.value ? parseFloat(data.value) : null,
-        currency_id: data.currency_id || currentTenant.default_currency_id || null,
+        currency_id: sanitizedCurrencyId,
         stage_id: data.stage_id,
-        source_id: sourceValues.sourceCategory || null,
-        source_company_id: sourceValues.companySource || null,
-        source_contact_id: sourceValues.contactSource || null,
+        source_id: sanitizedSourceId,
+        source_company_id: sanitizedSourceCompanyId,
+        source_contact_id: sanitizedSourceContactId,
         source_user_id: null,
         priority: data.priority,
         probability,
         expected_close_date: data.expected_close_date || null,
-        assigned_to: data.assigned_to === 'unassigned' ? null : data.assigned_to || null,
+        assigned_to: sanitizedAssignedTo,
         notes: data.notes || null,
         solution_category_ids: data.solution_category_ids || [],
         tenant_id: currentTenant.id,
