@@ -9,11 +9,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SearchableSelect } from '@/components/ui/searchable-select';
-import { DynamicCompanySelect, DynamicCustomerSelect, DynamicContactSelect, DynamicSiteSelect } from '@/components/ui/dynamic-searchable-select';
+import { DynamicCustomerSelect } from '@/components/ui/dynamic-searchable-select';
+import { CompanySelect, ContactSelect, SiteSelect, CustomerSelect } from '@/components/ui/entity-select';
 import { EnhancedSourceSelect, SourceValues } from '@/components/ui/enhanced-source-select';
-import { QuickAddCompanyModal } from '@/components/modals/QuickAddCompanyModal';
-import { UnifiedQuickAddContactModal } from '@/components/modals/UnifiedQuickAddContactModal';
-import { QuickAddSiteModal } from '@/components/modals/QuickAddSiteModal';
 import { SolutionCategorySelect } from '@/components/ui/solution-category-select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { supabase } from '@/integrations/supabase/client';
@@ -125,9 +123,6 @@ export function CreateDealForm({ leadType, leadId, siteId, siteName, onSuccess }
   const [paymentTerms, setPaymentTerms] = useState<PaymentTerm[]>([]);
   const [tenantUsers, setTenantUsers] = useState<{ id: string; name: string; email: string }[]>([]);
   const [selectedCustomerType, setSelectedCustomerType] = useState<'existing' | 'company' | 'contact'>('existing');
-  const [showCompanyModal, setShowCompanyModal] = useState(false);
-  const [showContactModal, setShowContactModal] = useState(false);
-  const [showSiteModal, setShowSiteModal] = useState(false);
   const [leadData, setLeadData] = useState<any>(null);
   const [sourceValues, setSourceValues] = useState<SourceValues>({
     sourceCategory: '',
@@ -606,29 +601,8 @@ export function CreateDealForm({ leadType, leadId, siteId, siteName, onSuccess }
     }
   };
 
-  const handleCompanyCreated = async (company: Company) => {
-    setShowCompanyModal(false);
-    await loadData();
-    // Don't auto-select - let user choose what to do with the new company
-  };
-
-  const handleContactCreated = async (contact: Contact) => {
-    setShowContactModal(false);
-    await loadData();
-    // Don't auto-select - let user choose what to do with the new contact
-  };
-
-  const handleSiteCreated = (site: { id: string; name: string }) => {
-    // Add the new site to the list and select it
-    const newSite: Site = {
-      id: site.id,
-      name: site.name,
-      address: '', // Minimal required field
-    };
-    setSites(prev => [...prev, newSite]);
-    form.setValue('site_id', site.id);
-    setShowSiteModal(false);
-  };
+  // Note: Quick Add modals are now handled internally by the entity select components
+  // These handlers are no longer needed as the components manage their own modals
 
   const handleSiteSelection = async (siteId: string) => {
     if (!siteId || !currentTenant) return;
@@ -746,24 +720,19 @@ export function CreateDealForm({ leadType, leadId, siteId, siteName, onSuccess }
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Site</FormLabel>
-                    <div className="flex gap-2">
-                      <FormControl>
-                          <DynamicSiteSelect
-                            value={field.value || ''}
-                            onValueChange={(value) => {
-                              field.onChange(value);
-                              if (value) {
-                                handleSiteSelection(value);
-                              }
-                            }}
-                            placeholder="Select site (optional)"
-                            searchPlaceholder="Search sites..."
-                            emptyText="No sites found"
-                            onAddNew={() => setShowSiteModal(true)}
-                            addNewLabel="Add Site"
-                          />
-                      </FormControl>
-                    </div>
+                    <FormControl>
+                      <SiteSelect
+                        value={field.value || ''}
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          if (value) {
+                            handleSiteSelection(value);
+                          }
+                        }}
+                        placeholder="Select site (optional)"
+                        showQuickAdd={true}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -935,66 +904,46 @@ export function CreateDealForm({ leadType, leadId, siteId, siteName, onSuccess }
                 )}
 
                 {selectedCustomerType === 'company' && (
-                  <div className="flex gap-2">
-                    <FormField
-                      control={form.control}
-                      name="customer_id"
-                      render={({ field }) => (
-                        <FormItem className="flex-1">
-                          <FormControl>
-                             <DynamicCompanySelect
-                               value={field.value}
-                               onValueChange={field.onChange}
-                               placeholder="Select company"
-                               searchPlaceholder="Search companies..."
-                               emptyText="No companies found"
-                             />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setShowCompanyModal(true)}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <FormField
+                    control={form.control}
+                    name="customer_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <CompanySelect
+                            value={field.value}
+                            onValueChange={field.onChange}
+                            placeholder="Select company"
+                            showQuickAdd={true}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 )}
 
                 {selectedCustomerType === 'contact' && (
-                  <div className="flex gap-2">
-                    <FormField
-                      control={form.control}
-                      name="customer_id"
-                      render={({ field }) => (
-                        <FormItem className="flex-1">
-                          <FormControl>
-                             <DynamicContactSelect
-                               value={field.value}
-                               onValueChange={field.onChange}
-                               placeholder="Select contact"
-                               searchPlaceholder="Search contacts..."
-                               emptyText="No contacts found"
-                               renderOption={(contact) => 
-                                 `${contact.first_name} ${contact.last_name || ''}`.trim()
-                               }
-                             />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setShowContactModal(true)}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <FormField
+                    control={form.control}
+                    name="customer_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <ContactSelect
+                            value={field.value}
+                            onValueChange={field.onChange}
+                            placeholder="Select contact"
+                            showQuickAdd={true}
+                            renderOption={(contact) => 
+                              `${contact.first_name} ${contact.last_name || ''}`.trim()
+                            }
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 )}
               </div>
 
@@ -1226,24 +1175,6 @@ export function CreateDealForm({ leadType, leadId, siteId, siteName, onSuccess }
           </Form>
         </CardContent>
       </Card>
-
-      <QuickAddCompanyModal
-        open={showCompanyModal}
-        onClose={() => setShowCompanyModal(false)}
-        onCompanyCreated={handleCompanyCreated}
-      />
-
-      <UnifiedQuickAddContactModal
-        open={showContactModal}
-        onClose={() => setShowContactModal(false)}
-        onContactCreated={handleContactCreated}
-      />
-
-      <QuickAddSiteModal
-        open={showSiteModal}
-        onClose={() => setShowSiteModal(false)}
-        onSiteCreated={handleSiteCreated}
-      />
     </>
   );
 }
