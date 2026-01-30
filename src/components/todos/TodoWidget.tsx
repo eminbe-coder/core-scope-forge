@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { TodoList } from './TodoList';
 import { QuickAddTodoForm } from './QuickAddTodoForm';
-import { TodoDetailModal } from './TodoDetailModal';
+import { UnifiedTodoModal } from './UnifiedTodoModal';
 import { useTodoHierarchy } from '@/hooks/use-todo-hierarchy';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
@@ -89,8 +89,8 @@ export const TodoWidget = ({
         onTodoClick={handleTodoClick}
       />
 
-      {/* Unified TodoDetailModal */}
-      <TodoDetailModal
+      {/* Unified Todo Modal */}
+      <UnifiedTodoModal
         todo={selectedTodo}
         isOpen={isModalOpen}
         onClose={handleModalClose}

@@ -16,7 +16,7 @@ import { Plus } from 'lucide-react';
 import { DurationInput } from '@/components/ui/duration-input';
 import { useWorkingHours } from '@/hooks/use-working-hours';
 import { ContactSelect } from '@/components/ui/entity-select';
-import { TodoDetailModal } from './TodoDetailModal';
+import { UnifiedTodoModal } from './UnifiedTodoModal';
 
 const todoSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -581,9 +581,9 @@ export const TodoForm = ({
       </DialogContent>
     </Dialog>
     
-    {/* TodoDetailModal opens automatically after creation */}
+    {/* UnifiedTodoModal opens automatically after creation */}
     {createdTodo && (
-      <TodoDetailModal
+      <UnifiedTodoModal
         todo={createdTodo}
         isOpen={showDetailModal}
         onClose={handleDetailModalClose}
