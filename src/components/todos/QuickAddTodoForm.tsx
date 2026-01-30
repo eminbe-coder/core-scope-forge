@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus } from 'lucide-react';
-import { TodoForm } from './TodoForm';
+import { UnifiedTodoModal } from './UnifiedTodoModal';
 import { DynamicCompanySelect, DynamicContactSelect, DynamicSiteSelect, DynamicCustomerSelect, DynamicDealSelect, DynamicContractSelect, DynamicInstallmentSelect } from '@/components/ui/dynamic-searchable-select';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -77,17 +77,15 @@ export const QuickAddTodoForm = ({
     onSuccess?.();
   };
 
-  const handleTodoModalClose = (open: boolean) => {
-    setTodoModalOpen(open);
-    if (!open) {
-      setSelectedEntityType(defaultEntityType || '');
-      setSelectedEntityId(defaultEntityId || '');
-      setInstallmentParentType('');
-      setInstallmentParentId('');
-    }
+  const handleTodoModalClose = () => {
+    setTodoModalOpen(false);
+    setSelectedEntityType(defaultEntityType || '');
+    setSelectedEntityId(defaultEntityId || '');
+    setInstallmentParentType('');
+    setInstallmentParentId('');
   };
 
-  // If default entity is provided, go directly to todo form
+  // If default entity is provided, go directly to unified modal
   const handleOpen = (open: boolean) => {
     if (defaultEntityType && defaultEntityId) {
       setTodoModalOpen(open);
@@ -302,15 +300,16 @@ export const QuickAddTodoForm = ({
         </DialogContent>
       </Dialog>
 
-      {todoModalOpen && (
-        <TodoForm
-          entityType={(defaultEntityType || selectedEntityType).toLowerCase()}
-          entityId={defaultEntityId || selectedEntityId || (selectedEntityType === 'standalone' ? 'standalone' : '')}
-          paymentTermId={paymentTermId}
-          onSuccess={handleTodoSuccess}
-          defaultOpen={todoModalOpen}
-        />
-      )}
+      {/* Unified Todo Modal - replaces the old TodoForm */}
+      <UnifiedTodoModal
+        isOpen={todoModalOpen}
+        onClose={handleTodoModalClose}
+        onUpdate={handleTodoSuccess}
+        entityType={(defaultEntityType || selectedEntityType).toLowerCase()}
+        entityId={defaultEntityId || selectedEntityId || undefined}
+        paymentTermId={paymentTermId}
+        canEdit={true}
+      />
     </>
   );
 };

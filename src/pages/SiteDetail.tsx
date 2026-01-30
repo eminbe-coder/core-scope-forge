@@ -24,7 +24,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
 
-import { TodoDetailModal } from '@/components/todos/TodoDetailModal';
+import { UnifiedTodoModal } from '@/components/todos/UnifiedTodoModal';
 
 interface Site {
   id: string;
@@ -1320,7 +1320,7 @@ const SiteDetail = () => {
 
       {/* Todo Detail Modal */}
       {selectedTodo && (
-        <TodoDetailModal
+        <UnifiedTodoModal
           todo={selectedTodo}
           isOpen={todoDetailOpen}
           onClose={() => {

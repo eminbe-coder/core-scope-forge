@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { TodoList } from '@/components/todos/TodoList';
 import { TodoCalendarView } from '@/components/todos/TodoCalendarView';
-import { TodoDetailModal } from '@/components/todos/TodoDetailModal';
+import { UnifiedTodoModal } from '@/components/todos/UnifiedTodoModal';
 import { TodoFilters } from '@/components/todos/TodoFilters';
 import { QuickAddTodoForm } from '@/components/todos/QuickAddTodoForm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -502,7 +502,7 @@ const MyTodos = () => {
 
         {/* Todo Detail Modal */}
         {selectedTodo && (
-          <TodoDetailModal
+          <UnifiedTodoModal
             todo={selectedTodo}
             isOpen={isDetailModalOpen}
             onClose={handleDetailModalClose}
