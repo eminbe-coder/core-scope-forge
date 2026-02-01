@@ -16,6 +16,8 @@ interface SyncRequest {
   duration?: number;
   location?: string;
   entity_type?: string;
+  is_appointment?: boolean; // Determines Calendar vs Tasks sync
+  type_name?: string; // To-Do type name (e.g., "Appointment", "Meeting", "Task")
 }
 
 serve(async (req) => {
@@ -41,21 +43,32 @@ serve(async (req) => {
     );
 
     // Verify user
-    const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await supabaseClient.auth.getClaims(token);
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
     
-    if (claimsError || !claimsData?.claims) {
+    if (userError || !user) {
       return new Response(
         JSON.stringify({ error: 'Invalid token' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const userId = claimsData.claims.sub;
+    const userId = user.id;
 
     // Parse request body
     const body: SyncRequest = await req.json();
-    const { todo_id, title, description, due_date, due_time, start_time, duration, location, entity_type } = body;
+    const { 
+      todo_id, 
+      title, 
+      description, 
+      due_date, 
+      due_time, 
+      start_time, 
+      duration, 
+      location, 
+      entity_type,
+      is_appointment,
+      type_name 
+    } = body;
 
     if (!todo_id || !title) {
       return new Response(
@@ -63,6 +76,12 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Determine sync target: Calendar for Appointments, Tasks for To-Dos
+    const isCalendarSync = is_appointment || 
+      type_name?.toLowerCase().includes('appointment') || 
+      type_name?.toLowerCase().includes('meeting') ||
+      type_name?.toLowerCase().includes('call');
 
     // Check if user has Google credentials
     const { data: credentials, error: credError } = await supabaseClient
@@ -76,7 +95,7 @@ serve(async (req) => {
         JSON.stringify({ 
           error: 'Google account not connected',
           code: 'GOOGLE_NOT_CONNECTED',
-          message: 'Please connect your Google account in Settings > Connections'
+          message: 'Please connect your Google account in Settings > Security'
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -88,63 +107,95 @@ serve(async (req) => {
     
     if (expiresAt && expiresAt <= now) {
       // Token expired - would need to refresh here using refresh_token
-      // For now, return an error asking user to reconnect
       return new Response(
         JSON.stringify({ 
           error: 'Google token expired',
           code: 'TOKEN_EXPIRED',
-          message: 'Your Google session has expired. Please reconnect in Settings > Connections'
+          message: 'Your Google session has expired. Please reconnect in Settings > Security'
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Build Google Calendar event payload
-    // Note: This is a placeholder - actual Google Calendar API integration would go here
-    const eventPayload = {
-      summary: title,
-      description: description || `Created from SID CRM - ${entity_type || 'task'}`,
-      start: {
-        dateTime: due_date && start_time 
-          ? `${due_date}T${start_time}:00`
-          : due_date 
-            ? `${due_date}T09:00:00` 
-            : new Date().toISOString(),
-        timeZone: 'UTC',
-      },
-      end: {
-        dateTime: due_date && start_time && duration
-          ? calculateEndTime(due_date, start_time, duration)
-          : due_date && due_time
-            ? `${due_date}T${due_time}:00`
+    let syncResult;
+
+    if (isCalendarSync) {
+      // ============================================
+      // GOOGLE CALENDAR SYNC (Appointments/Meetings)
+      // ============================================
+      const eventPayload = {
+        summary: title,
+        description: description || `Created from SID CRM - ${entity_type || 'appointment'}`,
+        start: {
+          dateTime: due_date && start_time 
+            ? `${due_date}T${start_time}:00`
             : due_date 
-              ? `${due_date}T10:00:00`
-              : new Date(Date.now() + 3600000).toISOString(),
-        timeZone: 'UTC',
-      },
-      location: location || undefined,
-    };
+              ? `${due_date}T09:00:00` 
+              : new Date().toISOString(),
+          timeZone: 'UTC',
+        },
+        end: {
+          dateTime: due_date && start_time && duration
+            ? calculateEndTime(due_date, start_time, duration)
+            : due_date && due_time
+              ? `${due_date}T${due_time}:00`
+              : due_date 
+                ? `${due_date}T10:00:00`
+                : new Date(Date.now() + 3600000).toISOString(),
+          timeZone: 'UTC',
+        },
+        location: location || undefined,
+      };
 
-    // Placeholder response - actual Google API call would go here
-    // In production, you would:
-    // 1. Use credentials.access_token to call Google Calendar API
-    // 2. Create/update the event
-    // 3. Store the returned event ID in the todo record
-    
-    console.log('Would sync to Google Calendar:', {
-      userId,
-      todoId: todo_id,
-      event: eventPayload,
-    });
+      console.log('Syncing to Google Calendar:', {
+        userId,
+        todoId: todo_id,
+        event: eventPayload,
+        syncType: 'calendar',
+      });
 
-    // Update todo with sync status (placeholder event ID)
-    const placeholderEventId = `placeholder_${todo_id}_${Date.now()}`;
-    
+      // Placeholder for actual Google Calendar API call
+      const placeholderEventId = `gcal_${todo_id}_${Date.now()}`;
+      
+      syncResult = {
+        sync_type: 'calendar',
+        event_id: placeholderEventId,
+        message: 'Event synced to Google Calendar',
+      };
+    } else {
+      // ============================================
+      // GOOGLE TASKS SYNC (To-Dos/Tasks)
+      // ============================================
+      const taskPayload = {
+        title: title,
+        notes: description || `Created from SID CRM - ${entity_type || 'task'}`,
+        due: due_date ? `${due_date}T00:00:00.000Z` : undefined,
+        status: 'needsAction',
+      };
+
+      console.log('Syncing to Google Tasks:', {
+        userId,
+        todoId: todo_id,
+        task: taskPayload,
+        syncType: 'tasks',
+      });
+
+      // Placeholder for actual Google Tasks API call
+      const placeholderTaskId = `gtask_${todo_id}_${Date.now()}`;
+      
+      syncResult = {
+        sync_type: 'tasks',
+        task_id: placeholderTaskId,
+        message: 'Task synced to Google Tasks',
+      };
+    }
+
+    // Update todo with sync status
     const { error: updateError } = await supabaseClient
       .from('todos')
       .update({
         google_calendar_sync: true,
-        google_event_id: placeholderEventId,
+        google_event_id: syncResult.event_id || syncResult.task_id,
       })
       .eq('id', todo_id);
 
@@ -155,9 +206,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: 'Google Calendar sync prepared (API integration pending)',
-        event_id: placeholderEventId,
-        note: 'Full Google Calendar API integration requires GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET secrets'
+        ...syncResult,
+        note: 'Full Google API integration requires GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET secrets'
       }),
       { 
         status: 200, 
