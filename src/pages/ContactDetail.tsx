@@ -5,16 +5,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/use-tenant';
 import { useToast } from '@/hooks/use-toast';
 import { TodoWidget } from '@/components/todos/TodoWidget';
 import { ContactTodos } from '@/components/contact/ContactTodos';
-import { EntityRelationships } from '@/components/entity-relationships/EntityRelationships';
-import { DynamicCompanySelect } from '@/components/ui/dynamic-searchable-select';
-import { DynamicSiteSelect } from '@/components/ui/dynamic-searchable-select';
-import { SearchableSelect } from '@/components/ui/searchable-select';
+import { ContactGlobalRelationships } from '@/components/contact/ContactGlobalRelationships';
+import { CompanySelect, SiteSelect } from '@/components/ui/entity-select';
 
 interface Contact {
   id: string;
@@ -426,7 +425,7 @@ const ContactDetail = () => {
             </Card>
           </div>
 
-          {/* Right Panel - Related Entities */}
+          {/* Right Panel - Tabbed View for Relationships and Activities */}
           <div className="lg:col-span-2 space-y-6">
             {/* Companies Widget */}
             <Card>
@@ -437,12 +436,11 @@ const ContactDetail = () => {
                     Companies ({companies.length})
                   </div>
                   <div className="flex gap-2">
-                    <DynamicCompanySelect
+                    <CompanySelect
                       value=""
                       onValueChange={handleLinkCompany}
-                      placeholder="Link existing company"
-                      searchPlaceholder="Search companies..."
-                      emptyText="No companies found"
+                      placeholder="Link company"
+                      showQuickAdd={false}
                     />
                   </div>
                 </CardTitle>
@@ -481,12 +479,11 @@ const ContactDetail = () => {
                     Sites ({sites.length})
                   </div>
                   <div className="flex gap-2">
-                    <DynamicSiteSelect
+                    <SiteSelect
                       value=""
                       onValueChange={handleLinkSite}
-                      placeholder="Link existing site"
-                      searchPlaceholder="Search sites..."
-                      emptyText="No sites found"
+                      placeholder="Link site"
+                      showQuickAdd={false}
                     />
                   </div>
                 </CardTitle>
@@ -593,12 +590,11 @@ const ContactDetail = () => {
               </CardContent>
             </Card>
 
-            {/* Additional Relationships - Commented out as contact type may not be supported */}
-            {/* <EntityRelationships
-              entityType="contact"
-              entityId={id!}
-              title="Additional Relationships"
-            /> */}
+            {/* Global 360-View Relationships */}
+            <ContactGlobalRelationships
+              contactId={id!}
+              contactName={fullName}
+            />
           </div>
         </div>
 
