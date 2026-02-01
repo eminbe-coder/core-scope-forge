@@ -513,8 +513,6 @@ export function CreateDealForm({ leadType, leadId, siteId, siteName, onSuccess }
 
       if (error) throw error;
 
-      // Note: Removed linked companies, contacts and relationship functionality as requested
-
       // Save payment terms if any
       if (updatedPaymentTerms.length > 0) {
         const paymentTermsData = updatedPaymentTerms.map(term => ({
