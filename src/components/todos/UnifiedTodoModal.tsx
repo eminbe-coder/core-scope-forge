@@ -446,6 +446,24 @@ export const UnifiedTodoModal: React.FC<UnifiedTodoModalProps> = ({
         return;
       }
 
+      // Check if user has Google identity linked
+      const { data: identitiesData, error: identityError } = await supabase.auth.getUserIdentities();
+      
+      if (identityError) {
+        console.error('Error checking Google identity:', identityError);
+        toast.error('Failed to verify Google connection');
+        return;
+      }
+      
+      const googleIdentity = identitiesData?.identities?.find(
+        (identity: any) => identity.provider === 'google'
+      );
+      
+      if (!googleIdentity) {
+        toast.error('Please connect your Google account in Settings > Security');
+        return;
+      }
+
       // Get location from site if site is selected
       let locationText = todoData.location;
       if (todoData.location_site_id && !locationText) {
@@ -488,6 +506,8 @@ export const UnifiedTodoModal: React.FC<UnifiedTodoModalProps> = ({
         toast.error('Failed to sync with Google');
       } else if (response.data?.code === 'GOOGLE_NOT_CONNECTED') {
         toast.error('Please connect your Google account in Settings > Security');
+      } else if (response.data?.code === 'TOKEN_EXPIRED') {
+        toast.error('Google session expired. Please reconnect in Settings > Security');
       } else {
         const syncType = response.data?.sync_type === 'calendar' ? 'Google Calendar' : 'Google Tasks';
         toast.success(`Synced to ${syncType}`);
