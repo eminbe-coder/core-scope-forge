@@ -87,7 +87,8 @@ const SecuritySettings = () => {
   const handleConnectGoogle = async () => {
     setGoogleLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      // Use linkIdentity to attach Google to existing SID account without logging out
+      const { data, error } = await supabase.auth.linkIdentity({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/security-settings`,
@@ -99,9 +100,21 @@ const SecuritySettings = () => {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        // Handle specific error for already linked accounts
+        if (error.message?.includes('already linked') || error.code === 'identity_already_exists') {
+          toast({
+            title: 'Already Linked',
+            description: 'This Google account is already connected to another user. Please use a different Google account.',
+            variant: 'destructive',
+          });
+          setGoogleLoading(false);
+          return;
+        }
+        throw error;
+      }
       
-      // The user will be redirected to Google for authentication
+      // The user will be redirected to Google for identity linking
     } catch (error: any) {
       toast({
         title: 'Error',
