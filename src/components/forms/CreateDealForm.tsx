@@ -9,8 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SearchableSelect } from '@/components/ui/searchable-select';
-import { DynamicCustomerSelect } from '@/components/ui/dynamic-searchable-select';
-import { CompanySelect, ContactSelect, SiteSelect, CustomerSelect } from '@/components/ui/entity-select';
+import { CompanySelect, ContactSelect, SiteSelect } from '@/components/ui/entity-select';
 import { EnhancedSourceSelect, SourceValues } from '@/components/ui/enhanced-source-select';
 import { SolutionCategorySelect } from '@/components/ui/solution-category-select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -25,7 +24,8 @@ import { Plus, Building2, User, MapPin, Calendar, Trash2 } from 'lucide-react';
 const dealSchema = z.object({
   name: z.string().min(1, 'Deal name is required'),
   description: z.string().optional(),
-  customer_id: z.string().min(1, 'Customer is required'),
+  // Fluid entity linking - direct to company or contact, no customer duplication
+  entity_id: z.string().min(1, 'A Company or Contact is required'),
   site_id: z.string().optional(),
   value: z.string().optional(),
   currency_id: z.string().optional(),
@@ -47,11 +47,7 @@ interface CreateDealFormProps {
   onSuccess?: () => void;
 }
 
-interface Customer {
-  id: string;
-  name: string;
-  type: 'company' | 'individual';
-}
+// Customer interface removed - using Fluid Entity Model (direct company/contact links)
 
 interface Company {
   id: string;
@@ -70,7 +66,6 @@ interface Site {
   id: string;
   name: string;
   address: string;
-  customer_id?: string;
 }
 
 interface Currency {
@@ -116,13 +111,13 @@ export function CreateDealForm({ leadType, leadId, siteId, siteName, onSuccess }
   const [companies, setCompanies] = useState<Company[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [stages, setStages] = useState<DealStage[]>([]);
   const [sources, setSources] = useState<DealSource[]>([]);
   const [paymentTerms, setPaymentTerms] = useState<PaymentTerm[]>([]);
   const [tenantUsers, setTenantUsers] = useState<{ id: string; name: string; email: string }[]>([]);
-  const [selectedCustomerType, setSelectedCustomerType] = useState<'existing' | 'company' | 'contact'>('existing');
+  // Fluid entity selection - directly link to company or contact (no customer duplication)
+  const [selectedEntityType, setSelectedEntityType] = useState<'company' | 'contact'>('company');
   const [leadData, setLeadData] = useState<any>(null);
   const [sourceValues, setSourceValues] = useState<SourceValues>({
     sourceCategory: '',
@@ -138,7 +133,7 @@ export function CreateDealForm({ leadType, leadId, siteId, siteName, onSuccess }
     defaultValues: {
       name: '',
       description: '',
-      customer_id: '',
+      entity_id: '',
       site_id: '',
       value: '',
       currency_id: '',
@@ -159,8 +154,8 @@ export function CreateDealForm({ leadType, leadId, siteId, siteName, onSuccess }
     formValues: watchedValues,
     paymentTerms,
     sourceValues,
-    selectedCustomerType,
-  }), [watchedValues, paymentTerms, sourceValues, selectedCustomerType]);
+    selectedEntityType,
+  }), [watchedValues, paymentTerms, sourceValues, selectedEntityType]);
 
   // Restore function for form state
   const restoreFormState = useCallback((restored: typeof combinedFormState) => {
@@ -171,7 +166,7 @@ export function CreateDealForm({ leadType, leadId, siteId, siteName, onSuccess }
     }
     if (restored.paymentTerms) setPaymentTerms(restored.paymentTerms);
     if (restored.sourceValues) setSourceValues(restored.sourceValues);
-    if (restored.selectedCustomerType) setSelectedCustomerType(restored.selectedCustomerType);
+    if (restored.selectedEntityType) setSelectedEntityType(restored.selectedEntityType);
   }, [form]);
 
   // Form draft persistence - only for new deals (not lead conversions)
@@ -203,45 +198,31 @@ export function CreateDealForm({ leadType, leadId, siteId, siteName, onSuccess }
       if (site) {
         form.setValue('site_id', siteId);
         form.setValue('name', `Deal for ${siteName}`);
-        
-        // If site has a customer, pre-select it
-        if (site.customer_id) {
-          form.setValue('customer_id', site.customer_id);
-        }
       }
     }
   }, [siteId, siteName, sites, form]);
 
   const loadData = async () => {
     try {
-      // Load customers
-      const { data: customerData, error: customerError } = await supabase
-        .from('customers')
-        .select('id, name, type')
-        .eq('tenant_id', currentTenant?.id)
-        .eq('active', true)
-        .order('name');
-
-      if (customerError) throw customerError;
-      setCustomers(customerData || []);
-
-      // Load companies (not customers yet)
+      // Load companies directly (Fluid Entity Model - no customer duplication)
       const { data: companyData, error: companyError } = await supabase
         .from('companies')
         .select('id, name, email')
         .eq('tenant_id', currentTenant?.id)
         .eq('active', true)
+        .is('deleted_at', null)
         .order('name');
 
       if (companyError) throw companyError;
       setCompanies(companyData || []);
 
-      // Load contacts (not customers yet)
+      // Load contacts directly (Fluid Entity Model - no customer duplication)
       const { data: contactData, error: contactError } = await supabase
         .from('contacts')
         .select('id, first_name, last_name, email')
         .eq('tenant_id', currentTenant?.id)
         .eq('active', true)
+        .is('deleted_at', null)
         .order('first_name');
 
       if (contactError) throw contactError;
@@ -377,15 +358,16 @@ export function CreateDealForm({ leadType, leadId, siteId, siteName, onSuccess }
       // Pre-populate form based on lead data
       if (leadType === 'company') {
         form.setValue('name', `Deal with ${data.name}`);
+        form.setValue('entity_id', leadId);
+        setSelectedEntityType('company');
       } else if (leadType === 'contact') {
         const contactName = `${data.first_name} ${data.last_name || ''}`.trim();
         form.setValue('name', `Deal with ${contactName}`);
+        form.setValue('entity_id', leadId);
+        setSelectedEntityType('contact');
       } else if (leadType === 'site') {
         form.setValue('name', `Deal for ${data.name}`);
         form.setValue('site_id', leadId);
-        if (data.customer_id) {
-          form.setValue('customer_id', data.customer_id);
-        }
       }
     } catch (error) {
       console.error('Error loading lead data:', error);
@@ -397,45 +379,8 @@ export function CreateDealForm({ leadType, leadId, siteId, siteName, onSuccess }
     }
   };
 
-  const createCustomerFromCompany = async (companyId: string) => {
-    const company = companies.find(c => c.id === companyId);
-    if (!company) return null;
-
-    const { data, error } = await supabase
-      .from('customers')
-      .insert({
-        name: company.name,
-        type: 'company',
-        email: company.email,
-        tenant_id: currentTenant?.id,
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  };
-
-  const createCustomerFromContact = async (contactId: string) => {
-    const contact = contacts.find(c => c.id === contactId);
-    if (!contact) return null;
-
-    const customerName = `${contact.first_name} ${contact.last_name || ''}`.trim();
-    
-    const { data, error } = await supabase
-      .from('customers')
-      .insert({
-        name: customerName,
-        type: 'individual',
-        email: contact.email,
-        tenant_id: currentTenant?.id,
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  };
+  // Removed: createCustomerFromCompany and createCustomerFromContact
+  // Fluid Entity Model: Deals now link directly to contacts/companies via junction tables
 
   const onSubmit = async (data: DealFormData) => {
     if (!currentTenant) return;
@@ -457,20 +402,9 @@ export function CreateDealForm({ leadType, leadId, siteId, siteName, onSuccess }
 
     setLoading(true);
     try {
-      let customerId = data.customer_id;
-
       // Calculate payment terms totals
       const dealValue = data.value ? parseFloat(data.value) : 0;
       const updatedPaymentTerms = calculatePaymentTerms(paymentTerms, dealValue);
-
-      // If creating customer from company or contact
-      if (selectedCustomerType === 'company' && data.customer_id) {
-        const customer = await createCustomerFromCompany(data.customer_id);
-        customerId = customer?.id || '';
-      } else if (selectedCustomerType === 'contact' && data.customer_id) {
-        const customer = await createCustomerFromContact(data.customer_id);
-        customerId = customer?.id || '';
-      }
 
       // Get probability from selected stage
       const selectedStage = stages.find(s => s.id === data.stage_id);
@@ -484,10 +418,12 @@ export function CreateDealForm({ leadType, leadId, siteId, siteName, onSuccess }
       const sanitizedSourceContactId = sourceValues.contactSource?.trim() === '' ? null : sourceValues.contactSource || null;
       const sanitizedAssignedTo = !data.assigned_to || data.assigned_to === 'unassigned' || data.assigned_to?.trim() === '' ? null : data.assigned_to;
 
+      // Fluid Entity Model: Use entity_id directly, no customer duplication
+      // The entity_id points to either a company or contact based on selectedEntityType
       const dealData = {
         name: data.name,
         description: data.description || null,
-        customer_id: customerId,
+        customer_id: null, // Deprecated: Keep null for legacy compatibility
         site_id: sanitizedSiteId,
         value: data.value ? parseFloat(data.value) : null,
         currency_id: sanitizedCurrencyId,
@@ -503,6 +439,9 @@ export function CreateDealForm({ leadType, leadId, siteId, siteName, onSuccess }
         notes: data.notes || null,
         solution_category_ids: data.solution_category_ids || [],
         tenant_id: currentTenant.id,
+        // Fluid linking: store direct reference to entity
+        company_id: selectedEntityType === 'company' ? data.entity_id : null,
+        contact_id: selectedEntityType === 'contact' ? data.entity_id : null,
       };
 
       const { data: deal, error } = await supabase
@@ -512,6 +451,21 @@ export function CreateDealForm({ leadType, leadId, siteId, siteName, onSuccess }
         .single();
 
       if (error) throw error;
+
+      // Also create junction table entries for 360-view relationships
+      if (selectedEntityType === 'company' && data.entity_id) {
+        await supabase.from('deal_companies').insert({
+          deal_id: deal.id,
+          company_id: data.entity_id,
+          relationship_type: 'primary',
+        });
+      } else if (selectedEntityType === 'contact' && data.entity_id) {
+        await supabase.from('deal_contacts').insert({
+          deal_id: deal.id,
+          contact_id: data.entity_id,
+          role: 'primary',
+        });
+      }
 
       // Save payment terms if any
       if (updatedPaymentTerms.length > 0) {
@@ -614,24 +568,21 @@ export function CreateDealForm({ leadType, leadId, siteId, siteName, onSuccess }
     if (!siteId || !currentTenant) return;
     
     try {
-      // Fetch the selected site with its owner information 
-      const { data: siteData, error } = await supabase
-        .from('sites')
-        .select('customer_id')
-        .eq('id', siteId)
-        .eq('tenant_id', currentTenant.id)
-        .single();
+      // Fetch the selected site with its linked companies for auto-selection
+      const { data: siteCompanies } = await supabase
+        .from('company_sites')
+        .select('company_id')
+        .eq('site_id', siteId);
 
-      if (error) throw error;
-      
-      // If site has an owner, set it as the customer
-      if (siteData?.customer_id) {
-        form.setValue('customer_id', siteData.customer_id);
-        setSelectedCustomerType('existing');
+      // If site has a linked company, suggest it as the entity
+      if (siteCompanies && siteCompanies.length > 0) {
+        const primaryCompanyId = siteCompanies[0].company_id;
+        form.setValue('entity_id', primaryCompanyId);
+        setSelectedEntityType('company');
         
         toast({
-          title: 'Customer Auto-Selected',
-          description: 'Customer automatically selected from site owner',
+          title: 'Company Auto-Selected',
+          description: 'Company automatically selected from site relationship',
         });
       }
     } catch (error) {
@@ -856,63 +807,34 @@ export function CreateDealForm({ leadType, leadId, siteId, siteName, onSuccess }
                 )}
               />
 
-              {/* Customer Selection */}
+              {/* Fluid Entity Selection - Direct link to Company or Contact */}
               <div className="space-y-4">
-                <Label>Customer *</Label>
+                <Label>Link to Company or Contact *</Label>
                 <div className="flex items-center gap-2 mb-4">
                   <Button
                     type="button"
-                    variant={selectedCustomerType === 'existing' ? 'default' : 'outline'}
+                    variant={selectedEntityType === 'company' ? 'default' : 'outline'}
                     size="sm"
-                    onClick={() => setSelectedCustomerType('existing')}
-                  >
-                    Existing Customer
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={selectedCustomerType === 'company' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setSelectedCustomerType('company')}
+                    onClick={() => setSelectedEntityType('company')}
                   >
                     <Building2 className="h-4 w-4 mr-2" />
                     Company
                   </Button>
                   <Button
                     type="button"
-                    variant={selectedCustomerType === 'contact' ? 'default' : 'outline'}
+                    variant={selectedEntityType === 'contact' ? 'default' : 'outline'}
                     size="sm"
-                    onClick={() => setSelectedCustomerType('contact')}
+                    onClick={() => setSelectedEntityType('contact')}
                   >
                     <User className="h-4 w-4 mr-2" />
                     Contact
                   </Button>
                 </div>
 
-                {selectedCustomerType === 'existing' && (
+                {selectedEntityType === 'company' && (
                   <FormField
                     control={form.control}
-                    name="customer_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormControl>
-                           <DynamicCustomerSelect
-                             value={field.value}
-                             onValueChange={field.onChange}
-                             placeholder="Select existing customer"
-                             searchPlaceholder="Search customers..."
-                             emptyText="No customers found"
-                           />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-
-                {selectedCustomerType === 'company' && (
-                  <FormField
-                    control={form.control}
-                    name="customer_id"
+                    name="entity_id"
                     render={({ field }) => (
                       <FormItem>
                         <FormControl>
@@ -929,10 +851,10 @@ export function CreateDealForm({ leadType, leadId, siteId, siteName, onSuccess }
                   />
                 )}
 
-                {selectedCustomerType === 'contact' && (
+                {selectedEntityType === 'contact' && (
                   <FormField
                     control={form.control}
-                    name="customer_id"
+                    name="entity_id"
                     render={({ field }) => (
                       <FormItem>
                         <FormControl>

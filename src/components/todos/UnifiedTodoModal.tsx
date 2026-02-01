@@ -422,9 +422,9 @@ export const UnifiedTodoModal: React.FC<UnifiedTodoModalProps> = ({
         toast.success('To-Do updated successfully');
       }
 
-      // If Google Calendar sync is enabled, trigger the sync
+      // If Google sync is enabled, trigger the sync (Calendar for Appointments, Tasks for To-Dos)
       if (editedTodo.google_calendar_sync && savedTodoId) {
-        await syncToGoogleCalendar(savedTodoId, todoData);
+        await syncToGoogle(savedTodoId, todoData);
       }
 
       onUpdate?.();
@@ -436,13 +436,13 @@ export const UnifiedTodoModal: React.FC<UnifiedTodoModalProps> = ({
     }
   };
 
-  // Function to sync todo to Google Calendar
-  const syncToGoogleCalendar = async (todoId: string, todoData: any) => {
+  // Function to sync todo to Google (Calendar for Appointments, Tasks for To-Dos)
+  const syncToGoogle = async (todoId: string, todoData: any) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session?.access_token) {
-        toast.error('Please log in to sync with Google Calendar');
+        toast.error('Please log in to sync with Google');
         return;
       }
 
@@ -460,6 +460,10 @@ export const UnifiedTodoModal: React.FC<UnifiedTodoModalProps> = ({
         }
       }
 
+      // Get the type name to determine Calendar vs Tasks sync
+      const typeName = selectedType?.name || '';
+      const isAppointment = isAppointmentType;
+
       const response = await supabase.functions.invoke('sync-to-google', {
         body: {
           todo_id: todoId,
@@ -471,6 +475,8 @@ export const UnifiedTodoModal: React.FC<UnifiedTodoModalProps> = ({
           duration: todoData.duration,
           location: locationText,
           entity_type: editedTodo.entity_type,
+          is_appointment: isAppointment,
+          type_name: typeName,
         },
         headers: {
           Authorization: `Bearer ${session.access_token}`,
@@ -479,11 +485,12 @@ export const UnifiedTodoModal: React.FC<UnifiedTodoModalProps> = ({
 
       if (response.error) {
         console.error('Google sync error:', response.error);
-        toast.error('Failed to sync with Google Calendar');
+        toast.error('Failed to sync with Google');
       } else if (response.data?.code === 'GOOGLE_NOT_CONNECTED') {
         toast.error('Please connect your Google account in Settings > Security');
       } else {
-        toast.success('Synced to Google Calendar');
+        const syncType = response.data?.sync_type === 'calendar' ? 'Google Calendar' : 'Google Tasks';
+        toast.success(`Synced to ${syncType}`);
       }
     } catch (error) {
       console.error('Error syncing to Google:', error);
