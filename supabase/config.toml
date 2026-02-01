@@ -32,3 +32,6 @@ verify_jwt = true
 
 [functions.create-account-from-invitation]
 verify_jwt = false
+
+[functions.sync-to-google]
+verify_jwt = false

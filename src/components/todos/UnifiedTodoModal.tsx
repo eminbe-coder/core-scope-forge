@@ -379,7 +379,12 @@ export const UnifiedTodoModal: React.FC<UnifiedTodoModalProps> = ({
         assigned_to: sanitizedAssignedTo,
         type_id: typeId,
         notes: editedTodo.notes || null,
+        location: editedTodo.location || null,
+        location_site_id: sanitizedLocationSiteId,
+        google_calendar_sync: editedTodo.google_calendar_sync || false,
       };
+
+      let savedTodoId = editedTodo.id;
 
       if (isCreating) {
         // Create new todo
@@ -399,6 +404,7 @@ export const UnifiedTodoModal: React.FC<UnifiedTodoModalProps> = ({
         if (error) throw error;
         
         toast.success('To-Do created successfully');
+        savedTodoId = newTodo?.id;
         
         // Switch to editing mode with the new todo
         if (newTodo) {
@@ -416,12 +422,72 @@ export const UnifiedTodoModal: React.FC<UnifiedTodoModalProps> = ({
         toast.success('To-Do updated successfully');
       }
 
+      // If Google Calendar sync is enabled, trigger the sync
+      if (editedTodo.google_calendar_sync && savedTodoId) {
+        await syncToGoogleCalendar(savedTodoId, todoData);
+      }
+
       onUpdate?.();
     } catch (error) {
       console.error('Error saving todo:', error);
       toast.error('Failed to save to-do');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Function to sync todo to Google Calendar
+  const syncToGoogleCalendar = async (todoId: string, todoData: any) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) {
+        toast.error('Please log in to sync with Google Calendar');
+        return;
+      }
+
+      // Get location from site if site is selected
+      let locationText = todoData.location;
+      if (todoData.location_site_id && !locationText) {
+        const { data: site } = await supabase
+          .from('sites')
+          .select('name, address')
+          .eq('id', todoData.location_site_id)
+          .single();
+        
+        if (site) {
+          locationText = site.address || site.name;
+        }
+      }
+
+      const response = await supabase.functions.invoke('sync-to-google', {
+        body: {
+          todo_id: todoId,
+          title: todoData.title,
+          description: todoData.description,
+          due_date: todoData.due_date,
+          due_time: todoData.due_time,
+          start_time: todoData.start_time,
+          duration: todoData.duration,
+          location: locationText,
+          entity_type: editedTodo.entity_type,
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (response.error) {
+        console.error('Google sync error:', response.error);
+        toast.error('Failed to sync with Google Calendar');
+      } else if (response.data?.code === 'GOOGLE_NOT_CONNECTED') {
+        toast.error('Please connect your Google account in Settings > Security');
+      } else {
+        toast.success('Synced to Google Calendar');
+      }
+    } catch (error) {
+      console.error('Error syncing to Google:', error);
+      // Don't show error toast here as it's a secondary action
     }
   };
 

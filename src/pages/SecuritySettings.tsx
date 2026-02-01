@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Shield, Mail, CheckCircle, AlertCircle, Loader2, Lock, Hash, Eye, EyeOff } from 'lucide-react';
+import { Shield, Mail, CheckCircle, AlertCircle, Loader2, Lock, Hash, Eye, EyeOff, Link2, Unlink, Calendar } from 'lucide-react';
 
 const SecuritySettings = () => {
   const { user } = useAuth();
@@ -29,10 +29,16 @@ const SecuritySettings = () => {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
+  // Google connection state
+  const [googleConnected, setGoogleConnected] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleScopes, setGoogleScopes] = useState<string[]>([]);
 
   useEffect(() => {
     if (user) {
       loadProfile();
+      checkGoogleConnection();
     }
   }, [user]);
 
@@ -55,6 +61,82 @@ const SecuritySettings = () => {
       console.error('Error loading profile:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkGoogleConnection = async () => {
+    try {
+      const { data, error } = await (supabase as any)
+        .from('user_google_credentials')
+        .select('scopes, expires_at')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+
+      if (!error && data) {
+        setGoogleConnected(true);
+        setGoogleScopes(data.scopes || []);
+      } else {
+        setGoogleConnected(false);
+        setGoogleScopes([]);
+      }
+    } catch (error) {
+      console.error('Error checking Google connection:', error);
+    }
+  };
+
+  const handleConnectGoogle = async () => {
+    setGoogleLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/security-settings`,
+          scopes: 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/tasks',
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      });
+
+      if (error) throw error;
+      
+      // The user will be redirected to Google for authentication
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to connect Google account',
+        variant: 'destructive',
+      });
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleDisconnectGoogle = async () => {
+    setGoogleLoading(true);
+    try {
+      const { error } = await (supabase as any)
+        .from('user_google_credentials')
+        .delete()
+        .eq('user_id', user?.id);
+
+      if (error) throw error;
+
+      setGoogleConnected(false);
+      setGoogleScopes([]);
+      
+      toast({
+        title: 'Disconnected',
+        description: 'Google account has been disconnected',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to disconnect Google account',
+        variant: 'destructive',
+      });
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -324,6 +406,95 @@ const SecuritySettings = () => {
               {changingPassword && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Update Password
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* Google Connections Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Link2 className="h-5 w-5" />
+              Connected Accounts
+            </CardTitle>
+            <CardDescription>
+              Connect external services to sync your calendar and tasks
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-red-500 flex items-center justify-center">
+                  <Calendar className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="font-medium">Google Calendar & Tasks</p>
+                  <p className="text-sm text-muted-foreground">
+                    {googleConnected 
+                      ? 'Sync your to-dos with Google Calendar'
+                      : 'Connect to enable calendar sync'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {googleConnected && (
+                  <Badge variant="default" className="bg-green-100 text-green-800">
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    Connected
+                  </Badge>
+                )}
+                {googleConnected ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDisconnectGoogle}
+                    disabled={googleLoading}
+                  >
+                    {googleLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Unlink className="h-4 w-4 mr-2" />
+                        Disconnect
+                      </>
+                    )}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleConnectGoogle}
+                    disabled={googleLoading}
+                  >
+                    {googleLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Link2 className="h-4 w-4 mr-2" />
+                        Connect Google
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+            </div>
+            
+            {googleConnected && googleScopes.length > 0 && (
+              <div className="text-xs text-muted-foreground">
+                <p className="font-medium mb-1">Granted permissions:</p>
+                <ul className="list-disc list-inside space-y-0.5">
+                  {googleScopes.map((scope, idx) => (
+                    <li key={idx}>{scope.split('/').pop()}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground">
+              <p className="font-medium text-foreground mb-1">How it works:</p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>Connect your personal or work Google account</li>
+                <li>Enable "Sync to Google Calendar" when creating to-dos</li>
+                <li>Appointments will include location details</li>
+              </ul>
+            </div>
           </CardContent>
         </Card>
 
