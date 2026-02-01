@@ -4909,7 +4909,11 @@ export type Database = {
           duration: number | null
           entity_id: string | null
           entity_type: string
+          google_calendar_sync: boolean | null
+          google_event_id: string | null
           id: string
+          location: string | null
+          location_site_id: string | null
           notes: string | null
           parent_todo_id: string | null
           payment_term_id: string | null
@@ -4936,7 +4940,11 @@ export type Database = {
           duration?: number | null
           entity_id?: string | null
           entity_type: string
+          google_calendar_sync?: boolean | null
+          google_event_id?: string | null
           id?: string
+          location?: string | null
+          location_site_id?: string | null
           notes?: string | null
           parent_todo_id?: string | null
           payment_term_id?: string | null
@@ -4963,7 +4971,11 @@ export type Database = {
           duration?: number | null
           entity_id?: string | null
           entity_type?: string
+          google_calendar_sync?: boolean | null
+          google_event_id?: string | null
           id?: string
+          location?: string | null
+          location_site_id?: string | null
           notes?: string | null
           parent_todo_id?: string | null
           payment_term_id?: string | null
@@ -5002,6 +5014,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "todos_location_site_id_fkey"
+            columns: ["location_site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
             referencedColumns: ["id"]
           },
           {
@@ -5290,6 +5309,36 @@ export type Database = {
           updated_at?: string
           user_id?: string
           verified?: boolean
+        }
+        Relationships: []
+      }
+      user_google_credentials: {
+        Row: {
+          access_token: string
+          created_at: string
+          expires_at: string | null
+          refresh_token: string | null
+          scopes: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          created_at?: string
+          expires_at?: string | null
+          refresh_token?: string | null
+          scopes?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          expires_at?: string | null
+          refresh_token?: string | null
+          scopes?: string[] | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
