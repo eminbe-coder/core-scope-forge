@@ -34,11 +34,13 @@ const SecuritySettings = () => {
   const [googleConnected, setGoogleConnected] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleScopes, setGoogleScopes] = useState<string[]>([]);
+  const [googleEmail, setGoogleEmail] = useState<string | null>(null);
+  const [googleIdentityId, setGoogleIdentityId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
       loadProfile();
-      checkGoogleConnection();
+      checkGoogleIdentity();
     }
   }, [user]);
 
@@ -64,23 +66,43 @@ const SecuritySettings = () => {
     }
   };
 
-  const checkGoogleConnection = async () => {
+  // Check for linked Google identity using getUserIdentities()
+  const checkGoogleIdentity = async () => {
     try {
-      const { data, error } = await (supabase as any)
-        .from('user_google_credentials')
-        .select('scopes, expires_at')
-        .eq('user_id', user?.id)
-        .maybeSingle();
-
-      if (!error && data) {
+      const { data, error } = await supabase.auth.getUserIdentities();
+      
+      if (error) {
+        console.error('Error fetching identities:', error);
+        setGoogleConnected(false);
+        setGoogleEmail(null);
+        setGoogleIdentityId(null);
+        return;
+      }
+      
+      // Find the Google identity
+      const googleIdentity = data?.identities?.find(
+        (identity: any) => identity.provider === 'google'
+      );
+      
+      if (googleIdentity) {
         setGoogleConnected(true);
-        setGoogleScopes(data.scopes || []);
+        setGoogleEmail(googleIdentity.identity_data?.email || null);
+        setGoogleIdentityId(googleIdentity.id);
+        
+        // Extract scopes from identity data if available
+        const scopes = googleIdentity.identity_data?.provider_token_scopes || [];
+        setGoogleScopes(Array.isArray(scopes) ? scopes : []);
       } else {
         setGoogleConnected(false);
+        setGoogleEmail(null);
+        setGoogleIdentityId(null);
         setGoogleScopes([]);
       }
     } catch (error) {
-      console.error('Error checking Google connection:', error);
+      console.error('Error checking Google identity:', error);
+      setGoogleConnected(false);
+      setGoogleEmail(null);
+      setGoogleIdentityId(null);
     }
   };
 
@@ -128,14 +150,25 @@ const SecuritySettings = () => {
   const handleDisconnectGoogle = async () => {
     setGoogleLoading(true);
     try {
-      const { error } = await (supabase as any)
+      // Unlink the Google identity from the user's account
+      if (googleIdentityId) {
+        const { error } = await supabase.auth.unlinkIdentity({
+          id: googleIdentityId,
+          provider: 'google',
+        } as any);
+        
+        if (error) throw error;
+      }
+
+      // Also clean up any stored credentials
+      await (supabase as any)
         .from('user_google_credentials')
         .delete()
         .eq('user_id', user?.id);
 
-      if (error) throw error;
-
       setGoogleConnected(false);
+      setGoogleEmail(null);
+      setGoogleIdentityId(null);
       setGoogleScopes([]);
       
       toast({
@@ -441,16 +474,20 @@ const SecuritySettings = () => {
                 </div>
                 <div>
                   <p className="font-medium">Google Calendar & Tasks</p>
-                  <p className="text-sm text-muted-foreground">
-                    {googleConnected 
-                      ? 'Sync your to-dos with Google Calendar'
-                      : 'Connect to enable calendar sync'}
-                  </p>
+                  {googleConnected && googleEmail ? (
+                    <p className="text-sm text-muted-foreground">
+                      Connected as <span className="font-medium text-foreground">{googleEmail}</span>
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Connect to enable calendar and task sync
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 {googleConnected && (
-                  <Badge variant="default" className="bg-green-100 text-green-800">
+                  <Badge variant="default" className="bg-green-500/20 text-green-700 dark:text-green-400 border-green-500/30">
                     <CheckCircle className="h-3 w-3 mr-1" />
                     Connected
                   </Badge>
