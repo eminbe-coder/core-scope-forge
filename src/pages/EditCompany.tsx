@@ -19,6 +19,7 @@ import Activities from '@/pages/Activities';
 import Todos from '@/pages/Todos';
 import { CompanyActivities } from '@/components/company/CompanyActivities';
 import { CompanyTodos } from '@/components/company/CompanyTodos';
+import { CompanyGlobalRelationships } from '@/components/company/CompanyGlobalRelationships';
 
 interface Company {
   id: string;
@@ -378,6 +379,7 @@ export default function EditCompany() {
           <TabsList>
             <TabsTrigger value="details">Company Details</TabsTrigger>
             <TabsTrigger value="contacts">Contacts ({companyContacts.length})</TabsTrigger>
+            <TabsTrigger value="relationships">360° Relationships</TabsTrigger>
             <TabsTrigger value="activities">Activities</TabsTrigger>
             <TabsTrigger value="todos">To-Do</TabsTrigger>
           </TabsList>
@@ -575,6 +577,10 @@ export default function EditCompany() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="relationships">
+            <CompanyGlobalRelationships companyId={company.id} companyName={company.name} />
           </TabsContent>
 
           <TabsContent value="activities">

@@ -332,16 +332,24 @@ const ContactDetail = () => {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Panel - Contact Details */}
-          <div className="lg:col-span-1 space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  Contact Information
-                </CardTitle>
-              </CardHeader>
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="relationships">360° Relationships</TabsTrigger>
+            <TabsTrigger value="activities">Activities & Tasks</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left Panel - Contact Details */}
+              <div className="lg:col-span-1 space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <User className="h-5 w-5" />
+                      Contact Information
+                    </CardTitle>
+                  </CardHeader>
               <CardContent className="space-y-4">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Name</p>
@@ -589,36 +597,38 @@ const ContactDetail = () => {
                 )}
               </CardContent>
             </Card>
+            </div>
+          </div>
+          </TabsContent>
 
-            {/* Global 360-View Relationships */}
+          <TabsContent value="relationships">
             <ContactGlobalRelationships
               contactId={id!}
               contactName={fullName}
             />
-          </div>
-        </div>
+          </TabsContent>
 
-        {/* Activity Section */}
-        <div className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
-            <div>
-              <h2 className="text-2xl font-bold mb-4">Activities & Tasks</h2>
-              <TodoWidget
-                entityType="contact"
-                entityId={id!}
-                canEdit={true}
-                compact={false}
-              />
+          <TabsContent value="activities">
+            <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+              <div>
+                <h2 className="text-2xl font-bold mb-4">Activities & Tasks</h2>
+                <TodoWidget
+                  entityType="contact"
+                  entityId={id!}
+                  canEdit={true}
+                  compact={false}
+                />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold mb-4">Related Tasks</h2>
+                <ContactTodos
+                  contactId={id!}
+                  contactName={contact ? `${contact.first_name} ${contact.last_name}` : 'Contact'}
+                />
+              </div>
             </div>
-            <div>
-              <h2 className="text-2xl font-bold mb-4">Related Tasks</h2>
-              <ContactTodos
-                contactId={id!}
-                contactName={contact ? `${contact.first_name} ${contact.last_name}` : 'Contact'}
-              />
-            </div>
-          </div>
-        </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );
