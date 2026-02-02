@@ -1293,6 +1293,8 @@ export type Database = {
       contracts: {
         Row: {
           assigned_to: string | null
+          company_id: string | null
+          contact_id: string | null
           created_at: string
           currency_id: string | null
           customer_id: string | null
@@ -1317,6 +1319,8 @@ export type Database = {
         }
         Insert: {
           assigned_to?: string | null
+          company_id?: string | null
+          contact_id?: string | null
           created_at?: string
           currency_id?: string | null
           customer_id?: string | null
@@ -1341,6 +1345,8 @@ export type Database = {
         }
         Update: {
           assigned_to?: string | null
+          company_id?: string | null
+          contact_id?: string | null
           created_at?: string
           currency_id?: string | null
           customer_id?: string | null
@@ -1369,6 +1375,20 @@ export type Database = {
             columns: ["assigned_to"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
           {
@@ -1958,6 +1978,8 @@ export type Database = {
       deals: {
         Row: {
           assigned_to: string | null
+          company_id: string | null
+          contact_id: string | null
           converted_to_contract_id: string | null
           created_at: string
           currency_id: string | null
@@ -1990,6 +2012,8 @@ export type Database = {
         }
         Insert: {
           assigned_to?: string | null
+          company_id?: string | null
+          contact_id?: string | null
           converted_to_contract_id?: string | null
           created_at?: string
           currency_id?: string | null
@@ -2022,6 +2046,8 @@ export type Database = {
         }
         Update: {
           assigned_to?: string | null
+          company_id?: string | null
+          contact_id?: string | null
           converted_to_contract_id?: string | null
           created_at?: string
           currency_id?: string | null
@@ -2058,6 +2084,20 @@ export type Database = {
             columns: ["assigned_to"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
           {
