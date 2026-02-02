@@ -13,11 +13,17 @@ import { validateContactDuplicates, normalizeEmail } from '@/lib/contact-validat
 import { toast } from 'sonner';
 import { User } from 'lucide-react';
 
+// Phone input object schema for PhoneInput component
+const phoneInputSchema = z.object({
+  countryCode: z.string(),
+  phoneNumber: z.string(),
+}).optional();
+
 const quickContactSchema = z.object({
   first_name: z.string().min(1, 'First name is required'),
   last_name: z.string().optional(),
   email: z.string().optional(),
-  phone: z.string().optional(),
+  phone: phoneInputSchema,
 });
 
 type QuickContactFormData = z.infer<typeof quickContactSchema>;
@@ -38,7 +44,7 @@ export const QuickAddContactModal = ({ open, onClose, onContactCreated }: QuickA
       first_name: '',
       last_name: '',
       email: '',
-      phone: '',
+      phone: { countryCode: '', phoneNumber: '' },
     },
   });
 
@@ -47,10 +53,14 @@ export const QuickAddContactModal = ({ open, onClose, onContactCreated }: QuickA
 
     setLoading(true);
     try {
+      // Extract phone data from the phone object
+      const phoneData = data.phone || { countryCode: '', phoneNumber: '' };
+      const phoneString = phoneData.phoneNumber ? `${phoneData.countryCode}${phoneData.phoneNumber}` : '';
+      
       // Check for duplicates
       const duplicateCheck = await validateContactDuplicates({
         email: data.email,
-        phone: data.phone,
+        phone: phoneString || undefined,
         tenantId: currentTenant.id,
       });
 
@@ -69,7 +79,8 @@ export const QuickAddContactModal = ({ open, onClose, onContactCreated }: QuickA
         first_name: data.first_name.trim(),
         last_name: data.last_name?.trim() || null,
         email: data.email ? normalizeEmail(data.email) : null,
-        phone: data.phone?.trim() || null,
+        country_code: phoneData.countryCode || null,
+        phone_number: phoneData.phoneNumber || null,
         tenant_id: currentTenant.id,
         active: true,
       };
@@ -163,7 +174,7 @@ export const QuickAddContactModal = ({ open, onClose, onContactCreated }: QuickA
                   <FormLabel>Phone</FormLabel>
                   <FormControl>
                     <PhoneInput
-                      value={field.value}
+                      value={field.value || { countryCode: '', phoneNumber: '' }}
                       onChange={field.onChange}
                       placeholder="Enter phone number"
                     />

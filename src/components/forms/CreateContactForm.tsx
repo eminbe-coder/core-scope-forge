@@ -18,12 +18,17 @@ import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { SolutionCategorySelect } from '@/components/ui/solution-category-select';
 
+// Phone input object schema for PhoneInput component
+const phoneInputSchema = z.object({
+  countryCode: z.string(),
+  phoneNumber: z.string(),
+}).optional();
+
 const contactSchema = z.object({
   first_name: z.string().min(1, 'First name is required'),
   last_name: z.string().optional(),
   email: z.string().email('Invalid email').optional().or(z.literal('')),
-  country_code: z.string().optional(),
-  phone_number: z.string().optional(),
+  phone: phoneInputSchema,
   position: z.string().optional(),
   address: z.string().optional(),
   notes: z.string().optional(),
@@ -74,8 +79,7 @@ export const CreateContactForm = ({ isLead = false, createMode = 'new', onSucces
       first_name: '',
       last_name: '',
       email: '',
-      country_code: '',
-      phone_number: '',
+      phone: { countryCode: '', phoneNumber: '' },
       position: '',
       address: '',
       notes: '',
@@ -242,8 +246,20 @@ export const CreateContactForm = ({ isLead = false, createMode = 'new', onSucces
 
     setIsSubmitting(true);
     try {
+      // Extract phone data from the phone object
+      const phoneData = data.phone || { countryCode: '', phoneNumber: '' };
+      
       const contactData = {
-        ...data,
+        first_name: data.first_name,
+        last_name: data.last_name || null,
+        email: data.email || null,
+        country_code: phoneData.countryCode || null,
+        phone_number: phoneData.phoneNumber || null,
+        position: data.position || null,
+        address: data.address || null,
+        notes: data.notes || null,
+        stage_id: data.stage_id || null,
+        quality_id: data.quality_id || null,
         tenant_id: currentTenant.id,
         is_lead: isLead,
         source_id: sourceValues.sourceCategory || null,
@@ -398,19 +414,15 @@ export const CreateContactForm = ({ isLead = false, createMode = 'new', onSucces
 
               <FormField
                 control={form.control}
-                name="country_code"
+                name="phone"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Phone</FormLabel>
                     <FormControl>
                       <PhoneInput
-                        value={{
-                          countryCode: field.value || '',
-                          phoneNumber: form.watch('phone_number') || ''
-                        }}
+                        value={field.value || { countryCode: '', phoneNumber: '' }}
                         onChange={(phoneData) => {
-                          form.setValue('country_code', phoneData.countryCode);
-                          form.setValue('phone_number', phoneData.phoneNumber);
+                          field.onChange(phoneData);
                         }}
                         placeholder="Enter phone number"
                       />
