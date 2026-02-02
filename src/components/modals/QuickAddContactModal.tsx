@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -12,12 +12,16 @@ import { useTenant } from '@/hooks/use-tenant';
 import { validateContactDuplicates, normalizeEmail } from '@/lib/contact-validation';
 import { toast } from 'sonner';
 import { User } from 'lucide-react';
+import { getCountryCodeForCountry } from '@/lib/country-codes';
 
-// Phone input object schema for PhoneInput component
+// Phone input object schema - explicitly allows empty or valid phone numbers
 const phoneInputSchema = z.object({
   countryCode: z.string(),
   phoneNumber: z.string(),
-}).optional();
+}).optional().nullable().refine(
+  (val) => !val || val.phoneNumber === "" || val.phoneNumber.length >= 7,
+  { message: "Invalid phone number", path: ["phoneNumber"] }
+);
 
 const quickContactSchema = z.object({
   first_name: z.string().min(1, 'First name is required'),
@@ -38,15 +42,29 @@ export const QuickAddContactModal = ({ open, onClose, onContactCreated }: QuickA
   const { currentTenant } = useTenant();
   const [loading, setLoading] = useState(false);
 
+  // Get default country code from tenant
+  const defaultCountryCode = getCountryCodeForCountry(currentTenant?.country || '');
+
   const form = useForm<QuickContactFormData>({
     resolver: zodResolver(quickContactSchema),
     defaultValues: {
       first_name: '',
       last_name: '',
       email: '',
-      phone: { countryCode: '', phoneNumber: '' },
+      phone: { countryCode: defaultCountryCode, phoneNumber: '' },
     },
   });
+
+  // Update phone default when tenant changes
+  useEffect(() => {
+    if (currentTenant?.country) {
+      const code = getCountryCodeForCountry(currentTenant.country);
+      const currentPhone = form.getValues('phone');
+      if (!currentPhone?.phoneNumber) {
+        form.setValue('phone', { countryCode: code, phoneNumber: '' });
+      }
+    }
+  }, [currentTenant?.country, form]);
 
   const onSubmit = async (data: QuickContactFormData) => {
     if (!currentTenant) return;
