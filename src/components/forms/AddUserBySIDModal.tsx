@@ -85,12 +85,12 @@ export function AddUserBySIDModal({ open, onClose, tenantId, onSuccess, customRo
     setShowInviteOption(false);
 
     try {
-      // Search for user by account_id
+      // Use RPC function for universal user search (bypasses RLS)
       const { data, error } = await supabase
-        .from('profiles')
-        .select('id, email, first_name, last_name, account_id')
-        .eq('account_id', parseInt(trimmedId, 10))
-        .maybeSingle();
+        .rpc('search_users_universally', {
+          search_term: trimmedId,
+          search_type: 'account_id'
+        });
 
       if (error) {
         console.error('Error searching for user:', error);
@@ -98,16 +98,18 @@ export function AddUserBySIDModal({ open, onClose, tenantId, onSuccess, customRo
         return;
       }
 
-      if (!data) {
+      if (!data || data.length === 0) {
         setSearchError('No user found with this SID Account ID');
         return;
       }
+
+      const foundProfile = data[0];
 
       // Check if user is already a member of this tenant
       const { data: existingMembership, error: membershipError } = await supabase
         .from('user_tenant_memberships')
         .select('id, active')
-        .eq('user_id', data.id)
+        .eq('user_id', foundProfile.id)
         .eq('tenant_id', tenantId)
         .maybeSingle();
 
@@ -120,7 +122,13 @@ export function AddUserBySIDModal({ open, onClose, tenantId, onSuccess, customRo
         return;
       }
 
-      setFoundUser(data);
+      setFoundUser({
+        id: foundProfile.id,
+        email: foundProfile.email,
+        first_name: foundProfile.first_name,
+        last_name: foundProfile.last_name,
+        account_id: foundProfile.account_id,
+      });
     } catch (error) {
       console.error('Search error:', error);
       setSearchError('An unexpected error occurred');
@@ -144,12 +152,12 @@ export function AddUserBySIDModal({ open, onClose, tenantId, onSuccess, customRo
     setShowInviteOption(false);
 
     try {
-      // Search for user by email
+      // Use RPC function for universal user search (bypasses RLS)
       const { data, error } = await supabase
-        .from('profiles')
-        .select('id, email, first_name, last_name, account_id')
-        .eq('email', trimmedEmail)
-        .maybeSingle();
+        .rpc('search_users_universally', {
+          search_term: trimmedEmail,
+          search_type: 'email'
+        });
 
       if (error) {
         console.error('Error searching for user:', error);
@@ -157,7 +165,7 @@ export function AddUserBySIDModal({ open, onClose, tenantId, onSuccess, customRo
         return;
       }
 
-      if (!data) {
+      if (!data || data.length === 0) {
         // No user found - offer invite option
         setInviteEmail(trimmedEmail);
         setShowInviteOption(true);
@@ -165,11 +173,13 @@ export function AddUserBySIDModal({ open, onClose, tenantId, onSuccess, customRo
         return;
       }
 
+      const foundProfile = data[0];
+
       // Check if user is already a member of this tenant
       const { data: existingMembership, error: membershipError } = await supabase
         .from('user_tenant_memberships')
         .select('id, active')
-        .eq('user_id', data.id)
+        .eq('user_id', foundProfile.id)
         .eq('tenant_id', tenantId)
         .maybeSingle();
 
@@ -182,7 +192,13 @@ export function AddUserBySIDModal({ open, onClose, tenantId, onSuccess, customRo
         return;
       }
 
-      setFoundUser(data);
+      setFoundUser({
+        id: foundProfile.id,
+        email: foundProfile.email,
+        first_name: foundProfile.first_name,
+        last_name: foundProfile.last_name,
+        account_id: foundProfile.account_id,
+      });
     } catch (error) {
       console.error('Search error:', error);
       setSearchError('An unexpected error occurred');

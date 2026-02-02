@@ -81,8 +81,8 @@ const VerifyRecoveryEmail = () => {
               Recovery email: <strong>{recoveryEmail}</strong>
             </p>
           )}
-          <Button onClick={() => navigate('/home')} className="w-full">
-            Go to Home
+          <Button onClick={() => navigate('/profile')} className="w-full">
+            Go to Profile
           </Button>
         </CardContent>
       </Card>
