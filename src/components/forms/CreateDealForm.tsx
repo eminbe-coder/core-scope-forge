@@ -420,6 +420,9 @@ export function CreateDealForm({ leadType, leadId, siteId, siteName, onSuccess }
 
       // Fluid Entity Model: Use entity_id directly, no customer duplication
       // The entity_id points to either a company or contact based on selectedEntityType
+      // Sanitize entity_id to null if empty to prevent UUID syntax errors
+      const sanitizedEntityId = data.entity_id?.trim() === '' ? null : data.entity_id || null;
+      
       const dealData = {
         name: data.name,
         description: data.description || null,
@@ -439,9 +442,9 @@ export function CreateDealForm({ leadType, leadId, siteId, siteName, onSuccess }
         notes: data.notes || null,
         solution_category_ids: data.solution_category_ids || [],
         tenant_id: currentTenant.id,
-        // Fluid linking: store direct reference to entity
-        company_id: selectedEntityType === 'company' ? data.entity_id : null,
-        contact_id: selectedEntityType === 'contact' ? data.entity_id : null,
+        // Fluid linking: store direct reference to entity - use null not empty string
+        company_id: selectedEntityType === 'company' && sanitizedEntityId ? sanitizedEntityId : null,
+        contact_id: selectedEntityType === 'contact' && sanitizedEntityId ? sanitizedEntityId : null,
       };
 
       const { data: deal, error } = await supabase

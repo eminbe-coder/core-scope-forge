@@ -19,12 +19,16 @@ import { EntityRelationshipSelector, EntityRelationship } from '@/components/for
 import { saveEntityRelationships, EntityRelationshipData } from '@/utils/entity-relationships';
 import { useNavigate } from 'react-router-dom';
 import { SolutionCategorySelect } from '@/components/ui/solution-category-select';
+import { getCountryCodeForCountry } from '@/lib/country-codes';
 
-// Phone input object schema for PhoneInput component
+// Phone input object schema - explicitly allows empty or valid phone numbers
 const phoneInputSchema = z.object({
   countryCode: z.string(),
   phoneNumber: z.string(),
-}).optional();
+}).optional().nullable().refine(
+  (val) => !val || val.phoneNumber === "" || val.phoneNumber.length >= 7,
+  { message: "Invalid phone number", path: ["phoneNumber"] }
+);
 
 const companySchema = z.object({
   name: z.string().min(1, 'Company name is required'),
@@ -78,12 +82,15 @@ export const CreateCompanyForm = ({ isLead = false, createMode = 'new', onSucces
     contactSource: '',
   });
 
+  // Get default country code from tenant
+  const defaultCountryCode = getCountryCodeForCountry(currentTenant?.country || '');
+
   const form = useForm<CompanyFormData>({
     resolver: zodResolver(companySchema),
     defaultValues: {
       name: '',
       email: '',
-      phone: { countryCode: '', phoneNumber: '' },
+      phone: { countryCode: defaultCountryCode, phoneNumber: '' },
       website: '',
       industry: '',
       size: '',
@@ -95,6 +102,17 @@ export const CreateCompanyForm = ({ isLead = false, createMode = 'new', onSucces
       solution_category_ids: [],
     },
   });
+
+  // Update phone default when tenant changes
+  useEffect(() => {
+    if (currentTenant?.country) {
+      const code = getCountryCodeForCountry(currentTenant.country);
+      const currentPhone = form.getValues('phone');
+      if (!currentPhone?.phoneNumber) {
+        form.setValue('phone', { countryCode: code, phoneNumber: '' });
+      }
+    }
+  }, [currentTenant?.country, form]);
 
   useEffect(() => {
     if (currentTenant) {

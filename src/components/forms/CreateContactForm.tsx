@@ -17,12 +17,16 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { SolutionCategorySelect } from '@/components/ui/solution-category-select';
+import { getCountryCodeForCountry } from '@/lib/country-codes';
 
-// Phone input object schema for PhoneInput component
+// Phone input object schema - explicitly allows empty or valid phone numbers
 const phoneInputSchema = z.object({
   countryCode: z.string(),
   phoneNumber: z.string(),
-}).optional();
+}).optional().nullable().refine(
+  (val) => !val || val.phoneNumber === "" || val.phoneNumber.length >= 7,
+  { message: "Invalid phone number", path: ["phoneNumber"] }
+);
 
 const contactSchema = z.object({
   first_name: z.string().min(1, 'First name is required'),
@@ -73,13 +77,16 @@ export const CreateContactForm = ({ isLead = false, createMode = 'new', onSucces
     contactSource: '',
   });
 
+  // Get default country code from tenant
+  const defaultCountryCode = getCountryCodeForCountry(currentTenant?.country || '');
+
   const form = useForm<ContactFormData>({
     resolver: zodResolver(contactSchema),
     defaultValues: {
       first_name: '',
       last_name: '',
       email: '',
-      phone: { countryCode: '', phoneNumber: '' },
+      phone: { countryCode: defaultCountryCode, phoneNumber: '' },
       position: '',
       address: '',
       notes: '',
@@ -88,6 +95,17 @@ export const CreateContactForm = ({ isLead = false, createMode = 'new', onSucces
       solution_category_ids: [],
     },
   });
+
+  // Update phone default when tenant changes
+  useEffect(() => {
+    if (currentTenant?.country) {
+      const code = getCountryCodeForCountry(currentTenant.country);
+      const currentPhone = form.getValues('phone');
+      if (!currentPhone?.phoneNumber) {
+        form.setValue('phone', { countryCode: code, phoneNumber: '' });
+      }
+    }
+  }, [currentTenant?.country, form]);
 
   useEffect(() => {
     if (currentTenant) {
