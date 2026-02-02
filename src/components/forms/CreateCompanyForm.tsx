@@ -20,11 +20,16 @@ import { saveEntityRelationships, EntityRelationshipData } from '@/utils/entity-
 import { useNavigate } from 'react-router-dom';
 import { SolutionCategorySelect } from '@/components/ui/solution-category-select';
 
+// Phone input object schema for PhoneInput component
+const phoneInputSchema = z.object({
+  countryCode: z.string(),
+  phoneNumber: z.string(),
+}).optional();
+
 const companySchema = z.object({
   name: z.string().min(1, 'Company name is required'),
   email: z.string().email('Invalid email').optional().or(z.literal('')),
-  country_code: z.string().optional(),
-  phone_number: z.string().optional(),
+  phone: phoneInputSchema,
   website: z.string().optional(),
   industry: z.string().optional(),
   size: z.string().optional(),
@@ -78,8 +83,7 @@ export const CreateCompanyForm = ({ isLead = false, createMode = 'new', onSucces
     defaultValues: {
       name: '',
       email: '',
-      country_code: '',
-      phone_number: '',
+      phone: { countryCode: '', phoneNumber: '' },
       website: '',
       industry: '',
       size: '',
@@ -251,10 +255,22 @@ export const CreateCompanyForm = ({ isLead = false, createMode = 'new', onSucces
 
     setIsSubmitting(true);
     try {
+      // Extract phone data from the phone object
+      const phoneData = data.phone || { countryCode: '', phoneNumber: '' };
+      
       const { data: company, error } = await supabase
         .from('companies')
         .insert({
-          ...data,
+          name: data.name,
+          email: data.email || null,
+          country_code: phoneData.countryCode || null,
+          phone_number: phoneData.phoneNumber || null,
+          website: data.website || null,
+          industry: data.industry || null,
+          size: data.size || null,
+          headquarters: data.headquarters || null,
+          description: data.description || null,
+          notes: data.notes || null,
           is_lead: isLead,
           tenant_id: currentTenant.id,
           stage_id: data.stage_id || null,
@@ -399,19 +415,15 @@ export const CreateCompanyForm = ({ isLead = false, createMode = 'new', onSucces
 
               <FormField
                 control={form.control}
-                name="country_code"
+                name="phone"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Phone</FormLabel>
                     <FormControl>
                       <PhoneInput
-                        value={{
-                          countryCode: field.value || '',
-                          phoneNumber: form.watch('phone_number') || ''
-                        }}
+                        value={field.value || { countryCode: '', phoneNumber: '' }}
                         onChange={(phoneData) => {
-                          form.setValue('country_code', phoneData.countryCode);
-                          form.setValue('phone_number', phoneData.phoneNumber);
+                          field.onChange(phoneData);
                         }}
                         placeholder="Enter phone number"
                       />
