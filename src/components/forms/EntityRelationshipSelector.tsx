@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { QuickAddCompanyModal } from '@/components/modals/QuickAddCompanyModal';
-import { UnifiedQuickAddContactModal } from '@/components/modals/UnifiedQuickAddContactModal';
+import { UniversalContactModal } from '@/components/modals/UniversalContactModal';
 import { toast } from 'sonner';
 import { Plus, Trash2, Building2, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -423,7 +423,7 @@ export function EntityRelationshipSelector({
         onCompanyCreated={handleCompanyCreated}
       />
 
-      <UnifiedQuickAddContactModal
+      <UniversalContactModal
         open={showContactModal}
         onClose={() => setShowContactModal(false)}
         onContactCreated={handleContactCreated}

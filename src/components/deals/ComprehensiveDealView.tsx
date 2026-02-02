@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 import { SolutionCategorySelect } from '@/components/ui/solution-category-select';
 import { QuickAddCompanyModal } from '@/components/modals/QuickAddCompanyModal';
-import { UnifiedQuickAddContactModal } from '@/components/modals/UnifiedQuickAddContactModal';
+import { UniversalContactModal } from '@/components/modals/UniversalContactModal';
 import { QuickAddSiteModal } from '@/components/modals/QuickAddSiteModal';
 import { DealTodos } from './DealTodos';
 import { DealStatusChangeDialog } from './DealStatusChangeDialog';
@@ -1871,7 +1871,7 @@ export const ComprehensiveDealView = forwardRef<ComprehensiveDealViewRef, Compre
         onCompanyCreated={handleCompanyCreated}
       />
 
-      <UnifiedQuickAddContactModal
+      <UniversalContactModal
         open={showContactModal}
         onClose={() => setShowContactModal(false)}
         onContactCreated={handleContactCreated}

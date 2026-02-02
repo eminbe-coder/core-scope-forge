@@ -47,6 +47,8 @@ interface CreateContactFormProps {
   isLead?: boolean;
   createMode?: 'new' | 'existing';
   onSuccess?: (id: string) => void;
+  isModal?: boolean;
+  onCancel?: () => void;
 }
 
 interface LeadStage {
@@ -59,7 +61,7 @@ interface LeadQuality {
   name: string;
 }
 
-export const CreateContactForm = ({ isLead = false, createMode = 'new', onSuccess }: CreateContactFormProps) => {
+export const CreateContactForm = ({ isLead = false, createMode = 'new', onSuccess, isModal = false, onCancel }: CreateContactFormProps) => {
   const { currentTenant } = useTenant();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -329,17 +331,23 @@ export const CreateContactForm = ({ isLead = false, createMode = 'new', onSucces
     }
   };
 
+  const WrapperComponent = isModal ? 'div' : Card;
+  const HeaderComponent = isModal ? 'div' : CardHeader;
+  const ContentComponent = isModal ? 'div' : CardContent;
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          {createMode === 'existing' 
-            ? 'Select Existing Contact for Lead' 
-            : (isLead ? 'Create Contact Lead' : 'Create Contact')
-          }
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+    <WrapperComponent className={isModal ? 'space-y-4' : ''}>
+      {!isModal && (
+        <HeaderComponent>
+          <CardTitle>
+            {createMode === 'existing' 
+              ? 'Select Existing Contact for Lead' 
+              : (isLead ? 'Create Contact Lead' : 'Create Contact')
+            }
+          </CardTitle>
+        </HeaderComponent>
+      )}
+      <ContentComponent className={isModal ? '' : undefined}>
         {createMode === 'existing' ? (
           <div className="space-y-6">
             <div>
@@ -587,7 +595,13 @@ export const CreateContactForm = ({ isLead = false, createMode = 'new', onSucces
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate(isLead ? '/leads' : '/contacts')}
+                onClick={() => {
+                  if (isModal && onCancel) {
+                    onCancel();
+                  } else {
+                    navigate(isLead ? '/leads' : '/contacts');
+                  }
+                }}
               >
                 Cancel
               </Button>
@@ -595,7 +609,7 @@ export const CreateContactForm = ({ isLead = false, createMode = 'new', onSucces
             </form>
           </Form>
         )}
-      </CardContent>
-    </Card>
+      </ContentComponent>
+    </WrapperComponent>
   );
 };
