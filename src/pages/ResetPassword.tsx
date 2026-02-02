@@ -97,9 +97,9 @@ const ResetPassword = () => {
         description: 'Your password has been updated successfully!',
       });
 
-      // Redirect to home after a short delay
+      // Redirect to profile after a short delay (global hub for users)
       setTimeout(() => {
-        navigate('/home');
+        navigate('/profile');
       }, 2000);
     } catch (error: any) {
       console.error('Password update error:', error);
@@ -209,10 +209,10 @@ const ResetPassword = () => {
 
           {status === 'success' && (
             <Button
-              onClick={() => navigate('/home')}
+              onClick={() => navigate('/profile')}
               className="w-full"
             >
-              Go to Home
+              Go to Profile
             </Button>
           )}
         </CardContent>

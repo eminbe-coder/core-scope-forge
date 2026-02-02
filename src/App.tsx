@@ -81,6 +81,7 @@ import VerifyRecoveryEmail from "./pages/VerifyRecoveryEmail";
 import MasterActivityLog from "./pages/MasterActivityLog";
 import ResetPassword from "./pages/ResetPassword";
 import ForgotPassword from "./pages/ForgotPassword";
+import Profile from "./pages/Profile";
 
 import RewardSystem from "./pages/RewardSystem";
 
@@ -454,8 +455,13 @@ const App = () => (
                      </ProtectedRoute>
                    } />
                    <Route path="/security-settings" element={
-                     <ProtectedRoute>
+                     <ProtectedRoute requireTenant={false}>
                        <SecuritySettings />
+                     </ProtectedRoute>
+                   } />
+                   <Route path="/profile" element={
+                     <ProtectedRoute requireTenant={false}>
+                       <Profile />
                      </ProtectedRoute>
                    } />
                    <Route path="/verify-recovery-email" element={<VerifyRecoveryEmail />} />

@@ -5795,6 +5795,17 @@ export type Database = {
         Args: { _deleted_item_id: string }
         Returns: undefined
       }
+      search_users_universally: {
+        Args: { search_term: string; search_type?: string }
+        Returns: {
+          account_id: number
+          created_at: string
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+        }[]
+      }
       soft_delete_entity: {
         Args: { _entity_id: string; _table_name: string; _tenant_id: string }
         Returns: undefined
