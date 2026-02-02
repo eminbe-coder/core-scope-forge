@@ -22,6 +22,10 @@ const contractSchema = z.object({
   value: z.number().min(0, 'Value must be positive').optional(),
   currency_id: z.string().optional(),
   customer_id: z.string().optional(),
+  // Fluid Entity Model: Direct links to company/contact (prioritized over customer_id)
+  company_id: z.string().optional(),
+  contact_id: z.string().optional(),
+  entity_type: z.enum(['company', 'contact']).optional(),
   site_id: z.string().optional(),
   signed_date: z.string().optional(),
   end_date: z.string().optional(),
@@ -89,6 +93,8 @@ export const CreateContractForm = ({ deal, contract, onSuccess }: CreateContract
   const [paymentTerms, setPaymentTerms] = useState<PaymentTerm[]>([]);
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
   const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
+  // Fluid Entity Model: Track selected entity type for primary linking
+  const [selectedEntityType, setSelectedEntityType] = useState<'company' | 'contact'>('company');
 
   const form = useForm<z.infer<typeof contractSchema>>({
     resolver: zodResolver(contractSchema),
@@ -98,6 +104,9 @@ export const CreateContractForm = ({ deal, contract, onSuccess }: CreateContract
       value: contract.value || undefined,
       currency_id: contract.currency_id || '',
       customer_id: contract.customer_id || '',
+      company_id: (contract as any).company_id || '',
+      contact_id: (contract as any).contact_id || '',
+      entity_type: (contract as any).company_id ? 'company' : (contract as any).contact_id ? 'contact' : 'company',
       site_id: contract.site_id || '',
       customer_reference_number: contract.customer_reference_number || '',
       assigned_to: contract.assigned_to || '',
@@ -111,6 +120,9 @@ export const CreateContractForm = ({ deal, contract, onSuccess }: CreateContract
       value: deal.value || undefined,
       currency_id: deal.currency_id || '',
       customer_id: deal.customer_id || '',
+      company_id: (deal as any).company_id || '',
+      contact_id: (deal as any).contact_id || '',
+      entity_type: (deal as any).company_id ? 'company' : (deal as any).contact_id ? 'contact' : 'company',
       site_id: deal.site_id || '',
       customer_reference_number: deal.customer_reference_number || '',
       assigned_to: deal.assigned_to || '',
@@ -123,6 +135,9 @@ export const CreateContractForm = ({ deal, contract, onSuccess }: CreateContract
       value: undefined,
       currency_id: '',
       customer_id: '',
+      company_id: '',
+      contact_id: '',
+      entity_type: 'company',
       site_id: '',
       customer_reference_number: '',
       assigned_to: '',
@@ -147,6 +162,33 @@ export const CreateContractForm = ({ deal, contract, onSuccess }: CreateContract
       }
     }
   }, [currentTenant?.id, deal?.id]);
+
+  // Set entity type from existing data (deal or contract)
+  useEffect(() => {
+    if (contract) {
+      const contractData = contract as any;
+      if (contractData.company_id) {
+        setSelectedEntityType('company');
+        form.setValue('entity_type', 'company');
+        form.setValue('company_id', contractData.company_id);
+      } else if (contractData.contact_id) {
+        setSelectedEntityType('contact');
+        form.setValue('entity_type', 'contact');
+        form.setValue('contact_id', contractData.contact_id);
+      }
+    } else if (deal) {
+      const dealData = deal as any;
+      if (dealData.company_id) {
+        setSelectedEntityType('company');
+        form.setValue('entity_type', 'company');
+        form.setValue('company_id', dealData.company_id);
+      } else if (dealData.contact_id) {
+        setSelectedEntityType('contact');
+        form.setValue('entity_type', 'contact');
+        form.setValue('contact_id', dealData.contact_id);
+      }
+    }
+  }, [contract, deal]);
 
   const fetchData = async () => {
     try {
@@ -270,7 +312,12 @@ export const CreateContractForm = ({ deal, contract, onSuccess }: CreateContract
       const dueStage = stages?.find(s => s.name === 'Due');
       const paidStage = stages?.find(s => s.name === 'Paid');
 
-      // Create contract
+      // Fluid Entity Model: Determine primary entity (company or contact)
+      const entityType = values.entity_type || selectedEntityType;
+      const companyId = entityType === 'company' && values.company_id ? values.company_id : null;
+      const contactId = entityType === 'contact' && values.contact_id ? values.contact_id : null;
+
+      // Create contract with fluid entity links
       const { data: contractData, error: contractError } = await supabase
         .from('contracts')
         .insert({
@@ -281,6 +328,9 @@ export const CreateContractForm = ({ deal, contract, onSuccess }: CreateContract
           value: values.value || null,
           currency_id: values.currency_id || null,
           customer_id: values.customer_id || null,
+          // Fluid Entity Model: Direct links (prioritized over customer_id)
+          company_id: companyId,
+          contact_id: contactId,
           site_id: values.site_id || null,
           signed_date: values.signed_date || null,
           start_date: values.signed_date || null,
@@ -517,47 +567,55 @@ export const CreateContractForm = ({ deal, contract, onSuccess }: CreateContract
 
         <Card>
           <CardHeader>
-            <CardTitle>Relationships</CardTitle>
+            <CardTitle>Primary Entity (Fluid Model)</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="customer_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Customer</FormLabel>
-                    <FormControl>
-                      <UnifiedEntitySelect
-                        value={field.value}
-                        onValueChange={field.onChange}
-                        customers={customers}
-                        companies={[]}
-                        contacts={[]}
-                        placeholder="Select customer"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            {/* Entity Type Toggle */}
+            <div className="flex gap-2 mb-4">
+              <Button
+                type="button"
+                variant={selectedEntityType === 'company' ? 'default' : 'outline'}
+                onClick={() => {
+                  setSelectedEntityType('company');
+                  form.setValue('entity_type', 'company');
+                  form.setValue('contact_id', '');
+                }}
+                className="flex-1"
+              >
+                Company
+              </Button>
+              <Button
+                type="button"
+                variant={selectedEntityType === 'contact' ? 'default' : 'outline'}
+                onClick={() => {
+                  setSelectedEntityType('contact');
+                  form.setValue('entity_type', 'contact');
+                  form.setValue('company_id', '');
+                }}
+                className="flex-1"
+              >
+                Contact
+              </Button>
+            </div>
 
+            {/* Company Select (shown when company type selected) */}
+            {selectedEntityType === 'company' && (
               <FormField
                 control={form.control}
-                name="site_id"
+                name="company_id"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Site</FormLabel>
+                    <FormLabel>Primary Company *</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select site" />
+                          <SelectValue placeholder="Select primary company" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {sites.map((site) => (
-                          <SelectItem key={site.id} value={site.id}>
-                            {site.name}
+                        {companies.map((company) => (
+                          <SelectItem key={company.id} value={company.id}>
+                            {company.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -566,7 +624,78 @@ export const CreateContractForm = ({ deal, contract, onSuccess }: CreateContract
                   </FormItem>
                 )}
               />
-            </div>
+            )}
+
+            {/* Contact Select (shown when contact type selected) */}
+            {selectedEntityType === 'contact' && (
+              <FormField
+                control={form.control}
+                name="contact_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Primary Contact *</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select primary contact" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {contacts.map((contact) => (
+                          <SelectItem key={contact.id} value={contact.id}>
+                            {contact.first_name} {contact.last_name || ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {/* Site Select */}
+            <FormField
+              control={form.control}
+              name="site_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Site</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select site" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {sites.map((site) => (
+                        <SelectItem key={site.id} value={site.id}>
+                          {site.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Legacy Customer (hidden, kept for migration) */}
+            <FormField
+              control={form.control}
+              name="customer_id"
+              render={({ field }) => (
+                <input type="hidden" {...field} />
+              )}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Additional Relationships</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
 
             <div className="space-y-4">
               <div>
