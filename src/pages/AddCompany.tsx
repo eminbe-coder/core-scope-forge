@@ -30,7 +30,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { UnifiedQuickAddContactModal } from '@/components/modals/UnifiedQuickAddContactModal';
+import { UniversalContactModal } from '@/components/modals/UniversalContactModal';
 import { QuickAddSiteModal } from '@/components/modals/QuickAddSiteModal';
 
 const companySchema = z.object({
@@ -898,7 +898,7 @@ const AddCompany = () => {
         </Card>
 
         {/* Quick Add Modals */}
-        <UnifiedQuickAddContactModal
+        <UniversalContactModal
           open={showContactModal}
           onClose={() => setShowContactModal(false)}
           onContactCreated={handleContactCreated}

@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { User } from "lucide-react";
 import { useDynamicContacts } from "@/hooks/use-dynamic-entities";
-import { UnifiedQuickAddContactModal } from "@/components/modals/UnifiedQuickAddContactModal";
+import { UniversalContactModal } from "@/components/modals/UniversalContactModal";
 import { EntitySelectPopover } from "./EntitySelectPopover";
 import { BaseEntitySelectProps, EntityOption } from "./types";
 
@@ -64,15 +64,15 @@ export function ContactSelect({
         onSearchChange={setSearchTerm}
         onRefresh={refresh}
         onQuickAdd={() => setShowModal(true)}
-        quickAddLabel="Quick Add Contact"
+        quickAddLabel="Add New Contact"
         showQuickAdd={showQuickAdd}
       />
 
-      <UnifiedQuickAddContactModal
+      <UniversalContactModal
         open={showModal}
         onClose={() => setShowModal(false)}
         onContactCreated={handleContactCreated}
-        includeCompanyField={includeCompanyField}
+        title="Add New Contact"
       />
     </>
   );
