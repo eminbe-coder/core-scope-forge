@@ -57,7 +57,9 @@ const VerifyRecoveryEmail = () => {
           {status === 'success' && (
             <>
               <div className="flex justify-center mb-4">
-                <CheckCircle className="h-12 w-12 text-green-500" />
+                <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center">
+                  <CheckCircle className="h-6 w-6 text-primary" />
+                </div>
               </div>
               <CardTitle>Email Verified!</CardTitle>
               <CardDescription>{message}</CardDescription>
@@ -79,8 +81,8 @@ const VerifyRecoveryEmail = () => {
               Recovery email: <strong>{recoveryEmail}</strong>
             </p>
           )}
-          <Button onClick={() => navigate('/')} className="w-full">
-            Go to Dashboard
+          <Button onClick={() => navigate('/home')} className="w-full">
+            Go to Home
           </Button>
         </CardContent>
       </Card>

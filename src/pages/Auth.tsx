@@ -107,6 +107,7 @@ const Auth = () => {
         // Continue even if this fails
       }
 
+      // Redirect to global home after verification (not tenant-specific)
       const redirectUrl = `${window.location.origin}/home`;
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -228,6 +229,15 @@ const Auth = () => {
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Sign In
                 </Button>
+
+                <div className="text-center">
+                  <a
+                    href="/forgot-password"
+                    className="text-sm text-primary hover:underline"
+                  >
+                    Forgot your password?
+                  </a>
+                </div>
               </form>
             </TabsContent>
 

@@ -79,6 +79,8 @@ import NotFound from "./pages/NotFound";
 import SecuritySettings from "./pages/SecuritySettings";
 import VerifyRecoveryEmail from "./pages/VerifyRecoveryEmail";
 import MasterActivityLog from "./pages/MasterActivityLog";
+import ResetPassword from "./pages/ResetPassword";
+import ForgotPassword from "./pages/ForgotPassword";
 
 import RewardSystem from "./pages/RewardSystem";
 
@@ -104,6 +106,8 @@ const App = () => (
               <BrowserRouter>
                 <Routes>
                   <Route path="/auth" element={<Auth />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
                   <Route path="/accept-invitation" element={<AcceptInvitation />} />
                   <Route path="/claim-invitation" element={<AcceptInvitation />} />
