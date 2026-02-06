@@ -2863,6 +2863,27 @@ export type Database = {
           },
         ]
       }
+      global_page_configs: {
+        Row: {
+          entity_type: string
+          id: string
+          layout_data: Json
+          updated_at: string | null
+        }
+        Insert: {
+          entity_type: string
+          id?: string
+          layout_data: Json
+          updated_at?: string | null
+        }
+        Update: {
+          entity_type?: string
+          id?: string
+          layout_data?: Json
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       global_user_tenant_relationships: {
         Row: {
           created_at: string
@@ -4638,6 +4659,38 @@ export type Database = {
             foreignKeyName: "fk_tenant_onedrive_tenant"
             columns: ["tenant_id"]
             isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_page_configs: {
+        Row: {
+          entity_type: string
+          id: string
+          layout_data: Json
+          tenant_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          entity_type: string
+          id?: string
+          layout_data: Json
+          tenant_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          entity_type?: string
+          id?: string
+          layout_data?: Json
+          tenant_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_page_configs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
