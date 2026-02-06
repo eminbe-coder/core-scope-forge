@@ -2798,11 +2798,14 @@ export type Database = {
           company_id: string | null
           contact_id: string | null
           created_at: string
+          end_date: string | null
           entity_id: string
           entity_type: string
           id: string
+          is_active: boolean
           notes: string | null
           relationship_role_id: string
+          start_date: string | null
           tenant_id: string
           updated_at: string
         }
@@ -2810,11 +2813,14 @@ export type Database = {
           company_id?: string | null
           contact_id?: string | null
           created_at?: string
+          end_date?: string | null
           entity_id: string
           entity_type: string
           id?: string
+          is_active?: boolean
           notes?: string | null
           relationship_role_id: string
+          start_date?: string | null
           tenant_id: string
           updated_at?: string
         }
@@ -2822,11 +2828,14 @@ export type Database = {
           company_id?: string | null
           contact_id?: string | null
           created_at?: string
+          end_date?: string | null
           entity_id?: string
           entity_type?: string
           id?: string
+          is_active?: boolean
           notes?: string | null
           relationship_role_id?: string
+          start_date?: string | null
           tenant_id?: string
           updated_at?: string
         }
