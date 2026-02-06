@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { TodoList } from './TodoList';
-import { QuickAddTodoForm } from './QuickAddTodoForm';
+import { TodoFormTrigger } from './TodoFormTrigger';
 import { UnifiedTodoModal } from './UnifiedTodoModal';
 import { useTodoHierarchy } from '@/hooks/use-todo-hierarchy';
 import { Button } from '@/components/ui/button';
@@ -61,7 +61,7 @@ export const TodoWidget = ({
     <div className="w-full space-y-2">
       {canEdit && (
         <div className="flex justify-end">
-          <QuickAddTodoForm 
+          <TodoFormTrigger 
             onSuccess={handleUpdate}
             defaultEntityType={entityType}
             defaultEntityId={entityId}

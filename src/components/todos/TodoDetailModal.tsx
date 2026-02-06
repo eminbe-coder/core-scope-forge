@@ -23,7 +23,7 @@ import { SubtaskManager } from './SubtaskManager';
 import { MultiAssigneeManager } from './MultiAssigneeManager';
 import { DynamicSearchableSelect } from '@/components/ui/dynamic-searchable-select';
 import { PostponeDialog } from './PostponeDialog';
-import { QuickAddTodoForm } from './QuickAddTodoForm';
+import { TodoFormTrigger } from './TodoFormTrigger';
 
 interface Todo {
   id: string;
@@ -409,7 +409,7 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
       onUpdate();
       onClose();
       
-      // Open the QuickAddTodoForm with pre-populated entity
+      // Open the TodoFormTrigger with pre-populated entity
       setShowQuickAddForm(true);
       
     } catch (error) {
@@ -738,9 +738,9 @@ export const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
         loading={saving}
       />
 
-      {/* Quick Add Todo Form - with pre-populated entity from completed todo */}
+      {/* Todo Form Trigger - with pre-populated entity from completed todo */}
       {showQuickAddForm && (
-        <QuickAddTodoForm
+        <TodoFormTrigger
           onSuccess={() => {
             setShowQuickAddForm(false);
             setPrePopulatedEntityType('');
