@@ -60,18 +60,13 @@ const globalAdminItem: NavigationItem = {
 // Navigation for Tenant Users
 const tenantModules: NavigationModule[] = [
   {
-    title: 'Dashboard',
+    title: 'WORKSPACE',
     items: [
       {
         title: 'Dashboard',
         url: '/',
         icon: LayoutDashboard,
       },
-    ]
-  },
-  {
-    title: 'CRM Module',
-    items: [
       {
         title: 'Companies',
         url: '/companies',
@@ -133,35 +128,6 @@ const tenantModules: NavigationModule[] = [
         permission: 'crm.activities.view',
       },
       {
-        title: 'Notification Center',
-        url: '/notification-center',
-        icon: Bell,
-        permission: 'crm.activities.view',
-      },
-      {
-        title: 'System Tests',
-        url: '/contract-tests',
-        icon: Settings,
-        permission: 'admin.access',
-      },
-      {
-        title: 'Report Engine',
-        url: '/reports',
-        icon: BarChart3,
-        permission: 'reports.view',
-      },
-      {
-        title: 'Scheduled Reports',
-        url: '/scheduled-reports',
-        icon: Calendar,
-        permission: 'reports.view',
-      },
-    ]
-  },
-  {
-    title: 'Design Module',
-    items: [
-      {
         title: 'Design Creation',
         url: '/projects',
         icon: FolderOpen,
@@ -173,11 +139,57 @@ const tenantModules: NavigationModule[] = [
         icon: Smartphone,
         permission: 'devices.view',
       },
+      {
+        title: 'Report Engine',
+        url: '/reports',
+        icon: BarChart3,
+        permission: 'reports.view',
+      },
     ]
   },
   {
-    title: 'Device Management',
+    title: 'USER PREFERENCES',
     items: [
+      {
+        title: 'My Workspace',
+        url: '/my-workspace',
+        icon: Settings,
+      },
+      {
+        title: 'Notifications',
+        url: '/notification-center',
+        icon: Bell,
+        permission: 'crm.activities.view',
+      },
+      {
+        title: 'Scheduled Reports',
+        url: '/scheduled-reports',
+        icon: Calendar,
+        permission: 'reports.view',
+      },
+    ]
+  },
+  {
+    title: 'ADMINISTRATION',
+    items: [
+      {
+        title: 'Admin Hub',
+        url: '/admin',
+        icon: Settings,
+        permission: 'admin.access',
+      },
+      {
+        title: 'Users & Roles',
+        url: '/users-roles',
+        icon: Users,
+        permission: 'admin.access',
+      },
+      {
+        title: 'Activity Log',
+        url: '/master-activity-log',
+        icon: History,
+        permission: 'admin.access',
+      },
       {
         title: 'Devices',
         url: '/devices',
@@ -191,63 +203,22 @@ const tenantModules: NavigationModule[] = [
         permission: 'device_templates.view',
       },
       {
+        title: 'Recycle Bin',
+        url: '/recycle-bin',
+        icon: Trash2,
+        permission: 'recycle_bin.view',
+      },
+      {
         title: 'Global Devices',
         url: '/global-devices',
         icon: Smartphone,
         permission: 'super_admin.access',
       },
       {
-        title: 'Global Device Templates',
+        title: 'Global Templates',
         url: '/global-device-templates',
         icon: Settings,
         permission: 'super_admin.access',
-      },
-    ]
-  },
-  {
-    title: 'Administration',
-    items: [
-      {
-        title: 'Users & Roles',
-        url: '/users-roles',
-        icon: Users,
-        permission: 'admin.access',
-      },
-      {
-        title: 'Master Activity Log',
-        url: '/master-activity-log',
-        icon: History,
-        permission: 'admin.access',
-      },
-      {
-        title: 'General Settings',
-        url: '/settings',
-        icon: Settings,
-        permission: 'admin.access',
-      },
-      {
-        title: 'CRM Settings',
-        url: '/crm-settings',
-        icon: Settings,
-        permission: 'admin.access',
-      },
-      {
-        title: 'To-Do Engine Settings',
-        url: '/todo-engine-settings',
-        icon: CheckSquare,
-        permission: 'admin.access',
-      },
-      {
-        title: 'Reward System',
-        url: '/reward-system',
-        icon: Trophy,
-        permission: 'admin.access',
-      },
-      {
-        title: 'Recycle Bin',
-        url: '/recycle-bin',
-        icon: Trash2,
-        permission: 'recycle_bin.view',
       },
     ]
   },
@@ -295,7 +266,7 @@ export function AppSidebar() {
 
   // Add Global Admin to Administration section for Platform super admins
   const navigationModules = tenantModules.map(module => {
-    if (module.title === 'Administration' && hasGlobalAccess && currentTenant?.slug === 'platform') {
+    if (module.title === 'ADMINISTRATION' && hasGlobalAccess && currentTenant?.slug === 'platform') {
       return {
         ...module,
         items: [...module.items, globalAdminItem]

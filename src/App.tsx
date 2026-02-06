@@ -82,6 +82,9 @@ import MasterActivityLog from "./pages/MasterActivityLog";
 import ResetPassword from "./pages/ResetPassword";
 import ForgotPassword from "./pages/ForgotPassword";
 import Profile from "./pages/Profile";
+import PersonalSettings from "./pages/PersonalSettings";
+import MyWorkspace from "./pages/MyWorkspace";
+import AdminHub from "./pages/AdminHub";
 
 import RewardSystem from "./pages/RewardSystem";
 import PageEditor from "./pages/admin/PageEditor";
@@ -341,12 +344,27 @@ const App = () => (
                    } />
                   <Route path="/settings" element={
                     <ProtectedRoute>
-                      <Settings />
+                      <AdminHub />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/admin" element={
+                    <ProtectedRoute>
+                      <AdminHub />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/my-workspace" element={
+                    <ProtectedRoute>
+                      <MyWorkspace />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/profile/personal" element={
+                    <ProtectedRoute>
+                      <PersonalSettings />
                     </ProtectedRoute>
                   } />
                   <Route path="/crm-settings" element={
                     <ProtectedRoute>
-                      <CRMSettings />
+                      <AdminHub />
                     </ProtectedRoute>
                   } />
                    <Route path="/todo-engine-settings" element={
@@ -356,7 +374,7 @@ const App = () => (
                    } />
                    <Route path="/reward-system" element={
                      <ProtectedRoute>
-                       <RewardSystem />
+                       <AdminHub />
                      </ProtectedRoute>
                    } />
                     <Route path="/recycle-bin" element={

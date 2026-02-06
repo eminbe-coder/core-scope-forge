@@ -175,22 +175,18 @@ export function AppHeader({
               </div>
               <DropdownMenuSeparator className="bg-glass-border" />
               <DropdownMenuItem 
-                onClick={() => navigate('/home')}
+                onClick={() => navigate('/profile/personal')}
                 className="text-foreground hover:bg-accent/50"
               >
-                <Home className="mr-2 h-4 w-4" />
-                Personal Home Page
-              </DropdownMenuItem>
-              <DropdownMenuItem className="text-foreground hover:bg-accent/50">
                 <User className="mr-2 h-4 w-4" />
-                Profile
+                Personal Settings
               </DropdownMenuItem>
               <DropdownMenuItem 
-                onClick={() => navigate('/security-settings')}
+                onClick={() => navigate('/my-workspace')}
                 className="text-foreground hover:bg-accent/50"
               >
                 <Shield className="mr-2 h-4 w-4" />
-                Security Settings
+                My Workspace
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-glass-border" />
               <DropdownMenuItem 
