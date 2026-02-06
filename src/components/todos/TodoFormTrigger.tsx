@@ -1,16 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus } from 'lucide-react';
 import { UnifiedTodoModal } from './UnifiedTodoModal';
-import { DynamicCompanySelect, DynamicContactSelect, DynamicSiteSelect, DynamicCustomerSelect, DynamicDealSelect, DynamicContractSelect, DynamicInstallmentSelect } from '@/components/ui/dynamic-searchable-select';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { DynamicCompanySelect, DynamicContactSelect, DynamicSiteSelect, DynamicCustomerSelect, DynamicDealSelect, DynamicContractSelect, DynamicInstallmentSelect } from '@/components/ui/dynamic-searchable-select';
 
-interface QuickAddTodoFormProps {
+interface TodoFormTriggerProps {
   onSuccess?: () => void;
   trigger?: React.ReactNode;
+  /** If provided, skip entity selection and go directly to modal */
   defaultEntityType?: string;
+  /** If provided, skip entity selection and go directly to modal */
   defaultEntityId?: string;
   paymentTermId?: string;
 }
@@ -31,14 +33,20 @@ const INSTALLMENT_PARENT_TYPES = [
   { value: 'contract', label: 'Contract' },
 ] as const;
 
-export const QuickAddTodoForm = ({ 
+/**
+ * TodoFormTrigger - A consolidated component for triggering Todo creation
+ * 
+ * If defaultEntityType and defaultEntityId are provided, opens UnifiedTodoModal directly.
+ * Otherwise, shows entity selection dialog first.
+ */
+export const TodoFormTrigger = ({ 
   onSuccess, 
   trigger, 
   defaultEntityType, 
   defaultEntityId,
   paymentTermId 
-}: QuickAddTodoFormProps) => {
-  const [open, setOpen] = useState(false);
+}: TodoFormTriggerProps) => {
+  const [selectorOpen, setSelectorOpen] = useState(false);
   const [todoModalOpen, setTodoModalOpen] = useState(false);
   const [selectedEntityType, setSelectedEntityType] = useState<string>(defaultEntityType || '');
   const [selectedEntityId, setSelectedEntityId] = useState<string>(defaultEntityId || '');
@@ -47,50 +55,50 @@ export const QuickAddTodoForm = ({
   const [installmentParentType, setInstallmentParentType] = useState<string>('');
   const [installmentParentId, setInstallmentParentId] = useState<string>('');
 
-  // Set entity defaults when provided (modal only opens on explicit user action)
-  useEffect(() => {
+  const handleTriggerClick = () => {
     if (defaultEntityType && defaultEntityId) {
+      // Skip entity selection, go directly to modal
       setSelectedEntityType(defaultEntityType);
       setSelectedEntityId(defaultEntityId);
+      setTodoModalOpen(true);
+    } else if (defaultEntityType === 'standalone') {
+      setSelectedEntityType('standalone');
+      setTodoModalOpen(true);
+    } else {
+      // Show entity selection dialog
+      setSelectorOpen(true);
     }
-  }, [defaultEntityType, defaultEntityId]);
+  };
 
   const handleEntitySelection = () => {
     if (selectedEntityType === 'installment') {
-      // For installments, we need parent type and parent ID, then installment ID
       if (installmentParentType && installmentParentId && selectedEntityId) {
-        setOpen(false);
+        setSelectorOpen(false);
         setTodoModalOpen(true);
       }
     } else if (selectedEntityType && (selectedEntityId || selectedEntityType === 'standalone')) {
-      setOpen(false);
+      setSelectorOpen(false);
       setTodoModalOpen(true);
     }
   };
 
   const handleTodoSuccess = () => {
     setTodoModalOpen(false);
-    setSelectedEntityType(defaultEntityType || '');
-    setSelectedEntityId(defaultEntityId || '');
-    setInstallmentParentType('');
-    setInstallmentParentId('');
+    resetState();
     onSuccess?.();
   };
 
   const handleTodoModalClose = () => {
     setTodoModalOpen(false);
-    setSelectedEntityType(defaultEntityType || '');
-    setSelectedEntityId(defaultEntityId || '');
-    setInstallmentParentType('');
-    setInstallmentParentId('');
+    resetState();
   };
 
-  // If default entity is provided, go directly to unified modal
-  const handleOpen = (open: boolean) => {
-    if (defaultEntityType && defaultEntityId) {
-      setTodoModalOpen(open);
-    } else {
-      setOpen(open);
+  const resetState = () => {
+    if (!defaultEntityType || !defaultEntityId) {
+      setSelectedEntityType('');
+      setSelectedEntityId('');
+      setInstallmentParentType('');
+      setInstallmentParentId('');
     }
   };
 
@@ -224,18 +232,26 @@ export const QuickAddTodoForm = ({
           </div>
         );
       case 'standalone':
-        return null; // No entity selection needed for standalone
+        return null;
       default:
         return null;
     }
   };
 
+  const isSubmitDisabled = 
+    !selectedEntityType || 
+    (!selectedEntityId && selectedEntityType !== 'standalone') ||
+    (selectedEntityType === 'installment' && (!installmentParentType || !installmentParentId || !selectedEntityId));
+
   return (
     <>
-      <Dialog open={open} onOpenChange={handleOpen}>
-        <DialogTrigger asChild>
-          {trigger || defaultTrigger}
-        </DialogTrigger>
+      {/* Trigger Button */}
+      <div onClick={handleTriggerClick}>
+        {trigger || defaultTrigger}
+      </div>
+
+      {/* Entity Selection Dialog */}
+      <Dialog open={selectorOpen} onOpenChange={setSelectorOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Select Entity for To-Do</DialogTitle>
@@ -274,25 +290,15 @@ export const QuickAddTodoForm = ({
 
             {selectedEntityType === 'standalone' && (
               <div className="text-sm text-muted-foreground">
-                This todo will not be linked to any specific entity.
+                This to-do will not be linked to any specific entity.
               </div>
             )}
 
             <div className="flex justify-end gap-2 pt-4">
-              <Button
-                variant="outline"
-                onClick={() => setOpen(false)}
-              >
+              <Button variant="outline" onClick={() => setSelectorOpen(false)}>
                 Cancel
               </Button>
-              <Button
-                onClick={handleEntitySelection}
-                disabled={
-                  !selectedEntityType || 
-                  (!selectedEntityId && selectedEntityType !== 'standalone') ||
-                  (selectedEntityType === 'installment' && (!installmentParentType || !installmentParentId || !selectedEntityId))
-                }
-              >
+              <Button onClick={handleEntitySelection} disabled={isSubmitDisabled}>
                 Continue
               </Button>
             </div>
@@ -300,13 +306,13 @@ export const QuickAddTodoForm = ({
         </DialogContent>
       </Dialog>
 
-      {/* Unified Todo Modal - replaces the old TodoForm */}
+      {/* Unified Todo Modal - the master create/edit modal */}
       <UnifiedTodoModal
         isOpen={todoModalOpen}
         onClose={handleTodoModalClose}
         onUpdate={handleTodoSuccess}
-        entityType={(defaultEntityType || selectedEntityType).toLowerCase()}
-        entityId={defaultEntityId || selectedEntityId || undefined}
+        entityType={selectedEntityType.toLowerCase()}
+        entityId={selectedEntityId || undefined}
         paymentTermId={paymentTermId}
         canEdit={true}
       />
