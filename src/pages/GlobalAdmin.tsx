@@ -414,9 +414,18 @@ const CorePlatform = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <p className="text-muted-foreground">
-                    System-wide configuration options will be available here.
-                  </p>
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <h3 className="font-medium">Page Layout Editor</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Configure tabs and layout for entity detail pages
+                      </p>
+                    </div>
+                    <Button onClick={() => navigate('/admin/page-editor')}>
+                      <Settings className="h-4 w-4 mr-2" />
+                      Open Editor
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

@@ -84,6 +84,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import Profile from "./pages/Profile";
 
 import RewardSystem from "./pages/RewardSystem";
+import PageEditor from "./pages/admin/PageEditor";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -377,6 +378,13 @@ const App = () => (
                      <ProtectedRoute>
                        <GlobalAdminRoute>
                          <CorePlatform />
+                       </GlobalAdminRoute>
+                     </ProtectedRoute>
+                   } />
+                   <Route path="/admin/page-editor" element={
+                     <ProtectedRoute>
+                       <GlobalAdminRoute>
+                         <PageEditor />
                        </GlobalAdminRoute>
                      </ProtectedRoute>
                    } />
