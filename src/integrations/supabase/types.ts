@@ -152,6 +152,7 @@ export type Database = {
           tenant_id: string
           title: string
           updated_at: string
+          visibility_level: string | null
         }
         Insert: {
           activity_type: string
@@ -164,6 +165,7 @@ export type Database = {
           tenant_id: string
           title: string
           updated_at?: string
+          visibility_level?: string | null
         }
         Update: {
           activity_type?: string
@@ -176,6 +178,7 @@ export type Database = {
           tenant_id?: string
           title?: string
           updated_at?: string
+          visibility_level?: string | null
         }
         Relationships: []
       }
@@ -395,6 +398,7 @@ export type Database = {
           active: boolean
           country_code: string | null
           created_at: string
+          created_by: string | null
           deleted_at: string | null
           deleted_by: string | null
           description: string | null
@@ -427,6 +431,7 @@ export type Database = {
           active?: boolean
           country_code?: string | null
           created_at?: string
+          created_by?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           description?: string | null
@@ -459,6 +464,7 @@ export type Database = {
           active?: boolean
           country_code?: string | null
           created_at?: string
+          created_by?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           description?: string | null
@@ -488,6 +494,13 @@ export type Database = {
           website?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "companies_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "companies_source_company_id_fkey"
             columns: ["source_company_id"]
@@ -4216,6 +4229,7 @@ export type Database = {
           country: string
           country_code: string | null
           created_at: string
+          created_by: string | null
           customer_id: string | null
           deleted_at: string | null
           deleted_by: string | null
@@ -4249,6 +4263,7 @@ export type Database = {
           country: string
           country_code?: string | null
           created_at?: string
+          created_by?: string | null
           customer_id?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
@@ -4282,6 +4297,7 @@ export type Database = {
           country?: string
           country_code?: string | null
           created_at?: string
+          created_by?: string | null
           customer_id?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
@@ -4307,6 +4323,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "sites_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sites_customer_id_fkey"
             columns: ["customer_id"]
@@ -5137,6 +5160,60 @@ export type Database = {
             columns: ["type_id"]
             isOneToOne: false
             referencedRelation: "todo_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      universal_audit_logs: {
+        Row: {
+          changed_by: string
+          created_at: string
+          entity_id: string
+          entity_type: string
+          field_name: string
+          id: string
+          new_value: Json | null
+          old_value: Json | null
+          tenant_id: string
+          visibility_level: string | null
+        }
+        Insert: {
+          changed_by: string
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          field_name: string
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          tenant_id: string
+          visibility_level?: string | null
+        }
+        Update: {
+          changed_by?: string
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          field_name?: string
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          tenant_id?: string
+          visibility_level?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "universal_audit_logs_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "universal_audit_logs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]

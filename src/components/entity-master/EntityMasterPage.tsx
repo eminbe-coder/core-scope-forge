@@ -1,4 +1,4 @@
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -9,22 +9,17 @@ import {
   ArrowLeft, 
   Edit, 
   Plus, 
-  History, 
-  Link2, 
-  FileText, 
   CheckSquare, 
-  Activity,
-  DollarSign,
   Trash2
 } from 'lucide-react';
 import { EntityTimeline } from '@/components/entity-timeline/EntityTimeline';
 import { RelationshipTimeline } from '@/components/entity-timeline/RelationshipTimeline';
 import { EntityRelationships } from '@/components/entity-relationships/EntityRelationships';
 import { TodoWidget } from '@/components/todos/TodoWidget';
-import { useTenant } from '@/hooks/use-tenant';
-import { usePermissions } from '@/hooks/use-permissions';
+import { HistoryTimeline } from './HistoryTimeline';
+import { usePageLayout, ICON_MAP, type EntityType } from '@/hooks/use-page-layout';
 
-export type EntityType = 'deal' | 'contract' | 'site' | 'contact' | 'company' | 'lead_company' | 'lead_contact';
+export type { EntityType };
 
 export interface EntityMasterPageProps {
   /** The type of entity being displayed */
@@ -54,12 +49,6 @@ export interface EntityMasterPageProps {
   onAddActivity?: () => void;
   /** Called when add todo button is clicked */
   onAddTodo?: () => void;
-  /** Whether to show installments tab (Deals/Contracts only) */
-  showInstallments?: boolean;
-  /** Whether to show files tab */
-  showFiles?: boolean;
-  /** Whether to show activities tab */
-  showActivities?: boolean;
   /** Whether to show todos in sidebar */
   showTodosInSidebar?: boolean;
   /** Custom sidebar content */
@@ -103,9 +92,6 @@ export function EntityMasterPage({
   onDelete,
   onAddActivity,
   onAddTodo,
-  showInstallments = false,
-  showFiles = false,
-  showActivities = true,
   showTodosInSidebar = true,
   sidebarContent,
   overviewContent,
@@ -122,8 +108,7 @@ export function EntityMasterPage({
   isDeleting = false,
 }: EntityMasterPageProps) {
   const navigate = useNavigate();
-  const { currentTenant } = useTenant();
-  const { hasPermission } = usePermissions();
+  const { visibleTabs, loading: configLoading } = usePageLayout({ entityType });
   
   const [internalTab, setInternalTab] = useState(defaultTab);
   const currentTab = activeTab ?? internalTab;
@@ -148,7 +133,85 @@ export function EntityMasterPage({
     return entityType as 'company' | 'contact' | 'deal' | 'site' | 'lead_company' | 'lead_contact';
   };
 
-  if (loading) {
+  // Render tab content based on component name
+  const renderTabContent = (componentName: string) => {
+    switch (componentName) {
+      case 'OverviewContent':
+        return overviewContent;
+      case 'InstallmentsContent':
+        return installmentsContent || (
+          <Card>
+            <CardHeader>
+              <CardTitle>Payment Installments</CardTitle>
+              <CardDescription>
+                Manage payment schedule and installments
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">No installments configured yet.</p>
+            </CardContent>
+          </Card>
+        );
+      case 'RelationshipsContent':
+        return (
+          <div className="grid grid-cols-1 gap-4">
+            <EntityRelationships 
+              entityType={getRelationshipEntityType()}
+              entityId={entityId}
+              title="Linked Companies & Contacts"
+            />
+            <RelationshipTimeline
+              searchId={entityId}
+              viewingEntityType={getTimelineViewType()}
+              title="Relationship History"
+              maxHeight="400px"
+            />
+          </div>
+        );
+      case 'ActivitiesContent':
+        return activitiesContent || (
+          <EntityTimeline 
+            entityType={entityType}
+            entityId={entityId}
+            title="Activity Feed"
+            maxHeight="600px"
+          />
+        );
+      case 'FilesContent':
+        return filesContent || (
+          <Card>
+            <CardHeader>
+              <CardTitle>Files & Documents</CardTitle>
+              <CardDescription>
+                Attached files and documents
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">No files attached yet.</p>
+            </CardContent>
+          </Card>
+        );
+      case 'HistoryContent':
+        return (
+          <HistoryTimeline 
+            entityType={entityType}
+            entityId={entityId}
+          />
+        );
+      default:
+        return (
+          <Card>
+            <CardContent className="py-8">
+              <p className="text-muted-foreground text-center">
+                Content for "{componentName}" not available
+              </p>
+            </CardContent>
+          </Card>
+        );
+    }
+  };
+
+  if (loading || configLoading) {
     return (
       <DashboardLayout>
         <div className="space-y-6">
@@ -272,390 +335,30 @@ export function EntityMasterPage({
             )}
           </div>
 
-          {/* Main Content Area */}
+          {/* Main Content Area - Dynamic Tabs */}
           <div className="lg:col-span-3">
             <Tabs value={currentTab} onValueChange={handleTabChange} className="space-y-4">
               <TabsList className="flex-wrap">
-                <TabsTrigger value="overview" className="flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
-                  Overview
-                </TabsTrigger>
-                
-                {showInstallments && (
-                  <TabsTrigger value="installments" className="flex items-center gap-2">
-                    <DollarSign className="h-4 w-4" />
-                    Installments
-                  </TabsTrigger>
-                )}
-                
-                <TabsTrigger value="relationships" className="flex items-center gap-2">
-                  <Link2 className="h-4 w-4" />
-                  Relationships
-                </TabsTrigger>
-                
-                {showActivities && (
-                  <TabsTrigger value="activities" className="flex items-center gap-2">
-                    <Activity className="h-4 w-4" />
-                    Activities
-                  </TabsTrigger>
-                )}
-                
-                {showFiles && (
-                  <TabsTrigger value="files" className="flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    Files
-                  </TabsTrigger>
-                )}
-                
-                <TabsTrigger value="history" className="flex items-center gap-2">
-                  <History className="h-4 w-4" />
-                  History
-                </TabsTrigger>
+                {visibleTabs.map(tab => {
+                  const IconComponent = ICON_MAP[tab.icon];
+                  return (
+                    <TabsTrigger key={tab.id} value={tab.id} className="flex items-center gap-2">
+                      {IconComponent && <IconComponent className="h-4 w-4" />}
+                      {tab.label}
+                    </TabsTrigger>
+                  );
+                })}
               </TabsList>
 
-              {/* Overview Tab */}
-              <TabsContent value="overview" className="space-y-4">
-                {overviewContent}
-              </TabsContent>
-
-              {/* Installments Tab */}
-              {showInstallments && (
-                <TabsContent value="installments" className="space-y-4">
-                  {installmentsContent || (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Payment Installments</CardTitle>
-                        <CardDescription>
-                          Manage payment schedule and installments
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-muted-foreground">No installments configured yet.</p>
-                      </CardContent>
-                    </Card>
-                  )}
+              {visibleTabs.map(tab => (
+                <TabsContent key={tab.id} value={tab.id} className="space-y-4">
+                  {renderTabContent(tab.component)}
                 </TabsContent>
-              )}
-
-              {/* Relationships Tab */}
-              <TabsContent value="relationships" className="space-y-4">
-                <div className="grid grid-cols-1 gap-4">
-                  {/* Active Relationships Manager */}
-                  <EntityRelationships 
-                    entityType={getRelationshipEntityType()}
-                    entityId={entityId}
-                    title="Linked Companies & Contacts"
-                  />
-                  
-                  {/* Relationship History Timeline */}
-                  <RelationshipTimeline
-                    searchId={entityId}
-                    viewingEntityType={getTimelineViewType()}
-                    title="Relationship History"
-                    maxHeight="400px"
-                  />
-                </div>
-              </TabsContent>
-
-              {/* Activities Tab */}
-              {showActivities && (
-                <TabsContent value="activities" className="space-y-4">
-                  {activitiesContent || (
-                    <EntityTimeline 
-                      entityType={entityType}
-                      entityId={entityId}
-                      title="Activity Feed"
-                      maxHeight="600px"
-                    />
-                  )}
-                </TabsContent>
-              )}
-
-              {/* Files Tab */}
-              {showFiles && (
-                <TabsContent value="files" className="space-y-4">
-                  {filesContent || (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Files & Documents</CardTitle>
-                        <CardDescription>
-                          Attached files and documents
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-muted-foreground">No files attached yet.</p>
-                      </CardContent>
-                    </Card>
-                  )}
-                </TabsContent>
-              )}
-
-              {/* History Tab - Unified Audit + Activity Timeline */}
-              <TabsContent value="history" className="space-y-4">
-                <HistoryTimeline 
-                  entityType={entityType}
-                  entityId={entityId}
-                />
-              </TabsContent>
+              ))}
             </Tabs>
           </div>
         </div>
       </div>
     </DashboardLayout>
-  );
-}
-
-// ============================================
-// HistoryTimeline - Unified audit + activity view
-// ============================================
-
-interface HistoryTimelineProps {
-  entityType: string;
-  entityId: string;
-}
-
-function HistoryTimeline({ entityType, entityId }: HistoryTimelineProps) {
-  const { currentTenant } = useTenant();
-  const [loading, setLoading] = useState(true);
-  const [entries, setEntries] = useState<HistoryEntry[]>([]);
-
-  interface HistoryEntry {
-    id: string;
-    type: 'activity' | 'audit';
-    title: string;
-    description?: string;
-    timestamp: string;
-    actor?: string;
-    category: string;
-    metadata?: Record<string, any>;
-  }
-
-  useEffect(() => {
-    fetchHistory();
-  }, [currentTenant, entityType, entityId]);
-
-  const fetchHistory = async () => {
-    if (!currentTenant?.id || !entityId) return;
-
-    try {
-      setLoading(true);
-      
-      // Import supabase here to avoid circular dependencies
-      const { supabase } = await import('@/integrations/supabase/client');
-      
-      // Fetch activity logs
-      const { data: activityLogs, error: activityError } = await supabase
-        .from('activity_logs')
-        .select(`
-          id,
-          title,
-          description,
-          activity_type,
-          created_at,
-          created_by
-        `)
-        .eq('tenant_id', currentTenant.id)
-        .eq('entity_type', entityType)
-        .eq('entity_id', entityId)
-        .order('created_at', { ascending: false });
-
-      if (activityError) throw activityError;
-
-      // Get user names for activity logs
-      const activityEntries: HistoryEntry[] = await Promise.all(
-        (activityLogs || []).map(async (log) => {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('first_name, last_name')
-            .eq('id', log.created_by)
-            .single();
-
-          return {
-            id: log.id,
-            type: 'activity' as const,
-            title: log.title,
-            description: log.description || undefined,
-            timestamp: log.created_at,
-            actor: profile ? `${profile.first_name} ${profile.last_name}`.trim() : undefined,
-            category: log.activity_type,
-          };
-        })
-      );
-
-      // Sort by timestamp descending
-      const allEntries = [...activityEntries].sort(
-        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      );
-
-      setEntries(allEntries);
-    } catch (error) {
-      console.error('Error fetching history:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getCategoryColor = (category: string): string => {
-    const colors: Record<string, string> = {
-      todo_created: 'bg-blue-500',
-      todo_completed: 'bg-green-500',
-      todo_status_changed: 'bg-amber-500',
-      todo_assigned: 'bg-purple-500',
-      todo_updated: 'bg-slate-500',
-      note: 'bg-gray-500',
-      call: 'bg-green-600',
-      email: 'bg-blue-600',
-      meeting: 'bg-purple-600',
-      file_upload: 'bg-indigo-500',
-      status_changed: 'bg-orange-500',
-      field_changed: 'bg-cyan-500',
-      deal_created: 'bg-emerald-500',
-      contract_created: 'bg-teal-500',
-      company_created: 'bg-violet-500',
-      contact_created: 'bg-pink-500',
-      site_created: 'bg-rose-500',
-    };
-    return colors[category] || 'bg-muted-foreground';
-  };
-
-  const getCategoryLabel = (category: string): string => {
-    const labels: Record<string, string> = {
-      todo_created: 'To-Do Created',
-      todo_completed: 'To-Do Completed',
-      todo_status_changed: 'Status Changed',
-      todo_assigned: 'Assignment Changed',
-      todo_updated: 'To-Do Updated',
-      note: 'Note',
-      call: 'Call',
-      email: 'Email',
-      meeting: 'Meeting',
-      file_upload: 'File Upload',
-      status_changed: 'Status Changed',
-      field_changed: 'Field Changed',
-      deal_created: 'Deal Created',
-      contract_created: 'Contract Created',
-      company_created: 'Company Created',
-      contact_created: 'Contact Created',
-      site_created: 'Site Created',
-    };
-    return labels[category] || category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-  };
-
-  if (loading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <History className="h-5 w-5" />
-            Complete History
-          </CardTitle>
-          <CardDescription>
-            All changes and activities for this record
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center text-muted-foreground py-4">Loading history...</div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (entries.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <History className="h-5 w-5" />
-            Complete History
-          </CardTitle>
-          <CardDescription>
-            All changes and activities for this record
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8">
-            <History className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">No history recorded yet</p>
-            <p className="text-xs text-muted-foreground mt-2">
-              Changes and activities will appear here as they occur
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <History className="h-5 w-5" />
-          Complete History
-        </CardTitle>
-        <CardDescription>
-          All changes and activities for this record ({entries.length} entries)
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="relative max-h-[600px] overflow-y-auto pr-4">
-          {/* Timeline line */}
-          <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border" />
-          
-          <div className="space-y-4">
-            {entries.map((entry) => (
-              <div key={entry.id} className="relative flex gap-4 pl-1">
-                {/* Timeline dot */}
-                <div className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white ${getCategoryColor(entry.category)}`}>
-                  {entry.type === 'audit' ? (
-                    <Edit className="h-4 w-4" />
-                  ) : (
-                    <Activity className="h-4 w-4" />
-                  )}
-                </div>
-                
-                {/* Content */}
-                <div className="flex-1 rounded-lg border bg-card p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-sm">{entry.title}</span>
-                        <Badge variant="secondary" className="text-xs shrink-0">
-                          {getCategoryLabel(entry.category)}
-                        </Badge>
-                        <Badge variant="outline" className="text-xs shrink-0">
-                          {entry.type === 'audit' ? 'Audit' : 'Activity'}
-                        </Badge>
-                      </div>
-                      
-                      {entry.description && (
-                        <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">
-                          {entry.description}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                    <span>
-                      {new Date(entry.timestamp).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
-                    
-                    {entry.actor && (
-                      <span>by {entry.actor}</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
