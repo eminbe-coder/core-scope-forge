@@ -31,7 +31,7 @@ import { Badge } from '@/components/ui/badge';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { UniversalContactModal } from '@/components/modals/UniversalContactModal';
-import { QuickAddSiteModal } from '@/components/modals/QuickAddSiteModal';
+import { UniversalSiteModal } from '@/components/modals/UniversalSiteModal';
 
 const companySchema = z.object({
   name: z.string().min(2, 'Company name must be at least 2 characters'),
@@ -904,7 +904,7 @@ const AddCompany = () => {
           onContactCreated={handleContactCreated}
         />
         
-        <QuickAddSiteModal
+        <UniversalSiteModal
           open={showSiteModal}
           onClose={() => setShowSiteModal(false)}
           onSiteCreated={handleSiteCreated}

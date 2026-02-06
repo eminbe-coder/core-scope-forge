@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { QuickAddCompanyModal } from '@/components/modals/QuickAddCompanyModal';
+import { UniversalCompanyModal } from '@/components/modals/UniversalCompanyModal';
 import { UniversalContactModal } from '@/components/modals/UniversalContactModal';
 import { toast } from 'sonner';
 import { Plus, Trash2, Building2, User } from 'lucide-react';
@@ -417,7 +417,7 @@ export function EntityRelationshipSelector({
         )}
       </CardContent>
 
-      <QuickAddCompanyModal
+      <UniversalCompanyModal
         open={showCompanyModal}
         onClose={() => setShowCompanyModal(false)}
         onCompanyCreated={handleCompanyCreated}

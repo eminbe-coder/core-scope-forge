@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { Building } from "lucide-react";
 import { useDynamicCompanies } from "@/hooks/use-dynamic-entities";
-import { QuickAddCompanyModal } from "@/components/modals/QuickAddCompanyModal";
+import { UniversalCompanyModal } from "@/components/modals/UniversalCompanyModal";
 import { EntitySelectPopover } from "./EntitySelectPopover";
 import { BaseEntitySelectProps, EntityOption } from "./types";
 
@@ -65,7 +65,7 @@ export function CompanySelect({
         showQuickAdd={showQuickAdd}
       />
 
-      <QuickAddCompanyModal
+      <UniversalCompanyModal
         open={showModal}
         onClose={() => setShowModal(false)}
         onCompanyCreated={handleCompanyCreated}

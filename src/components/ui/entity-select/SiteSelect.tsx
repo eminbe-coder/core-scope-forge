@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { MapPin } from "lucide-react";
 import { useDynamicSites } from "@/hooks/use-dynamic-entities";
-import { QuickAddSiteModal } from "@/components/modals/QuickAddSiteModal";
+import { UniversalSiteModal } from "@/components/modals/UniversalSiteModal";
 import { EntitySelectPopover } from "./EntitySelectPopover";
 import { BaseEntitySelectProps, EntityOption } from "./types";
 
@@ -68,7 +68,7 @@ export function SiteSelect({
         showQuickAdd={showQuickAdd}
       />
 
-      <QuickAddSiteModal
+      <UniversalSiteModal
         open={showModal}
         onClose={() => setShowModal(false)}
         onSiteCreated={handleSiteCreated}
