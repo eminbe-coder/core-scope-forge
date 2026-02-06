@@ -21,8 +21,8 @@ import { validateContactDuplicates, normalizeEmail } from '@/lib/contact-validat
 import { ArrowLeft, Upload, Download, User, Mail, FileText, Users, Phone, MapPin, Building2, Plus } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
-import { QuickAddCompanyModal } from '@/components/modals/QuickAddCompanyModal';
-import { QuickAddSiteModal } from '@/components/modals/QuickAddSiteModal';
+import { UniversalCompanyModal } from '@/components/modals/UniversalCompanyModal';
+import { UniversalSiteModal } from '@/components/modals/UniversalSiteModal';
 
 const contactSchema = z.object({
   first_name: z.string().min(1, 'First name is required'),
@@ -619,13 +619,13 @@ const AddContact = () => {
         </Card>
 
         {/* Quick Add Modals */}
-        <QuickAddCompanyModal
+        <UniversalCompanyModal
           open={showCompanyModal}
           onClose={() => setShowCompanyModal(false)}
           onCompanyCreated={handleCompanyCreated}
         />
         
-        <QuickAddSiteModal
+        <UniversalSiteModal
           open={showSiteModal}
           onClose={() => setShowSiteModal(false)}
           onSiteCreated={handleSiteCreated}

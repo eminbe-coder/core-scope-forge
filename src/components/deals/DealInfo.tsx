@@ -8,8 +8,8 @@ import { SearchableSelect } from '@/components/ui/searchable-select';
 import { UnifiedEntitySelect } from '@/components/ui/unified-entity-select';
 import { MultiSelectDropdown } from '@/components/deals/MultiSelectDropdown';
 import { SolutionCategorySelect } from '@/components/ui/solution-category-select';
-import { QuickAddSiteModal } from '@/components/modals/QuickAddSiteModal';
-import { QuickAddCompanyModal } from '@/components/modals/QuickAddCompanyModal';
+import { UniversalSiteModal } from '@/components/modals/UniversalSiteModal';
+import { UniversalCompanyModal } from '@/components/modals/UniversalCompanyModal';
 import { UniversalContactModal } from '@/components/modals/UniversalContactModal';
 import { DollarSign, Calendar, Building, MapPin, Percent, Edit3, Save, X, Users, User, Plus, CheckSquare, Trash2, Tag } from 'lucide-react';
 import { DealStatusChangeDialog } from './DealStatusChangeDialog';
@@ -1589,7 +1589,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
       </Card>
       
       {/* Modals */}
-      <QuickAddSiteModal
+      <UniversalSiteModal
         open={showSiteModal}
         onClose={() => setShowSiteModal(false)}
         onSiteCreated={() => {
@@ -1597,7 +1597,7 @@ export const DealInfo = ({ deal, onUpdate }: DealInfoProps) => {
         }}
       />
       
-      <QuickAddCompanyModal
+      <UniversalCompanyModal
         open={showCompanyModal}
         onClose={() => setShowCompanyModal(false)}
         onCompanyCreated={() => {
